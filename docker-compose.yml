@@ -24,6 +24,7 @@ services:
       dockerfile: Dockerfile
     command: >
       sh -c "python manage.py migrate --noinput &&
+             python manage.py create_default_admin &&
              python manage.py runserver 0.0.0.0:8000"
     restart: unless-stopped
     ports:
