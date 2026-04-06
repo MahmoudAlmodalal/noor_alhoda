@@ -2,9 +2,9 @@ from django.db.models import Sum, Count, Avg, Q
 from django.utils import timezone
 from rest_framework.exceptions import PermissionDenied
 
-from backend.students.models import Student
-from backend.records.models import DailyRecord, WeeklyPlan
-from backend.accounts.models import Teacher, User
+from students.models import Student
+from records.models import DailyRecord, WeeklyPlan
+from accounts.models import Teacher, User
 
 
 def dashboard_data(*, admin_user) -> dict:

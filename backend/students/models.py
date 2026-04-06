@@ -2,7 +2,7 @@ import uuid
 
 from django.db import models
 
-from backend.accounts.models import User, Teacher
+from accounts.models import User, Teacher
 
 
 class Student(models.Model):

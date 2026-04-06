@@ -1,6 +1,6 @@
 from django.urls import path
 
-from backend.reports.views.report_views import (
+from reports.views.report_views import (
     DashboardApi,
     AttendanceReportApi,
     StudentPDFReportApi,

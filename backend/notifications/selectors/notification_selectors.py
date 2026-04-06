@@ -1,7 +1,7 @@
 from django.db.models import QuerySet
 
-from backend.notifications.models import Notification
-from backend.accounts.models import User
+from notifications.models import Notification
+from accounts.models import User
 
 
 def notification_list(*, user: User) -> QuerySet[Notification]:

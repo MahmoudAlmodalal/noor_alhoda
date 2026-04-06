@@ -1,6 +1,6 @@
 from django.urls import path
 
-from backend.students.views.student_views import (
+from students.views.student_views import (
     StudentListApi,
     StudentCreateApi,
     StudentDetailApi,

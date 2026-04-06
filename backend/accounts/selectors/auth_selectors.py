@@ -1,6 +1,6 @@
 from django.shortcuts import get_object_or_404
 
-from backend.accounts.models import User
+from accounts.models import User
 
 
 def user_get_by_phone(*, phone: str) -> User:

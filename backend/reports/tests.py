@@ -6,9 +6,9 @@ from datetime import date
 
 from rest_framework.test import APITestCase
 
-from backend.accounts.models import Teacher, User
-from backend.records.models import DailyRecord, WeeklyPlan
-from backend.students.models import Student
+from accounts.models import Teacher, User
+from records.models import DailyRecord, WeeklyPlan
+from students.models import Student
 
 
 class ReportTestSetup(APITestCase):

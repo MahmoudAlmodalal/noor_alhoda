@@ -8,7 +8,7 @@ from rest_framework.exceptions import ValidationError, AuthenticationFailed
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
 
-from backend.accounts.models import User, OTPCode
+from accounts.models import User, OTPCode
 
 
 def user_login(*, phone: str, password: str) -> dict:

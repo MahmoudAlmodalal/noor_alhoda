@@ -4,7 +4,7 @@ import secrets
 from django.db import transaction
 from rest_framework.exceptions import ValidationError, PermissionDenied
 
-from backend.accounts.models import User, Teacher, Parent
+from accounts.models import User, Teacher, Parent
 
 logger = logging.getLogger(__name__)
 

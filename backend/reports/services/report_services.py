@@ -8,8 +8,8 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 
-from backend.students.models import Student
-from backend.records.models import WeeklyPlan, DailyRecord
+from students.models import Student
+from records.models import WeeklyPlan, DailyRecord
 
 
 def generate_student_pdf(*, student_id) -> bytes:

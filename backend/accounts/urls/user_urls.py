@@ -1,6 +1,6 @@
 from django.urls import path
 
-from backend.accounts.views.user_views import (
+from accounts.views.user_views import (
     UserListApi,
     UserCreateApi,
     UserDetailApi,

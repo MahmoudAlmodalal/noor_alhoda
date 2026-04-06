@@ -2,7 +2,7 @@ import uuid
 
 from django.db import models
 
-from backend.accounts.models import User
+from accounts.models import User
 
 
 class Notification(models.Model):

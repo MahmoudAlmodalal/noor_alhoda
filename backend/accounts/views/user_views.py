@@ -2,9 +2,9 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, serializers
 
-from backend.core.permissions import IsAdmin, IsAdminOrTeacher
-from backend.accounts.selectors.user_selectors import user_list, user_get, teacher_list
-from backend.accounts.services.user_services import (
+from core.permissions import IsAdmin, IsAdminOrTeacher
+from accounts.selectors.user_selectors import user_list, user_get, teacher_list
+from accounts.services.user_services import (
     user_create,
     user_update,
     user_deactivate,

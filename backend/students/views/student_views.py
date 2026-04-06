@@ -2,14 +2,14 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, serializers
 
-from backend.core.permissions import IsAdmin, IsAdminOrTeacher, IsAdminOrTeacherOrSelf
-from backend.students.selectors.student_selectors import (
+from core.permissions import IsAdmin, IsAdminOrTeacher, IsAdminOrTeacherOrSelf
+from students.selectors.student_selectors import (
     student_list,
     student_get,
     student_history,
     student_stats,
 )
-from backend.students.services.student_services import (
+from students.services.student_services import (
     student_create,
     student_update,
     student_deactivate,

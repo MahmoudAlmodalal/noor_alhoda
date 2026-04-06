@@ -1,9 +1,9 @@
 from django.db import transaction
 from rest_framework.exceptions import ValidationError, PermissionDenied
 
-from backend.accounts.models import User, Teacher, Parent, ParentStudentLink
-from backend.accounts.services.user_services import user_create
-from backend.students.models import Student
+from accounts.models import User, Teacher, Parent, ParentStudentLink
+from accounts.services.user_services import user_create
+from students.models import Student
 
 
 @transaction.atomic
@@ -108,7 +108,7 @@ def student_deactivate(*, student_id, actor: User) -> Student:
     if actor.role != "admin":
         raise PermissionDenied("فقط المدير يمكنه إيقاف تسجيل الطلاب.")
 
-    from backend.students.selectors.student_selectors import student_get
+    from students.selectors.student_selectors import student_get
 
     student = student_get(student_id=student_id, actor=actor)
     student.is_active = False
@@ -129,7 +129,7 @@ def student_assign_teacher(*, student_id, teacher_id, actor: User) -> Student:
     if actor.role != "admin":
         raise PermissionDenied("فقط المدير يمكنه تعيين المحفظ.")
 
-    from backend.students.selectors.student_selectors import student_get
+    from students.selectors.student_selectors import student_get
 
     student = student_get(student_id=student_id, actor=actor)
 
@@ -158,7 +158,7 @@ def student_link_parent(*, student_id, parent_id, actor: User) -> ParentStudentL
     if actor.role != "admin":
         raise PermissionDenied("فقط المدير يمكنه ربط ولي الأمر بالطالب.")
 
-    from backend.students.selectors.student_selectors import student_get
+    from students.selectors.student_selectors import student_get
 
     student = student_get(student_id=student_id, actor=actor)
 

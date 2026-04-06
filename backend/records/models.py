@@ -2,8 +2,8 @@ import uuid
 
 from django.db import models
 
-from backend.accounts.models import User
-from backend.students.models import Student
+from accounts.models import User
+from students.models import Student
 
 
 class WeeklyPlan(models.Model):

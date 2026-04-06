@@ -2,8 +2,8 @@ from django.db.models import QuerySet, Q, Sum, Count, Avg
 from django.shortcuts import get_object_or_404
 from rest_framework.exceptions import PermissionDenied
 
-from backend.students.models import Student
-from backend.accounts.models import User, ParentStudentLink
+from students.models import Student
+from accounts.models import User, ParentStudentLink
 
 
 def can_access_student(*, actor: User, student: Student) -> bool:
@@ -84,7 +84,7 @@ def student_history(*, student_id, actor: User):
     """
     Return full memorization history (WeeklyPlans) for a student.
     """
-    from backend.records.models import WeeklyPlan
+    from records.models import WeeklyPlan
 
     student = student_get(student_id=student_id, actor=actor)
     return WeeklyPlan.objects.filter(
@@ -96,7 +96,7 @@ def student_stats(*, student_id, actor: User) -> dict:
     """
     Calculate student statistics: attendance rate, total verses, etc.
     """
-    from backend.records.models import DailyRecord, WeeklyPlan
+    from records.models import DailyRecord, WeeklyPlan
 
     student = student_get(student_id=student_id, actor=actor)
 

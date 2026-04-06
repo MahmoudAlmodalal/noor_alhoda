@@ -1,8 +1,8 @@
 from django.db.models import QuerySet, Sum
 from rest_framework.exceptions import PermissionDenied
 
-from backend.records.models import DailyRecord, WeeklyPlan
-from backend.accounts.models import User
+from records.models import DailyRecord, WeeklyPlan
+from accounts.models import User
 
 
 def daily_records_by_date(*, teacher_user: User, date) -> QuerySet[DailyRecord]:
@@ -29,7 +29,7 @@ def weekly_summary(*, student_id, week_start, actor: User) -> dict:
     """
     Get weekly summary for a specific student and week.
     """
-    from backend.students.selectors.student_selectors import can_access_student, student_get
+    from students.selectors.student_selectors import can_access_student, student_get
 
     student = student_get(student_id=student_id, actor=actor)
 

@@ -6,10 +6,10 @@ from datetime import date
 
 from rest_framework.test import APITestCase
 
-from backend.accounts.models import Parent, ParentStudentLink, Teacher, User
-from backend.notifications.models import Notification
-from backend.notifications.services.notification_services import send_absence_notification
-from backend.students.models import Student
+from accounts.models import Parent, ParentStudentLink, Teacher, User
+from notifications.models import Notification
+from notifications.services.notification_services import send_absence_notification
+from students.models import Student
 
 
 class NotificationTestSetup(APITestCase):

@@ -9,7 +9,7 @@ from django.utils import timezone
 from rest_framework.test import APITestCase
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from backend.accounts.models import OTPCode, User, Teacher
+from accounts.models import OTPCode, User, Teacher
 
 
 class TestSetupMixin:

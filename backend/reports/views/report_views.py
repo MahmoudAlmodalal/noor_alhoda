@@ -3,19 +3,19 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, serializers
 
-from backend.core.permissions import IsAdmin, IsAdminOrTeacher, IsAdminOrTeacherOrSelf
+from core.permissions import IsAdmin, IsAdminOrTeacher, IsAdminOrTeacherOrSelf
 
 
 class MonthYearFilterSerializer(serializers.Serializer):
     month = serializers.IntegerField(min_value=1, max_value=12)
     year = serializers.IntegerField(min_value=2020, max_value=2100)
-from backend.students.selectors.student_selectors import student_get
-from backend.reports.selectors.report_selectors import (
+from students.selectors.student_selectors import student_get
+from reports.selectors.report_selectors import (
     dashboard_data,
     attendance_report,
     leaderboard,
 )
-from backend.reports.services.report_services import generate_student_pdf
+from reports.services.report_services import generate_student_pdf
 
 
 class DashboardApi(APIView):

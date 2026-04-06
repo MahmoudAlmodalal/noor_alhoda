@@ -1,6 +1,6 @@
 from django.urls import path
 
-from backend.records.views.record_views import (
+from records.views.record_views import (
     DailyRecordListApi,
     DailyRecordCreateApi,
     DailyRecordUpdateApi,

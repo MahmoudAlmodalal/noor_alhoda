@@ -4,10 +4,10 @@ from django.db import transaction
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError, PermissionDenied
 
-from backend.records.models import WeeklyPlan, DailyRecord
-from backend.accounts.models import User
-from backend.students.models import Student
-from backend.notifications.services.notification_services import send_absence_notification
+from records.models import WeeklyPlan, DailyRecord
+from accounts.models import User
+from students.models import Student
+from notifications.services.notification_services import send_absence_notification
 
 
 @transaction.atomic

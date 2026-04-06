@@ -1,13 +1,31 @@
+"use client";
+
 import { Card, CardContent } from "@/components/ui/Card";
 import { Users, BookOpen, Star, PlusCircle, ClipboardCheck, Bell } from "lucide-react";
 import Link from "next/link";
+import { useAuth } from "@/contexts/AuthContext";
+import { useApi } from "@/hooks/useApi";
+import { PageLoading } from "@/components/ui/LoadingSpinner";
+import type { DashboardStats, Notification } from "@/types/api";
 
 export default function Dashboard() {
+  const { user } = useAuth();
+  const { data: stats, isLoading: statsLoading } = useApi<DashboardStats>("/api/reports/dashboard/");
+  const { data: notifData, isLoading: notifLoading } = useApi<{ unread_count: number; data: Notification[] }>("/api/notifications/");
+
+  const isLoading = statsLoading || notifLoading;
+
+  if (isLoading) return <PageLoading />;
+
+  const notifications = notifData?.data?.slice(0, 5) ?? [];
+
   return (
     <div className="space-y-6 max-w-lg mx-auto">
       {/* Welcome Section */}
       <div className="text-center space-y-2 mb-8">
-        <h1 className="text-2xl font-bold text-primary">مرحباً، مدير المركز</h1>
+        <h1 className="text-2xl font-bold text-primary">
+          مرحباً، {user?.full_name || "مدير المركز"}
+        </h1>
         <p className="text-sm text-slate-500 max-w-xs mx-auto">
           نسأل الله لك التوفيق في إدارة هذه المؤسسة المباركة
         </p>
@@ -19,12 +37,11 @@ export default function Dashboard() {
 
       {/* Stats Cards */}
       <div className="flex flex-col gap-4">
-        {/* Enrolled Students */}
         <Card className="rounded-2xl shadow-sm border-slate-100 overflow-hidden">
           <CardContent className="p-0 flex items-center justify-between p-5">
             <div className="text-start">
               <p className="text-xs text-slate-500 font-medium mb-1">عدد الطلاب المسجلين</p>
-              <h2 className="text-4xl font-black text-primary">156</h2>
+              <h2 className="text-4xl font-black text-primary">{stats?.total_students ?? 0}</h2>
             </div>
             <div className="bg-[#eef3f8] w-14 h-14 rounded-full flex items-center justify-center">
               <Users className="w-7 h-7 text-primary" />
@@ -32,12 +49,11 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* Number of Rings */}
         <Card className="rounded-2xl shadow-sm border-slate-100 overflow-hidden">
           <CardContent className="p-0 flex items-center justify-between p-5">
             <div className="text-start">
-              <p className="text-xs text-slate-500 font-medium mb-1">عدد الحلقات</p>
-              <h2 className="text-4xl font-black text-[#e6b150]">12</h2>
+              <p className="text-xs text-slate-500 font-medium mb-1">عدد المحفظين</p>
+              <h2 className="text-4xl font-black text-[#e6b150]">{stats?.total_teachers ?? 0}</h2>
             </div>
             <div className="bg-[#fcf8ef] w-14 h-14 rounded-full flex items-center justify-center">
               <BookOpen className="w-7 h-7 text-[#e6b150]" />
@@ -45,12 +61,11 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* Perfect Memorizers */}
         <Card className="rounded-2xl shadow-sm border-slate-100 overflow-hidden">
           <CardContent className="p-0 flex items-center justify-between p-5">
             <div className="text-start">
-              <p className="text-xs text-slate-500 font-medium mb-1">الحفظة المتقنون</p>
-              <h2 className="text-4xl font-black text-primary">23</h2>
+              <p className="text-xs text-slate-500 font-medium mb-1">الحضور اليوم</p>
+              <h2 className="text-4xl font-black text-primary">{stats?.today?.present ?? 0}</h2>
             </div>
             <div className="bg-[#eef3f8] w-14 h-14 rounded-full flex items-center justify-center">
               <Star className="w-7 h-7 text-primary" />
@@ -62,11 +77,11 @@ export default function Dashboard() {
       {/* Quick Actions */}
       <div className="grid grid-cols-2 gap-4">
         <Link href="/students/register" className="flex flex-col items-center justify-center bg-primary text-white rounded-2xl p-4 shadow-md shadow-primary/20 hover:bg-primary/90 transition-colors gap-2 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-bl-full border-b border-l border-white/5 disabled:pointer-events-none" />
+          <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-bl-full border-b border-l border-white/5" />
           <PlusCircle className="w-8 h-8 z-10" />
           <div className="text-center z-10">
             <span className="block font-bold text-sm mb-0.5">تسجيل طالب جديد</span>
-            <span className="block text-[10px] text-primary-50 text-white/80 max-w-[100px]">إضافة طالب جديد إلى المركز وإصدار بطاقته</span>
+            <span className="block text-[10px] text-white/80 max-w-[100px]">إضافة طالب جديد إلى المركز وإصدار بطاقته</span>
           </div>
         </Link>
 
@@ -88,26 +103,22 @@ export default function Dashboard() {
         </h3>
 
         <div className="space-y-3">
-          <div className="flex justify-between items-center bg-slate-50 p-4 rounded-xl">
-            <p className="text-sm text-slate-800 font-medium">تم تسجيل طالب جديد: أحمد محمد علي</p>
-            <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-sm border border-slate-100 shrink-0 ms-3">
-              <Bell className="w-4 h-4 text-primary" />
-            </div>
-          </div>
-
-          <div className="flex justify-between items-center bg-slate-50 p-4 rounded-xl">
-            <p className="text-sm text-slate-800 font-medium">حفظ جزء عم - الطالب: فاطمة أحمد</p>
-            <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-sm border border-slate-100 shrink-0 ms-3">
-              <Star className="w-4 h-4 text-[#2f944d]" />
-            </div>
-          </div>
-
-          <div className="flex justify-between items-center bg-slate-50 p-4 rounded-xl">
-            <p className="text-sm text-slate-800 font-medium">تحديث جدول الحضور لليوم</p>
-            <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-sm border border-slate-100 shrink-0 ms-3">
-              <ClipboardCheck className="w-4 h-4 text-[#9333ea]" />
-            </div>
-          </div>
+          {notifications.length === 0 ? (
+            <p className="text-sm text-slate-400 text-center py-4">لا توجد إ��عارات حديثة</p>
+          ) : (
+            notifications.map((notif) => (
+              <div key={notif.id} className="flex justify-between items-center bg-slate-50 p-4 rounded-xl">
+                <p className="text-sm text-slate-800 font-medium">{notif.title}</p>
+                <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-sm border border-slate-100 shrink-0 ms-3">
+                  {notif.type === "absence" ? (
+                    <ClipboardCheck className="w-4 h-4 text-[#9333ea]" />
+                  ) : (
+                    <Bell className="w-4 h-4 text-primary" />
+                  )}
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
     </div>

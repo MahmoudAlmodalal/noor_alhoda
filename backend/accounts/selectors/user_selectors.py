@@ -2,7 +2,7 @@ from django.db.models import QuerySet
 from django.shortcuts import get_object_or_404
 from rest_framework.exceptions import PermissionDenied
 
-from backend.accounts.models import User, Teacher
+from accounts.models import User, Teacher
 
 
 def user_list(*, filters: dict, actor: User) -> QuerySet[User]:

@@ -3,8 +3,8 @@ from datetime import timedelta
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
-from backend.records.models import WeeklyPlan, DailyRecord
-from backend.students.models import Student
+from records.models import WeeklyPlan, DailyRecord
+from students.models import Student
 
 
 class Command(BaseCommand):

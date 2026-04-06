@@ -7,10 +7,10 @@ from datetime import date, timedelta
 from django.utils import timezone
 from rest_framework.test import APITestCase
 
-from backend.accounts.models import Parent, ParentStudentLink, Teacher, User
-from backend.notifications.models import Notification
-from backend.records.models import DailyRecord, WeeklyPlan
-from backend.students.models import Student
+from accounts.models import Parent, ParentStudentLink, Teacher, User
+from notifications.models import Notification
+from records.models import DailyRecord, WeeklyPlan
+from students.models import Student
 
 
 class RecordTestSetup(APITestCase):

@@ -7,13 +7,13 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 
 logger = logging.getLogger(__name__)
 
-from backend.accounts.services.auth_services import (
+from accounts.services.auth_services import (
     user_login,
     user_logout,
     otp_send,
     otp_verify,
 )
-from backend.accounts.selectors.auth_selectors import user_get_me
+from accounts.selectors.auth_selectors import user_get_me
 
 
 # ---------------------------------------------------------------------------

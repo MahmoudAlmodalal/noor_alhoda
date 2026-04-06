@@ -2,9 +2,9 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, serializers
 
-from backend.core.permissions import IsAdminOrTeacher, IsAdminOrTeacherOrSelf
-from backend.records.selectors.record_selectors import daily_records_by_date, weekly_summary
-from backend.records.services.record_services import (
+from core.permissions import IsAdminOrTeacher, IsAdminOrTeacherOrSelf
+from records.selectors.record_selectors import daily_records_by_date, weekly_summary
+from records.services.record_services import (
     daily_record_create,
     daily_record_update,
     bulk_attendance_create,

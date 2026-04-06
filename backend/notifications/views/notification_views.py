@@ -3,12 +3,12 @@ from rest_framework.response import Response
 from rest_framework import status, serializers
 from rest_framework.permissions import IsAuthenticated
 
-from backend.core.permissions import IsAdmin
-from backend.notifications.selectors.notification_selectors import (
+from core.permissions import IsAdmin
+from notifications.selectors.notification_selectors import (
     notification_list,
     notification_unread_count,
 )
-from backend.notifications.services.notification_services import (
+from notifications.services.notification_services import (
     notification_mark_read,
     notification_mark_all_read,
     announcement_send,

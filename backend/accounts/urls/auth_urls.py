@@ -1,7 +1,7 @@
 from django.urls import path
 from rest_framework_simplejwt.views import TokenRefreshView
 
-from backend.accounts.views.auth_views import (
+from accounts.views.auth_views import (
     LoginApi,
     LogoutApi,
     OTPSendApi,

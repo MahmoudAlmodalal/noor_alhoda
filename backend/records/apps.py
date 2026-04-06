@@ -7,4 +7,4 @@ class RecordsConfig(AppConfig):
     verbose_name = "السجلات"
 
     def ready(self):
-        import backend.records.signals  # noqa: F401
+        import records.signals  # noqa: F401

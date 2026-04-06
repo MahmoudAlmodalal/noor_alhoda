@@ -4,8 +4,8 @@ from django.db import transaction
 from django.shortcuts import get_object_or_404
 from rest_framework.exceptions import PermissionDenied
 
-from backend.notifications.models import Notification
-from backend.accounts.models import User
+from notifications.models import Notification
+from accounts.models import User
 
 
 @transaction.atomic
