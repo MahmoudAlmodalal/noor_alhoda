@@ -5,14 +5,13 @@ databases:
     user: noor_alhuda
 
 services:
-  # ── Backend (Django) ──
   - type: web
-    name: noor-alhuda-backend
-    runtime: python
+    name: noor_alhoda
+    runtime: docker
     plan: free
-    rootDir: backend
-    buildCommand: chmod +x build.sh && ./build.sh
-    startCommand: gunicorn noor_alhuda.wsgi:application --bind 0.0.0.0:$PORT
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
     envVars:
       - key: DJANGO_SETTINGS_MODULE
         value: noor_alhuda.settings.production
@@ -24,25 +23,11 @@ services:
         fromDatabase:
           name: noor-alhuda-db
           property: connectionString
-      - key: PYTHON_VERSION
-        value: "3.11.9"
       - key: CORS_ALLOWED_ORIGINS
-        sync: false
+        value: https://noor-alhoda.onrender.com
+      - key: CSRF_TRUSTED_ORIGINS
+        value: https://noor-alhoda.onrender.com
       - key: CLOUDINARY_URL
         sync: false
       - key: FCM_SERVER_KEY
         sync: false
-
-  # ── Frontend (Next.js) ──
-  - type: web
-    name: noor-alhuda-frontend
-    runtime: node
-    plan: free
-    rootDir: frontend
-    buildCommand: npm ci && npm run build
-    startCommand: npm start
-    envVars:
-      - key: NEXT_PUBLIC_API_URL
-        sync: false
-      - key: NODE_VERSION
-        value: "20.11.1"

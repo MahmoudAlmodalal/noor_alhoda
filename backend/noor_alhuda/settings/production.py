@@ -36,10 +36,20 @@ else:
         }
     }
 
+# Django static files — use /django-static/ to avoid collision with Next.js /_next/static/
+STATIC_URL = "/django-static/"
+
+# CSRF trusted origins (required for admin behind Nginx proxy)
+CSRF_TRUSTED_ORIGINS = config(
+    "CSRF_TRUSTED_ORIGINS",
+    default="https://noor-alhoda.onrender.com",
+    cast=lambda v: [s.strip() for s in v.split(",")],
+)
+
 # Tighten CORS in production
 CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOWED_ORIGINS = config(
     "CORS_ALLOWED_ORIGINS",
-    default="https://nooralhuda.app",
+    default="https://noor-alhoda.onrender.com",
     cast=lambda v: [s.strip() for s in v.split(",")],
 )
