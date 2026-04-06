@@ -226,19 +226,24 @@ The **Noor Al-Huda** app is an integrated mobile management platform for a Quran
 | completion_rate | DecimalField(5,2) | Computed @property |
 
 ### 6.4 DailyRecord
+> Structure mirrors the physical weekly tracking sheet (كشف الأسبوعي). Each row = one student × one day, with المطلوب/الإنجاز sub-fields. Sheet also has تقييم and نتيجة columns, mapped below.
+
 | Field | Type | Notes |
 |---|---|---|
 | id | UUID (PK) | |
 | weekly_plan | FK(WeeklyPlan) | |
-| day | CharField(3) | sat/sun/mon/tue/wed/thu |
+| day | CharField(3) | sat/sun/mon/tue/wed/thu — matches sheet columns |
 | date | DateField | |
 | attendance | CharField(10) | present/absent/late/excused |
-| verses_required | PositiveInt | |
-| verses_achieved | PositiveInt | |
+| verses_required | PositiveInt | المطلوب |
+| verses_achieved | PositiveInt | الإنجاز |
 | surah_name | CharField(100) | Blank allowed |
-| quality | CharField(10) | excellent/good/acceptable/weak/none |
+| quality | CharField(10) | التقييم — excellent/good/acceptable/weak/none |
+| result | CharField(10) | النتيجة — pass/fail/pending (weekly summary column) |
 | note | TextField | Teacher daily note |
 | recorded_by | FK(User) | Nullable |
+| created_at | DateTimeField | auto_now_add |
+| updated_at | DateTimeField | auto_now |
 | **Unique constraint** | (weekly_plan, day) | One record per student per day |
 
 ### 6.5 Teacher
@@ -274,7 +279,7 @@ The **Noor Al-Huda** app is an integrated mobile management platform for a Quran
 | PATCH | /api/students/{id}/ | Edit student data | admin, teacher |
 | DELETE | /api/students/{id}/ | Soft delete | admin |
 | GET | /api/students/{id}/history/ | Full memorization history | admin, teacher, student(self) |
-| GET | /api/students/{id}/stats/ | Attendance %, total memorization | all |
+| GET | /api/students/{id}/stats/ | Attendance %, total memorization | admin, teacher, student(self) |
 
 ### Records
 | Method | Endpoint | Description | Roles |
@@ -304,7 +309,119 @@ The **Noor Al-Huda** app is an integrated mobile management platform for a Quran
 - **Offline-Ready:** Core features work without internet, sync later
 - **Typography:** Cairo or Noto Naskh Arabic fonts
 
-### Key Screens — Teacher
+---
+
+### 8.1 Director Screens (المدير)
+> Based on actual implemented app screens.
+
+#### Side Navigation Menu (القائمة الجانبية)
+Slide-in drawer accessible via hamburger icon. Contains:
+- **الرئيسية** — Dashboard home (active state: dark blue background)
+- **تسجيل طالب** — New student enrollment
+- **إدارة المحفظين** — Teachers management
+- **سجل الطلاب** — Students register
+- **إدارة الحلقات** — Circles management
+- **تسجيل الخروج** — Logout (red color, bottom of menu)
+
+---
+
+#### Screen 1: لوحة التحكم الرئيسية (Director Dashboard)
+| Element | Detail |
+|---|---|
+| Welcome header | "مرحباً، مدير المركز" + blessing text |
+| Academic year badge | "العام الدراسي الحالي · 1447هـ - 2026م" with book icon |
+| Stat card 1 | عدد الطلاب المسجلين — large number (e.g. 156) |
+| Stat card 2 | عدد الحلقات — large number in gold (e.g. 12) |
+| Stat card 3 | الحفظة المتقنون — large number (e.g. 23) with star icon |
+| Quick action 1 | Dark blue button: **تسجيل طالب جديد** (+ icon) |
+| Quick action 2 | Gold button: **سجل الحضور** (clipboard icon) |
+| Activity feed | "أحدث النشاطات والإشعارات" — scrollable list of recent events with icons (bell for registration, star for memorization, clipboard for attendance) |
+
+---
+
+#### Screen 2: بطاقة الانتساب - تسجيل طالب جديد (Enrollment Form)
+Multi-section scrollable form:
+
+| Section | Fields |
+|---|---|
+| **① البيانات الأساسية** (gold header) | رقم الهوية، الاسم الرباعي، تاريخ الميلاد، الصف الدراسي، رقم الجوال، عنوان السكن |
+| **② بيانات ولي الأمر** (gold header) | اسم ولي الأمر، رقم الهوية، رقم الجوال |
+| **الحالة الصحية** (gold badge) | Checkbox group: ابن شهيد · ابن جريح · مريض · أخرى |
+| **المهارات والاهتمامات** (gold badge) | Checkbox group: قراءة قرآن · إنشاد · شعر · لأخرى |
+| Action buttons | **حفظ البيانات وإصدار البطاقة** (dark blue, full width) · **طباعة البطاقة** (outlined) |
+
+---
+
+#### Screen 3: إدارة المحفظين (Teachers Management)
+| Element | Detail |
+|---|---|
+| Search bar | "البحث بالاسم..." with search icon |
+| Add button | Dark blue: **إضافة محفظ جديد** (person+ icon) |
+| Teacher card | Name (bold), رقم الجوال, الحلقة المعينة (colored badge: green=assigned, red=غير معين), عدد الطلاب |
+| Card actions | تعيين حلقة (green, checkmark icon) · edit icon · delete icon |
+
+#### Modal: إضافة محفظ جديد
+Fields: الاسم الرباعي · رقم الهوية · رقم الجوال · تعيين حلقة (اختياري)
+Buttons: إلغاء (grey) · إضافة (dark blue)
+
+#### Modal: تعديل بيانات المحفظ
+Fields pre-filled: الاسم الرباعي · رقم الهوية · رقم الجوال
+Buttons: إلغاء · **حفظ التعديلات** (with save icon)
+
+#### Modal: تعيين حلقة للمحفظ
+Shows teacher name · dropdown: اختر الحلقة
+Buttons: إلغاء · **حفظ التعيين**
+
+#### Dialog: تأكيد حذف المحفظ
+Red trash icon · "هل أنت متأكد من حذف الشيخ **[Name]**؟"
+Buttons: إلغاء · **نعم، احذف** (red)
+
+---
+
+#### Screen 4: سجل الطلاب (Students Register)
+| Element | Detail |
+|---|---|
+| Search bar | "البحث بالاسم أو الهوية..." |
+| Student card | Name (bold, blue) + national ID below, then: المستوى/الحفظ, المحفظ (colored tag or "غير معين" in red), الصف الدراسي, الحالة badge (نشط=green / منقطع=red/pink) |
+| Card action icons (4) | 🗑 Delete · ✏ Edit · 📄 View card · 👤 Assign teacher |
+
+#### Modal: تعديل بيانات الطالب
+Fields: الاسم الرباعي · رقم الهوية · اسم ولي الأمر · رقم جوال ولي الأمر · الصف الدراسي · مستوى الحفظ · الحالة
+Buttons: إلغاء · **حفظ التعديلات** (with save icon) · X close button top-left
+
+#### Modal: تعيين الطالب لمحفظ
+Shows student name · dropdown: اختر المحفظ / الحلقة
+Buttons: إلغاء · **حفظ التعيين**
+
+#### Dialog: تأكيد حذف الطالب
+Red trash icon · "هل أنت متأكد من حذف الطالب **[Name]**؟"
+Buttons: إلغاء · **نعم، احذف** (red)
+
+---
+
+#### Screen 5: إدارة الحلقات (Circles Management)
+| Element | Detail |
+|---|---|
+| Search bar | "البحث باسم الحلقة أو المحفظ..." |
+| Add button | Dark blue: **+ إنشاء حلقة جديدة** |
+| Circle card | Name (bold) + status badge (نشط=green) + book icon, then: المحفظ, عدد الطلاب, المستوى |
+| Card actions | **تعديل** (orange, edit icon) · delete icon (red background) |
+
+#### Screen: إنشاء حلقة جديدة (Full page, not modal)
+Fields:
+- اسم الحلقة (text, placeholder: "مثال: حلقة الفجر، حلقة الإمام نافع...")
+- المحفظ (text/select)
+- مستوى الحلقة (text, placeholder: "مثال: مبتدئين، مراجعة، جزء عم...")
+- **إضافة طلاب للحلقة**: search box "البحث باسم الطالب..." + scrollable checklist showing student name + memorization level per student
+- Button: **حفظ وإنشاء الحلقة** (dark blue, full width, with save icon)
+
+#### Dialog: تأكيد حذف الحلقة
+Red trash icon · "هل أنت متأكد من حذف حلقة **[Name]**؟ سيتم إزالة جميع الطلاب المرتبطين بها (لا يتم حذف الطلاب أنفسهم)."
+Buttons: إلغاء · **نعم، احذف الحلقة** (red)
+
+---
+
+### 8.2 Key Screens — Teacher (المحفظ)
 | Screen | Key Elements |
 |---|---|
 | Main Dashboard | Student list with present/absent toggle, search bar, "Record Today's Attendance" button |
@@ -312,14 +429,18 @@ The **Noor Al-Huda** app is an integrated mobile management platform for a Quran
 | Bulk Attendance | Checkbox list for all students + "Save All" at bottom |
 | Progress View | Chart.js bar/line chart showing achievement trend over weeks |
 
-### Key Screens — Student
+---
+
+### 8.3 Key Screens — Student (الطالب)
 | Screen | Key Elements |
 |---|---|
 | Home | Total memorized badge + this week's completion % + latest teacher note |
 | Weekly Plan | Interactive table per day with what was memorized |
 | History | All weeks list with expandable daily detail |
 
-### PWA Requirements
+---
+
+### 8.4 PWA Requirements
 - `manifest.json` with app name, icon, background color, `display: standalone`
 - Service Worker caching static files + offline fallback page
 - Install prompt shown to new users
