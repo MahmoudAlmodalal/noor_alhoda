@@ -1,0 +1,25 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f8fafc; /* slate-50 */
+  --foreground: #0f172a; /* slate-900 */
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-cairo), sans-serif;
+  
+  --color-primary: #0a528e; /* Main blue from screenshots */
+  --color-secondary: #e6b150; /* Gold/yellow from screenshots */
+  --color-success: #eefbee;
+  --color-success-text: #2f944d;
+  --color-danger: #fee2e2;
+  --color-danger-text: #dc2626;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+}
