@@ -6,6 +6,7 @@ from rest_framework.exceptions import PermissionDenied
 
 from notifications.models import Notification
 from accounts.models import User
+from core.permissions import is_admin_user
 
 
 @transaction.atomic
@@ -14,7 +15,7 @@ def announcement_send(*, sender: User, title: str, body: str, target_roles: list
     FR-25: Director sends announcement to all users or specific groups.
     Returns count of notifications created.
     """
-    if sender.role != "admin":
+    if not is_admin_user(sender):
         raise PermissionDenied("فقط المدير يمكنه إرسال الإعلانات.")
 
     if target_user_ids:

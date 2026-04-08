@@ -1,6 +1,8 @@
 .git/
-backend/.env
-backend/.env.*
+**/.env
+**/.env.*
+**/.env.local
+**/.env.production
 backend/db.sqlite3
 backend/db.sqlite3-journal
 backend/venv/

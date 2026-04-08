@@ -1,6 +1,7 @@
 from django.shortcuts import get_object_or_404
 
 from accounts.models import User
+from core.permissions import is_admin_user
 
 
 def user_get_by_phone(*, phone: str) -> User:
@@ -13,18 +14,20 @@ def user_get_me(*, user: User) -> dict:
     Return profile data for the current authenticated user,
     including role-specific info (teacher profile, parent links, etc.).
     """
+    role = "admin" if is_admin_user(user) else user.role
+
     data = {
         "id": str(user.id),
         "username": user.username,
         "phone_number": user.phone_number,
         "first_name": user.first_name,
         "last_name": user.last_name,
-        "role": user.role,
+        "role": role,
         "is_active": user.is_active,
         "date_joined": user.date_joined.isoformat(),
     }
 
-    if user.role == "teacher" and hasattr(user, "teacher_profile"):
+    if role == "teacher" and hasattr(user, "teacher_profile"):
         teacher = user.teacher_profile
         data["teacher_profile"] = {
             "id": str(teacher.id),
@@ -34,7 +37,7 @@ def user_get_me(*, user: User) -> dict:
             "max_students": teacher.max_students,
         }
 
-    elif user.role == "parent" and hasattr(user, "parent_profile"):
+    elif role == "parent" and hasattr(user, "parent_profile"):
         parent = user.parent_profile
         children = parent.student_links.select_related("student").all()
         data["parent_profile"] = {
@@ -49,7 +52,7 @@ def user_get_me(*, user: User) -> dict:
             ],
         }
 
-    elif user.role == "student":
+    elif role == "student":
         try:
             student = user.student_profile
             data["student_profile"] = {

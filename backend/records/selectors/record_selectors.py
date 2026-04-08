@@ -3,6 +3,7 @@ from rest_framework.exceptions import PermissionDenied
 
 from records.models import DailyRecord, WeeklyPlan
 from accounts.models import User
+from core.permissions import is_admin_user
 
 
 def daily_records_by_date(*, teacher_user: User, date) -> QuerySet[DailyRecord]:
@@ -10,7 +11,7 @@ def daily_records_by_date(*, teacher_user: User, date) -> QuerySet[DailyRecord]:
     Get all daily records for a teacher's students on a given date.
     Teacher can only see their own students' records.
     """
-    if teacher_user.role not in ("admin", "teacher"):
+    if not (is_admin_user(teacher_user) or teacher_user.role == "teacher"):
         raise PermissionDenied("ليس لديك صلاحية لعرض السجلات.")
 
     qs = DailyRecord.objects.select_related(

@@ -5,6 +5,7 @@ from django.db import transaction
 from rest_framework.exceptions import ValidationError, PermissionDenied
 
 from accounts.models import User, Teacher, Parent
+from core.permissions import is_admin_user
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +15,7 @@ def user_create(*, creator: User, **data) -> User:
     """
     Create a new user. Only admins can create users.
     """
-    if creator.role != "admin":
+    if not is_admin_user(creator):
         raise PermissionDenied("فقط المدير يمكنه إنشاء حسابات جديدة.")
 
     phone_number = data.get("phone_number")
@@ -47,18 +48,18 @@ def user_update(*, user: User, actor: User, data: dict) -> User:
     """
     Update user fields. Admin can update anyone. Others can update self only.
     """
-    if actor.role != "admin" and actor.id != user.id:
+    if not is_admin_user(actor) and actor.id != user.id:
         raise PermissionDenied("ليس لديك صلاحية لتعديل هذا المستخدم.")
 
     allowed_fields = ["first_name", "last_name", "fcm_token"]
-    if actor.role == "admin":
+    if is_admin_user(actor):
         allowed_fields += ["role", "is_active", "phone_number"]
 
     for field_name, value in data.items():
         if field_name in allowed_fields:
             setattr(user, field_name, value)
 
-    if "password" in data and (actor.role == "admin" or actor.id == user.id):
+    if "password" in data and (is_admin_user(actor) or actor.id == user.id):
         user.set_password(data["password"])
 
     user.full_clean()
@@ -69,7 +70,7 @@ def user_update(*, user: User, actor: User, data: dict) -> User:
 @transaction.atomic
 def user_deactivate(*, user: User, actor: User) -> User:
     """Soft-delete a user account. Admin only."""
-    if actor.role != "admin":
+    if not is_admin_user(actor):
         raise PermissionDenied("فقط المدير يمكنه تعطيل الحسابات.")
 
     user.is_active = False
@@ -82,7 +83,7 @@ def teacher_create(*, creator: User, **data) -> Teacher:
     """
     Create a teacher profile. Creates the User first, then the Teacher profile.
     """
-    if creator.role != "admin":
+    if not is_admin_user(creator):
         raise PermissionDenied("فقط المدير يمكنه إنشاء حسابات المحفظين.")
 
     user = user_create(

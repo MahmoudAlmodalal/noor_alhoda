@@ -3,6 +3,7 @@ from rest_framework.exceptions import ValidationError, PermissionDenied
 
 from accounts.models import User, Teacher, Parent, ParentStudentLink
 from accounts.services.user_services import user_create
+from core.permissions import is_admin_user
 from students.models import Student
 
 
@@ -12,7 +13,7 @@ def student_create(*, creator: User, **data) -> Student:
     Create a new student. Creates User + Student atomically.
     Admin only (feature 2.1).
     """
-    if creator.role != "admin":
+    if not is_admin_user(creator):
         raise PermissionDenied("فقط المدير يمكنه تسجيل طلاب جدد.")
 
     # Required fields
@@ -78,7 +79,7 @@ def student_update(*, student: Student, actor: User, data: dict) -> Student:
     """
     Update student data. Admin can update all fields. Teacher limited fields.
     """
-    if actor.role == "admin":
+    if is_admin_user(actor):
         allowed = [
             "full_name", "national_id", "birthdate", "grade",
             "address", "whatsapp", "health_status", "health_note", "skills",
@@ -105,7 +106,7 @@ def student_deactivate(*, student_id, actor: User) -> Student:
     """
     Soft-delete a student (feature 2.5). Admin only.
     """
-    if actor.role != "admin":
+    if not is_admin_user(actor):
         raise PermissionDenied("فقط المدير يمكنه إيقاف تسجيل الطلاب.")
 
     from students.selectors.student_selectors import student_get
@@ -126,7 +127,7 @@ def student_assign_teacher(*, student_id, teacher_id, actor: User) -> Student:
     """
     Assign or change a student's teacher. Admin only (feature 2.4).
     """
-    if actor.role != "admin":
+    if not is_admin_user(actor):
         raise PermissionDenied("فقط المدير يمكنه تعيين المحفظ.")
 
     from students.selectors.student_selectors import student_get
@@ -155,7 +156,7 @@ def student_link_parent(*, student_id, parent_id, actor: User) -> ParentStudentL
     """
     Link a parent to a student (feature 2.6). Admin only.
     """
-    if actor.role != "admin":
+    if not is_admin_user(actor):
         raise PermissionDenied("فقط المدير يمكنه ربط ولي الأمر بالطالب.")
 
     from students.selectors.student_selectors import student_get

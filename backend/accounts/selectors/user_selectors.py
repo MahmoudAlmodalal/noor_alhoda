@@ -3,13 +3,14 @@ from django.shortcuts import get_object_or_404
 from rest_framework.exceptions import PermissionDenied
 
 from accounts.models import User, Teacher
+from core.permissions import is_admin_user
 
 
 def user_list(*, filters: dict, actor: User) -> QuerySet[User]:
     """
     Return filtered list of users. Only admins can list all users.
     """
-    if actor.role != "admin":
+    if not is_admin_user(actor):
         raise PermissionDenied("فقط المدير يمكنه عرض قائمة المستخدمين.")
 
     qs = User.objects.all()
@@ -36,7 +37,7 @@ def user_list(*, filters: dict, actor: User) -> QuerySet[User]:
 def user_get(*, user_id, actor: User) -> User:
     """Get a single user by ID. Admin can view anyone, others only self."""
     user = get_object_or_404(User, id=user_id)
-    if actor.role != "admin" and actor.id != user.id:
+    if not is_admin_user(actor) and actor.id != user.id:
         raise PermissionDenied("ليس لديك صلاحية لعرض هذا المستخدم.")
     return user
 

@@ -4,6 +4,7 @@ from rest_framework.exceptions import PermissionDenied
 
 from students.models import Student
 from accounts.models import User, ParentStudentLink
+from core.permissions import is_admin_user
 
 
 def can_access_student(*, actor: User, student: Student) -> bool:
@@ -14,7 +15,7 @@ def can_access_student(*, actor: User, student: Student) -> bool:
     FR-09: Student — self only
     FR-10: Parent — linked children only
     """
-    if actor.role == "admin":
+    if is_admin_user(actor):
         return True
     elif actor.role == "teacher":
         return (
@@ -47,7 +48,7 @@ def student_list(*, filters: dict, user: User) -> QuerySet[Student]:
         qs = qs.filter(id__in=linked_ids)
     elif user.role == "student":
         qs = qs.filter(user=user)
-    elif user.role != "admin":
+    elif not is_admin_user(user):
         return qs.none()
 
     # Filters

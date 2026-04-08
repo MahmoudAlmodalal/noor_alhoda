@@ -40,7 +40,7 @@ services:
       - DB_PORT=5432
       - SECRET_KEY=docker-dev-secret-key-not-for-production
       - DEBUG=True
-      - ALLOWED_HOSTS=localhost,127.0.0.1,backend
+      - ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0,backend
     depends_on:
       db:
         condition: service_healthy
@@ -49,6 +49,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+    command: npm run dev -- --hostname 0.0.0.0 --port 3000
     restart: unless-stopped
     ports:
       - "3000:3000"

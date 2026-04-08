@@ -9,6 +9,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
 
 from accounts.models import User, OTPCode
+from core.permissions import is_admin_user
 
 
 def user_login(*, phone: str, password: str) -> dict:
@@ -56,7 +57,7 @@ def user_login(*, phone: str, password: str) -> dict:
         "user": {
             "id": str(user.id),
             "phone_number": user.phone_number,
-            "role": user.role,
+            "role": "admin" if is_admin_user(user) else user.role,
             "full_name": user.get_full_name(),
         },
     }

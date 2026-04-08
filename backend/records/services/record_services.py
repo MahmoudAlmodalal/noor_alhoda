@@ -8,12 +8,13 @@ from records.models import WeeklyPlan, DailyRecord
 from accounts.models import User
 from students.models import Student
 from notifications.services.notification_services import send_absence_notification
+from core.permissions import is_admin_user
 
 
 @transaction.atomic
 def weekly_plan_create(*, student_id, week_start, week_number, teacher: User) -> WeeklyPlan:
     """Create a weekly plan for a student."""
-    if teacher.role not in ("admin", "teacher"):
+    if not (is_admin_user(teacher) or teacher.role == "teacher"):
         raise PermissionDenied("ليس لديك صلاحية لإنشاء خطة أسبوعية.")
 
     try:
@@ -43,7 +44,7 @@ def weekly_plan_create(*, student_id, week_start, week_number, teacher: User) ->
 @transaction.atomic
 def daily_record_create(*, teacher: User, **data) -> DailyRecord:
     """Create a daily record for a student."""
-    if teacher.role not in ("admin", "teacher"):
+    if not (is_admin_user(teacher) or teacher.role == "teacher"):
         raise PermissionDenied("ليس لديك صلاحية لتسجيل السجلات.")
 
     plan_id = data.get("weekly_plan_id")
@@ -93,7 +94,7 @@ def daily_record_update(*, record_id, teacher: User, data: dict) -> DailyRecord:
         raise ValidationError("السجل غير موجود.")
 
     # FR-16: Check age of record
-    if teacher.role != "admin":
+    if not is_admin_user(teacher):
         days_old = (timezone.now().date() - record.date).days
         if days_old > 7:
             raise PermissionDenied(
@@ -137,7 +138,7 @@ def bulk_attendance_create(*, teacher: User, date, attendance_data: list) -> lis
     FR-12: Bulk attendance registration for all students in a halaqah.
     attendance_data: [{"student_id": "...", "attendance": "present/absent/late/excused"}, ...]
     """
-    if teacher.role not in ("admin", "teacher"):
+    if not (is_admin_user(teacher) or teacher.role == "teacher"):
         raise PermissionDenied("ليس لديك صلاحية لتسجيل الحضور.")
 
     if date.weekday() == 4:
