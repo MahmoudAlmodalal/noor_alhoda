@@ -7,6 +7,9 @@ echo "==> Running Django migrations..."
 cd /app/backend
 python manage.py migrate --noinput
 
+echo "==> Creating default admin (0590000000)..."
+python manage.py create_default_admin
+
 echo "==> Starting Gunicorn on 127.0.0.1:8000..."
 cd /app/backend
 gunicorn noor_alhuda.wsgi:application \
