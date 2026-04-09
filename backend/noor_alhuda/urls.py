@@ -11,8 +11,10 @@ from drf_spectacular.views import (
     SpectacularSwaggerView,
     SpectacularRedocView,
 )
+from core.views import health_check
 
 urlpatterns = [
+    path("health", health_check, name="health"),
     path("admin/", admin.site.urls),
 
     # API schema & docs
