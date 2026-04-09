@@ -4,6 +4,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, serializers
 from rest_framework.permissions import AllowAny, IsAuthenticated
+from drf_spectacular.utils import extend_schema, inline_serializer
 
 logger = logging.getLogger(__name__)
 
@@ -20,22 +21,22 @@ from accounts.selectors.auth_selectors import user_get_me
 # Serializers (inline)
 # ---------------------------------------------------------------------------
 class LoginInputSerializer(serializers.Serializer):
-    phone_number = serializers.CharField()
-    password = serializers.CharField()
+    phone_number = serializers.CharField(help_text="رقم الجوال")
+    password = serializers.CharField(help_text="كلمة المرور")
 
 
 class LogoutInputSerializer(serializers.Serializer):
-    refresh = serializers.CharField()
+    refresh = serializers.CharField(help_text="Refresh token")
 
 
 class OTPSendInputSerializer(serializers.Serializer):
-    phone_number = serializers.CharField()
+    phone_number = serializers.CharField(help_text="رقم الجوال")
 
 
 class OTPVerifyInputSerializer(serializers.Serializer):
-    phone_number = serializers.CharField()
-    code = serializers.CharField(max_length=6)
-    new_password = serializers.CharField(min_length=6)
+    phone_number = serializers.CharField(help_text="رقم الجوال")
+    code = serializers.CharField(max_length=6, help_text="رمز التحقق المكون من 6 أرقام")
+    new_password = serializers.CharField(min_length=6, help_text="كلمة المرور الجديدة")
 
 
 # ---------------------------------------------------------------------------
@@ -47,6 +48,33 @@ class LoginApi(APIView):
     permission_classes = [AllowAny]
     throttle_scope = "login"
 
+    @extend_schema(
+        request=LoginInputSerializer,
+        responses={200: inline_serializer(
+            name="LoginResponse",
+            fields={
+                "success": serializers.BooleanField(),
+                "data": inline_serializer(
+                    name="LoginData",
+                    fields={
+                        "access": serializers.CharField(help_text="JWT access token"),
+                        "refresh": serializers.CharField(help_text="JWT refresh token"),
+                        "user": inline_serializer(
+                            name="LoginUser",
+                            fields={
+                                "id": serializers.UUIDField(),
+                                "phone_number": serializers.CharField(),
+                                "role": serializers.CharField(),
+                                "full_name": serializers.CharField(),
+                            },
+                        ),
+                    },
+                ),
+            },
+        )},
+        summary="تسجيل الدخول",
+        description="تسجيل الدخول باستخدام رقم الجوال وكلمة المرور. يتم قفل الحساب بعد 5 محاولات فاشلة لمدة 15 دقيقة.",
+    )
     def post(self, request):
         serializer = LoginInputSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -64,6 +92,18 @@ class LogoutApi(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        request=LogoutInputSerializer,
+        responses={200: inline_serializer(
+            name="LogoutResponse",
+            fields={
+                "success": serializers.BooleanField(),
+                "message": serializers.CharField(),
+            },
+        )},
+        summary="تسجيل الخروج",
+        description="إبطال refresh token لتسجيل الخروج.",
+    )
     def post(self, request):
         serializer = LogoutInputSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -82,6 +122,18 @@ class OTPSendApi(APIView):
     permission_classes = [AllowAny]
     throttle_scope = "otp"
 
+    @extend_schema(
+        request=OTPSendInputSerializer,
+        responses={200: inline_serializer(
+            name="OTPSendResponse",
+            fields={
+                "success": serializers.BooleanField(),
+                "message": serializers.CharField(),
+            },
+        )},
+        summary="إرسال رمز OTP",
+        description="إرسال رمز تحقق مكون من 6 أرقام إلى رقم الجوال. صالح لمدة 10 دقائق.",
+    )
     def post(self, request):
         serializer = OTPSendInputSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -102,6 +154,18 @@ class OTPVerifyApi(APIView):
 
     permission_classes = [AllowAny]
 
+    @extend_schema(
+        request=OTPVerifyInputSerializer,
+        responses={200: inline_serializer(
+            name="OTPVerifyResponse",
+            fields={
+                "success": serializers.BooleanField(),
+                "message": serializers.CharField(),
+            },
+        )},
+        summary="التحقق من رمز OTP",
+        description="التحقق من رمز OTP وتعيين كلمة مرور جديدة.",
+    )
     def post(self, request):
         serializer = OTPVerifyInputSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -123,6 +187,25 @@ class MeApi(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        responses={200: inline_serializer(
+            name="MeResponse",
+            fields={
+                "success": serializers.BooleanField(),
+                "data": inline_serializer(
+                    name="MeData",
+                    fields={
+                        "id": serializers.UUIDField(),
+                        "phone_number": serializers.CharField(),
+                        "role": serializers.CharField(),
+                        "full_name": serializers.CharField(),
+                    },
+                ),
+            },
+        )},
+        summary="بيانات المستخدم الحالي",
+        description="إرجاع بيانات المستخدم المسجّل حالياً.",
+    )
     def get(self, request):
         data = user_get_me(user=request.user)
         return Response({"success": True, "data": data}, status=status.HTTP_200_OK)
