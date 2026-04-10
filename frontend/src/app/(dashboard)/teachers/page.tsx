@@ -152,7 +152,7 @@ export default function TeachersPage() {
           isOpen={!!deleteTeacher}
           onClose={() => setDeleteTeacher(null)}
           targetName={deleteTeacher.full_name}
-          deleteEndpoint={`/api/users/${deleteTeacher.id}/`}
+          deleteEndpoint={`/api/users/${deleteTeacher.user_id}/`}
           onSuccess={() => { setDeleteTeacher(null); refetch(); }}
         />
       )}

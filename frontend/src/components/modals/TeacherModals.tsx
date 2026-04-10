@@ -209,7 +209,7 @@ export function EditTeacherModal({
         last_name: nameParts.slice(1).join(" ") || "",
         specialization: form.specialization,
       },
-      { endpoint: `/api/users/${teacher.id}/`, successMessage: "تم تحديث بيانات المحفظ بنجاح" }
+      { endpoint: `/api/users/${teacher.user_id}/`, successMessage: "تم تحديث بيانات المحفظ بنجاح" }
     );
     if (result) {
       onSuccess?.();
