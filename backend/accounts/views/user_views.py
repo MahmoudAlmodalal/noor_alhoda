@@ -7,7 +7,7 @@ from accounts.selectors.user_selectors import user_list, user_get, teacher_list
 from accounts.services.user_services import (
     user_create,
     user_update,
-    user_deactivate,
+    user_delete,
     teacher_create,
 )
 
@@ -151,11 +151,11 @@ class UserDetailApi(APIView):
 
     def delete(self, request, user_id):
         user = user_get(user_id=user_id, actor=request.user)
-        user_deactivate(user=user, actor=request.user)
+        user_delete(user=user, actor=request.user)
 
         return Response(
-            {"success": True, "message": "تم تعطيل الحساب بنجاح."},
-            status=status.HTTP_200_OK,
+            {"success": True, "message": "تم حذف الحساب بنجاح."},
+            status=status.HTTP_204_NO_CONTENT,
         )
 
 

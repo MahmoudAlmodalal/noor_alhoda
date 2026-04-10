@@ -89,6 +89,11 @@ async function apiFetch<T>(
       };
     }
 
+    // Handle 204 No Content
+    if (res.status === 204) {
+      return { success: true, data: {} as T };
+    }
+
     const data = await res.json();
 
     // The Django API wraps responses in {success, data/error}

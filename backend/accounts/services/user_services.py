@@ -72,14 +72,14 @@ def user_update(*, user: User, actor: User, data: dict) -> User:
 
 
 @transaction.atomic
-def user_deactivate(*, user: User, actor: User) -> User:
-    """Soft-delete a user account. Admin only."""
+def user_delete(*, user: User, actor: User):
+    """Hard-delete a user account. Admin only."""
     if not is_admin_user(actor):
-        raise PermissionDenied("فقط المدير يمكنه تعطيل الحسابات.")
+        raise PermissionDenied("فقط المدير يمكنه حذف الحسابات.")
 
-    user.is_active = False
-    user.save()
-    return user
+    # If it's a teacher, the Teacher profile will be deleted via CASCADE
+    # If it's a student, the Student profile will be deleted via CASCADE
+    user.delete()
 
 
 @transaction.atomic
