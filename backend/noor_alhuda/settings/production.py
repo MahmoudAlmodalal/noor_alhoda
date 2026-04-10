@@ -60,20 +60,24 @@ STATIC_URL = "/django-static/"
 # CSRF trusted origins (required for admin behind Nginx proxy)
 CSRF_TRUSTED_ORIGINS = config(
     "CSRF_TRUSTED_ORIGINS",
-    default="https://noor-alhoda.onrender.com",
+    default="https://noor-alhoda.onrender.com,https://noor-alhuda-backend.onrender.com",
     cast=lambda v: [s.strip() for s in v.split(",")],
 )
-# Always include the main domain
+# Always include both domains
 if "https://noor-alhoda.onrender.com" not in CSRF_TRUSTED_ORIGINS:
     CSRF_TRUSTED_ORIGINS.append("https://noor-alhoda.onrender.com")
+if "https://noor-alhuda-backend.onrender.com" not in CSRF_TRUSTED_ORIGINS:
+    CSRF_TRUSTED_ORIGINS.append("https://noor-alhuda-backend.onrender.com")
 
 # Tighten CORS in production
 CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOWED_ORIGINS = config(
     "CORS_ALLOWED_ORIGINS",
-    default="https://noor-alhoda.onrender.com",
+    default="https://noor-alhoda.onrender.com,https://noor-alhuda-backend.onrender.com",
     cast=lambda v: [s.strip() for s in v.split(",")],
 )
-# Always include the main domain
+# Always include both domains
 if "https://noor-alhoda.onrender.com" not in CORS_ALLOWED_ORIGINS:
     CORS_ALLOWED_ORIGINS.append("https://noor-alhoda.onrender.com")
+if "https://noor-alhuda-backend.onrender.com" not in CORS_ALLOWED_ORIGINS:
+    CORS_ALLOWED_ORIGINS.append("https://noor-alhuda-backend.onrender.com")
