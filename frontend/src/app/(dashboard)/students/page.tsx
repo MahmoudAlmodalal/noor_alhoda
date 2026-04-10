@@ -195,7 +195,7 @@ export default function StudentsPage() {
           isOpen={deleteModal.open}
           onClose={() => setDeleteModal({ open: false, student: null })}
           targetName={deleteModal.student.full_name}
-          deleteEndpoint={`/api/students/${deleteModal.student.id}/`}
+          deleteEndpoint={`/api/students/${deleteModal.student.id}/delete/`}
           onSuccess={() => { setDeleteModal({ open: false, student: null }); refetch(); }}
         />
       )}
