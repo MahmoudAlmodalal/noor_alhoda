@@ -5,10 +5,10 @@ PORT="${PORT:-10000}"
 
 echo "==> Running Django migrations..."
 cd /app/backend
-python manage.py migrate --noinput
+python manage.py migrate --noinput || { echo "ERROR: Migration failed!"; exit 1; }
 
 echo "==> Creating default admin (0590000000)..."
-python manage.py create_default_admin
+python manage.py create_default_admin || { echo "WARNING: Admin creation failed!"; }
 
 echo "==> Starting Gunicorn on 127.0.0.1:8000..."
 cd /app/backend

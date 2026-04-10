@@ -17,6 +17,9 @@ SECURE_HSTS_PRELOAD = True
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+# Trust the Render proxy
+USE_X_FORWARDED_HOST = True
+USE_X_FORWARDED_PORT = True
 
 # Database — prefer DATABASE_URL (Render), fall back to individual vars
 DATABASE_URL = config("DATABASE_URL", default="")
