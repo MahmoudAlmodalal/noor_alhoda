@@ -187,13 +187,15 @@ class StudentDetailApi(APIView):
             status=status.HTTP_200_OK,
         )
 
-
-class StudentDeactivateApi(APIView):
-    """DELETE /api/students/<id>/ — إلغاء تسجيل (soft delete)"""
-
-    permission_classes = [IsAdmin]
-
     def delete(self, request, student_id):
+        """DELETE /api/students/<id>/ — إلغاء تسجيل (soft delete)"""
+        # Ensure only admins can delete
+        if not request.user.is_staff:
+            return Response(
+                {"success": False, "error": {"code": 403, "message": "ليس لديك صلاحية للوصول"}},
+                status=status.HTTP_403_FORBIDDEN
+            )
+            
         student_deactivate(student_id=student_id, actor=request.user)
         return Response(
             {"success": True, "message": "تم إيقاف تسجيل الطالب بنجاح."},
