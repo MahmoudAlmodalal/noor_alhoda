@@ -12,6 +12,7 @@ import {
   AddTeacherModal,
   EditTeacherModal,
   ConfirmDeleteModal,
+  AssignRingModal,
 } from "@/components/modals/TeacherModals";
 import type { Teacher } from "@/types/api";
 
@@ -28,6 +29,7 @@ export default function TeachersPage() {
   const [showAdd, setShowAdd] = useState(false);
   const [editTeacher, setEditTeacher] = useState<Teacher | null>(null);
   const [deleteTeacher, setDeleteTeacher] = useState<Teacher | null>(null);
+  const [assignRing, setAssignRing] = useState<Teacher | null>(null);
 
   if (isLoading && !teachers) return <PageLoading />;
 
@@ -98,7 +100,11 @@ export default function TeachersPage() {
 
                 {/* Actions Footer */}
                 <div className="flex items-center gap-2 pt-4 border-t border-slate-100">
-                  <Button variant="ghost" className="flex-1 text-[#2f944d] hover:bg-[#eefbee] gap-1.5 font-bold h-11 hover:text-[#2f944d]">
+                  <Button
+                    variant="ghost"
+                    className="flex-1 text-[#2f944d] hover:bg-[#eefbee] gap-1.5 font-bold h-11 hover:text-[#2f944d]"
+                    onClick={() => setAssignRing(teacher)}
+                  >
                     <CheckCircle2 className="w-4 h-4" />
                     تعيين حلقة
                   </Button>
@@ -148,6 +154,14 @@ export default function TeachersPage() {
           targetName={deleteTeacher.full_name}
           deleteEndpoint={`/api/users/${deleteTeacher.id}/`}
           onSuccess={() => { setDeleteTeacher(null); refetch(); }}
+        />
+      )}
+
+      {assignRing && (
+        <AssignRingModal
+          isOpen={!!assignRing}
+          onClose={() => setAssignRing(null)}
+          teacherName={assignRing.full_name}
         />
       )}
     </div>

@@ -1,12 +1,13 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Save } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 import { useMutation } from "@/hooks/useMutation";
 import { useApi } from "@/hooks/useApi";
-import type { Teacher } from "@/types/api";
+import type { Teacher, Student } from "@/types/api";
 
 /**
  * Assign Student to Teacher Modal — تعيين الطالب لمحفظ
@@ -64,6 +65,147 @@ export function AssignStudentModal({
         <Button onClick={handleSubmit} disabled={isSubmitting || !teacherId} className="flex-1 h-12 rounded-xl font-bold gap-2">
           {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
           حفظ التعيين
+        </Button>
+      </div>
+    </Modal>
+  );
+}
+
+/**
+ * Edit Student Modal — تعديل بيانات الطالب
+ */
+export function EditStudentModal({
+  isOpen, onClose, student, onSuccess,
+}: {
+  isOpen: boolean; onClose: () => void; student: Student; onSuccess?: () => void;
+}) {
+  const [form, setForm] = useState({
+    full_name: student.full_name,
+    national_id: student.national_id,
+    birthdate: student.birthdate,
+    grade: student.grade,
+    phone_number: student.mobile || "",
+    address: student.address || "",
+    guardian_name: student.guardian_name,
+    guardian_national_id: student.guardian_national_id || "",
+    guardian_mobile: student.guardian_mobile,
+  });
+
+  useEffect(() => {
+    setForm({
+      full_name: student.full_name,
+      national_id: student.national_id,
+      birthdate: student.birthdate,
+      grade: student.grade,
+      phone_number: student.mobile || "",
+      address: student.address || "",
+      guardian_name: student.guardian_name,
+      guardian_national_id: student.guardian_national_id || "",
+      guardian_mobile: student.guardian_mobile,
+    });
+  }, [student]);
+
+  const { mutate, isSubmitting, fieldErrors } = useMutation("patch");
+
+  const handleChange = (field: string, value: string) => {
+    setForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const getFieldError = (name: string): string | undefined => {
+    if (!fieldErrors) return undefined;
+    const err = fieldErrors[name];
+    if (Array.isArray(err)) return err[0];
+    if (typeof err === "string") return err;
+    return undefined;
+  };
+
+  const handleSubmit = async () => {
+    const result = await mutate(
+      {
+        full_name: form.full_name,
+        national_id: form.national_id,
+        birthdate: form.birthdate,
+        grade: form.grade,
+        mobile: form.phone_number,
+        address: form.address,
+        guardian_name: form.guardian_name,
+        guardian_national_id: form.guardian_national_id,
+        guardian_mobile: form.guardian_mobile,
+      },
+      { endpoint: `/api/students/${student.id}/`, successMessage: "تم تحديث بيانات الطالب بنجاح" }
+    );
+    if (result) {
+      onSuccess?.();
+    }
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose}>
+      <h2 className="text-xl font-bold text-primary mb-6">تعديل بيانات الطالب</h2>
+
+      <div className="space-y-4 mb-8 max-h-96 overflow-y-auto">
+        <div className="space-y-1.5">
+          <label className="block text-sm font-bold text-slate-800">الاسم الرباعي</label>
+          <Input value={form.full_name} onChange={(e) => handleChange("full_name", e.target.value)} className="h-12 rounded-xl border-slate-200" />
+          {getFieldError("full_name") && <p className="text-xs text-red-500">{getFieldError("full_name")}</p>}
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="block text-sm font-bold text-slate-800">رقم الهوية</label>
+          <Input type="number" dir="ltr" value={form.national_id} onChange={(e) => handleChange("national_id", e.target.value)} className="h-12 rounded-xl border-slate-200" />
+          {getFieldError("national_id") && <p className="text-xs text-red-500">{getFieldError("national_id")}</p>}
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="block text-sm font-bold text-slate-800">تاريخ الميلاد</label>
+          <Input type="date" value={form.birthdate} onChange={(e) => handleChange("birthdate", e.target.value)} className="h-12 rounded-xl border-slate-200" />
+          {getFieldError("birthdate") && <p className="text-xs text-red-500">{getFieldError("birthdate")}</p>}
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="block text-sm font-bold text-slate-800">الصف الدراسي</label>
+          <Input value={form.grade} onChange={(e) => handleChange("grade", e.target.value)} className="h-12 rounded-xl border-slate-200" />
+          {getFieldError("grade") && <p className="text-xs text-red-500">{getFieldError("grade")}</p>}
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="block text-sm font-bold text-slate-800">رقم الجوال</label>
+          <Input type="tel" dir="ltr" value={form.phone_number} onChange={(e) => handleChange("phone_number", e.target.value)} className="h-12 rounded-xl border-slate-200" />
+          {getFieldError("phone_number") && <p className="text-xs text-red-500">{getFieldError("phone_number")}</p>}
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="block text-sm font-bold text-slate-800">عنوان السكن</label>
+          <Input value={form.address} onChange={(e) => handleChange("address", e.target.value)} className="h-12 rounded-xl border-slate-200" />
+          {getFieldError("address") && <p className="text-xs text-red-500">{getFieldError("address")}</p>}
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="block text-sm font-bold text-slate-800">اسم ولي الأمر</label>
+          <Input value={form.guardian_name} onChange={(e) => handleChange("guardian_name", e.target.value)} className="h-12 rounded-xl border-slate-200" />
+          {getFieldError("guardian_name") && <p className="text-xs text-red-500">{getFieldError("guardian_name")}</p>}
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="block text-sm font-bold text-slate-800">رقم هوية ولي الأمر</label>
+          <Input type="number" dir="ltr" value={form.guardian_national_id} onChange={(e) => handleChange("guardian_national_id", e.target.value)} className="h-12 rounded-xl border-slate-200" />
+          {getFieldError("guardian_national_id") && <p className="text-xs text-red-500">{getFieldError("guardian_national_id")}</p>}
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="block text-sm font-bold text-slate-800">جوال ولي الأمر</label>
+          <Input type="tel" dir="ltr" value={form.guardian_mobile} onChange={(e) => handleChange("guardian_mobile", e.target.value)} className="h-12 rounded-xl border-slate-200" />
+          {getFieldError("guardian_mobile") && <p className="text-xs text-red-500">{getFieldError("guardian_mobile")}</p>}
+        </div>
+      </div>
+
+      <div className="flex items-center gap-3">
+        <Button variant="ghost" onClick={onClose} className="flex-1 bg-slate-100/80 text-slate-700 hover:bg-slate-200 h-12 rounded-xl font-bold">
+          إلغاء
+        </Button>
+        <Button onClick={handleSubmit} disabled={isSubmitting} className="flex-[1.5] h-12 rounded-xl font-bold gap-2">
+          {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+          حفظ التعديلات
         </Button>
       </div>
     </Modal>

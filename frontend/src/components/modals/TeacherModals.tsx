@@ -170,7 +170,11 @@ export function EditTeacherModal({
   const handleSubmit = async () => {
     const nameParts = form.full_name.trim().split(" ");
     const result = await mutate(
-      { first_name: nameParts[0] || "", last_name: nameParts.slice(1).join(" ") || "" },
+      {
+        first_name: nameParts[0] || "",
+        last_name: nameParts.slice(1).join(" ") || "",
+        specialization: form.specialization,
+      },
       { endpoint: `/api/users/${teacher.id}/`, successMessage: "تم تحديث بيانات المحفظ بنجاح" }
     );
     if (result) {

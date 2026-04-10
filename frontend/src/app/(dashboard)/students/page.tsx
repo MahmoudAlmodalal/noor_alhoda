@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/Badge";
 import { PageLoading } from "@/components/ui/LoadingSpinner";
 import { useApi } from "@/hooks/useApi";
 import { useDebounce } from "@/hooks/useDebounce";
-import { AssignStudentModal } from "@/components/modals/StudentModals";
+import { AssignStudentModal, EditStudentModal } from "@/components/modals/StudentModals";
 import { ConfirmDeleteModal } from "@/components/modals/TeacherModals";
 import type { Student } from "@/types/api";
 
@@ -24,6 +24,7 @@ export default function StudentsPage() {
 
   // Modal state
   const [assignModal, setAssignModal] = useState<{ open: boolean; student: Student | null }>({ open: false, student: null });
+  const [editModal, setEditModal] = useState<{ open: boolean; student: Student | null }>({ open: false, student: null });
   const [deleteModal, setDeleteModal] = useState<{ open: boolean; student: Student | null }>({ open: false, student: null });
 
   if (isLoading && !students) return <PageLoading />;
@@ -112,12 +113,27 @@ export default function StudentsPage() {
                     >
                       <UserCog className="w-[18px] h-[18px]" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="text-slate-400 hover:text-primary hover:bg-slate-50 rounded-lg w-10 h-10">
+                    <Button
+                      variant="ghost" size="icon"
+                      className="text-slate-400 hover:text-primary hover:bg-slate-50 rounded-lg w-10 h-10"
+                      onClick={() => {
+                        const link = document.createElement('a');
+                        link.href = `/api/reports/student/${student.id}/pdf/`;
+                        link.download = `student_report_${student.id}.pdf`;
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                      }}
+                    >
                       <FileText className="w-[18px] h-[18px]" />
                     </Button>
                   </div>
                   <div className="flex gap-1">
-                    <Button variant="ghost" size="icon" className="text-slate-400 hover:text-primary hover:bg-slate-50 rounded-lg w-10 h-10">
+                    <Button
+                      variant="ghost" size="icon"
+                      className="text-slate-400 hover:text-primary hover:bg-slate-50 rounded-lg w-10 h-10"
+                      onClick={() => setEditModal({ open: true, student })}
+                    >
                       <Edit className="w-[18px] h-[18px]" />
                     </Button>
                     <Button
@@ -143,6 +159,15 @@ export default function StudentsPage() {
           studentId={assignModal.student.id}
           studentName={assignModal.student.full_name}
           onSuccess={() => { setAssignModal({ open: false, student: null }); refetch(); }}
+        />
+      )}
+
+      {editModal.student && (
+        <EditStudentModal
+          isOpen={editModal.open}
+          onClose={() => setEditModal({ open: false, student: null })}
+          student={editModal.student}
+          onSuccess={() => { setEditModal({ open: false, student: null }); refetch(); }}
         />
       )}
 
