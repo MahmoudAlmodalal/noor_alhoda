@@ -190,7 +190,8 @@ class StudentDetailApi(APIView):
     def delete(self, request, student_id):
         """DELETE /api/students/<id>/ — إلغاء تسجيل (soft delete)"""
         # Ensure only admins can delete
-        if not request.user.is_staff:
+        from core.permissions import is_admin_user
+        if not is_admin_user(request.user):
             return Response(
                 {"success": False, "error": {"code": 403, "message": "ليس لديك صلاحية للوصول"}},
                 status=status.HTTP_403_FORBIDDEN
