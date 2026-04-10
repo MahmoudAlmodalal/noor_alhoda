@@ -13,7 +13,8 @@ RUN npm ci
 COPY frontend/ ./
 
 # Empty string = all API calls use relative paths (same origin)
-ENV NEXT_PUBLIC_API_URL=""
+ARG NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
 RUN npm run build
 

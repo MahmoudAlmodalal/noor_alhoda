@@ -13,6 +13,8 @@ services:
     dockerContext: .
     healthCheckPath: /health
     envVars:
+      - key: NEXT_PUBLIC_API_URL
+        value: https://noor-alhoda.onrender.com
       - key: DJANGO_SETTINGS_MODULE
         value: noor_alhuda.settings.production
       - key: SECRET_KEY
@@ -31,3 +33,6 @@ services:
         sync: false
       - key: FCM_SERVER_KEY
         sync: false
+    buildArgs:
+      - key: NEXT_PUBLIC_API_URL
+        value: https://noor-alhoda.onrender.com
