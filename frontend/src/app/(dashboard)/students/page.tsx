@@ -118,7 +118,11 @@ export default function StudentsPage() {
                       className="text-slate-400 hover:text-primary hover:bg-slate-50 rounded-lg w-10 h-10"
                       onClick={async () => {
                         try {
-                          const token = localStorage.getItem('auth_token');
+                          const token = localStorage.getItem('access_token');
+                          if (!token) {
+                            console.error('No access token found');
+                            return;
+                          }
                           const response = await fetch(`/api/reports/student/${student.id}/pdf/`, {
                             headers: {
                               'Authorization': `Bearer ${token}`
@@ -138,6 +142,7 @@ export default function StudentsPage() {
                           console.error('Download error:', error);
                         }
                       }}
+                      disabled={!student.id}
                     >
                       <FileText className="w-[18px] h-[18px]" />
                     </Button>
