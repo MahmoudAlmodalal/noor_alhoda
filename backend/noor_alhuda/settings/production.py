@@ -21,8 +21,23 @@ SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 # Database — prefer DATABASE_URL (Render), fall back to individual vars
 DATABASE_URL = config("DATABASE_URL", default="")
 if DATABASE_URL:
+    # Render sometimes provides a DATABASE_URL where the "name" part is actually
+    # a full connection string or contains extra info that exceeds 63 chars.
+    # dj_database_url.parse() usually handles this, but if the resulting 'NAME'
+    # is still too long, we might need to ensure it's just the database name.
+    db_config = dj_database_url.parse(DATABASE_URL, conn_max_age=600)
+    
+    # If the name is still the long string from the error, we try to extract just the last part.
+    # Render sometimes provides a name like 'user:pass@host/dbname' in the name field
+    # if the URL is not parsed correctly or if it's a specific internal format.
+    if len(db_config.get('NAME', '')) > 63:
+        if '/' in db_config['NAME']:
+            db_config['NAME'] = db_config['NAME'].split('/')[-1]
+        elif '@' in db_config['NAME']:
+            db_config['NAME'] = db_config['NAME'].split('@')[-1]
+        
     DATABASES = {
-        "default": dj_database_url.parse(DATABASE_URL, conn_max_age=600),
+        "default": db_config,
     }
 else:
     DATABASES = {
