@@ -35,7 +35,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           role: data.role as UserProfile["role"],
           full_name: data.full_name as string,
         });
+      } else {
+        // Token is invalid or expired, clear it
+        localStorage.removeItem("access_token");
+        localStorage.removeItem("refresh_token");
       }
+      setIsLoading(false);
+    }).catch(() => {
+      // Network error or other issue, clear tokens to be safe
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("refresh_token");
       setIsLoading(false);
     });
   }, []);

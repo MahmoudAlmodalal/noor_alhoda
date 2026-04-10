@@ -65,7 +65,9 @@ async function apiFetch<T>(
 
           if (refreshRes.ok) {
             const refreshData = await refreshRes.json();
-            setTokens(refreshData.access, refreshToken);
+            // Use the new refresh token from the response if available (token rotation)
+            const newRefreshToken = refreshData.refresh || refreshToken;
+            setTokens(refreshData.access, newRefreshToken);
             isRefreshing = false;
             // Retry the original request with new token
             return apiFetch<T>(endpoint, options, false);
