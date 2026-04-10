@@ -14,7 +14,7 @@ services:
     healthCheckPath: /health
     envVars:
       - key: NEXT_PUBLIC_API_URL
-        value: https://noor-alhuda-backend.onrender.com
+        value: ''
       - key: DJANGO_SETTINGS_MODULE
         value: noor_alhuda.settings.production
       - key: SECRET_KEY
@@ -35,4 +35,4 @@ services:
         sync: false
     buildArgs:
       - key: NEXT_PUBLIC_API_URL
-        value: https://noor-alhuda-backend.onrender.com
+        value: ''
