@@ -1,4 +1,4 @@
-from django.db.models import QuerySet
+from django.db.models import QuerySet, Q
 from django.shortcuts import get_object_or_404
 from rest_framework.exceptions import PermissionDenied
 
@@ -26,9 +26,9 @@ def user_list(*, filters: dict, actor: User) -> QuerySet[User]:
     search = filters.get("search")
     if search:
         qs = qs.filter(
-            models_Q(first_name__icontains=search)
-            | models_Q(last_name__icontains=search)
-            | models_Q(phone_number__icontains=search)
+            Q(first_name__icontains=search)
+            | Q(last_name__icontains=search)
+            | Q(phone_number__icontains=search)
         )
 
     return qs
@@ -53,5 +53,4 @@ def teacher_list(*, filters: dict) -> QuerySet[Teacher]:
     return qs
 
 
-# Helper to avoid circular import with django.db.models.Q
-from django.db.models import Q as models_Q  # noqa: E402
+
