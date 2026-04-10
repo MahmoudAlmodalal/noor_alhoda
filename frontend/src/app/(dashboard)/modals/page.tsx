@@ -42,6 +42,7 @@ export default function ModalsPlayground() {
             <AssignRingModal
                 isOpen={activeModal === "assignRing"}
                 onClose={() => setActiveModal(null)}
+                teacherId="demo"
                 teacherName="الشيخ محمد عبدالله"
             />
 
