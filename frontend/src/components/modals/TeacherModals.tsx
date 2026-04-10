@@ -6,13 +6,37 @@ import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useMutation } from "@/hooks/useMutation";
-import type { Teacher } from "@/types/api";
+import { useApi } from "@/hooks/useApi";
+import type { Teacher, Ring } from "@/types/api";
 
 /**
  * 1. Assign Ring Modal — تعيين حلقة للمحفظ
  * TODO: Wire to rings API when backend endpoint is available
  */
-export function AssignRingModal({ isOpen, onClose, teacherName }: { isOpen: boolean; onClose: () => void; teacherName: string }) {
+export function AssignRingModal({ 
+  isOpen, onClose, teacherId, teacherName, onSuccess 
+}: { 
+  isOpen: boolean; onClose: () => void; teacherId: string; teacherName: string; onSuccess?: () => void 
+}) {
+  const [ringId, setRingId] = useState("");
+  const { data: rings } = useApi<Ring[]>(isOpen ? "/api/students/rings/" : null);
+  const { mutate, isSubmitting } = useMutation("patch");
+
+  useEffect(() => {
+    if (isOpen) setRingId("");
+  }, [isOpen]);
+
+  const handleSubmit = async () => {
+    if (!ringId) return;
+    const result = await mutate(
+      { ring_id: ringId },
+      { endpoint: `/api/students/teachers/${teacherId}/assign-ring/`, successMessage: "تم تعيين الحلقة بنجاح" }
+    );
+    if (result) {
+      onSuccess?.();
+    }
+  };
+
   return (
     <Modal isOpen={isOpen} onClose={onClose}>
       <h2 className="text-xl font-bold text-primary mb-2">تعيين حلقة للمحفظ</h2>
@@ -21,13 +45,23 @@ export function AssignRingModal({ isOpen, onClose, teacherName }: { isOpen: bool
       </p>
       <div className="space-y-1.5 mb-8">
         <label className="block text-sm font-bold text-slate-800">اختر الحلقة</label>
-        <Input placeholder="" className="h-12 rounded-xl border-slate-200" />
+        <select
+          value={ringId}
+          onChange={(e) => setRingId(e.target.value)}
+          className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+        >
+          <option value="">— اختر الحلقة —</option>
+          {(rings ?? []).map((r) => (
+            <option key={r.id} value={r.id}>{r.name}</option>
+          ))}
+        </select>
       </div>
       <div className="flex items-center gap-3">
         <Button variant="ghost" onClick={onClose} className="flex-1 bg-slate-100/80 text-slate-700 hover:bg-slate-200 h-12 rounded-xl font-bold">
           إلغاء
         </Button>
-        <Button className="flex-1 h-12 rounded-xl font-bold">
+        <Button onClick={handleSubmit} disabled={isSubmitting || !ringId} className="flex-1 h-12 rounded-xl font-bold gap-2">
+          {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
           حفظ التعيين
         </Button>
       </div>

@@ -161,7 +161,9 @@ export default function TeachersPage() {
         <AssignRingModal
           isOpen={!!assignRing}
           onClose={() => setAssignRing(null)}
+          teacherId={assignRing.id}
           teacherName={assignRing.full_name}
+          onSuccess={() => { setAssignRing(null); refetch(); }}
         />
       )}
     </div>

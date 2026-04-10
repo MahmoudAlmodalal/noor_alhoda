@@ -55,6 +55,7 @@ class UserUpdateSerializer(serializers.Serializer):
     is_active = serializers.BooleanField(required=False)
     fcm_token = serializers.CharField(required=False)
     password = serializers.CharField(required=False)
+    specialization = serializers.CharField(required=False)
 
 
 class TeacherInputSerializer(serializers.Serializer):

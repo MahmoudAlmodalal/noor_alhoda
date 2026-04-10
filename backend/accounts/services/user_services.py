@@ -51,13 +51,17 @@ def user_update(*, user: User, actor: User, data: dict) -> User:
     if not is_admin_user(actor) and actor.id != user.id:
         raise PermissionDenied("ليس لديك صلاحية لتعديل هذا المستخدم.")
 
-    allowed_fields = ["first_name", "last_name", "fcm_token"]
+    allowed_fields = ["first_name", "last_name", "fcm_token", "specialization"]
     if is_admin_user(actor):
         allowed_fields += ["role", "is_active", "phone_number"]
 
     for field_name, value in data.items():
         if field_name in allowed_fields:
-            setattr(user, field_name, value)
+            if field_name == "specialization" and hasattr(user, "teacher_profile"):
+                user.teacher_profile.specialization = value
+                user.teacher_profile.save()
+            else:
+                setattr(user, field_name, value)
 
     if "password" in data and (is_admin_user(actor) or actor.id == user.id):
         user.set_password(data["password"])

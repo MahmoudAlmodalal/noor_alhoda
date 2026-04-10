@@ -20,6 +20,17 @@ export interface LoginResponse {
 
 // ─── Teachers ────────────────────────────────────────────────────────────────
 
+export interface Ring {
+  id: string;
+  name: string;
+  status: "active" | "inactive";
+  level: string;
+  teacher_id: string | null;
+  teacher_name: string | null;
+  students_count: number;
+  created_at: string;
+}
+
 export interface Teacher {
   id: string;
   full_name: string;
@@ -27,6 +38,8 @@ export interface Teacher {
   session_days: string[];
   max_students: number;
   created_at: string;
+  ring_id?: string | null;
+  ring_name?: string | null;
 }
 
 export interface TeacherWithUser {

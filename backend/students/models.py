@@ -5,6 +5,44 @@ from django.db import models
 from accounts.models import User, Teacher
 
 
+class Ring(models.Model):
+    """
+    Quran Ring (Halaqa) model.
+    """
+
+    class Status(models.TextChoices):
+        ACTIVE = "active", "نشطة"
+        INACTIVE = "inactive", "متوقفة"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=100, verbose_name="اسم الحلقة")
+    teacher = models.ForeignKey(
+        Teacher,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="rings",
+        verbose_name="المحفظ المسؤول",
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.ACTIVE,
+        verbose_name="الحالة",
+    )
+    level = models.CharField(max_length=50, blank=True, verbose_name="المستوى")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "حلقة"
+        verbose_name_plural = "الحلقات"
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+
 class Student(models.Model):
     """
     Student profile with full registration data.
@@ -97,6 +135,14 @@ class Student(models.Model):
         blank=True,
         related_name="students",
         verbose_name="المحفظ المسؤول",
+    )
+    ring = models.ForeignKey(
+        Ring,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="students",
+        verbose_name="الحلقة",
     )
     health_status = models.CharField(
         max_length=20,

@@ -116,13 +116,27 @@ export default function StudentsPage() {
                     <Button
                       variant="ghost" size="icon"
                       className="text-slate-400 hover:text-primary hover:bg-slate-50 rounded-lg w-10 h-10"
-                      onClick={() => {
-                        const link = document.createElement('a');
-                        link.href = `/api/reports/student/${student.id}/pdf/`;
-                        link.download = `student_report_${student.id}.pdf`;
-                        document.body.appendChild(link);
-                        link.click();
-                        document.body.removeChild(link);
+                      onClick={async () => {
+                        try {
+                          const token = localStorage.getItem('auth_token');
+                          const response = await fetch(`/api/reports/student/${student.id}/pdf/`, {
+                            headers: {
+                              'Authorization': `Bearer ${token}`
+                            }
+                          });
+                          if (!response.ok) throw new Error('فشل تحميل التقرير');
+                          const blob = await response.blob();
+                          const url = window.URL.createObjectURL(blob);
+                          const link = document.createElement('a');
+                          link.href = url;
+                          link.download = `تقرير_${student.full_name}.pdf`;
+                          document.body.appendChild(link);
+                          link.click();
+                          link.remove();
+                          window.URL.revokeObjectURL(url);
+                        } catch (error) {
+                          console.error('Download error:', error);
+                        }
                       }}
                     >
                       <FileText className="w-[18px] h-[18px]" />
