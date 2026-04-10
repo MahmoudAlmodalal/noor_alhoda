@@ -60,6 +60,9 @@ CSRF_TRUSTED_ORIGINS = config(
     default="https://noor-alhoda.onrender.com",
     cast=lambda v: [s.strip() for s in v.split(",")],
 )
+# Always include the main domain
+if "https://noor-alhoda.onrender.com" not in CSRF_TRUSTED_ORIGINS:
+    CSRF_TRUSTED_ORIGINS.append("https://noor-alhoda.onrender.com")
 
 # Tighten CORS in production
 CORS_ALLOW_ALL_ORIGINS = False
@@ -68,3 +71,6 @@ CORS_ALLOWED_ORIGINS = config(
     default="https://noor-alhoda.onrender.com",
     cast=lambda v: [s.strip() for s in v.split(",")],
 )
+# Always include the main domain
+if "https://noor-alhoda.onrender.com" not in CORS_ALLOWED_ORIGINS:
+    CORS_ALLOWED_ORIGINS.append("https://noor-alhoda.onrender.com")

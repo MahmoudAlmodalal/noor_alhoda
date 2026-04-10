@@ -1,6 +1,8 @@
 import type { ApiResponse, LoginRequest, LoginResponse } from "@/types/api";
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+// In production, we use relative paths to avoid CORS issues and ensure same-origin requests.
+// NEXT_PUBLIC_API_URL is only used if we need to point to a different domain.
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
 // ─── Token helpers ───────────────────────────────────────────────────────────
 
