@@ -60,7 +60,7 @@ export default function ModalsPlayground() {
             <EditTeacherModal
                 isOpen={activeModal === "editTeacher"}
                 onClose={() => setActiveModal(null)}
-                teacher={{ id: "demo", full_name: "الشيخ محمد عبدالله", specialization: "حفص عن عاصم", session_days: [], max_students: 25, created_at: "" }}
+                teacher={{ id: "demo", user_id: "demo", full_name: "الشيخ محمد عبدالله", specialization: "حفص عن عاصم", session_days: [], max_students: 25, created_at: "" }}
             />
 
             <AssignStudentModal

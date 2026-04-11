@@ -60,6 +60,13 @@ export default function Dashboard() {
 
   const isAdmin = user?.role === "admin";
   const isTeacher = user?.role === "teacher";
+  const isStudent = user?.role === "student";
+
+  useEffect(() => {
+    if (!authLoading && isStudent) {
+      router.replace("/student");
+    }
+  }, [authLoading, isStudent, router]);
 
   // Admin: live dashboard stats
   const { data: dashStats, isLoading: dashLoading } = useApi<DashboardStats>(
@@ -90,6 +97,7 @@ export default function Dashboard() {
   }, [rosterParams, refetchRoster]);
 
   if (authLoading) return <PageLoading />;
+  if (isStudent) return <PageLoading />;
   if (isAdmin && dashLoading && !dashStats) return <PageLoading />;
 
   // ─── Derived stats ─────────────────────────────────────────────────────────

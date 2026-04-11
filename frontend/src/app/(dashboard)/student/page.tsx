@@ -2,26 +2,194 @@
 
 import { useAuth } from "@/contexts/AuthContext";
 import { useApi } from "@/hooks/useApi";
-import { Card, CardContent } from "@/components/ui/Card";
 import { PageLoading } from "@/components/ui/LoadingSpinner";
-import { Star, Flame, Trophy, BookOpen, Target, CheckCircle2, Award, FileText } from "lucide-react";
+import {
+    Award,
+    BookOpen,
+    Flame,
+    Star,
+    Target,
+    Trophy,
+} from "lucide-react";
+
+type Attendance = "present" | "absent" | "upcoming";
+type ResultKey = "pass" | "none";
+type Rating = "excellent" | "very_good" | "good" | "none";
+
+interface WeeklyRow {
+    day: string;
+    attendance: Attendance;
+    required: string;
+    achieved: string;
+    evaluation: Rating;
+    result: ResultKey;
+}
+
+interface HistoryRow {
+    id: number | string;
+    title: string;
+    date: string;
+    rating: Rating;
+}
+
+const FIGMA_WEEKLY: WeeklyRow[] = [
+    { day: "السبت", attendance: "present", required: "5 آيات", achieved: "5 آيات", evaluation: "excellent", result: "pass" },
+    { day: "الأحد", attendance: "present", required: "5 آيات", achieved: "5 آيات", evaluation: "very_good", result: "pass" },
+    { day: "الإثنين", attendance: "present", required: "مراجعة وجه", achieved: "وجه كامل", evaluation: "excellent", result: "pass" },
+    { day: "الثلاثاء", attendance: "present", required: "5 آيات", achieved: "5 آيات", evaluation: "excellent", result: "pass" },
+    { day: "الأربعاء", attendance: "absent", required: "-", achieved: "-", evaluation: "none", result: "none" },
+    { day: "الخميس", attendance: "upcoming", required: "مراجعة", achieved: "-", evaluation: "none", result: "none" },
+];
+
+const FIGMA_HISTORY: HistoryRow[] = [
+    { id: 1, title: "تسميع سورة الملك (1-10)", date: "12 شعبان 1447", rating: "excellent" },
+    { id: 2, title: "مراجعة سورة القلم", date: "11 شعبان 1447", rating: "very_good" },
+    { id: 3, title: "تسميع سورة الحاقة", date: "10 شعبان 1447", rating: "excellent" },
+    { id: 4, title: "مراجعة جزء تبارك", date: "9 شعبان 1447", rating: "good" },
+    { id: 5, title: "تسميع سورة الملك (11-20)", date: "8 شعبان 1447", rating: "excellent" },
+];
+
+function AttendancePill({ value }: { value: Attendance }) {
+    if (value === "present") {
+        return (
+            <span className="inline-block rounded-[4px] bg-[#dcfce7] px-2 py-1 text-[12px] font-bold text-[#008236]">
+                حاضر
+            </span>
+        );
+    }
+    if (value === "absent") {
+        return (
+            <span className="inline-block rounded-[4px] bg-[#ffe2e2] px-2 py-1 text-[12px] font-bold text-[#c10007]">
+                غائب
+            </span>
+        );
+    }
+    return (
+        <span className="inline-block rounded-[4px] bg-[#f3f4f6] px-2 py-1 text-[12px] font-bold text-[#6a7282]">
+            قادم
+        </span>
+    );
+}
+
+function ResultPill({ value }: { value: ResultKey }) {
+    if (value === "pass") {
+        return (
+            <span className="inline-block rounded-[4px] bg-[#dcfce7] px-2 py-1 text-[12px] font-bold text-[#008236]">
+                ناجح
+            </span>
+        );
+    }
+    return (
+        <span className="inline-block rounded-[4px] bg-[#f3f4f6] px-2 py-1 text-[12px] font-bold text-[#6a7282]">
+            -
+        </span>
+    );
+}
+
+function RatingText({ value }: { value: Rating }) {
+    if (value === "excellent") {
+        return <span className="text-[16px] font-bold text-[#2f944d]">ممتاز</span>;
+    }
+    if (value === "very_good") {
+        return <span className="text-[16px] font-bold text-[#0a528e]">جيد جداً</span>;
+    }
+    if (value === "good") {
+        return <span className="text-[16px] font-bold text-[#ca3500]">جيد</span>;
+    }
+    return <span className="text-[16px] font-bold text-[#6a7282]">-</span>;
+}
+
+function RatingPill({ value }: { value: Rating }) {
+    if (value === "excellent") {
+        return (
+            <span className="inline-block rounded-[10px] bg-[#dcfce7] px-3 py-1 text-[14px] font-bold text-[#008236]">
+                ممتاز
+            </span>
+        );
+    }
+    if (value === "very_good") {
+        return (
+            <span className="inline-block rounded-[10px] bg-[#dbeafe] px-3 py-1 text-[14px] font-bold text-[#1447e6]">
+                جيد جداً
+            </span>
+        );
+    }
+    if (value === "good") {
+        return (
+            <span className="inline-block rounded-[10px] bg-[#ffedd4] px-3 py-1 text-[14px] font-bold text-[#ca3500]">
+                جيد
+            </span>
+        );
+    }
+    return null;
+}
+
+function StatsTile({
+    icon,
+    tileBg,
+    label,
+    value,
+    labelMaxWidth,
+}: {
+    icon: React.ReactNode;
+    tileBg: string;
+    label: string;
+    value: string | number;
+    labelMaxWidth?: string;
+}) {
+    return (
+        <div className="flex h-[180px] flex-col items-center justify-center rounded-[16px] border border-[#f3f4f6] bg-white px-4 shadow-sm">
+            <div
+                className={`mb-3 flex h-14 w-14 items-center justify-center rounded-[14px] ${tileBg}`}
+            >
+                {icon}
+            </div>
+            <span
+                className={`mb-1 text-center text-[12px] font-bold text-[#6a7282] leading-tight ${labelMaxWidth ?? ""}`}
+            >
+                {label}
+            </span>
+            <span className="text-[30px] font-bold leading-9 text-[#1e2939]">
+                {value}
+            </span>
+        </div>
+    );
+}
+
+interface StudentProfile {
+    full_name?: string;
+    grade?: string;
+    ring_name?: string;
+    teacher_name?: string;
+}
+
+interface StudentStatsLike {
+    points?: number | string;
+    memorized_parts?: number;
+    streak?: number;
+    class_rank?: number;
+    current_goal?: string;
+    goal_progress?: number;
+    memorization_level?: string;
+}
 
 export default function StudentDashboard() {
     const { user } = useAuth();
-    const { data: profile, isLoading: isProfileLoading } = useApi<any>(
+
+    const { data: profile, isLoading: isProfileLoading } = useApi<StudentProfile>(
         user?.id ? `/api/students/${user.id}/` : null
     );
 
-    const { data: stats, isLoading: isStatsLoading } = useApi<any>(
+    const { data: stats, isLoading: isStatsLoading } = useApi<StudentStatsLike>(
         user?.id ? `/api/students/${user.id}/stats/` : null
     );
 
-    const { data: weeklyPlan, isLoading: isPlanLoading } = useApi<any[]>(
-        user?.id ? `/api/records/weekly-summary/${user.id}/` : null, // we omit week_start to default to current week in backend or pass it if necessary
-        { week_start: new Date().toISOString().split('T')[0] }
+    const { data: weeklyPlan } = useApi<WeeklyRow[]>(
+        user?.id ? `/api/records/weekly-summary/${user.id}/` : null,
+        { week_start: new Date().toISOString().split("T")[0] }
     );
 
-    const { data: history, isLoading: isHistoryLoading } = useApi<any[]>(
+    const { data: history } = useApi<HistoryRow[]>(
         user?.id ? `/api/students/${user.id}/history/` : null
     );
 
@@ -29,213 +197,266 @@ export default function StudentDashboard() {
         return <PageLoading />;
     }
 
-    // Fallback to defaults to match Figma if API is empty/not fully implemented
-    const points = stats?.points || "1,250";
-    const streak = stats?.streak || 14;
-    const absences = stats?.absences || 2;
-    const memorizedParts = stats?.memorized_parts || 3;
+    const firstName =
+        profile?.full_name?.split(" ")[0] ||
+        user?.full_name?.split(" ")[0] ||
+        "عمر";
+    const fullName = profile?.full_name || user?.full_name || "أحمد محمد";
+    const memorizationLevel = stats?.memorization_level || "جزء عم - ممتاز";
+    const subtitleParts = [
+        profile?.grade || "الصف الأول المتوسط",
+        profile?.ring_name || "حلقة الفجر",
+        profile?.teacher_name ? `الشيخ ${profile.teacher_name}` : "الشيخ محمد عبدالله",
+    ];
+
+    const points = stats?.points ?? "1,250";
+    const memorizedParts = stats?.memorized_parts ?? 3;
+    const streak = stats?.streak ?? 14;
+    const classRank = stats?.class_rank ?? 2;
     const currentGoal = stats?.current_goal || "حفظ سورة الملك";
-    const goalProgress = stats?.goal_progress || 80;
+    const goalProgress = stats?.goal_progress ?? 80;
 
-    const mockWeeklyPlan = [
-        { day: "السبت", material: "آيات 1-10", status: "ممتاز", statusColor: "text-green-600 bg-green-50", target: "5 آيات" },
-        { day: "الأحد", material: "آيات 11-15", status: "ممتاز", statusColor: "text-green-600 bg-green-50", target: "5 آيات" },
-        { day: "الإثنين", material: "آيات 16-20", status: "ممتاز", statusColor: "text-green-600 bg-green-50", target: "مراجعة فقط" },
-        { day: "الثلاثاء", material: "آيات 21-25", status: "جيد جداً", statusColor: "text-blue-600 bg-blue-50", target: "5 آيات" },
-        { day: "الأربعاء", material: "-", status: "غائب", statusColor: "text-red-600 bg-red-50", target: "-" },
-        { day: "الخميس", material: "راحة", status: "راحة", statusColor: "text-slate-500 bg-slate-100", target: "راحة" },
-    ];
-
-    const actualPlan = weeklyPlan?.length ? weeklyPlan : mockWeeklyPlan;
-
-    const mockHistory = [
-        { id: 1, title: "تسميع سورة الملك (1-10)", date: "15 شعبان 1445", rating: "ممتاز", ratingColor: "text-green-600 bg-green-50" },
-        { id: 2, title: "مراجعة سورة القلم", date: "12 شعبان 1445", rating: "جيد جداً", ratingColor: "text-blue-600 bg-blue-50" },
-        { id: 3, title: "تسميع سورة الحاقة", date: "10 شعبان 1445", rating: "ممتاز", ratingColor: "text-green-600 bg-green-50" },
-        { id: 4, title: "مراجعة جزء تبارك", date: "5 شعبان 1445", rating: "جيد", ratingColor: "text-orange-600 bg-orange-50" },
-    ];
-
-    const actualHistory = history?.length ? history : mockHistory;
+    const planRows: WeeklyRow[] =
+        weeklyPlan && weeklyPlan.length ? weeklyPlan : FIGMA_WEEKLY;
+    const historyRows: HistoryRow[] =
+        history && history.length ? history : FIGMA_HISTORY;
 
     return (
-        <div className="space-y-6 max-w-sm md:max-w-md mx-auto pb-24">
-            {/* Top Banner */}
-            <div className="bg-white rounded-[24px] p-6 shadow-sm border border-slate-100 text-center flex flex-col items-center">
-                <h1 className="text-xl font-bold text-primary mb-1">
-                    مرحباً، {profile?.full_name?.split(' ')[0] || user?.full_name || "عمر"}
-                </h1>
-                <p className="text-[10px] text-slate-500 mb-4">
-                    طالب مجتهد، جعلك الله قرة عين لوالديك
-                </p>
-                <div className="bg-blue-50/50 border border-blue-100 rounded-xl px-4 py-2 inline-flex items-center gap-2">
-                    <div className="flex flex-col items-center">
-                        <span className="text-[9px] text-slate-500">مستوى الحفظ الحالي</span>
-                        <span className="text-xs font-bold text-primary">
-                            {profile?.grade || "جزء عم - ممتاز"}
+        <div className="mx-auto max-w-md space-y-8 pb-24" dir="rtl">
+            {/* 1. Header card */}
+            <div className="flex items-center justify-between gap-4 rounded-[16px] border-t-[3px] border-t-[#1e88e5] bg-white px-5 pb-4 pt-[18px] shadow-sm">
+                <div className="flex flex-col gap-1">
+                    <h1 className="text-[24px] font-bold leading-8 text-[#0b5394]">
+                        مرحباً، {firstName}
+                    </h1>
+                    <p className="text-[14px] text-[#6a7282]">
+                        طالب مجتهد، جعلك الله قرة عين لوالديك
+                    </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-3 rounded-[10px] border border-[#1e88e5]/30 bg-[#eff6ff] px-4 py-2">
+                    <div className="flex flex-col text-right">
+                        <span className="text-[12px] text-[#6a7282]">
+                            مستوى الحفظ الحالي
+                        </span>
+                        <span className="text-[16px] font-bold text-[#0b5394]">
+                            {memorizationLevel}
                         </span>
                     </div>
-                    <Award className="w-5 h-5 text-primary" />
+                    <Award className="h-6 w-6 text-[#1e88e5]" />
                 </div>
             </div>
 
-            {/* Teacher Box */}
-            {profile?.teacher_name && (
-                <div className="bg-white rounded-[20px] p-4 shadow-sm border border-slate-100 flex items-center gap-3">
-                    <div className="w-10 h-10 bg-orange-50 rounded-full flex items-center justify-center shrink-0 border border-[#e6b150]/20">
-                        <FileText className="w-4 h-4 text-[#e6b150]" />
-                    </div>
-                    <div className="flex-1">
-                        <h3 className="text-sm font-bold text-primary">
-                            السلام عليكم، {profile.teacher_name}
-                        </h3>
-                        <p className="text-[10px] text-slate-500 mt-0.5">
-                            معلم حلقة التلقين وبناء الحفظ
-                        </p>
-                    </div>
-                </div>
-            )}
-
-            {!profile?.teacher_name && (
-                <div className="bg-white rounded-[20px] p-4 shadow-sm border border-slate-100 flex items-center gap-3">
-                    <div className="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center shrink-0 border border-slate-200">
-                        <span className="text-sm text-slate-400 font-bold">أ</span>
-                    </div>
-                    <div className="flex-1">
-                        <h3 className="text-sm font-bold text-primary">
-                            السلام عليكم، أحمد محمد
-                        </h3>
-                        <p className="text-[10px] text-slate-500 mt-0.5">
-                            ولي أمر الطالب مسجل في حلقات التحفيظ
-                        </p>
-                    </div>
-                </div>
-            )}
-
-            {/* 4 Grid Stats */}
-            <div className="grid grid-cols-2 gap-3">
-                <StatsCard icon={<BookOpen className="w-5 h-5 text-primary" />} bg="bg-blue-50" label="الأجزاء المحفوظة" value={memorizedParts} />
-                <StatsCard icon={<Star className="w-5 h-5 text-[#e6b150]" />} bg="bg-orange-50" label="النقاط" value={points} />
-                <StatsCard icon={<Trophy className="w-5 h-5 text-slate-400" />} bg="bg-slate-50" label="الغياب في السنة" value={absences} />
-                <StatsCard icon={<Flame className="w-5 h-5 text-red-400" />} bg="bg-red-50" label="أيام الحضور المتتالية" value={streak} />
-            </div>
-
-            {/* Badges Section */}
-            <div className="bg-white rounded-[24px] p-5 shadow-sm border border-slate-100">
-                <div className="flex items-center gap-2 mb-4">
-                    <Trophy className="w-4 h-4 text-[#e6b150]" />
-                    <h3 className="font-bold text-sm text-slate-800">شارات الإنجاز</h3>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-[#0a528e] text-white rounded-[16px] p-3 flex flex-col items-center justify-center text-center gap-1">
-                        <BookOpen className="w-5 h-5 text-white/80" />
-                        <span className="text-xs font-bold mt-1">حافظ سورة البقرة</span>
-                    </div>
-                    <div className="bg-[#ef4444] text-white rounded-[16px] p-3 flex flex-col items-center justify-center text-center gap-1">
-                        <Flame className="w-5 h-5 text-white/80" />
-                        <span className="text-xs font-bold mt-1">30 يوم متواصل</span>
-                    </div>
-                    <div className="bg-[#e6b150] text-white rounded-[16px] p-3 flex flex-col items-center justify-center text-center gap-1">
-                        <Star className="w-5 h-5 text-white/80 fill-white/20" />
-                        <span className="text-xs font-bold mt-1">متفوق الشهر</span>
-                    </div>
-                    <div className="bg-slate-50 border border-slate-100 text-slate-600 rounded-[16px] p-3 flex flex-col items-center justify-center text-center gap-1">
-                        <Target className="w-5 h-5 text-rose-400" />
-                        <span className="text-[10px] font-bold mt-1">حفظ 5 أجزاء</span>
-                    </div>
-                </div>
-            </div>
-
-            {/* Goal Progress */}
-            <div className="bg-[#0a528e] text-white rounded-[24px] p-5 shadow-sm relative overflow-hidden">
-                <Star className="w-16 h-16 text-white/5 absolute -top-4 -left-4" />
-                <div className="relative z-10">
-                    <div className="flex items-center gap-2 mb-2">
-                        <Target className="w-4 h-4 text-[#e6b150]" />
-                        <h3 className="font-bold text-sm">الهدف الحالي: {currentGoal}</h3>
-                    </div>
-                    <p className="text-[10px] text-blue-100/80 mb-4 leading-relaxed">
-                        أنت على وشك إتمام حفظ سورة الملك! استمر في المراجعة اليومية لتحقيق هدفك بامتياز.
+            {/* 2. Profile card */}
+            <div className="flex items-center justify-between gap-4 rounded-[24px] border border-[#f3f4f6] bg-white p-6 shadow-sm">
+                <div className="flex min-w-0 flex-col gap-1">
+                    <h2 className="text-[24px] font-bold leading-8 text-[#0a528e]">
+                        السلام عليكم، {fullName}
+                    </h2>
+                    <p className="text-[14px] text-[#6a7282]">
+                        {subtitleParts.join(" • ")}
                     </p>
-                    <div className="flex items-center gap-3">
-                        <span className="text-xs font-bold shrink-0">{goalProgress}%</span>
-                        <div className="flex-1 h-1.5 bg-blue-900/50 rounded-full overflow-hidden">
-                            <div className="h-full bg-[#e6b150] rounded-full" style={{ width: `${goalProgress}%` }} />
-                        </div>
-                        <span className="text-[9px] text-blue-200 shrink-0">نسبة الإنجاز</span>
+                </div>
+                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border border-[#e6b150] bg-[#fcf8ef] text-[30px]">
+                    👤
+                </div>
+            </div>
+
+            {/* 3. Stats grid */}
+            <div className="grid grid-cols-2 gap-4">
+                <StatsTile
+                    icon={<BookOpen className="h-6 w-6 text-[#1e88e5]" />}
+                    tileBg="bg-[#eff6ff]"
+                    label="الأجزاء المحفوظة"
+                    value={memorizedParts}
+                />
+                <StatsTile
+                    icon={<Star className="h-6 w-6 fill-[#e6b150] text-[#e6b150]" />}
+                    tileBg="bg-[#fefce8]"
+                    label="النقاط"
+                    value={points}
+                />
+                <StatsTile
+                    icon={<Flame className="h-6 w-6 text-[#f43f5e]" />}
+                    tileBg="bg-[#fef2f2]"
+                    label="أيام الحضور المتتالية"
+                    value={streak}
+                    labelMaxWidth="max-w-[90px]"
+                />
+                <StatsTile
+                    icon={<Trophy className="h-6 w-6 text-[#e6b150]" />}
+                    tileBg="bg-[#fff7ed]"
+                    label="الترتيب في الحلقة"
+                    value={classRank}
+                />
+            </div>
+
+            {/* 4. Badges */}
+            <div className="rounded-[24px] border border-[#f3f4f6] bg-white p-6 shadow-sm">
+                <div className="mb-6 flex items-center justify-end gap-2">
+                    <h3 className="text-[20px] font-bold text-[#1e2939]">
+                        شارات الإنجاز
+                    </h3>
+                    <Trophy className="h-6 w-6 text-[#e6b150]" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="flex h-32 flex-col items-start justify-start gap-2 rounded-[16px] bg-[#0a528e] p-5 text-white shadow-lg">
+                        <span className="w-full text-center text-[36px] leading-none">
+                            📖
+                        </span>
+                        <span className="w-full text-center text-[14px] font-bold leading-5">
+                            حافظ سورة البقرة
+                        </span>
+                    </div>
+                    <div className="flex h-32 flex-col items-start justify-start gap-2 rounded-[16px] bg-[#f43f5e] p-5 text-white shadow-lg">
+                        <span className="w-full text-center text-[36px] leading-none">
+                            🔥
+                        </span>
+                        <span className="w-full text-center text-[14px] font-bold leading-5">
+                            30 يوم متواصل
+                        </span>
+                    </div>
+                    <div className="flex h-28 flex-col items-start justify-start gap-2 rounded-[16px] bg-[#e6b150] p-5 text-white shadow-lg">
+                        <span className="w-full text-center text-[36px] leading-none">
+                            ⭐
+                        </span>
+                        <span className="w-full text-center text-[14px] font-bold leading-5">
+                            متفوق الشهر
+                        </span>
+                    </div>
+                    <div className="flex h-28 flex-col items-start justify-start gap-2 rounded-[16px] bg-[#f3f4f6] p-5 opacity-60">
+                        <span className="w-full text-center text-[36px] leading-none text-[#99a1af]">
+                            🎯
+                        </span>
+                        <span className="w-full text-center text-[14px] font-bold leading-5 text-[#99a1af]">
+                            حفظ 5 أجزاء
+                        </span>
                     </div>
                 </div>
             </div>
 
-            {/* Today's Evaluation */}
-            <div className="bg-white rounded-[24px] p-5 border border-slate-100 shadow-sm">
-                <div className="flex items-center gap-2 mb-4">
-                    <Star className="w-4 h-4 text-primary" />
-                    <h3 className="font-bold text-sm text-slate-800">تقييم اليوم</h3>
-                </div>
-                <div className="space-y-3">
-                    <div className="bg-green-50/50 border border-green-100 rounded-[16px] p-3 flex items-center justify-between">
-                        <div>
-                            <span className="block text-[10px] text-green-600 font-bold mb-1">الحفظ الجديد</span>
-                            <span className="text-sm font-black text-green-700">ممتاز</span>
-                        </div>
-                        <div className="flex gap-1">
-                            <Star className="w-4 h-4 fill-green-500 text-green-500" />
-                            <Star className="w-4 h-4 fill-green-500 text-green-500" />
-                            <Star className="w-4 h-4 fill-green-500 text-green-500" />
-                        </div>
+            {/* 5. Goal card */}
+            <div className="relative overflow-hidden rounded-[24px] bg-gradient-to-l from-[#0a528e] to-[#1565c0] p-8 text-white shadow-lg">
+                <div className="pointer-events-none absolute -right-16 -top-32 h-64 w-64 rounded-full bg-white/5" />
+                <div className="relative">
+                    <div className="mb-5 flex items-center justify-end gap-3">
+                        <h3 className="text-[24px] font-bold leading-8">
+                            الهدف الحالي: {currentGoal}
+                        </h3>
+                        <Target className="h-6 w-6 text-[#e6b150]" />
                     </div>
-                    <div className="bg-primary/5 border border-primary/10 rounded-[16px] p-3 flex items-center justify-between">
-                        <div>
-                            <span className="block text-[10px] text-primary font-bold mb-1">المراجعة الصغرى</span>
-                            <span className="text-sm font-black text-primary">جيد جداً</span>
-                        </div>
-                        <div className="flex gap-1">
-                            <Star className="w-4 h-4 fill-primary text-primary" />
-                            <Star className="w-4 h-4 fill-primary text-primary" />
-                            <Star className="w-4 h-4 text-primary/30" />
-                        </div>
+                    <p className="mb-6 text-[18px] leading-7 text-[#dbeafe]">
+                        أنت على وشك إتمام حفظ سورة الملك! استمر في المراجعة اليومية
+                        لتحقيق هدفك بامتياز.
+                    </p>
+                    <div className="mb-2 flex items-center justify-between text-[14px] font-bold text-white">
+                        <span>{goalProgress}%</span>
+                        <span>نسبة الإنجاز</span>
                     </div>
-                    <div className="bg-purple-50/50 border border-purple-100 rounded-[16px] p-3 flex items-center justify-between">
-                        <div>
-                            <span className="block text-[10px] text-purple-600 font-bold mb-1">السلوك والمواظبة</span>
-                            <span className="text-sm font-black text-purple-700">ممتاز</span>
-                        </div>
-                        <div className="flex gap-1">
-                            <Star className="w-4 h-4 fill-purple-500 text-purple-500" />
-                            <Star className="w-4 h-4 fill-purple-500 text-purple-500" />
-                            <Star className="w-4 h-4 fill-purple-500 text-purple-500" />
-                        </div>
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-black/20">
+                        <div
+                            className="h-full rounded-full bg-gradient-to-l from-[#e6b150] to-[#f0c674]"
+                            style={{ width: `${goalProgress}%` }}
+                        />
                     </div>
                 </div>
             </div>
 
-            {/* Weekly Plan Table */}
-            <div className="bg-white rounded-[24px] p-5 shadow-sm border border-slate-100">
-                <div className="flex items-center gap-2 mb-4">
-                    <BookOpen className="w-4 h-4 text-primary" />
-                    <h3 className="font-bold text-sm text-slate-800">الخطة الأسبوعية الحالية</h3>
+            {/* 6. Today's evaluation */}
+            <div className="rounded-[24px] border border-[#f3f4f6] bg-white p-6 shadow-sm">
+                <div className="mb-6 flex items-center justify-end gap-2">
+                    <h3 className="text-[20px] font-bold text-[#1e2939]">تقييم اليوم</h3>
+                    <Star className="h-6 w-6 text-[#e6b150]" />
                 </div>
-                <div className="overflow-x-auto text-center">
-                    <table className="w-full text-xs box-content border-collapse">
+                <div className="space-y-4">
+                    <EvalRow
+                        label="الحفظ الجديد"
+                        labelColor="text-[#00a63e]"
+                        valueColor="text-[#016630]"
+                        valueText="ممتاز"
+                        background="bg-[#f0fdf4]"
+                        border="border-[#dcfce7]"
+                        starColor="text-[#00a63e] fill-[#00a63e]"
+                        filled={3}
+                    />
+                    <EvalRow
+                        label="المراجعة الصغرى"
+                        labelColor="text-[#155dfc]"
+                        valueColor="text-[#193cb8]"
+                        valueText="جيد جداً"
+                        background="bg-[#eff6ff]"
+                        border="border-[#dbeafe]"
+                        starColor="text-[#155dfc] fill-[#155dfc]"
+                        filled={2}
+                    />
+                    <EvalRow
+                        label="السلوك والمواظبة"
+                        labelColor="text-[#9810fa]"
+                        valueColor="text-[#6e11b0]"
+                        valueText="ممتاز"
+                        background="bg-[#faf5ff]"
+                        border="border-[#f3e8ff]"
+                        starColor="text-[#9810fa] fill-[#9810fa]"
+                        filled={3}
+                    />
+                </div>
+            </div>
+
+            {/* 7. Weekly plan */}
+            <div className="rounded-[24px] border border-[#f3f4f6] bg-white p-6 shadow-sm">
+                <div className="mb-6 flex items-center justify-end gap-2">
+                    <h3 className="text-[20px] font-bold text-[#1e2939]">
+                        الخطة الأسبوعية الحالية
+                    </h3>
+                    <BookOpen className="h-6 w-6 text-[#e6b150]" />
+                </div>
+                <div className="overflow-x-auto">
+                    <table className="w-full min-w-[560px] border-collapse text-right">
                         <thead>
-                            <tr className="border-b border-slate-100">
-                                <th className="py-2 px-1 text-slate-500 font-medium">اليوم</th>
-                                <th className="py-2 px-1 text-slate-500 font-medium">المقرر</th>
-                                <th className="py-2 px-1 text-slate-500 font-medium whitespace-nowrap">المستوى</th>
-                                <th className="py-2 px-1 text-slate-500 font-medium">المطلوب</th>
+                            <tr className="bg-[#f9fafb]">
+                                <th className="rounded-r-[14px] px-3 py-4 text-[16px] font-bold text-[#364153]">
+                                    اليوم
+                                </th>
+                                <th className="px-3 py-4 text-[16px] font-bold text-[#364153]">
+                                    الحضور
+                                </th>
+                                <th className="px-3 py-4 text-[16px] font-bold text-[#364153]">
+                                    المطلوب
+                                </th>
+                                <th className="px-3 py-4 text-[16px] font-bold text-[#364153]">
+                                    المحقق
+                                </th>
+                                <th className="px-3 py-4 text-[16px] font-bold text-[#364153]">
+                                    التقييم
+                                </th>
+                                <th className="rounded-l-[14px] px-3 py-4 text-[16px] font-bold text-[#364153]">
+                                    النتيجة
+                                </th>
                             </tr>
                         </thead>
                         <tbody>
-                            {actualPlan.map((plan: any, idx: number) => (
-                                <tr key={idx} className="border-b border-slate-50 py-1">
-                                    <td className="py-3 px-1 font-bold text-slate-800 whitespace-nowrap">{plan.day}</td>
-                                    <td className="py-3 px-1 text-slate-500 whitespace-nowrap">{plan.material}</td>
-                                    <td className="py-3 px-1">
-                                        <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${plan.statusColor}`}>
-                                            {plan.status}
-                                        </span>
+                            {planRows.map((row, idx) => (
+                                <tr
+                                    key={`${row.day}-${idx}`}
+                                    className="border-b border-[#f3f4f6] last:border-b-0"
+                                >
+                                    <td className="px-3 py-4 text-[16px] font-bold text-[#1e2939] whitespace-nowrap">
+                                        {row.day}
                                     </td>
-                                    <td className="py-3 px-1 text-slate-500 whitespace-nowrap">{plan.target}</td>
+                                    <td className="px-3 py-4">
+                                        <AttendancePill value={row.attendance} />
+                                    </td>
+                                    <td className="px-3 py-4 text-[16px] text-[#4a5565] whitespace-nowrap">
+                                        {row.required}
+                                    </td>
+                                    <td className="px-3 py-4 text-[16px] font-bold text-[#1e2939] whitespace-nowrap">
+                                        {row.achieved}
+                                    </td>
+                                    <td className="px-3 py-4 whitespace-nowrap">
+                                        <RatingText value={row.evaluation} />
+                                    </td>
+                                    <td className="px-3 py-4">
+                                        <ResultPill value={row.result} />
+                                    </td>
                                 </tr>
                             ))}
                         </tbody>
@@ -243,24 +464,30 @@ export default function StudentDashboard() {
                 </div>
             </div>
 
-            {/* Latest Evaluations */}
-            <div className="bg-white rounded-[24px] p-5 shadow-sm border border-slate-100">
-                <div className="flex items-center gap-2 mb-4">
-                    <FileText className="w-4 h-4 text-primary" />
-                    <h3 className="font-bold text-sm text-slate-800">آخر التقييمات</h3>
+            {/* 8. Last evaluations */}
+            <div className="rounded-[24px] border border-[#f3f4f6] bg-white p-6 shadow-sm">
+                <div className="mb-6 flex items-center justify-end gap-2">
+                    <h3 className="text-[20px] font-bold text-[#1e2939]">آخر التقييمات</h3>
+                    <Star className="h-6 w-6 text-[#e6b150]" />
                 </div>
                 <div className="space-y-3">
-                    {actualHistory.map((item: any) => (
-                        <div key={item.id} className="border border-slate-100 rounded-[16px] p-3 flex items-center justify-between">
-                            <div>
-                                <h4 className="font-bold text-sm text-slate-800">{item.title}</h4>
-                                <p className="text-[10px] text-slate-400 mt-0.5 flex flex-wrap max-w-[140px] leading-relaxed">
-                                    {item.date}
-                                </p>
+                    {historyRows.map((item) => (
+                        <div
+                            key={item.id}
+                            className="flex items-center justify-between gap-4 rounded-[14px] border border-[#f3f4f6] px-4 py-4"
+                        >
+                            <div className="flex items-center gap-3">
+                                <span className="inline-block rounded-[10px] bg-[#dcfce7] px-3 py-1 text-[14px] font-bold text-[#008236]">
+                                    ناجح
+                                </span>
+                                <RatingPill value={item.rating} />
                             </div>
-                            <span className={`px-3 py-1 rounded-[8px] text-[10px] font-bold shrink-0 ${item.ratingColor}`}>
-                                {item.rating}
-                            </span>
+                            <div className="flex flex-col items-end gap-1 text-right">
+                                <h4 className="text-[18px] font-bold leading-7 text-[#1e2939]">
+                                    {item.title}
+                                </h4>
+                                <p className="text-[14px] text-[#6a7282]">{item.date}</p>
+                            </div>
                         </div>
                     ))}
                 </div>
@@ -269,14 +496,43 @@ export default function StudentDashboard() {
     );
 }
 
-function StatsCard({ icon, bg, label, value }: { icon: React.ReactNode, bg: string, label: string, value: string | number }) {
+function EvalRow({
+    label,
+    labelColor,
+    valueColor,
+    valueText,
+    background,
+    border,
+    starColor,
+    filled,
+}: {
+    label: string;
+    labelColor: string;
+    valueColor: string;
+    valueText: string;
+    background: string;
+    border: string;
+    starColor: string;
+    filled: number;
+}) {
     return (
-        <div className="bg-white border border-slate-100 rounded-[20px] p-4 flex flex-col items-center justify-center text-center shadow-sm">
-            <div className={`w-10 h-10 ${bg} rounded-full flex items-center justify-center mb-2`}>
-                {icon}
+        <div
+            className={`flex flex-col gap-1 rounded-[14px] border px-4 py-3 ${background} ${border}`}
+        >
+            <p className={`text-right text-[14px] font-bold ${labelColor}`}>{label}</p>
+            <div className="flex items-center justify-between">
+                <div className="flex gap-1">
+                    {[0, 1, 2].map((i) => (
+                        <Star
+                            key={i}
+                            className={`h-4 w-4 ${
+                                i < filled ? starColor : "text-[#e5e7eb]"
+                            }`}
+                        />
+                    ))}
+                </div>
+                <p className={`text-[18px] font-bold ${valueColor}`}>{valueText}</p>
             </div>
-            <span className="text-[10px] text-slate-500 font-medium mb-1">{label}</span>
-            <span className="text-xl font-black text-slate-800">{value}</span>
         </div>
     );
 }

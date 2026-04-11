@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { useMutation } from "@/hooks/useMutation";
 import type { CreateStudentRequest } from "@/types/api";
+import { RoleGate } from "@/components/auth/RoleGate";
 
 function SectionTitle({ number, title }: { number: number; title: string }) {
   return (
@@ -60,7 +61,7 @@ function CheckboxItem({ label, checked, onChange }: { label: string; checked: bo
   );
 }
 
-export default function StudentRegistration() {
+function StudentRegistrationInner() {
   const router = useRouter();
   const { mutate, isSubmitting, fieldErrors } = useMutation("post", "/api/students/create/");
 
@@ -193,5 +194,13 @@ export default function StudentRegistration() {
         </div>
       </form>
     </div>
+  );
+}
+
+export default function StudentRegistration() {
+  return (
+    <RoleGate roles={["admin"]}>
+      <StudentRegistrationInner />
+    </RoleGate>
   );
 }

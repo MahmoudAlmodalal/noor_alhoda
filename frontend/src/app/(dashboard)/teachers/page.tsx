@@ -15,8 +15,9 @@ import {
   AssignRingModal,
 } from "@/components/modals/TeacherModals";
 import type { Teacher } from "@/types/api";
+import { RoleGate } from "@/components/auth/RoleGate";
 
-export default function TeachersPage() {
+function TeachersPageInner() {
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search);
   const { data: teachers, isLoading, refetch } = useApi<Teacher[]>("/api/users/teachers/");
@@ -167,5 +168,13 @@ export default function TeachersPage() {
         />
       )}
     </div>
+  );
+}
+
+export default function TeachersPage() {
+  return (
+    <RoleGate roles={["admin"]}>
+      <TeachersPageInner />
+    </RoleGate>
   );
 }

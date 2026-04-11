@@ -12,8 +12,9 @@ import { useDebounce } from "@/hooks/useDebounce";
 import { AddRingModal, EditRingModal } from "@/components/modals/RingModals";
 import { ConfirmDeleteModal } from "@/components/modals/TeacherModals";
 import type { Ring } from "@/types/api";
+import { RoleGate } from "@/components/auth/RoleGate";
 
-export default function RingsPage() {
+function RingsPageInner() {
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search);
   const { data: rings, isLoading, refetch } = useApi<Ring[]>("/api/students/rings/");
@@ -161,5 +162,13 @@ export default function RingsPage() {
         />
       )}
     </div>
+  );
+}
+
+export default function RingsPage() {
+  return (
+    <RoleGate roles={["admin"]}>
+      <RingsPageInner />
+    </RoleGate>
   );
 }
