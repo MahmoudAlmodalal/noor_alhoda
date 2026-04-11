@@ -151,6 +151,20 @@ export const api = {
     return apiFetch<T>(endpoint, { method: "DELETE" });
   },
 
+  async downloadBlob(endpoint: string): Promise<Blob | null> {
+    const token = getAccessToken();
+    if (!token) return null;
+    try {
+      const res = await fetch(`${BASE_URL}${endpoint}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return null;
+      return await res.blob();
+    } catch {
+      return null;
+    }
+  },
+
   // ─── Auth-specific methods ───────────────────────────────────────────────
 
   async login(body: LoginRequest): Promise<ApiResponse<LoginResponse>> {

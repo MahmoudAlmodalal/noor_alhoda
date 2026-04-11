@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { PageLoading } from "@/components/ui/LoadingSpinner";
 import { useApi } from "@/hooks/useApi";
+import { api } from "@/lib/api";
 import { useDebounce } from "@/hooks/useDebounce";
 import { AssignStudentModal, EditStudentModal } from "@/components/modals/StudentModals";
 import { ConfirmDeleteModal } from "@/components/modals/TeacherModals";
@@ -117,30 +118,19 @@ export default function StudentsPage() {
                       variant="ghost" size="icon"
                       className="text-slate-400 hover:text-primary hover:bg-slate-50 rounded-lg w-10 h-10"
                       onClick={async () => {
-                        try {
-                          const token = localStorage.getItem('access_token');
-                          if (!token) {
-                            console.error('No access token found');
-                            return;
-                          }
-                          const response = await fetch(`/api/reports/student/${student.id}/pdf/`, {
-                            headers: {
-                              'Authorization': `Bearer ${token}`
-                            }
-                          });
-                          if (!response.ok) throw new Error('فشل تحميل التقرير');
-                          const blob = await response.blob();
-                          const url = window.URL.createObjectURL(blob);
-                          const link = document.createElement('a');
-                          link.href = url;
-                          link.download = `تقرير_${student.full_name}.pdf`;
-                          document.body.appendChild(link);
-                          link.click();
-                          link.remove();
-                          window.URL.revokeObjectURL(url);
-                        } catch (error) {
-                          console.error('Download error:', error);
+                        const blob = await api.downloadBlob(`/api/reports/student/${student.id}/pdf/`);
+                        if (!blob) {
+                          console.error('فشل تحميل التقرير');
+                          return;
                         }
+                        const url = window.URL.createObjectURL(blob);
+                        const link = document.createElement('a');
+                        link.href = url;
+                        link.download = `تقرير_${student.full_name}.pdf`;
+                        document.body.appendChild(link);
+                        link.click();
+                        link.remove();
+                        window.URL.revokeObjectURL(url);
                       }}
                       disabled={!student.id}
                     >

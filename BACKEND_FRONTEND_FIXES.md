@@ -39,7 +39,7 @@ All delete endpoints are correctly implemented on the backend:
 
 | Resource | Frontend Endpoint | Backend View | Method | Status |
 |----------|------------------|--------------|--------|--------|
-| Student | `/api/students/{id}/delete/` | `StudentDeactivateApi` | DELETE | ✓ Correct |
+| Student | `/api/students/{id}/` | `StudentDetailApi` | DELETE | ✓ Correct |
 | Teacher | `/api/users/{id}/` | `UserDetailApi` | DELETE | ✓ Correct |
 | Ring | `/api/students/rings/{id}/` | `RingDetailApi` | DELETE | ✓ Correct |
 
@@ -133,7 +133,7 @@ environment:
 - `POST /api/students/` - Create student
 - `GET /api/students/{id}/` - Get student details
 - `PATCH /api/students/{id}/` - Update student
-- `DELETE /api/students/{id}/delete/` - Soft delete student
+- `DELETE /api/students/{id}/` - Soft delete student
 
 ### Teachers
 - `GET /api/users/teachers/` - List teachers

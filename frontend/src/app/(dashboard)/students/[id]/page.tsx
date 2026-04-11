@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowRight, FileText, PlusCircle, User } from "lucide-react";
 import { PageLoading } from "@/components/ui/LoadingSpinner";
 import { useApi } from "@/hooks/useApi";
+import { api } from "@/lib/api";
 import { WeeklyPlanModal } from "@/components/plans/WeeklyPlanModal";
 import type { Student, StudentStats, WeeklyPlan } from "@/types/api";
 
@@ -24,25 +25,16 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
   }
 
   const downloadPdf = async () => {
-    const token = localStorage.getItem("access_token");
-    if (!token) return;
-    try {
-      const res = await fetch(`/api/reports/student/${id}/pdf/`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error("download failed");
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `تقرير_${student.full_name}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    } catch {
-      // swallow
-    }
+    const blob = await api.downloadBlob(`/api/reports/student/${id}/pdf/`);
+    if (!blob) return;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `تقرير_${student.full_name}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
   };
 
   return (

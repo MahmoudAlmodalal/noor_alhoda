@@ -155,7 +155,7 @@ class UserDetailApi(APIView):
 
         return Response(
             {"success": True, "message": "تم حذف الحساب بنجاح."},
-            status=status.HTTP_204_NO_CONTENT,
+            status=status.HTTP_200_OK,
         )
 
 

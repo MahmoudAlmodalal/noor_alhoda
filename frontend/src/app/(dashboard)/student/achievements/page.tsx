@@ -2,6 +2,7 @@
 
 import { useAuth } from "@/contexts/AuthContext";
 import { useApi } from "@/hooks/useApi";
+import { api } from "@/lib/api";
 import { PageLoading } from "@/components/ui/LoadingSpinner";
 import { Award, Trophy, TrendingUp, FileText, Book, Download } from "lucide-react";
 
@@ -45,31 +46,19 @@ export default function StudentAchievements() {
 
     const handleDownloadPDF = async () => {
         if (!user?.id) return;
-        const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
-        if (!token) return;
-
-        try {
-            const response = await fetch(`/api/reports/student/${user.id}/pdf/`, {
-                headers: {
-                    Authorization: `Bearer ${token}`
-                }
-            });
-            if (response.ok) {
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `report_${user.id}.pdf`;
-                document.body.appendChild(a);
-                a.click();
-                a.remove();
-                window.URL.revokeObjectURL(url);
-            } else {
-                console.error("Failed to download PDF");
-            }
-        } catch (e) {
-            console.error(e);
+        const blob = await api.downloadBlob(`/api/reports/student/${user.id}/pdf/`);
+        if (!blob) {
+            console.error("Failed to download PDF");
+            return;
         }
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `report_${user.id}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
     };
 
     return (
