@@ -304,6 +304,39 @@ export interface AnnounceRequest {
   body: string;
 }
 
+// ─── Courses ─────────────────────────────────────────────────────────────────
+
+export interface Course {
+  id: string;
+  name: string;
+  description: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateCourseRequest {
+  name: string;
+  description?: string;
+}
+
+export interface UpdateCourseRequest {
+  name?: string;
+  description?: string;
+}
+
+export interface StudentCourseStatus {
+  course_id: string;
+  course_name: string;
+  description: string;
+  is_completed: boolean;
+  completion_date: string | null;
+}
+
+export interface ToggleStudentCourseRequest {
+  course_id: string;
+  is_completed: boolean;
+}
+
 // ─── Generic API Wrapper ─────────────────────────────────────────────────────
 
 export interface ApiSuccessResponse<T> {

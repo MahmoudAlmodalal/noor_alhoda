@@ -2,20 +2,43 @@
 
 import { use, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, FileText, PlusCircle, User } from "lucide-react";
+import { ArrowRight, BookMarked, FileText, PlusCircle, User } from "lucide-react";
 import { PageLoading } from "@/components/ui/LoadingSpinner";
 import { useApi } from "@/hooks/useApi";
 import { api } from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
 import { WeeklyPlanModal } from "@/components/plans/WeeklyPlanModal";
-import type { Student, StudentStats, WeeklyPlan } from "@/types/api";
+import type { Student, StudentCourseStatus, StudentStats, WeeklyPlan } from "@/types/api";
 
 export default function StudentDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const [planOpen, setPlanOpen] = useState(false);
+  const [togglingCourseId, setTogglingCourseId] = useState<string | null>(null);
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
 
   const { data: student, isLoading: studentLoading } = useApi<Student>(`/api/students/${id}/`);
   const { data: stats } = useApi<StudentStats>(`/api/students/${id}/stats/`);
   const { data: history } = useApi<WeeklyPlan[]>(`/api/students/${id}/history/`);
+  const {
+    data: studentCourses,
+    isLoading: coursesLoading,
+    error: coursesError,
+    refetch: refetchCourses,
+  } = useApi<StudentCourseStatus[]>(`/api/courses/students/${id}/`);
+
+  const toggleCourse = async (courseId: string, next: boolean) => {
+    if (!isAdmin || togglingCourseId) return;
+    setTogglingCourseId(courseId);
+    const res = await api.post(`/api/courses/students/${id}/toggle/`, {
+      course_id: courseId,
+      is_completed: next,
+    });
+    setTogglingCourseId(null);
+    if (res.success) {
+      refetchCourses();
+    }
+  };
 
   if (studentLoading && !student) return <PageLoading />;
   if (!student) {
@@ -150,6 +173,59 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
               )}
             </tbody>
           </table>
+        </div>
+      </div>
+
+      {/* Completed Courses Section */}
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+        <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-2">
+          <BookMarked className="w-5 h-5 text-primary" />
+          <h2 className="font-bold text-base text-slate-800">الدورات المنجزة</h2>
+        </div>
+        <div className="p-5">
+          {coursesLoading && !studentCourses ? (
+            <p className="text-center py-6 text-sm text-slate-400">جارٍ التحميل...</p>
+          ) : coursesError ? (
+            <p className="text-center py-6 text-sm text-red-500">تعذر تحميل الدورات</p>
+          ) : (studentCourses ?? []).length === 0 ? (
+            <p className="text-center py-6 text-sm text-slate-400">لا توجد دورات متاحة في النظام</p>
+          ) : (
+            <ul className="divide-y divide-slate-100">
+              {(studentCourses ?? []).map((c) => {
+                const isLoading = togglingCourseId === c.course_id;
+                return (
+                  <li key={c.course_id} className="py-3 flex items-center gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-sm text-slate-800">{c.course_name}</p>
+                      {c.description && (
+                        <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{c.description}</p>
+                      )}
+                      {c.is_completed && c.completion_date && (
+                        <p className="text-[11px] text-green-600 mt-1" dir="ltr">
+                          ✓ {c.completion_date}
+                        </p>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      disabled={!isAdmin || isLoading}
+                      onClick={() => toggleCourse(c.course_id, !c.is_completed)}
+                      aria-pressed={c.is_completed}
+                      className={`relative inline-flex h-7 w-12 shrink-0 rounded-full transition-colors ${
+                        c.is_completed ? "bg-green-500" : "bg-slate-200"
+                      } ${!isAdmin || isLoading ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}
+                    >
+                      <span
+                        className={`inline-block h-6 w-6 bg-white rounded-full shadow transform transition-transform mt-0.5 ${
+                          c.is_completed ? "-translate-x-0.5" : "-translate-x-[22px]"
+                        }`}
+                      />
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </div>
       </div>
 
