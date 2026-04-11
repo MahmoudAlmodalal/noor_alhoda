@@ -176,7 +176,7 @@ export type AttendanceStatus = "present" | "absent" | "late" | "excused";
 
 export interface BulkAttendanceRequest {
   date: string;
-  entries: { student_id: string; status: AttendanceStatus }[];
+  records: { student_id: string; attendance: AttendanceStatus }[];
 }
 
 export interface CreateRecordRequest {

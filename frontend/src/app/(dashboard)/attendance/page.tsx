@@ -9,7 +9,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
 import { api } from "@/lib/api";
 import type {
-  AttendanceStatus,
   BulkAttendanceRequest,
   CreateRecordRequest,
   DailyRecord,
@@ -30,9 +29,7 @@ function AttendanceContent() {
   const initialDate = searchParams.get("date") === "today" ? todayISO() : searchParams.get("date") || todayISO();
 
   const [date, setDate] = useState<string>(initialDate);
-  const [teacherFilter, setTeacherFilter] = useState<string>(
-    user?.role === "teacher" && user.id ? user.id : ""
-  );
+  const [teacherFilter, setTeacherFilter] = useState<string>("");
   const [drafts, setDrafts] = useState<Map<string, DraftRecord>>(new Map());
   const [isSaving, setIsSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
@@ -122,9 +119,9 @@ function AttendanceContent() {
     if (withStatus.length > 0) {
       const payload: BulkAttendanceRequest = {
         date,
-        entries: withStatus.map((d) => ({
+        records: withStatus.map((d) => ({
           student_id: d.student_id,
-          status: d.attendance!,
+          attendance: d.attendance!,
         })),
       };
       const res = await api.post("/api/records/bulk-attendance/", payload);
@@ -216,7 +213,7 @@ function AttendanceContent() {
               >
                 <option value="">جميع المحفظين</option>
                 {(teachers ?? []).map((t) => (
-                  <option key={t.id} value={t.user_id}>
+                  <option key={t.id} value={t.id}>
                     {t.full_name}
                   </option>
                 ))}
