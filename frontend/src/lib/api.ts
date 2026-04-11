@@ -1,7 +1,5 @@
 import type { ApiResponse, LoginRequest, LoginResponse } from "@/types/api";
 
-// In production, we use relative paths to avoid CORS issues and ensure same-origin requests.
-// NEXT_PUBLIC_API_URL is only used if we need to point to a different domain.
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
 // ─── Token helpers ────────────────────────────────────────────────────────────
@@ -24,17 +22,14 @@ function setTokens(access: string, refresh: string): void {
 function clearTokens(): void {
   localStorage.removeItem("access_token");
   localStorage.removeItem("refresh_token");
-  // أيضاً امسح مؤشر الـ refresh حتى لا يتعارض مع التبويبات الأخرى
   localStorage.removeItem("_refresh_ts");
 }
 
-// ─── Core fetch wrapper ───────────────────────────────────────────────────────
+// ─── Refresh helpers ──────────────────────────────────────────────────────────
 
 let refreshPromise: Promise<boolean> | null = null;
 
-// مفتاح مزامنة الـ refresh بين التبويبات المتعددة
 const REFRESH_TS_KEY = "_refresh_ts";
-// نافذة زمنية (ms) نعتبر فيها أن تبويباً آخر قام بالـ refresh مؤخراً
 const REFRESH_WINDOW_MS = 4_000;
 
 function normalizeEndpoint(endpoint: string): string {
@@ -48,13 +43,10 @@ async function refreshAccessToken(): Promise<boolean> {
   if (!refreshToken) return false;
 
   // ── مزامنة بين التبويبات ──────────────────────────────────────────────────
-  // إذا كان تبويب آخر قام بالـ refresh مؤخراً (< REFRESH_WINDOW_MS)،
-  // انتظر قليلاً ثم استخدم الـ token الجديد الذي خزّنه ذلك التبويب.
   if (typeof window !== "undefined") {
     const lastTs = localStorage.getItem(REFRESH_TS_KEY);
     if (lastTs && Date.now() - parseInt(lastTs, 10) < REFRESH_WINDOW_MS) {
       await new Promise((r) => setTimeout(r, REFRESH_WINDOW_MS / 2));
-      // بعد الانتظار، إذا يوجد access token جديد صالح اعتبره نجاحاً
       return !!getAccessToken();
     }
   }
@@ -62,7 +54,6 @@ async function refreshAccessToken(): Promise<boolean> {
   // ── singleton داخل نفس التبويب ────────────────────────────────────────────
   if (!refreshPromise) {
     refreshPromise = (async () => {
-      // سجّل الطابع الزمني قبل الطلب لحجب التبويبات الأخرى
       if (typeof window !== "undefined") {
         localStorage.setItem(REFRESH_TS_KEY, Date.now().toString());
       }
@@ -75,31 +66,23 @@ async function refreshAccessToken(): Promise<boolean> {
         });
 
         if (!refreshRes.ok) {
-          // الـ refresh token منتهي أو محظور — امسح الـ timestamp
-          if (typeof window !== "undefined") {
-            localStorage.removeItem(REFRESH_TS_KEY);
-          }
+          localStorage.removeItem(REFRESH_TS_KEY);
           return false;
         }
 
         const refreshData = await refreshRes.json();
 
-        // ROTATE_REFRESH_TOKENS=True يُرجع refresh token جديد دائماً؛
-        // إذا لم يأتِ في الرد (خطأ في الـ backend)، نعتبر العملية فاشلة
-        // لأن الـ token القديم أصبح في الـ blacklist.
+        // ROTATE_REFRESH_TOKENS=True → الرد يحتوي دائماً على refresh جديد
+        // إذا لم يأتِ، التوكن القديم في الـ blacklist ولا يمكن استخدامه
         if (!refreshData.access || !refreshData.refresh) {
-          if (typeof window !== "undefined") {
-            localStorage.removeItem(REFRESH_TS_KEY);
-          }
+          localStorage.removeItem(REFRESH_TS_KEY);
           return false;
         }
 
         setTokens(refreshData.access, refreshData.refresh);
         return true;
       } catch {
-        if (typeof window !== "undefined") {
-          localStorage.removeItem(REFRESH_TS_KEY);
-        }
+        localStorage.removeItem(REFRESH_TS_KEY);
         return false;
       } finally {
         refreshPromise = null;
@@ -109,6 +92,25 @@ async function refreshAccessToken(): Promise<boolean> {
 
   return refreshPromise;
 }
+
+// ─── قراءة رسالة الخطأ الحقيقية من رد السيرفر ───────────────────────────────
+
+async function extractErrorMessage(res: Response): Promise<string> {
+  try {
+    const body = await res.json();
+    return (
+      body?.detail ||
+      body?.message ||
+      body?.error?.message ||
+      body?.non_field_errors?.[0] ||
+      "حدث خطأ غير متوقع."
+    );
+  } catch {
+    return "حدث خطأ غير متوقع.";
+  }
+}
+
+// ─── Core fetch wrapper ───────────────────────────────────────────────────────
 
 async function apiFetch<T>(
   endpoint: string,
@@ -134,30 +136,45 @@ async function apiFetch<T>(
     });
 
     // ── معالجة 401 ────────────────────────────────────────────────────────
-    if (res.status === 401 && retry) {
-      const refreshed = await refreshAccessToken();
+    if (res.status === 401) {
+      //
+      // السيناريو الأول: المستخدم كان مسجّل دخول ومنتهية صلاحية التوكن
+      // نعرف أن هذا انتهاء جلسة (وليس خطأ credentials) لأن هناك access_token
+      //
+      if (retry && token) {
+        const refreshed = await refreshAccessToken();
 
-      if (refreshed) {
-        // أعد المحاولة بالـ token الجديد
-        return apiFetch<T>(endpoint, options, false);
+        if (refreshed) {
+          return apiFetch<T>(endpoint, options, false);
+        }
+
+        // الـ refresh فشل → انتهت الجلسة فعلاً
+        clearTokens();
+        if (
+          typeof window !== "undefined" &&
+          !window.location.pathname.startsWith("/login")
+        ) {
+          window.location.href = "/login?reason=session_expired";
+        }
+
+        return {
+          success: false,
+          error: {
+            code: 401,
+            message: "انتهت صلاحية الجلسة. يرجى تسجيل الدخول مجدداً.",
+          },
+        };
       }
 
-      // فشل الـ refresh — امسح كل شيء وأعد للـ login
-      clearTokens();
-
-      if (
-        typeof window !== "undefined" &&
-        !window.location.pathname.startsWith("/login")
-      ) {
-        window.location.href = "/login?reason=session_expired";
-      }
-
+      //
+      // السيناريو الثاني: 401 بدون access_token
+      // يعني أن الخطأ من السيرفر مباشرة (credentials خاطئة، حساب مقفل، إلخ)
+      // اقرأ الرسالة الحقيقية من السيرفر بدل ما تظهر "انتهت الجلسة"
+      //
+      const message = await extractErrorMessage(res);
       return {
         success: false,
-        error: {
-          code: 401,
-          message: "انتهت صلاحية الجلسة. يرجى تسجيل الدخول مجدداً.",
-        },
+        error: { code: 401, message },
       };
     }
 
@@ -173,12 +190,16 @@ async function apiFetch<T>(
       return { success: true, data: data as T };
     }
 
+    // ── أخطاء أخرى (400، 403، 404، 500...) ───────────────────────────────
     if (data.error) {
       return { success: false, error: data.error };
     }
     return {
       success: false,
-      error: { code: res.status, message: data.message || "حدث خطأ غير متوقع." },
+      error: {
+        code: res.status,
+        message: data.detail || data.message || "حدث خطأ غير متوقع.",
+      },
     };
   } catch {
     return {
@@ -240,7 +261,7 @@ export const api = {
     }
   },
 
-  // ─── Auth-specific methods ──────────────────────────────────────────────
+  // ─── Auth ───────────────────────────────────────────────────────────────
 
   async login(body: LoginRequest): Promise<ApiResponse<LoginResponse>> {
     const res = await apiFetch<LoginResponse>("/api/auth/login/", {
