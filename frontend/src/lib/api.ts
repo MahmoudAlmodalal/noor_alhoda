@@ -98,10 +98,17 @@ async function apiFetch<T>(
         return apiFetch<T>(endpoint, options, false);
       }
 
-      clearTokens();
-      if (typeof window !== "undefined") {
-        window.location.href = "/login";
+      // If refresh fails, only redirect to login for critical endpoints
+      // Avoid redirecting for background tasks like notifications
+      const isCritical = !endpoint.includes("/notifications/");
+      
+      if (isCritical) {
+        clearTokens();
+        if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
+          window.location.href = "/login";
+        }
       }
+      
       return {
         success: false,
         error: { code: 401, message: "انتهت صلاحية الجلسة. يرجى تسجيل الدخول مجدداً." },
