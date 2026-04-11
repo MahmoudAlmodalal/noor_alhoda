@@ -4,17 +4,9 @@ import { Card, CardContent } from "@/components/ui/Card";
 import {
   Users,
   CheckCircle2,
-  Clock,
   Star,
   Calendar,
-  Search,
-  MoreVertical,
-  PlusCircle,
-  MessageSquare,
-  ClipboardCheck,
-  Filter,
   BookOpen,
-  UserPlus,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -64,6 +56,9 @@ export default function Dashboard() {
   const isTeacher = user?.role === "teacher";
   const isStudent = user?.role === "student";
 
+  // For teachers, we need their profile ID, not their user ID
+  const teacherProfileId = user?.teacher_profile?.id;
+
   useEffect(() => {
     if (!authLoading && isStudent) {
       router.replace("/student");
@@ -77,8 +72,8 @@ export default function Dashboard() {
 
   // Teacher fallback: list own students + today's records
   const { data: teacherStudents } = useApi<Student[]>(
-    isTeacher && user?.id ? "/api/students/" : null,
-    isTeacher && user?.id ? { teacher_id: user.id } : undefined
+    isTeacher && teacherProfileId ? "/api/students/" : null,
+    isTeacher && teacherProfileId ? { teacher_id: teacherProfileId } : undefined
   );
   const { data: todayRecords } = useApi<DailyRecord[]>(
     isTeacher ? "/api/records/" : null,
@@ -88,9 +83,10 @@ export default function Dashboard() {
   // Roster table — admin sees all, teacher sees own
   const rosterParams = useMemo(() => {
     const p: Record<string, string | undefined> = { search: debouncedSearch };
-    if (isTeacher && user?.id) p.teacher_id = user.id;
+    if (isTeacher && teacherProfileId) p.teacher_id = teacherProfileId;
     return p;
-  }, [debouncedSearch, isTeacher, user?.id]);
+  }, [debouncedSearch, isTeacher, teacherProfileId]);
+
   const { data: rosterData, isLoading: rosterLoading, refetch: refetchRoster } = useApi<Student[]>(
     "/api/students/"
   );
@@ -273,170 +269,124 @@ export default function Dashboard() {
                     {student.avatar}
                   </div>
                   <div className="flex-1">
-                    <h4 className="font-bold text-sm text-slate-800">{student.name}</h4>
-                    <p className="text-xs text-slate-500 mt-0.5">{student.subtitle}</p>
+                    <h4 className="text-sm font-bold text-slate-800">{student.name}</h4>
+                    <p className="text-xs text-slate-500">{student.subtitle}</p>
                   </div>
-                  <div className={`px-3 py-1 rounded-full text-[10px] font-bold ${student.badgeColor}`}>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${student.badgeColor}`}>
                     {student.badge}
-                  </div>
+                  </span>
                 </Link>
               ))
             )}
           </div>
-
-          <Link
-            href="/students"
-            className="block w-full mt-4 py-2 bg-blue-50 text-primary rounded-xl text-xs font-bold hover:bg-blue-100 transition-colors text-center"
-          >
-            عرض كل الطلاب
-          </Link>
         </div>
       </div>
 
-      {/* Quick Actions */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {/* Primary action: Register student */}
-        <Link
-          href="/students/register"
-          className="relative overflow-hidden bg-primary rounded-2xl p-5 flex flex-col gap-2 shadow-[0px_4px_6px_-1px_rgba(0,0,0,0.1)] hover:bg-primary/90 transition-colors"
-        >
-          <div className="absolute w-32 h-32 rounded-full bg-white/10 -top-16 -start-16" />
-          <UserPlus className="w-7 h-7 text-white relative z-10" />
-          <h4 className="font-bold text-lg text-white relative z-10">تسجيل طالب جديد</h4>
-          <p className="text-xs text-white/80 relative z-10">إضافة طالب جديد إلى المركز</p>
-        </Link>
-
-        {/* Secondary action: Add ring */}
-        <Link
-          href="/rings"
-          className="relative overflow-hidden bg-secondary rounded-2xl p-5 flex flex-col gap-2 shadow-[0px_4px_6px_-1px_rgba(0,0,0,0.1)] hover:bg-secondary/90 transition-colors"
-        >
-          <div className="absolute w-32 h-32 rounded-full bg-white/10 -top-16 -start-16" />
-          <BookOpen className="w-7 h-7 text-white relative z-10" />
-          <h4 className="font-bold text-lg text-white relative z-10">إضافة حلقة</h4>
-          <p className="text-xs text-white/80 relative z-10">إضافة حلقة وشيخ</p>
-        </Link>
-
-        {/* Tertiary actions stacked */}
-        <div className="flex flex-col gap-3">
-          <Link href="/attendance" className="bg-white border border-[#f3f4f6] rounded-[14px] p-4 flex items-center gap-3 shadow-sm hover:border-primary/30 transition-colors">
-            <ClipboardCheck className="w-5 h-5 text-primary" />
-            <div>
-              <h4 className="font-bold text-sm text-[#2d2d2d]">تسجيل الحضور</h4>
-              <p className="text-[10px] text-[#818181]">حفظ غياب وحضور اليوم</p>
+      {/* Quick Actions & Roster */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-6">
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+            <div className="p-5 border-b border-slate-50 flex items-center justify-between">
+              <h3 className="font-bold text-lg text-slate-800">قائمة الطلاب</h3>
+              <Link href="/students" className="text-xs text-primary font-bold hover:underline">عرض الكل</Link>
             </div>
-          </Link>
-          <button
-            type="button"
-            onClick={() => setAnnounceModalOpen(true)}
-            disabled={!isAdmin}
-            className="bg-white border border-[#f3f4f6] rounded-[14px] p-4 flex items-center gap-3 shadow-sm hover:border-primary/30 transition-colors text-start disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <MessageSquare className="w-5 h-5 text-primary" />
-            <div>
-              <h4 className="font-bold text-sm text-[#2d2d2d]">إرسال رسالة</h4>
-              <p className="text-[10px] text-[#818181]">مراسلة أولياء الأمور</p>
-            </div>
-          </button>
-        </div>
-      </div>
-
-      {/* Roster Table Section */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 mt-6">
-        <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
-          <h3 className="font-bold text-lg text-slate-800">سجل طلاب الحلقة</h3>
-          <div className="flex items-center gap-2">
-            <div className="relative">
-              <Search className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                placeholder="ابحث عن اسم الطالب..."
-                className="pl-4 pr-9 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm w-full md:w-64 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-            <button className="p-2 border border-slate-200 rounded-xl text-slate-500 hover:bg-slate-50">
-              <Filter className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm text-right">
-            <thead className="text-xs text-slate-500 bg-slate-50/80 uppercase">
-              <tr>
-                <th className="px-4 py-3 rounded-s-xl font-bold">اسم الطالب</th>
-                <th className="px-4 py-3 font-bold">الصف</th>
-                <th className="px-4 py-3 font-bold">المحفظ</th>
-                <th className="px-4 py-3 font-bold">الحالة</th>
-                <th className="px-4 py-3 rounded-e-xl text-center font-bold">إجراءات</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rosterLoading && rosterStudents.length === 0 ? (
-                <tr><td colSpan={5} className="text-center py-8 text-sm text-slate-400">جاري التحميل...</td></tr>
-              ) : rosterStudents.length === 0 ? (
-                <tr><td colSpan={5} className="text-center py-8 text-sm text-slate-400">لا توجد نتائج</td></tr>
-              ) : (
-                rosterStudents.map((student) => (
-                  <tr
-                    key={student.id}
-                    className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors cursor-pointer"
-                    onClick={() => router.push(`/students/${student.id}`)}
-                  >
-                    <td className="px-4 py-4 font-bold text-slate-800">{student.full_name}</td>
-                    <td className="px-4 py-4 text-slate-600">{student.grade}</td>
-                    <td className="px-4 py-4">
-                      <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-1 rounded-md">
-                        {student.teacher_name || "غير معين"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-4">
-                      {student.is_active ? (
-                        <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded-md">منتظم</span>
-                      ) : (
-                        <span className="text-xs font-bold text-red-600 bg-red-50 px-2 py-1 rounded-md">منقطع</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-4 text-center">
-                      <button
-                        type="button"
-                        className="text-slate-400 hover:text-primary transition-colors p-1"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          router.push(`/students/${student.id}`);
-                        }}
-                      >
-                        <MoreVertical className="w-5 h-5 mx-auto" />
-                      </button>
-                    </td>
+            <div className="overflow-x-auto">
+              <table className="w-full text-right">
+                <thead className="bg-slate-50 text-slate-500 text-xs font-bold">
+                  <tr>
+                    <th className="px-5 py-3">الطالب</th>
+                    <th className="px-5 py-3">الحلقة</th>
+                    <th className="px-5 py-3">الحالة</th>
+                    <th className="px-5 py-3"></th>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-          <div className="flex justify-center mt-6">
-            <Link
-              href="/students"
-              className="px-4 py-2 border border-slate-200 text-slate-600 text-sm font-bold rounded-xl hover:bg-slate-50 transition-colors"
-            >
-              عرض المزيد
-            </Link>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {rosterLoading ? (
+                    <tr><td colSpan={4} className="py-10 text-center text-slate-400 text-xs">جاري التحميل...</td></tr>
+                  ) : rosterStudents.length === 0 ? (
+                    <tr><td colSpan={4} className="py-10 text-center text-slate-400 text-xs">لا يوجد طلاب مسجلين</td></tr>
+                  ) : (
+                    rosterStudents.map((s) => (
+                      <tr key={s.id} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="px-5 py-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center text-xs font-bold text-slate-500">
+                              {s.full_name?.[0]}
+                            </div>
+                            <span className="text-sm font-bold text-slate-700">{s.full_name}</span>
+                          </div>
+                        </td>
+                        <td className="px-5 py-3 text-xs text-slate-600">{s.teacher_name || "غير محدد"}</td>
+                        <td className="px-5 py-3">
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${s.is_active ? 'bg-green-50 text-green-600' : 'bg-slate-100 text-slate-500'}`}>
+                            {s.is_active ? 'نشط' : 'متوقف'}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3 text-left">
+                          <Link href={`/students/${s.id}`} className="text-primary hover:text-primary/80">
+                            <Star className="w-4 h-4" />
+                          </Link>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-6">
+          <div className="bg-primary rounded-2xl p-6 text-white shadow-lg shadow-primary/20">
+            <h3 className="font-bold text-lg mb-2">إجراءات سريعة</h3>
+            <p className="text-xs text-white/70 mb-6 leading-relaxed">استخدم هذه الاختصارات للوصول السريع لأهم المهام اليومية</p>
+            
+            <div className="grid grid-cols-1 gap-3">
+              <button
+                onClick={() => setPlanModalOpen(true)}
+                className="flex items-center gap-3 bg-white/10 hover:bg-white/20 p-3 rounded-xl transition-colors text-right"
+              >
+                <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+                  <Calendar className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold">خطة أسبوعية</h4>
+                  <p className="text-[10px] text-white/60">توزيع الحفظ والمراجعة</p>
+                </div>
+              </button>
+
+              <button
+                onClick={() => setAnnounceModalOpen(true)}
+                className="flex items-center gap-3 bg-white/10 hover:bg-white/20 p-3 rounded-xl transition-colors text-right"
+              >
+                <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+                  <Star className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold">إعلان عام</h4>
+                  <p className="text-[10px] text-white/60">إرسال تنبيه لجميع الطلاب</p>
+                </div>
+              </button>
+
+              <Link
+                href="/students/new"
+                className="flex items-center gap-3 bg-white/10 hover:bg-white/20 p-3 rounded-xl transition-colors text-right"
+              >
+                <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+                  <Users className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold">تسجيل طالب</h4>
+                  <p className="text-[10px] text-white/60">إضافة طالب جديد للنظام</p>
+                </div>
+              </Link>
+            </div>
           </div>
         </div>
       </div>
 
-      <WeeklyPlanModal
-        isOpen={planModalOpen}
-        onClose={() => setPlanModalOpen(false)}
-      />
-      {isAdmin && (
-        <AnnounceModal
-          isOpen={announceModalOpen}
-          onClose={() => setAnnounceModalOpen(false)}
-        />
-      )}
+      <WeeklyPlanModal open={planModalOpen} onOpenChange={setPlanModalOpen} />
+      <AnnounceModal open={announceModalOpen} onOpenChange={setAnnounceModalOpen} />
     </div>
   );
 }

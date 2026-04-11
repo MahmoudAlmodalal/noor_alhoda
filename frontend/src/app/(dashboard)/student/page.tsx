@@ -176,21 +176,24 @@ interface StudentStatsLike {
 export default function StudentDashboard() {
     const { user } = useAuth();
 
+    // For students, we need their profile ID, not their user ID
+    const studentProfileId = user?.student_profile?.id;
+
     const { data: profile, isLoading: isProfileLoading } = useApi<StudentProfile>(
-        user?.id ? `/api/students/${user.id}/` : null
+        studentProfileId ? `/api/students/${studentProfileId}/` : null
     );
 
     const { data: stats, isLoading: isStatsLoading } = useApi<StudentStatsLike>(
-        user?.id ? `/api/students/${user.id}/stats/` : null
+        studentProfileId ? `/api/students/${studentProfileId}/stats/` : null
     );
 
     const { data: weeklyPlan } = useApi<WeeklyRow[]>(
-        user?.id ? `/api/records/weekly-summary/${user.id}/` : null,
+        studentProfileId ? `/api/records/weekly-summary/${studentProfileId}/` : null,
         { week_start: new Date().toISOString().split("T")[0] }
     );
 
     const { data: history } = useApi<HistoryRow[]>(
-        user?.id ? `/api/students/${user.id}/history/` : null
+        studentProfileId ? `/api/students/${studentProfileId}/history/` : null
     );
 
     if (isProfileLoading || isStatsLoading) {
@@ -284,177 +287,71 @@ export default function StudentDashboard() {
                 />
                 <StatsTile
                     icon={<Trophy className="h-6 w-6 text-[#eabd5b]" />}
-                    tileBg="bg-[#fff7ed]"
+                    tileBg="bg-[#fefce8]"
                     label="الترتيب في الحلقة"
                     value={classRank}
                 />
             </div>
 
-            {/* 4. Badges */}
+            {/* 4. Goal progress */}
             <div className="rounded-[24px] border border-[#f3f4f6] bg-white p-6 shadow-sm">
-                <div className="mb-6 flex items-center justify-end gap-2">
-                    <h3 className="text-[20px] font-bold text-[#1e2939]">
-                        شارات الإنجاز
-                    </h3>
-                    <Trophy className="h-6 w-6 text-[#eabd5b]" />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                    <div className="flex h-32 flex-col items-start justify-start gap-2 rounded-[16px] bg-[#0b5394] p-5 text-white shadow-lg">
-                        <span className="w-full text-center text-[36px] leading-none">
-                            📖
-                        </span>
-                        <span className="w-full text-center text-[14px] font-bold leading-5">
-                            حافظ سورة البقرة
-                        </span>
-                    </div>
-                    <div className="flex h-32 flex-col items-start justify-start gap-2 rounded-[16px] bg-[#f43f5e] p-5 text-white shadow-lg">
-                        <span className="w-full text-center text-[36px] leading-none">
-                            🔥
-                        </span>
-                        <span className="w-full text-center text-[14px] font-bold leading-5">
-                            30 يوم متواصل
-                        </span>
-                    </div>
-                    <div className="flex h-28 flex-col items-start justify-start gap-2 rounded-[16px] bg-[#eabd5b] p-5 text-white shadow-lg">
-                        <span className="w-full text-center text-[36px] leading-none">
-                            ⭐
-                        </span>
-                        <span className="w-full text-center text-[14px] font-bold leading-5">
-                            متفوق الشهر
-                        </span>
-                    </div>
-                    <div className="flex h-28 flex-col items-start justify-start gap-2 rounded-[16px] bg-[#f3f4f6] p-5 opacity-60">
-                        <span className="w-full text-center text-[36px] leading-none text-[#99a1af]">
-                            🎯
-                        </span>
-                        <span className="w-full text-center text-[14px] font-bold leading-5 text-[#99a1af]">
-                            حفظ 5 أجزاء
-                        </span>
-                    </div>
-                </div>
-            </div>
-
-            {/* 5. Goal card */}
-            <div className="relative overflow-hidden rounded-[24px] bg-gradient-to-l from-[#0b5394] to-[#1565c0] p-8 text-white shadow-lg">
-                <div className="pointer-events-none absolute -right-16 -top-32 h-64 w-64 rounded-full bg-white/5" />
-                <div className="relative">
-                    <div className="mb-5 flex items-center justify-end gap-3">
-                        <h3 className="text-[24px] font-bold leading-8">
-                            الهدف الحالي: {currentGoal}
+                <div className="mb-4 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <Target className="h-5 w-5 text-[#0b5394]" />
+                        <h3 className="text-[18px] font-bold text-[#1e2939]">
+                            الهدف الحالي
                         </h3>
-                        <Target className="h-6 w-6 text-[#eabd5b]" />
                     </div>
-                    <p className="mb-6 text-[18px] leading-7 text-[#dbeafe]">
-                        أنت على وشك إتمام حفظ سورة الملك! استمر في المراجعة اليومية
-                        لتحقيق هدفك بامتياز.
-                    </p>
-                    <div className="mb-2 flex items-center justify-between text-[14px] font-bold text-white">
-                        <span>{goalProgress}%</span>
-                        <span>نسبة الإنجاز</span>
-                    </div>
-                    <div className="h-2 w-full overflow-hidden rounded-full bg-black/20">
-                        <div
-                            className="h-full rounded-full bg-gradient-to-l from-[#eabd5b] to-[#f0c674]"
-                            style={{ width: `${goalProgress}%` }}
-                        />
-                    </div>
+                    <span className="text-[14px] font-bold text-[#0b5394]">
+                        {goalProgress}%
+                    </span>
                 </div>
-            </div>
-
-            {/* 6. Today's evaluation */}
-            <div className="rounded-[24px] border border-[#f3f4f6] bg-white p-6 shadow-sm">
-                <div className="mb-6 flex items-center justify-end gap-2">
-                    <h3 className="text-[20px] font-bold text-[#1e2939]">تقييم اليوم</h3>
-                    <Star className="h-6 w-6 text-[#eabd5b]" />
-                </div>
-                <div className="space-y-4">
-                    <EvalRow
-                        label="الحفظ الجديد"
-                        labelColor="text-[#00a63e]"
-                        valueColor="text-[#016630]"
-                        valueText="ممتاز"
-                        background="bg-[#f0fdf4]"
-                        border="border-[#dcfce7]"
-                        starColor="text-[#00a63e] fill-[#00a63e]"
-                        filled={3}
-                    />
-                    <EvalRow
-                        label="المراجعة الصغرى"
-                        labelColor="text-[#155dfc]"
-                        valueColor="text-[#193cb8]"
-                        valueText="جيد جداً"
-                        background="bg-[#eff6ff]"
-                        border="border-[#dbeafe]"
-                        starColor="text-[#155dfc] fill-[#155dfc]"
-                        filled={2}
-                    />
-                    <EvalRow
-                        label="السلوك والمواظبة"
-                        labelColor="text-[#9810fa]"
-                        valueColor="text-[#6e11b0]"
-                        valueText="ممتاز"
-                        background="bg-[#faf5ff]"
-                        border="border-[#f3e8ff]"
-                        starColor="text-[#9810fa] fill-[#9810fa]"
-                        filled={3}
+                <p className="mb-3 text-[16px] font-bold text-[#1e2939]">
+                    {currentGoal}
+                </p>
+                <div className="h-2 w-full rounded-full bg-[#f3f4f6]">
+                    <div
+                        className="h-full rounded-full bg-primary"
+                        style={{ width: `${goalProgress}%` }}
                     />
                 </div>
             </div>
 
-            {/* 7. Weekly plan */}
+            {/* 5. Weekly plan table */}
             <div className="rounded-[24px] border border-[#f3f4f6] bg-white p-6 shadow-sm">
-                <div className="mb-6 flex items-center justify-end gap-2">
-                    <h3 className="text-[20px] font-bold text-[#1e2939]">
-                        الخطة الأسبوعية الحالية
+                <div className="mb-5 flex items-center gap-2">
+                    <Calendar className="h-5 w-5 text-[#0b5394]" />
+                    <h3 className="text-[18px] font-bold text-[#1e2939]">
+                        الخطة الأسبوعية
                     </h3>
-                    <BookOpen className="h-6 w-6 text-[#eabd5b]" />
                 </div>
                 <div className="overflow-x-auto">
-                    <table className="w-full min-w-[560px] border-collapse text-right">
+                    <table className="w-full text-right">
                         <thead>
-                            <tr className="bg-[#f9fafb]">
-                                <th className="rounded-r-[14px] px-3 py-4 text-[16px] font-bold text-[#364153]">
-                                    اليوم
-                                </th>
-                                <th className="px-3 py-4 text-[16px] font-bold text-[#364153]">
-                                    الحضور
-                                </th>
-                                <th className="px-3 py-4 text-[16px] font-bold text-[#364153]">
-                                    المطلوب
-                                </th>
-                                <th className="px-3 py-4 text-[16px] font-bold text-[#364153]">
-                                    المحقق
-                                </th>
-                                <th className="px-3 py-4 text-[16px] font-bold text-[#364153]">
-                                    التقييم
-                                </th>
-                                <th className="rounded-l-[14px] px-3 py-4 text-[16px] font-bold text-[#364153]">
-                                    النتيجة
-                                </th>
+                            <tr className="border-b border-[#f3f4f6] text-[12px] font-bold text-[#6a7282]">
+                                <th className="pb-3 pr-2">اليوم</th>
+                                <th className="pb-3">الحضور</th>
+                                <th className="pb-3">المطلوب</th>
+                                <th className="pb-3">المنجز</th>
+                                <th className="pb-3">التقييم</th>
+                                <th className="pb-3 pl-2">النتيجة</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody className="divide-y divide-[#f3f4f6]">
                             {planRows.map((row, idx) => (
-                                <tr
-                                    key={`${row.day}-${idx}`}
-                                    className="border-b border-[#f3f4f6] last:border-b-0"
-                                >
-                                    <td className="px-3 py-4 text-[16px] font-bold text-[#1e2939] whitespace-nowrap">
+                                <tr key={idx} className="text-[14px]">
+                                    <td className="py-4 pr-2 font-bold text-[#1e2939]">
                                         {row.day}
                                     </td>
-                                    <td className="px-3 py-4">
+                                    <td className="py-4">
                                         <AttendancePill value={row.attendance} />
                                     </td>
-                                    <td className="px-3 py-4 text-[16px] text-[#4a5565] whitespace-nowrap">
-                                        {row.required}
-                                    </td>
-                                    <td className="px-3 py-4 text-[16px] font-bold text-[#1e2939] whitespace-nowrap">
-                                        {row.achieved}
-                                    </td>
-                                    <td className="px-3 py-4 whitespace-nowrap">
+                                    <td className="py-4 text-[#1e2939]">{row.required}</td>
+                                    <td className="py-4 text-[#1e2939]">{row.achieved}</td>
+                                    <td className="py-4">
                                         <RatingText value={row.evaluation} />
                                     </td>
-                                    <td className="px-3 py-4">
+                                    <td className="py-4 pl-2">
                                         <ResultPill value={row.result} />
                                     </td>
                                 </tr>
@@ -464,74 +361,32 @@ export default function StudentDashboard() {
                 </div>
             </div>
 
-            {/* 8. Last evaluations */}
+            {/* 6. History list */}
             <div className="rounded-[24px] border border-[#f3f4f6] bg-white p-6 shadow-sm">
-                <div className="mb-6 flex items-center justify-end gap-2">
-                    <h3 className="text-[20px] font-bold text-[#1e2939]">آخر التقييمات</h3>
-                    <Star className="h-6 w-6 text-[#eabd5b]" />
+                <div className="mb-5 flex items-center gap-2">
+                    <Star className="h-5 w-5 text-[#0b5394]" />
+                    <h3 className="text-[18px] font-bold text-[#1e2939]">
+                        آخر الإنجازات
+                    </h3>
                 </div>
-                <div className="space-y-3">
+                <div className="space-y-4">
                     {historyRows.map((item) => (
                         <div
                             key={item.id}
-                            className="flex items-center justify-between gap-4 rounded-[14px] border border-[#f3f4f6] px-4 py-4"
+                            className="flex items-center justify-between rounded-[16px] border border-[#f3f4f6] p-4"
                         >
-                            <div className="flex items-center gap-3">
-                                <span className="inline-block rounded-[10px] bg-[#dcfce7] px-3 py-1 text-[14px] font-bold text-[#008236]">
-                                    ناجح
-                                </span>
-                                <RatingPill value={item.rating} />
-                            </div>
-                            <div className="flex flex-col items-end gap-1 text-right">
-                                <h4 className="text-[18px] font-bold leading-7 text-[#1e2939]">
+                            <div className="flex flex-col gap-1">
+                                <span className="text-[16px] font-bold text-[#1e2939]">
                                     {item.title}
-                                </h4>
-                                <p className="text-[14px] text-[#6a7282]">{item.date}</p>
+                                </span>
+                                <span className="text-[12px] text-[#6a7282]">
+                                    {item.date}
+                                </span>
                             </div>
+                            <RatingPill value={item.rating} />
                         </div>
                     ))}
                 </div>
-            </div>
-        </div>
-    );
-}
-
-function EvalRow({
-    label,
-    labelColor,
-    valueColor,
-    valueText,
-    background,
-    border,
-    starColor,
-    filled,
-}: {
-    label: string;
-    labelColor: string;
-    valueColor: string;
-    valueText: string;
-    background: string;
-    border: string;
-    starColor: string;
-    filled: number;
-}) {
-    return (
-        <div
-            className={`flex flex-col gap-1 rounded-[14px] border px-4 py-3 ${background} ${border}`}
-        >
-            <p className={`text-right text-[14px] font-bold ${labelColor}`}>{label}</p>
-            <div className="flex items-center justify-between">
-                <div className="flex gap-1">
-                    {[0, 1, 2].map((i) => (
-                        <Star
-                            key={i}
-                            className={`h-4 w-4 ${
-                                i < filled ? starColor : "text-[#e5e7eb]"
-                            }`}
-                        />
-                    ))}
-                </div>
-                <p className={`text-[18px] font-bold ${valueColor}`}>{valueText}</p>
             </div>
         </div>
     );

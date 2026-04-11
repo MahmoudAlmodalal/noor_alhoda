@@ -46,7 +46,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           id: data.id as string,
           phone_number: data.phone_number as string,
           role: data.role as UserProfile["role"],
-          full_name: data.full_name as string,
+          full_name: `${data.first_name || ""} ${data.last_name || ""}`.trim() || (data.full_name as string),
+          student_profile: data.student_profile as UserProfile["student_profile"],
+          teacher_profile: data.teacher_profile as UserProfile["teacher_profile"],
+          parent_profile: data.parent_profile as UserProfile["parent_profile"],
         });
       } else {
         // Token is invalid or expired, clear it
@@ -65,7 +68,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(async (phone_number: string, password: string): Promise<string | null> => {
     const res = await api.login({ phone_number, password });
     if (res.success) {
-      setUser(res.data.user);
+      // After successful login, we should fetch the full profile to get student_profile/teacher_profile IDs
+      const meRes = await api.me();
+      if (meRes.success) {
+        const data = meRes.data;
+        setUser({
+          id: data.id as string,
+          phone_number: data.phone_number as string,
+          role: data.role as UserProfile["role"],
+          full_name: `${data.first_name || ""} ${data.last_name || ""}`.trim() || (data.full_name as string),
+          student_profile: data.student_profile as UserProfile["student_profile"],
+          teacher_profile: data.teacher_profile as UserProfile["teacher_profile"],
+          parent_profile: data.parent_profile as UserProfile["parent_profile"],
+        });
+      } else {
+        setUser(res.data.user);
+      }
       return null; // no error
     }
     return res.error.message;

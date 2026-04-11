@@ -10,6 +10,27 @@ export interface UserProfile {
   phone_number: string;
   role: "admin" | "teacher" | "student" | "parent";
   full_name: string;
+  student_profile?: {
+    id: string;
+    full_name: string;
+    grade: string;
+    enrollment_date: string;
+  };
+  teacher_profile?: {
+    id: string;
+    full_name: string;
+    specialization: string;
+    session_days: string[];
+    max_students: number;
+  };
+  parent_profile?: {
+    id: string;
+    full_name: string;
+    children: {
+      student_id: string;
+      student_name: string;
+    }[];
+  };
 }
 
 export interface LoginResponse {
