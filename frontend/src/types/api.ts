@@ -56,7 +56,6 @@ export interface Teacher {
 export interface TeacherWithUser {
   id: string;
   phone_number: string;
-  username: string;
   first_name: string;
   last_name: string;
   role: string;
@@ -67,7 +66,6 @@ export interface TeacherWithUser {
 
 export interface CreateTeacherRequest {
   phone_number: string;
-  username: string;
   first_name: string;
   last_name: string;
   password: string;

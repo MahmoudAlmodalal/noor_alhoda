@@ -170,7 +170,7 @@ def bulk_attendance_create(*, teacher: User, date, attendance_data: list) -> lis
         plan, _ = WeeklyPlan.objects.get_or_create(
             student=student,
             week_start=week_start,
-            defaults={"week_number": 1},
+            defaults={"week_number": week_start.isocalendar()[1]},
         )
 
         # Determine day code

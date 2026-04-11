@@ -7,6 +7,7 @@ from django.db import transaction
 from rest_framework.exceptions import ValidationError, AuthenticationFailed
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
+from rest_framework_simplejwt.token_blacklist.models import OutstandingToken, BlacklistedToken
 
 from accounts.models import User, OTPCode
 from core.permissions import is_admin_user
@@ -82,12 +83,12 @@ def user_logout(*, refresh_token: str) -> None:
 
 
 @transaction.atomic
-def otp_send(*, phone: str) -> str:
+def otp_send(*, phone: str) -> None:
     """
     Generate a 6-digit OTP and store its hash.
     FR-04: 6-digit code, valid for 10 minutes.
     FR-05: Store hashed, not plain text.
-    Returns the plain OTP (in production, send via SMS instead).
+    The OTP is sent via SMS only — never returned to the caller.
     """
     try:
         user = User.objects.get(phone_number=phone)
@@ -107,8 +108,8 @@ def otp_send(*, phone: str) -> str:
         expires_at=timezone.now() + timedelta(minutes=10),
     )
 
-    # TODO: Send via SMS service in production
-    return code  # Return for dev/testing purposes
+    # TODO: Integrate SMS gateway (e.g. Twilio) to send `code` to the user's phone.
+    # SECURITY: Never return or log the plain OTP code.
 
 
 @transaction.atomic
@@ -139,3 +140,8 @@ def otp_verify(*, phone: str, code: str, new_password: str) -> None:
     # Reset password
     user.set_password(new_password)
     user.save()
+
+    # Invalidate all active refresh tokens for this user
+    outstanding = OutstandingToken.objects.filter(user=user)
+    for token in outstanding:
+        BlacklistedToken.objects.get_or_create(token=token)

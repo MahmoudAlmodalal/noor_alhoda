@@ -1,15 +1,27 @@
 import io
+from pathlib import Path
 
-from reportlab.lib.pagesizes import A4
+import arabic_reshaper
+from bidi.algorithm import get_display
 from reportlab.lib import colors
-from reportlab.lib.units import cm
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import cm
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 
 from students.models import Student
 from records.models import WeeklyPlan, DailyRecord
+
+FONT_PATH = Path(__file__).resolve().parent.parent.parent / "fonts" / "Amiri-Regular.ttf"
+pdfmetrics.registerFont(TTFont("Arabic", str(FONT_PATH)))
+
+
+def _ar(text: str) -> str:
+    """Reshape and apply BiDi algorithm so Arabic renders correctly in PDF."""
+    reshaped = arabic_reshaper.reshape(str(text))
+    return get_display(reshaped)
 
 
 def generate_student_pdf(*, student_id) -> bytes:
@@ -29,22 +41,24 @@ def generate_student_pdf(*, student_id) -> bytes:
     title_style = ParagraphStyle(
         "Title",
         parent=styles["Title"],
+        fontName="Arabic",
         fontSize=18,
         alignment=1,  # Center
     )
-    elements.append(Paragraph("مركز نور الهدى لتحفيظ القرآن الكريم", title_style))
+    elements.append(Paragraph(_ar("مركز نور الهدى لتحفيظ القرآن الكريم"), title_style))
     elements.append(Spacer(1, 0.5 * cm))
-    elements.append(Paragraph(f"تقرير الطالب: {student.full_name}", title_style))
+    elements.append(Paragraph(_ar(f"تقرير الطالب: {student.full_name}"), title_style))
     elements.append(Spacer(1, 1 * cm))
 
     # Student info table
+    teacher_name = student.teacher.full_name if student.teacher else "غير معيّن"
     info_data = [
-        ["الاسم", student.full_name],
-        ["رقم الهوية", student.national_id],
-        ["الصف الدراسي", student.grade],
-        ["المحفظ", student.teacher.full_name if student.teacher else "غير معيّن"],
-        ["تاريخ الالتحاق", str(student.enrollment_date)],
-        ["الحالة الصحية", student.get_health_status_display()],
+        [_ar("الاسم"), _ar(student.full_name)],
+        [_ar("رقم الهوية"), _ar(student.national_id)],
+        [_ar("الصف الدراسي"), _ar(student.grade)],
+        [_ar("المحفظ"), _ar(teacher_name)],
+        [_ar("تاريخ الالتحاق"), str(student.enrollment_date)],
+        [_ar("الحالة الصحية"), _ar(student.get_health_status_display())],
     ]
 
     info_table = Table(info_data, colWidths=[6 * cm, 10 * cm])
@@ -54,6 +68,7 @@ def generate_student_pdf(*, student_id) -> bytes:
                 ("BACKGROUND", (0, 0), (0, -1), colors.HexColor("#1a472a")),
                 ("TEXTCOLOR", (0, 0), (0, -1), colors.white),
                 ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                ("FONTNAME", (0, 0), (-1, -1), "Arabic"),
                 ("FONTSIZE", (0, 0), (-1, -1), 11),
                 ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
                 ("ROWBACKGROUNDS", (1, 0), (-1, -1), [colors.white, colors.HexColor("#f0f0f0")]),
@@ -64,13 +79,34 @@ def generate_student_pdf(*, student_id) -> bytes:
     elements.append(Spacer(1, 1 * cm))
 
     # Weekly plans summary
-    elements.append(Paragraph("السجل الحفظي", styles["Heading2"]))
+    heading_style = ParagraphStyle(
+        "ArabicHeading",
+        parent=styles["Heading2"],
+        fontName="Arabic",
+        alignment=2,  # Right
+    )
+    elements.append(Paragraph(_ar("السجل الحفظي"), heading_style))
     elements.append(Spacer(1, 0.3 * cm))
 
     plans = WeeklyPlan.objects.filter(student=student).order_by("-week_start")[:12]
 
+    normal_style = ParagraphStyle(
+        "ArabicNormal",
+        parent=styles["Normal"],
+        fontName="Arabic",
+        alignment=2,  # Right
+    )
+
     if plans:
-        plan_data = [["الأسبوع", "بداية الأسبوع", "المطلوب", "المنجز", "نسبة الإنجاز"]]
+        plan_data = [
+            [
+                _ar("الأسبوع"),
+                _ar("بداية الأسبوع"),
+                _ar("المطلوب"),
+                _ar("المنجز"),
+                _ar("نسبة الإنجاز"),
+            ]
+        ]
         for plan in plans:
             plan_data.append(
                 [
@@ -89,6 +125,7 @@ def generate_student_pdf(*, student_id) -> bytes:
                     ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1a472a")),
                     ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
                     ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                    ("FONTNAME", (0, 0), (-1, -1), "Arabic"),
                     ("FONTSIZE", (0, 0), (-1, -1), 10),
                     ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
                     ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f0f0f0")]),
@@ -97,7 +134,7 @@ def generate_student_pdf(*, student_id) -> bytes:
         )
         elements.append(plan_table)
     else:
-        elements.append(Paragraph("لا توجد سجلات حفظية بعد.", styles["Normal"]))
+        elements.append(Paragraph(_ar("لا توجد سجلات حفظية بعد."), normal_style))
 
     doc.build(elements)
     return buffer.getvalue()

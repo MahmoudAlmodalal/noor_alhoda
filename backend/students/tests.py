@@ -17,7 +17,6 @@ class StudentTestSetup(APITestCase):
         # Admin
         self.admin = User.objects.create_user(
             phone_number="970590100000",
-            username="admin_stu",
             password="adminpass",
             role="admin",
         )
@@ -25,7 +24,6 @@ class StudentTestSetup(APITestCase):
         # Teacher A + profile
         self.teacher_a_user = User.objects.create_user(
             phone_number="970590100010",
-            username="teacher_a",
             password="secret123",
             role="teacher",
         )
@@ -38,7 +36,6 @@ class StudentTestSetup(APITestCase):
         # Teacher B + profile
         self.teacher_b_user = User.objects.create_user(
             phone_number="970590100020",
-            username="teacher_b",
             password="secret123",
             role="teacher",
         )
@@ -51,7 +48,6 @@ class StudentTestSetup(APITestCase):
         # Student A (belongs to teacher A)
         self.student_a_user = User.objects.create_user(
             phone_number="970590100030",
-            username="student_a",
             password="secret123",
             role="student",
         )
@@ -67,7 +63,6 @@ class StudentTestSetup(APITestCase):
         # Student B (belongs to teacher B)
         self.student_b_user = User.objects.create_user(
             phone_number="970590100040",
-            username="student_b",
             password="secret123",
             role="student",
         )
@@ -83,7 +78,6 @@ class StudentTestSetup(APITestCase):
         # Parent linked to student A
         self.parent_user = User.objects.create_user(
             phone_number="970590100050",
-            username="parent_stu",
             password="secret123",
             role="parent",
         )
@@ -217,7 +211,7 @@ class StudentOperationsTests(StudentTestSetup):
         """STU-12 / Feature 2.4: Assign teacher checks max_students limit."""
         # Teacher B has max_students=2, already has 1 student
         extra_user = User.objects.create_user(
-            phone_number="970590100060", username="extra_s", password="s", role="student",
+            phone_number="970590100060", password="s", role="student",
         )
         Student.objects.create(
             user=extra_user, full_name="Extra", national_id="EX-001",
@@ -234,7 +228,7 @@ class StudentOperationsTests(StudentTestSetup):
     def test_admin_links_parent_to_student(self):
         """STU-13 / Feature 2.6: Admin can link a parent to a student."""
         new_parent_user = User.objects.create_user(
-            phone_number="970590100070", username="new_parent", password="s", role="parent",
+            phone_number="970590100070", password="s", role="parent",
         )
         new_parent = Parent.objects.create(
             user=new_parent_user, full_name="New Parent",

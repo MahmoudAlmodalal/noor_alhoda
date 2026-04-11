@@ -4,10 +4,13 @@ Covers: FR-01, FR-02, FR-04, FR-05, FR-06, Feature 1.3, Feature 1.4
 """
 from datetime import timedelta
 
+from django.core.cache import cache
 from django.test import override_settings
 from django.utils import timezone
 from rest_framework.test import APITestCase
 from rest_framework_simplejwt.tokens import RefreshToken
+
+from rest_framework_simplejwt.exceptions import TokenError
 
 from accounts.models import OTPCode, User, Teacher
 
@@ -18,7 +21,6 @@ class TestSetupMixin:
     def create_admin(self):
         return User.objects.create_user(
             phone_number="970590000000",
-            username="admin1",
             password="adminpass123",
             role="admin",
             first_name="Admin",
@@ -28,7 +30,6 @@ class TestSetupMixin:
     def create_teacher_with_profile(self, suffix="10"):
         user = User.objects.create_user(
             phone_number=f"9705900000{suffix}",
-            username=f"teacher{suffix}",
             password="secret123",
             role="teacher",
             first_name="Teacher",
@@ -49,7 +50,6 @@ class LoginApiTests(TestSetupMixin, APITestCase):
     def setUp(self):
         self.user = User.objects.create_user(
             phone_number="970590000001",
-            username="testuser",
             password="correctpass",
             role="student",
         )
@@ -99,9 +99,9 @@ class LoginApiTests(TestSetupMixin, APITestCase):
 
 class OTPSendApiTests(TestSetupMixin, APITestCase):
     def setUp(self):
+        cache.clear()
         self.user = User.objects.create_user(
             phone_number="970590000001",
-            username="student1",
             password="secret123",
         )
 
@@ -155,7 +155,6 @@ class OTPVerifyTests(TestSetupMixin, APITestCase):
     def setUp(self):
         self.user = User.objects.create_user(
             phone_number="970590000001",
-            username="student1",
             password="oldpassword",
         )
 
@@ -214,12 +213,31 @@ class OTPVerifyTests(TestSetupMixin, APITestCase):
         )
         self.assertEqual(response.status_code, 400)
 
+    def test_otp_verify_blacklists_existing_tokens(self):
+        """AUTH-13: Password reset via OTP blacklists all outstanding refresh tokens."""
+        # Issue a refresh token BEFORE password reset
+        refresh = RefreshToken.for_user(self.user)
+        refresh_str = str(refresh)
+        self._create_otp(code="123456")
+        response = self.client.post(
+            "/api/auth/otp/verify/",
+            {
+                "phone_number": self.user.phone_number,
+                "code": "123456",
+                "new_password": "newpass123",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        # The old refresh token should now be blacklisted — construction itself raises TokenError
+        with self.assertRaises(TokenError):
+            RefreshToken(refresh_str)
+
 
 class LogoutApiTests(TestSetupMixin, APITestCase):
     def setUp(self):
         self.user = User.objects.create_user(
             phone_number="970590000001",
-            username="student1",
             password="secret123",
         )
 
@@ -249,7 +267,6 @@ class MeApiTests(TestSetupMixin, APITestCase):
         """AUTH-12: /me endpoint returns authenticated user's profile."""
         user = User.objects.create_user(
             phone_number="970590000001",
-            username="student1",
             password="secret123",
             role="student",
             first_name="Ahmed",
@@ -328,7 +345,6 @@ class UserManagementTests(TestSetupMixin, APITestCase):
         """USR-05: Non-admin cannot update another user's profile."""
         other = User.objects.create_user(
             phone_number="970590099997",
-            username="other1",
             password="secret123",
             role="student",
         )
@@ -344,7 +360,6 @@ class UserManagementTests(TestSetupMixin, APITestCase):
         """USR-06: Admin can soft-delete a user."""
         target = User.objects.create_user(
             phone_number="970590099996",
-            username="target1",
             password="secret123",
             role="student",
         )

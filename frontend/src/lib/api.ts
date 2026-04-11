@@ -28,13 +28,53 @@ function clearTokens(): void {
 
 // ─── Core fetch wrapper ──────────────────────────────────────────────────────
 
-let isRefreshing = false;
+let refreshPromise: Promise<boolean> | null = null;
+
+function normalizeEndpoint(endpoint: string): string {
+  const [path, query = ""] = endpoint.split("?");
+  const normalizedPath = path.endsWith("/") ? path : `${path}/`;
+  return query ? `${normalizedPath}?${query}` : normalizedPath;
+}
+
+async function refreshAccessToken(): Promise<boolean> {
+  const refreshToken = getRefreshToken();
+  if (!refreshToken) return false;
+
+  if (!refreshPromise) {
+    refreshPromise = (async () => {
+      try {
+        const refreshRes = await fetch(`${BASE_URL}/api/auth/token/refresh/`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ refresh: refreshToken }),
+        });
+
+        if (!refreshRes.ok) {
+          return false;
+        }
+
+        const refreshData = await refreshRes.json();
+        const newRefreshToken = refreshData.refresh || refreshToken;
+        setTokens(refreshData.access, newRefreshToken);
+        return true;
+      } catch {
+        return false;
+      } finally {
+        refreshPromise = null;
+      }
+    })();
+  }
+
+  return refreshPromise;
+}
 
 async function apiFetch<T>(
   endpoint: string,
   options: RequestInit = {},
   retry = true
 ): Promise<ApiResponse<T>> {
+  endpoint = normalizeEndpoint(endpoint);
+
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     ...(options.headers as Record<string, string>),
@@ -52,33 +92,12 @@ async function apiFetch<T>(
     });
 
     // Handle 401 — try token refresh once
-    if (res.status === 401 && retry && !isRefreshing) {
-      const refreshToken = getRefreshToken();
-      if (refreshToken) {
-        isRefreshing = true;
-        try {
-          const refreshRes = await fetch(`${BASE_URL}/api/auth/token/refresh/`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ refresh: refreshToken }),
-          });
-
-          if (refreshRes.ok) {
-            const refreshData = await refreshRes.json();
-            // Use the new refresh token from the response if available (token rotation)
-            const newRefreshToken = refreshData.refresh || refreshToken;
-            setTokens(refreshData.access, newRefreshToken);
-            isRefreshing = false;
-            // Retry the original request with new token
-            return apiFetch<T>(endpoint, options, false);
-          }
-        } catch {
-          // Refresh failed
-        }
-        isRefreshing = false;
+    if (res.status === 401 && retry) {
+      const refreshed = await refreshAccessToken();
+      if (refreshed) {
+        return apiFetch<T>(endpoint, options, false);
       }
 
-      // Refresh failed or no refresh token — force logout
       clearTokens();
       if (typeof window !== "undefined") {
         window.location.href = "/login";
@@ -152,6 +171,7 @@ export const api = {
   },
 
   async downloadBlob(endpoint: string): Promise<Blob | null> {
+    endpoint = normalizeEndpoint(endpoint);
     const token = getAccessToken();
     if (!token) return null;
     try {

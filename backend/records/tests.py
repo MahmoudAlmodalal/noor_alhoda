@@ -18,12 +18,12 @@ class RecordTestSetup(APITestCase):
 
     def setUp(self):
         self.admin = User.objects.create_user(
-            phone_number="970590200000", username="admin_rec",
+            phone_number="970590200000",
             password="adminpass", role="admin",
         )
 
         self.teacher_user = User.objects.create_user(
-            phone_number="970590200010", username="teacher_rec",
+            phone_number="970590200010",
             password="secret123", role="teacher",
         )
         self.teacher = Teacher.objects.create(
@@ -32,7 +32,7 @@ class RecordTestSetup(APITestCase):
         )
 
         self.teacher2_user = User.objects.create_user(
-            phone_number="970590200011", username="teacher2_rec",
+            phone_number="970590200011",
             password="secret123", role="teacher",
         )
         self.teacher2 = Teacher.objects.create(
@@ -40,7 +40,7 @@ class RecordTestSetup(APITestCase):
         )
 
         self.parent_user = User.objects.create_user(
-            phone_number="970590200020", username="parent_rec",
+            phone_number="970590200020",
             password="secret123", role="parent",
         )
         self.parent = Parent.objects.create(
@@ -49,7 +49,7 @@ class RecordTestSetup(APITestCase):
         )
 
         self.student_user = User.objects.create_user(
-            phone_number="970590200030", username="student_rec",
+            phone_number="970590200030",
             password="secret123", role="student",
         )
         self.student = Student.objects.create(
@@ -61,7 +61,7 @@ class RecordTestSetup(APITestCase):
 
         # Student belonging to teacher2 (for cross-teacher tests)
         self.student2_user = User.objects.create_user(
-            phone_number="970590200031", username="student2_rec",
+            phone_number="970590200031",
             password="secret123", role="student",
         )
         self.student2 = Student.objects.create(

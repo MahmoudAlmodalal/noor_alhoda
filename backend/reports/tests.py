@@ -14,12 +14,12 @@ from students.models import Student
 class ReportTestSetup(APITestCase):
     def setUp(self):
         self.admin = User.objects.create_user(
-            phone_number="970590400000", username="admin_rep",
+            phone_number="970590400000",
             password="adminpass", role="admin",
         )
 
         self.teacher_user_1 = User.objects.create_user(
-            phone_number="970590400010", username="teacher_rep1",
+            phone_number="970590400010",
             password="secret123", role="teacher",
         )
         self.teacher_1 = Teacher.objects.create(
@@ -27,7 +27,7 @@ class ReportTestSetup(APITestCase):
         )
 
         self.teacher_user_2 = User.objects.create_user(
-            phone_number="970590400020", username="teacher_rep2",
+            phone_number="970590400020",
             password="secret123", role="teacher",
         )
         self.teacher_2 = Teacher.objects.create(
@@ -35,7 +35,7 @@ class ReportTestSetup(APITestCase):
         )
 
         self.student_user_1 = User.objects.create_user(
-            phone_number="970590400030", username="student_rep1",
+            phone_number="970590400030",
             password="secret123", role="student",
         )
         self.student_1 = Student.objects.create(
@@ -45,7 +45,7 @@ class ReportTestSetup(APITestCase):
         )
 
         self.student_user_2 = User.objects.create_user(
-            phone_number="970590400040", username="student_rep2",
+            phone_number="970590400040",
             password="secret123", role="student",
         )
         self.student_2 = Student.objects.create(

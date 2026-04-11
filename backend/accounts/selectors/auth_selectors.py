@@ -18,7 +18,6 @@ def user_get_me(*, user: User) -> dict:
 
     data = {
         "id": str(user.id),
-        "username": user.username,
         "phone_number": user.phone_number,
         "first_name": user.first_name,
         "last_name": user.last_name,

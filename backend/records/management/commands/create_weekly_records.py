@@ -27,7 +27,7 @@ class Command(BaseCommand):
             plan, _ = WeeklyPlan.objects.get_or_create(
                 student=student,
                 week_start=week_start,
-                defaults={"week_number": 1},
+                defaults={"week_number": week_start.isocalendar()[1]},
             )
             for offset, day_code in day_offsets:
                 record_date = week_start + timedelta(days=offset)

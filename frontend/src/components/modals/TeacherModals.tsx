@@ -86,7 +86,6 @@ export function AddTeacherModal({ isOpen, onClose, onSuccess }: { isOpen: boolea
     const nameParts = form.full_name.trim().split(" ");
     const result = await mutate({
       phone_number: form.phone_number,
-      username: form.phone_number,
       first_name: nameParts[0] || "",
       last_name: nameParts.slice(1).join(" ") || "",
       password: form.password,

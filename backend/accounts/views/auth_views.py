@@ -1,12 +1,9 @@
-import logging
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, serializers
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from drf_spectacular.utils import extend_schema, inline_serializer
-
-logger = logging.getLogger(__name__)
 
 from accounts.services.auth_services import (
     user_login,
@@ -138,10 +135,7 @@ class OTPSendApi(APIView):
         serializer = OTPSendInputSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        code = otp_send(phone=serializer.validated_data["phone_number"])
-
-        # Log OTP for development debugging only — never expose in response
-        logger.debug("OTP code for %s: %s", serializer.validated_data["phone_number"], code)
+        otp_send(phone=serializer.validated_data["phone_number"])
 
         return Response(
             {"success": True, "message": "تم إرسال رمز التحقق."},

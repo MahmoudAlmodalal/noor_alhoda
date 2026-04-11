@@ -32,16 +32,12 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.WARNING(f"Default admin already exists: {PHONE}"))
             return
 
-        user = User(
+        user = User.objects.create_superuser(
             phone_number=PHONE,
-            username=PHONE,
+            password=PASSWORD,
             first_name="Admin",
             last_name="",
             role="admin",
-            is_superuser=True,
-            is_staff=True,
             is_active=True,
         )
-        user.set_password(PASSWORD)
-        user.save()
         self.stdout.write(self.style.SUCCESS(f"Default admin created: {PHONE} / {PASSWORD}"))

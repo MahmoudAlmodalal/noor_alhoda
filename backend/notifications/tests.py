@@ -15,18 +15,18 @@ from students.models import Student
 class NotificationTestSetup(APITestCase):
     def setUp(self):
         self.admin = User.objects.create_user(
-            phone_number="970590300000", username="admin_not",
+            phone_number="970590300000",
             password="adminpass", role="admin",
         )
         self.teacher_user = User.objects.create_user(
-            phone_number="970590300010", username="teacher_not",
+            phone_number="970590300010",
             password="secret123", role="teacher",
         )
         self.teacher = Teacher.objects.create(
             user=self.teacher_user, full_name="Teacher Not",
         )
         self.parent_user = User.objects.create_user(
-            phone_number="970590300020", username="parent_not",
+            phone_number="970590300020",
             password="secret123", role="parent",
         )
         self.parent = Parent.objects.create(
@@ -34,7 +34,7 @@ class NotificationTestSetup(APITestCase):
             phone_number="970590300020",
         )
         self.parent2_user = User.objects.create_user(
-            phone_number="970590300021", username="parent2_not",
+            phone_number="970590300021",
             password="secret123", role="parent",
         )
         self.parent2 = Parent.objects.create(
@@ -42,7 +42,7 @@ class NotificationTestSetup(APITestCase):
             phone_number="970590300021",
         )
         self.student_user = User.objects.create_user(
-            phone_number="970590300030", username="student_not",
+            phone_number="970590300030",
             password="secret123", role="student",
         )
         self.student = Student.objects.create(

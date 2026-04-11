@@ -88,11 +88,15 @@ def send_absence_notification(*, student, date) -> dict:
         # Generate WhatsApp link (FR-18)
         phone = link.parent.phone_number or parent_user.phone_number
         if phone:
+            formatted_phone = str(phone).strip()
+            if formatted_phone.startswith("0"):
+                formatted_phone = f"+966{formatted_phone[1:]}"
+                
             message = quote(
                 f"السلام عليكم\nنحيطكم علماً بأن الطالب {student.full_name} "
                 f"لم يحضر اليوم {date}.\nمركز نور الهدى لتحفيظ القرآن الكريم"
             )
-            wa_link = f"https://wa.me/{phone}?text={message}"
+            wa_link = f"https://wa.me/{formatted_phone}?text={message}"
             result["whatsapp_links"].append(wa_link)
 
     # TODO: Send FCM push notification via Firebase in production

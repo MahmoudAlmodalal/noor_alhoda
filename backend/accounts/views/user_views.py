@@ -1,6 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, serializers
+from rest_framework.permissions import IsAuthenticated
 
 from core.permissions import IsAdmin, IsAdminOrTeacher
 from accounts.selectors.user_selectors import user_list, user_get, teacher_list
@@ -26,7 +27,6 @@ class UserFilterSerializer(serializers.Serializer):
 
 class UserInputSerializer(serializers.Serializer):
     phone_number = serializers.CharField()
-    username = serializers.CharField(required=False)
     first_name = serializers.CharField(required=False, default="")
     last_name = serializers.CharField(required=False, default="")
     role = serializers.ChoiceField(
@@ -39,7 +39,6 @@ class UserInputSerializer(serializers.Serializer):
 class UserOutputSerializer(serializers.Serializer):
     id = serializers.UUIDField()
     phone_number = serializers.CharField()
-    username = serializers.CharField()
     first_name = serializers.CharField()
     last_name = serializers.CharField()
     role = serializers.CharField()
@@ -60,7 +59,6 @@ class UserUpdateSerializer(serializers.Serializer):
 
 class TeacherInputSerializer(serializers.Serializer):
     phone_number = serializers.CharField()
-    username = serializers.CharField(required=False)
     first_name = serializers.CharField(required=False, default="")
     last_name = serializers.CharField(required=False, default="")
     password = serializers.CharField(required=False, default=None, allow_null=True)
@@ -134,7 +132,7 @@ class UserDetailApi(APIView):
     DELETE /api/users/<id>/ — تعطيل مستخدم (soft delete)
     """
 
-    permission_classes = [IsAdmin]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request, user_id):
         user = user_get(user_id=user_id, actor=request.user)

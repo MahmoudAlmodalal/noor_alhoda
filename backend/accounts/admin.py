@@ -6,15 +6,47 @@ from .models import User, Teacher, Parent, ParentStudentLink, OTPCode
 
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
-    list_display = ("phone_number", "username", "first_name", "last_name", "role", "is_active")
+    list_display = ("phone_number", "first_name", "last_name", "role", "is_active")
     list_filter = ("role", "is_active")
-    search_fields = ("phone_number", "username", "first_name", "last_name")
+    search_fields = ("phone_number", "first_name", "last_name")
     ordering = ("-date_joined",)
-    fieldsets = BaseUserAdmin.fieldsets + (
-        ("معلومات إضافية", {"fields": ("phone_number", "role", "fcm_token")}),
+    fieldsets = (
+        (None, {"fields": ("phone_number", "password")}),
+        ("المعلومات الشخصية", {"fields": ("first_name", "last_name", "email")}),
+        (
+            "الصلاحيات",
+            {
+                "fields": (
+                    "role",
+                    "is_active",
+                    "is_staff",
+                    "is_superuser",
+                    "groups",
+                    "user_permissions",
+                )
+            },
+        ),
+        ("معلومات إضافية", {"fields": ("fcm_token",)}),
+        ("تواريخ مهمة", {"fields": ("last_login", "date_joined")}),
     )
-    add_fieldsets = BaseUserAdmin.add_fieldsets + (
-        ("معلومات إضافية", {"fields": ("phone_number", "role")}),
+    add_fieldsets = (
+        (
+            None,
+            {
+                "classes": ("wide",),
+                "fields": (
+                    "phone_number",
+                    "first_name",
+                    "last_name",
+                    "role",
+                    "password1",
+                    "password2",
+                    "is_active",
+                    "is_staff",
+                    "is_superuser",
+                ),
+            },
+        ),
     )
 
 

@@ -30,7 +30,6 @@ def user_create(*, creator: User, **data) -> User:
 
     user = User(
         phone_number=phone_number,
-        username=data.get("username", phone_number),
         first_name=data.get("first_name", ""),
         last_name=data.get("last_name", ""),
         role=role,
@@ -72,13 +71,12 @@ def user_update(*, user: User, actor: User, data: dict) -> User:
 
 @transaction.atomic
 def user_delete(*, user: User, actor: User):
-    """Hard-delete a user account. Admin only."""
+    """Soft-delete a user account. Admin only."""
     if not is_admin_user(actor):
         raise PermissionDenied("فقط المدير يمكنه حذف الحسابات.")
 
-    # If it's a teacher, the Teacher profile will be deleted via CASCADE
-    # If it's a student, the Student profile will be deleted via CASCADE
-    user.delete()
+    user.is_active = False
+    user.save(update_fields=["is_active"])
 
 
 @transaction.atomic
@@ -92,7 +90,6 @@ def teacher_create(*, creator: User, **data) -> Teacher:
     user = user_create(
         creator=creator,
         phone_number=data.get("phone_number"),
-        username=data.get("username", data.get("phone_number", "")),
         first_name=data.get("first_name", ""),
         last_name=data.get("last_name", ""),
         password=data.get("password"),
