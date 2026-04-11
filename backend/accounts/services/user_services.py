@@ -1,5 +1,4 @@
 import logging
-import secrets
 
 from django.db import transaction
 from rest_framework.exceptions import ValidationError, PermissionDenied
@@ -26,8 +25,8 @@ def user_create(*, creator: User, **data) -> User:
         raise ValidationError({"phone_number": "رقم الجوال مسجل مسبقاً."})
 
     role = data.get("role", "student")
-    password = data.get("password") or secrets.token_urlsafe(8)
-    logger.info("Created user %s with auto-generated password (communicate via SMS).", phone_number)
+    password = data.get("password") or phone_number[-4:]
+    logger.info("Created user %s with default password = last 4 digits of phone.", phone_number)
 
     user = User(
         phone_number=phone_number,
