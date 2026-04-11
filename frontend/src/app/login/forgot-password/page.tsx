@@ -4,27 +4,49 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
+import { useMutation } from "@/hooks/useMutation";
+import type { OtpSendRequest } from "@/types/api";
 
 export default function ForgotPasswordPage() {
     const router = useRouter();
     const [phone, setPhone] = useState("");
-    const [error, setError] = useState<string | null>(null);
+    const [validationError, setValidationError] = useState<string | null>(null);
+    const { mutate, isSubmitting, error, fieldErrors } = useMutation<unknown>(
+        "post",
+        "/api/auth/otp/send/"
+    );
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setError(null);
+        setValidationError(null);
 
         if (!phone) {
-            setError("رقم الجوال مطلوب");
-            return;
-        } else if (!/^05\d{8}$/.test(phone)) {
-            setError("رقم الجوال يجب أن يبدأ بـ 05 ويتكون من 10 أرقام");
+            setValidationError("رقم الجوال مطلوب");
             return;
         }
 
-        // Pass the phone number to the next step via query param or store
-        router.push(`/login/verify-otp?phone=${phone}`);
+        const payload: OtpSendRequest = { phone_number: phone };
+        const result = await mutate(payload, {
+            successMessage: "تم إرسال رمز التحقق",
+        });
+        if (!result && !fieldErrors) return;
+        if (result !== null) {
+            sessionStorage.setItem(
+                "pw_reset",
+                JSON.stringify({ phone_number: phone })
+            );
+            router.push("/login/verify-otp");
+        }
     };
+
+    const phoneError =
+        validationError ||
+        (fieldErrors?.phone_number
+            ? Array.isArray(fieldErrors.phone_number)
+                ? fieldErrors.phone_number[0]
+                : fieldErrors.phone_number
+            : null) ||
+        error;
 
     return (
         <div>
@@ -43,15 +65,17 @@ export default function ForgotPasswordPage() {
                         onChange={(e) => setPhone(e.target.value)}
                         className="text-start"
                         dir="ltr"
+                        disabled={isSubmitting}
                     />
-                    {error && <p className="text-sm text-red-500 mt-1">{error}</p>}
+                    {phoneError && <p className="text-sm text-red-500 mt-1">{phoneError}</p>}
                 </div>
 
                 <Button
                     type="submit"
+                    disabled={isSubmitting}
                     className="w-full h-12 text-base font-bold shadow-md shadow-primary/10 mt-6"
                 >
-                    إرسال رمز التحقق
+                    {isSubmitting ? "جارٍ الإرسال..." : "إرسال رمز التحقق"}
                 </Button>
             </form>
         </div>

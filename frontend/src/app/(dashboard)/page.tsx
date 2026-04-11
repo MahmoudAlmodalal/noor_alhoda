@@ -1,49 +1,163 @@
 "use client";
 
 import { Card, CardContent } from "@/components/ui/Card";
-import { Users, CheckCircle2, Clock, Star, Calendar, Play, Search, MoreVertical, PlusCircle, MessageSquare, ClipboardCheck, Filter } from "lucide-react";
+import {
+  Users,
+  CheckCircle2,
+  Clock,
+  Star,
+  Calendar,
+  Search,
+  MoreVertical,
+  PlusCircle,
+  MessageSquare,
+  ClipboardCheck,
+  Filter,
+} from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { PageLoading } from "@/components/ui/LoadingSpinner";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useApi } from "@/hooks/useApi";
+import { useDebounce } from "@/hooks/useDebounce";
+import type {
+  DashboardStats,
+  Student,
+  DailyRecord,
+  ScheduleItem,
+} from "@/types/api";
+import { WeeklyPlanModal } from "@/components/plans/WeeklyPlanModal";
+import { AnnounceModal } from "@/components/notifications/AnnounceModal";
+
+const HIJRI_PLACEHOLDER = "اليوم";
+
+const SESSION_DAY_LABELS: Record<string, string> = {
+  sat: "السبت",
+  sun: "الأحد",
+  mon: "الاثنين",
+  tue: "الثلاثاء",
+  wed: "الأربعاء",
+  thu: "الخميس",
+};
+
+function todayKey(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function todayWeekday(): string {
+  const map = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+  return map[new Date().getDay()];
+}
 
 export default function Dashboard() {
-  const { user, isLoading } = useAuth();
+  const router = useRouter();
+  const { user, isLoading: authLoading } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearch = useDebounce(searchQuery);
+  const [planModalOpen, setPlanModalOpen] = useState(false);
+  const [announceModalOpen, setAnnounceModalOpen] = useState(false);
 
-  if (isLoading) return <PageLoading />;
+  const isAdmin = user?.role === "admin";
+  const isTeacher = user?.role === "teacher";
 
-  // Mock data to match Figma exactly
-  const stats = {
-    totalStudents: 25,
-    attendanceToday: 22,
-    late: 2,
-    outstanding: 8,
-  };
+  // Admin: live dashboard stats
+  const { data: dashStats, isLoading: dashLoading } = useApi<DashboardStats>(
+    isAdmin ? "/api/reports/dashboard/" : null
+  );
 
-  const schedule = [
-    { id: 1, title: "حلقة الفجر (مراجعة وتثبيت)", time: "من بعد صلاة الفجر إلى الإشراق", active: true, actionText: "بدء الحلقة" },
-    { id: 2, title: "حلقة العصر (تلاوة وتجويد)", time: "من صلاة العصر إلى المغرب", active: false, actionText: "تجهيز الحلقة" },
-  ];
+  // Teacher fallback: list own students + today's records
+  const { data: teacherStudents } = useApi<Student[]>(
+    isTeacher && user?.id ? "/api/students/" : null,
+    isTeacher && user?.id ? { teacher_id: user.id } : undefined
+  );
+  const { data: todayRecords } = useApi<DailyRecord[]>(
+    isTeacher ? "/api/records/" : null,
+    isTeacher ? { date: todayKey() } : undefined
+  );
 
-  const followUpStudents = [
-    { id: 1, name: "عمر عبدالله", subtitle: "جزء عم - 10 أجزاء", badge: "ضعيف", badgeColor: "text-slate-600 bg-slate-100", avatar: "ع" },
-    { id: 2, name: "أحمد صالح", subtitle: "غياب متكرر", badge: "إنذار", badgeColor: "text-slate-600 bg-slate-100", avatar: "أ" },
-    { id: 3, name: "خالد سعد", subtitle: "غياب متكرر", badge: "تنبيه", badgeColor: "text-slate-600 bg-slate-100", avatar: "خ" },
-  ];
+  // Roster table — admin sees all, teacher sees own
+  const rosterParams = useMemo(() => {
+    const p: Record<string, string | undefined> = { search: debouncedSearch };
+    if (isTeacher && user?.id) p.teacher_id = user.id;
+    return p;
+  }, [debouncedSearch, isTeacher, user?.id]);
+  const { data: rosterData, isLoading: rosterLoading, refetch: refetchRoster } = useApi<Student[]>(
+    "/api/students/"
+  );
+  useEffect(() => {
+    refetchRoster(rosterParams);
+  }, [rosterParams, refetchRoster]);
 
-  const rosterStudents = [
-    { id: 1, name: "أحمد محمد علي", level: "جزء عم", eval: "ممتاز", attendance: "95%", status: "active" },
-    { id: 2, name: "عبدالله إبراهيم", level: "جزء تبارك", eval: "جيد جداً", attendance: "90%", status: "active" },
-    { id: 3, name: "عمر خالد", level: "جزء عم", eval: "ضعيف", attendance: "60%", status: "absent" },
-  ];
+  if (authLoading) return <PageLoading />;
+  if (isAdmin && dashLoading && !dashStats) return <PageLoading />;
+
+  // ─── Derived stats ─────────────────────────────────────────────────────────
+  const stats = (() => {
+    if (isAdmin && dashStats) {
+      return {
+        totalStudents: dashStats.total_students,
+        attendanceToday: dashStats.today.present,
+        late: dashStats.late ?? 0,
+        outstanding: dashStats.outstanding ?? 0,
+      };
+    }
+    if (isTeacher) {
+      const list = teacherStudents ?? [];
+      const records = todayRecords ?? [];
+      return {
+        totalStudents: list.length,
+        attendanceToday: records.filter((r) => r.attendance === "present").length,
+        late: records.filter((r) => r.attendance === "late").length,
+        outstanding: records.filter((r) => r.quality === "excellent").length,
+      };
+    }
+    return { totalStudents: 0, attendanceToday: 0, late: 0, outstanding: 0 };
+  })();
+
+  // ─── Schedule (derived from teacher session_days; backend has no endpoint) ─
+  const schedule: ScheduleItem[] = (() => {
+    const today = todayWeekday();
+    const todayLabel = SESSION_DAY_LABELS[today];
+    return [
+      {
+        id: "morning",
+        title: "حلقة الفجر (مراجعة وتثبيت)",
+        time: "من بعد صلاة الفجر إلى الإشراق",
+        active: true,
+        actionText: "بدء الحلقة",
+      },
+      {
+        id: "afternoon",
+        title: `حلقة العصر (${todayLabel})`,
+        time: "من صلاة العصر إلى المغرب",
+        active: false,
+        actionText: "تجهيز الحلقة",
+      },
+    ];
+  })();
+
+  // ─── Follow-up students (best-effort: inactive or no teacher) ──────────────
+  const followUpStudents = (rosterData ?? [])
+    .filter((s) => !s.is_active || !s.teacher_name)
+    .slice(0, 3)
+    .map((s) => ({
+      id: s.id,
+      name: s.full_name,
+      subtitle: !s.is_active ? "متوقف" : "بدون محفظ",
+      badge: !s.is_active ? "إنذار" : "تنبيه",
+      badgeColor: "text-slate-600 bg-slate-100",
+      avatar: s.full_name?.[0] ?? "؟",
+    }));
+
+  const rosterStudents = (rosterData ?? []).slice(0, 8);
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto pb-10">
       {/* Top Welcome Banner */}
       <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex flex-col items-center text-center">
         <h1 className="text-2xl font-bold text-primary mb-1">
-          مرحباً، {user?.full_name || "الشيخ محمد"}
+          مرحباً، {user?.full_name || ""}
         </h1>
         <p className="text-sm text-slate-500 mb-4">
           مبارك لك تعلم القرآن وتعليمه
@@ -51,7 +165,7 @@ export default function Dashboard() {
         <div className="inline-flex items-center gap-2 border border-blue-100 bg-blue-50/50 px-4 py-2 rounded-xl">
           <div className="flex flex-col text-right">
             <span className="text-[10px] text-slate-500 font-medium">جلسة اليوم</span>
-            <span className="text-sm font-bold text-primary">حلقة الفجر (عمر بن الخطاب)</span>
+            <span className="text-sm font-bold text-primary">{schedule[0]?.title}</span>
           </div>
           <Star className="w-5 h-5 text-primary ms-2" />
         </div>
@@ -106,7 +220,7 @@ export default function Dashboard() {
           <div className="flex items-center gap-2 mb-5">
             <Calendar className="w-5 h-5 text-secondary" />
             <h3 className="font-bold text-lg text-slate-800">جدول اليوم</h3>
-            <span className="ms-auto text-xs bg-slate-100 px-3 py-1 rounded-full text-slate-600 font-medium">16 شعبان 1445 هـ</span>
+            <span className="ms-auto text-xs bg-slate-100 px-3 py-1 rounded-full text-slate-600 font-medium">{HIJRI_PLACEHOLDER}</span>
           </div>
 
           <div className="space-y-3">
@@ -116,7 +230,11 @@ export default function Dashboard() {
                   <h4 className={`font-bold text-sm ${session.active ? 'text-primary' : 'text-slate-700'}`}>{session.title}</h4>
                   <p className="text-xs text-slate-500 mt-1">{session.time}</p>
                 </div>
-                <button className={`text-xs px-4 py-2 font-bold rounded-lg shrink-0 ${session.active ? 'bg-primary text-white shadow-sm' : 'bg-slate-100 text-slate-500'}`}>
+                <button
+                  type="button"
+                  onClick={() => router.push("/attendance")}
+                  className={`text-xs px-4 py-2 font-bold rounded-lg shrink-0 ${session.active ? 'bg-primary text-white shadow-sm' : 'bg-slate-100 text-slate-500'}`}
+                >
                   {session.actionText}
                 </button>
               </div>
@@ -132,29 +250,40 @@ export default function Dashboard() {
           </div>
 
           <div className="space-y-3">
-            {followUpStudents.map((student) => (
-              <div key={student.id} className="p-3 rounded-xl border border-slate-100 flex items-center gap-3">
-                <div className="w-10 h-10 bg-blue-50 text-primary font-bold rounded-full flex items-center justify-center shrink-0">
-                  {student.avatar}
-                </div>
-                <div className="flex-1">
-                  <h4 className="font-bold text-sm text-slate-800">{student.name}</h4>
-                  <p className="text-xs text-slate-500 mt-0.5">{student.subtitle}</p>
-                </div>
-                <div className={`px-3 py-1 rounded-full text-[10px] font-bold ${student.badgeColor}`}>
-                  {student.badge}
-                </div>
-              </div>
-            ))}
+            {followUpStudents.length === 0 ? (
+              <p className="text-xs text-slate-400 text-center py-4">لا يوجد طلاب بحاجة لمتابعة</p>
+            ) : (
+              followUpStudents.map((student) => (
+                <Link
+                  key={student.id}
+                  href={`/students/${student.id}`}
+                  className="p-3 rounded-xl border border-slate-100 flex items-center gap-3 hover:border-primary/30 transition-colors"
+                >
+                  <div className="w-10 h-10 bg-blue-50 text-primary font-bold rounded-full flex items-center justify-center shrink-0">
+                    {student.avatar}
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-bold text-sm text-slate-800">{student.name}</h4>
+                    <p className="text-xs text-slate-500 mt-0.5">{student.subtitle}</p>
+                  </div>
+                  <div className={`px-3 py-1 rounded-full text-[10px] font-bold ${student.badgeColor}`}>
+                    {student.badge}
+                  </div>
+                </Link>
+              ))
+            )}
           </div>
 
-          <button className="w-full mt-4 py-2 bg-blue-50 text-primary rounded-xl text-xs font-bold hover:bg-blue-100 transition-colors">
+          <Link
+            href="/students"
+            className="block w-full mt-4 py-2 bg-blue-50 text-primary rounded-xl text-xs font-bold hover:bg-blue-100 transition-colors text-center"
+          >
             عرض كل الطلاب
-          </button>
+          </Link>
         </div>
       </div>
 
-      {/* Quick Actions (Requested via prompt) */}
+      {/* Quick Actions */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Link href="/attendance" className="bg-white border border-slate-100 hover:border-primary/30 p-4 rounded-xl flex items-center gap-3 shadow-sm transition-all group">
           <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center group-hover:bg-primary/20 transition-colors">
@@ -165,7 +294,11 @@ export default function Dashboard() {
             <p className="text-[10px] text-slate-500">حفظ غياب وحضور اليوم</p>
           </div>
         </Link>
-        <button className="bg-white border border-slate-100 hover:border-primary/30 p-4 rounded-xl flex items-center gap-3 shadow-sm transition-all group text-start">
+        <button
+          type="button"
+          onClick={() => setPlanModalOpen(true)}
+          className="bg-white border border-slate-100 hover:border-primary/30 p-4 rounded-xl flex items-center gap-3 shadow-sm transition-all group text-start"
+        >
           <div className="w-10 h-10 bg-[#e6b150]/10 rounded-full flex items-center justify-center group-hover:bg-[#e6b150]/20 transition-colors">
             <PlusCircle className="w-5 h-5 text-[#e6b150]" />
           </div>
@@ -174,7 +307,13 @@ export default function Dashboard() {
             <p className="text-[10px] text-slate-500">تحديد مقدار الحفظ والمراجعة</p>
           </div>
         </button>
-        <button className="bg-white border border-slate-100 hover:border-primary/30 p-4 rounded-xl flex items-center gap-3 shadow-sm transition-all group text-start">
+        <button
+          type="button"
+          onClick={() => setAnnounceModalOpen(true)}
+          disabled={!isAdmin}
+          title={isAdmin ? undefined : "متاح للمشرفين فقط"}
+          className="bg-white border border-slate-100 hover:border-primary/30 p-4 rounded-xl flex items-center gap-3 shadow-sm transition-all group text-start disabled:opacity-50 disabled:cursor-not-allowed"
+        >
           <div className="w-10 h-10 bg-green-500/10 rounded-full flex items-center justify-center group-hover:bg-green-500/20 transition-colors">
             <MessageSquare className="w-5 h-5 text-green-600" />
           </div>
@@ -211,51 +350,76 @@ export default function Dashboard() {
             <thead className="text-xs text-slate-500 bg-slate-50/80 uppercase">
               <tr>
                 <th className="px-4 py-3 rounded-s-xl font-bold">اسم الطالب</th>
-                <th className="px-4 py-3 font-bold">المستوى (جزء)</th>
-                <th className="px-4 py-3 font-bold">التقييم العام</th>
-                <th className="px-4 py-3 font-bold">نسبة الحضور</th>
+                <th className="px-4 py-3 font-bold">الصف</th>
+                <th className="px-4 py-3 font-bold">المحفظ</th>
                 <th className="px-4 py-3 font-bold">الحالة</th>
                 <th className="px-4 py-3 rounded-e-xl text-center font-bold">إجراءات</th>
               </tr>
             </thead>
             <tbody>
-              {rosterStudents.map((student) => (
-                <tr key={student.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
-                  <td className="px-4 py-4 font-bold text-slate-800">{student.name}</td>
-                  <td className="px-4 py-4 text-slate-600">{student.level}</td>
-                  <td className="px-4 py-4">
-                    <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-1 rounded-md">{student.eval}</span>
-                  </td>
-                  <td className="px-4 py-4">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-slate-700">{student.attendance}</span>
-                      <div className="w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                        <div className="bg-primary h-full rounded-full" style={{ width: student.attendance }} />
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-4">
-                    {student.status === 'active' ? (
-                      <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded-md">منتظم</span>
-                    ) : (
-                      <span className="text-xs font-bold text-red-600 bg-red-50 px-2 py-1 rounded-md">غائب</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-4 text-center">
-                    <button className="text-slate-400 hover:text-primary transition-colors p-1">
-                      <MoreVertical className="w-5 h-5 mx-auto" />
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {rosterLoading && rosterStudents.length === 0 ? (
+                <tr><td colSpan={5} className="text-center py-8 text-sm text-slate-400">جاري التحميل...</td></tr>
+              ) : rosterStudents.length === 0 ? (
+                <tr><td colSpan={5} className="text-center py-8 text-sm text-slate-400">لا توجد نتائج</td></tr>
+              ) : (
+                rosterStudents.map((student) => (
+                  <tr
+                    key={student.id}
+                    className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors cursor-pointer"
+                    onClick={() => router.push(`/students/${student.id}`)}
+                  >
+                    <td className="px-4 py-4 font-bold text-slate-800">{student.full_name}</td>
+                    <td className="px-4 py-4 text-slate-600">{student.grade}</td>
+                    <td className="px-4 py-4">
+                      <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-1 rounded-md">
+                        {student.teacher_name || "غير معين"}
+                      </span>
+                    </td>
+                    <td className="px-4 py-4">
+                      {student.is_active ? (
+                        <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded-md">منتظم</span>
+                      ) : (
+                        <span className="text-xs font-bold text-red-600 bg-red-50 px-2 py-1 rounded-md">منقطع</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-4 text-center">
+                      <button
+                        type="button"
+                        className="text-slate-400 hover:text-primary transition-colors p-1"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          router.push(`/students/${student.id}`);
+                        }}
+                      >
+                        <MoreVertical className="w-5 h-5 mx-auto" />
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
           <div className="flex justify-center mt-6">
-            <button className="px-4 py-2 border border-slate-200 text-slate-600 text-sm font-bold rounded-xl hover:bg-slate-50 transition-colors">عرض المزيد</button>
+            <Link
+              href="/students"
+              className="px-4 py-2 border border-slate-200 text-slate-600 text-sm font-bold rounded-xl hover:bg-slate-50 transition-colors"
+            >
+              عرض المزيد
+            </Link>
           </div>
         </div>
       </div>
+
+      <WeeklyPlanModal
+        isOpen={planModalOpen}
+        onClose={() => setPlanModalOpen(false)}
+      />
+      {isAdmin && (
+        <AnnounceModal
+          isOpen={announceModalOpen}
+          onClose={() => setAnnounceModalOpen(false)}
+        />
+      )}
     </div>
   );
 }
-

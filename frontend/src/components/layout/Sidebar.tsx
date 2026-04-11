@@ -3,15 +3,41 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { LayoutGrid, UserPlus, Users, BookOpen, LogOut, UserCheck } from "lucide-react";
+import {
+    LayoutGrid,
+    UserPlus,
+    Users,
+    BookOpen,
+    LogOut,
+    UserCheck,
+    Bell,
+    ClipboardCheck,
+    Trophy,
+    BarChart3,
+} from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useNotifications } from "@/contexts/NotificationsContext";
+import type { UserProfile } from "@/types/api";
 
-export const menuItems = [
-    { name: "الرئيسية", href: "/", icon: LayoutGrid },
-    { name: "تسجيل طالب", href: "/students/register", icon: UserPlus },
-    { name: "إدارة المحفظين", href: "/teachers", icon: UserCheck },
-    { name: "سجل الطلاب", href: "/students", icon: Users },
-    { name: "إدارة الحلقات", href: "/rings", icon: BookOpen },
+type Role = UserProfile["role"];
+
+interface NavItem {
+    name: string;
+    href: string;
+    icon: typeof LayoutGrid;
+    roles: Role[];
+}
+
+export const menuItems: NavItem[] = [
+    { name: "الرئيسية", href: "/", icon: LayoutGrid, roles: ["admin", "teacher", "student", "parent"] },
+    { name: "تسجيل طالب", href: "/students/register", icon: UserPlus, roles: ["admin"] },
+    { name: "إدارة المحفظين", href: "/teachers", icon: UserCheck, roles: ["admin"] },
+    { name: "سجل الطلاب", href: "/students", icon: Users, roles: ["admin", "teacher"] },
+    { name: "إدارة الحلقات", href: "/rings", icon: BookOpen, roles: ["admin"] },
+    { name: "تسجيل الحضور", href: "/attendance", icon: ClipboardCheck, roles: ["admin", "teacher"] },
+    { name: "لوحة الشرف", href: "/leaderboard", icon: Trophy, roles: ["admin", "teacher", "student", "parent"] },
+    { name: "تقارير الحضور", href: "/reports/attendance", icon: BarChart3, roles: ["admin", "teacher"] },
+    { name: "الإشعارات", href: "/notifications", icon: Bell, roles: ["admin", "teacher", "student", "parent"] },
 ];
 
 interface SidebarProps {
@@ -21,7 +47,12 @@ interface SidebarProps {
 
 export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
     const pathname = usePathname();
-    const { logout } = useAuth();
+    const { logout, user } = useAuth();
+    const { unreadCount } = useNotifications();
+
+    const visibleItems = menuItems.filter((item) =>
+        user ? item.roles.includes(user.role) : true
+    );
 
     return (
         <>
@@ -41,9 +72,10 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
                 )}
             >
                 <div className="flex flex-col h-full py-8">
-                    <div className="px-6 space-y-2 flex-1">
-                        {menuItems.map((item) => {
+                    <div className="px-6 space-y-2 flex-1 overflow-y-auto">
+                        {visibleItems.map((item) => {
                             const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
+                            const showBadge = item.href === "/notifications" && unreadCount > 0;
 
                             return (
                                 <Link
@@ -58,7 +90,12 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
                                     )}
                                 >
                                     <item.icon className={cn("w-5 h-5", isActive ? "text-primary" : "text-white/80")} />
-                                    <span>{item.name}</span>
+                                    <span className="flex-1">{item.name}</span>
+                                    {showBadge && (
+                                        <span className="min-w-[20px] h-5 px-1.5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                                            {unreadCount > 99 ? "99+" : unreadCount}
+                                        </span>
+                                    )}
                                 </Link>
                             );
                         })}

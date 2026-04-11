@@ -1,0 +1,192 @@
+"use client";
+
+import { use, useState } from "react";
+import Link from "next/link";
+import { ArrowRight, FileText, PlusCircle, User } from "lucide-react";
+import { PageLoading } from "@/components/ui/LoadingSpinner";
+import { useApi } from "@/hooks/useApi";
+import { WeeklyPlanModal } from "@/components/plans/WeeklyPlanModal";
+import type { Student, StudentStats, WeeklyPlan } from "@/types/api";
+
+export default function StudentDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
+  const [planOpen, setPlanOpen] = useState(false);
+
+  const { data: student, isLoading: studentLoading } = useApi<Student>(`/api/students/${id}/`);
+  const { data: stats } = useApi<StudentStats>(`/api/students/${id}/stats/`);
+  const { data: history } = useApi<WeeklyPlan[]>(`/api/students/${id}/history/`);
+
+  if (studentLoading && !student) return <PageLoading />;
+  if (!student) {
+    return (
+      <div className="text-center py-12 text-slate-500">لم يتم العثور على الطالب</div>
+    );
+  }
+
+  const downloadPdf = async () => {
+    const token = localStorage.getItem("access_token");
+    if (!token) return;
+    try {
+      const res = await fetch(`/api/reports/student/${id}/pdf/`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("download failed");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `تقرير_${student.full_name}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      // swallow
+    }
+  };
+
+  return (
+    <div className="space-y-6 max-w-4xl mx-auto pb-10">
+      <Link href="/students" className="inline-flex items-center gap-2 text-sm text-primary font-bold hover:underline">
+        <ArrowRight className="w-4 h-4 rotate-180" />
+        عودة لقائمة الطلاب
+      </Link>
+
+      {/* Profile Card */}
+      <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+        <div className="flex items-start gap-4 mb-6">
+          <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center shrink-0">
+            <User className="w-8 h-8 text-primary" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-xl font-bold text-slate-900">{student.full_name}</h1>
+            <p className="text-xs text-slate-500 mt-1">{student.national_id}</p>
+            <div className="flex items-center gap-2 mt-2 flex-wrap">
+              <span className="px-2.5 py-0.5 bg-blue-50 text-primary text-xs font-bold rounded-md">
+                {student.grade}
+              </span>
+              <span className={`px-2.5 py-0.5 text-xs font-bold rounded-md ${
+                student.is_active ? "bg-green-50 text-green-600" : "bg-red-50 text-red-600"
+              }`}>
+                {student.is_active ? "نشط" : "منقطع"}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-5">
+          <InfoItem label="المحفظ" value={student.teacher_name || "غير معين"} />
+          <InfoItem label="ولي الأمر" value={student.guardian_name || "—"} />
+          <InfoItem label="الجوال" value={student.mobile || "—"} ltr />
+          <InfoItem label="جوال ولي الأمر" value={student.guardian_mobile || "—"} ltr />
+          <InfoItem label="الحالة الصحية" value={student.health_status || "—"} />
+          <InfoItem label="تاريخ التسجيل" value={student.enrollment_date || "—"} ltr />
+        </div>
+
+        <div className="flex items-center gap-2 flex-wrap pt-4 border-t border-slate-100">
+          <button
+            type="button"
+            onClick={downloadPdf}
+            className="px-4 py-2 bg-slate-100 text-slate-700 text-xs font-bold rounded-xl hover:bg-slate-200 flex items-center gap-2"
+          >
+            <FileText className="w-4 h-4" />
+            تحميل التقرير
+          </button>
+          <button
+            type="button"
+            onClick={() => setPlanOpen(true)}
+            className="px-4 py-2 bg-primary text-white text-xs font-bold rounded-xl hover:bg-primary/90 flex items-center gap-2"
+          >
+            <PlusCircle className="w-4 h-4" />
+            إضافة واجب
+          </button>
+        </div>
+      </div>
+
+      {/* Stats Block */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <StatCard label="نسبة الحضور" value={stats?.attendance_rate != null ? `${stats.attendance_rate}%` : "—"} />
+        <StatCard label="الأجزاء المحفوظة" value={stats?.memorized_ajza ?? "—"} />
+        <StatCard label="عدد المراجعات" value={stats?.review_count ?? "—"} />
+        <StatCard label="المعدل العام" value={stats?.avg_grade ?? "—"} />
+      </div>
+
+      {/* History Table */}
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+        <div className="px-5 py-4 border-b border-slate-100">
+          <h2 className="font-bold text-base text-slate-800">السجل الأسبوعي</h2>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm text-right">
+            <thead className="text-xs text-slate-500 bg-slate-50/80">
+              <tr>
+                <th className="px-4 py-3 font-bold">الأسبوع</th>
+                <th className="px-4 py-3 font-bold">بداية الأسبوع</th>
+                <th className="px-4 py-3 font-bold">المطلوب</th>
+                <th className="px-4 py-3 font-bold">المنجز</th>
+                <th className="px-4 py-3 font-bold">النسبة</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(history ?? []).length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="text-center py-8 text-sm text-slate-400">
+                    لا يوجد سجل بعد
+                  </td>
+                </tr>
+              ) : (
+                (history ?? []).map((w) => {
+                  const rate = w.total_required > 0 ? Math.round((w.total_achieved / w.total_required) * 100) : 0;
+                  return (
+                    <tr key={w.id} className="border-b border-slate-50">
+                      <td className="px-4 py-3 font-bold text-slate-700">#{w.week_number}</td>
+                      <td className="px-4 py-3 text-slate-600" dir="ltr">{w.week_start}</td>
+                      <td className="px-4 py-3 text-slate-600">{w.total_required}</td>
+                      <td className="px-4 py-3 text-slate-600">{w.total_achieved}</td>
+                      <td className="px-4 py-3">
+                        <span className={`text-xs font-bold px-2 py-1 rounded-md ${
+                          rate >= 80 ? "bg-green-50 text-green-600" :
+                          rate >= 50 ? "bg-orange-50 text-orange-600" :
+                          "bg-red-50 text-red-600"
+                        }`}>
+                          {rate}%
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <WeeklyPlanModal
+        isOpen={planOpen}
+        onClose={() => setPlanOpen(false)}
+        studentId={student.id}
+        studentName={student.full_name}
+      />
+    </div>
+  );
+}
+
+function InfoItem({ label, value, ltr }: { label: string; value: string | number; ltr?: boolean }) {
+  return (
+    <div className="bg-slate-50/80 p-3 rounded-xl">
+      <span className="block text-[11px] text-slate-500 font-medium mb-1">{label}</span>
+      <span className="block text-sm font-bold text-slate-800" dir={ltr ? "ltr" : undefined}>
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function StatCard({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm text-center">
+      <p className="text-xs text-slate-500 font-medium mb-2">{label}</p>
+      <h3 className="text-2xl font-black text-primary">{value}</h3>
+    </div>
+  );
+}

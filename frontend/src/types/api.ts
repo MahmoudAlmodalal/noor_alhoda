@@ -18,6 +18,16 @@ export interface LoginResponse {
   user: UserProfile;
 }
 
+export interface OtpSendRequest {
+  phone_number: string;
+}
+
+export interface OtpVerifyRequest {
+  phone_number: string;
+  code: string;
+  new_password: string;
+}
+
 // ─── Teachers ────────────────────────────────────────────────────────────────
 
 export interface Ring {
@@ -131,6 +141,141 @@ export interface DashboardStats {
   this_week: {
     avg_completion_rate: number;
   };
+  outstanding?: number;
+  late?: number;
+}
+
+export interface ScheduleItem {
+  id: string;
+  title: string;
+  time: string;
+  active: boolean;
+  actionText: string;
+}
+
+export interface DailyRecord {
+  id: string;
+  day: string;
+  date: string;
+  attendance: AttendanceStatus;
+  required_verses: number;
+  achieved_verses: number;
+  surah_name: string;
+  quality: "excellent" | "good" | "acceptable" | "weak" | "none";
+  result: "pass" | "fail" | "pending";
+  note: string;
+  student_id?: string;
+  student_name?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export type AttendanceStatus = "present" | "absent" | "late" | "excused";
+
+export interface BulkAttendanceRequest {
+  date: string;
+  entries: { student_id: string; status: AttendanceStatus }[];
+}
+
+export interface CreateRecordRequest {
+  student_id: string;
+  date: string;
+  attendance: AttendanceStatus;
+  required_verses?: number;
+  achieved_verses?: number;
+  surah_name?: string;
+  quality?: string;
+  note?: string;
+}
+
+export interface UpdateRecordRequest {
+  attendance?: AttendanceStatus;
+  required_verses?: number;
+  achieved_verses?: number;
+  surah_name?: string;
+  quality?: string;
+  note?: string;
+  result?: string;
+}
+
+export interface StudentStats {
+  attendance_rate: number;
+  memorized_ajza: number;
+  review_count: number;
+  avg_grade: number | string;
+  longest_streak?: number;
+  total_present?: number;
+  total_absent?: number;
+  total_required_verses?: number;
+  total_achieved_verses?: number;
+}
+
+export interface HistoryEntry {
+  id: string;
+  date: string;
+  day?: string;
+  attendance: AttendanceStatus;
+  surah_name?: string;
+  required_verses?: number;
+  achieved_verses?: number;
+  quality?: string;
+  note?: string;
+}
+
+export interface WeeklySummary {
+  week_start: string;
+  total_required: number;
+  total_achieved: number;
+  completion_rate: number;
+  records: HistoryEntry[];
+}
+
+export interface WeeklyPlan {
+  id: string;
+  student_id: string;
+  week_number: number;
+  week_start: string;
+  total_required: number;
+  total_achieved: number;
+  created_at: string;
+}
+
+export interface WeeklyPlanRequest {
+  student_id: string;
+  week_start: string;
+  total_required: number;
+}
+
+export interface LeaderboardEntry {
+  rank: number;
+  student_id: string;
+  student_name: string;
+  ring_name?: string;
+  score: number;
+  memorized_ajza?: number;
+  attendance_rate?: number;
+}
+
+export interface AttendanceReportRow {
+  student_id: string;
+  student_name: string;
+  days: Record<string, AttendanceStatus>;
+  present_count: number;
+  absent_count: number;
+  late_count?: number;
+  rate: number;
+}
+
+export interface AttendanceReport {
+  month: number;
+  year: number;
+  teacher_id?: string;
+  rows: AttendanceReportRow[];
+  summary?: {
+    total_sessions?: number;
+    avg_attendance?: number;
+    most_absent_student?: string;
+  };
 }
 
 // ─── Notifications ───────────────────────────────────────────────────────────
@@ -142,6 +287,21 @@ export interface Notification {
   body: string;
   is_read: boolean;
   created_at: string;
+  data?: Record<string, unknown>;
+}
+
+export interface NotificationsPayload {
+  items?: Notification[];
+  results?: Notification[];
+  unread_count: number;
+}
+
+export interface AnnounceRequest {
+  audience: "all" | "teachers" | "parents" | "students" | "ring";
+  ring_id?: string;
+  recipient_ids?: string[];
+  title: string;
+  body: string;
 }
 
 // ─── Generic API Wrapper ─────────────────────────────────────────────────────
