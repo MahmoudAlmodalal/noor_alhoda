@@ -30,7 +30,7 @@ function clearTokens(): void {
 let refreshPromise: Promise<boolean> | null = null;
 
 const REFRESH_TS_KEY = "_refresh_ts";
-const REFRESH_WINDOW_MS = 4_000;
+const REFRESH_WINDOW_MS = 10_000;
 
 function normalizeEndpoint(endpoint: string): string {
   const [path, query = ""] = endpoint.split("?");
@@ -43,11 +43,17 @@ async function refreshAccessToken(): Promise<boolean> {
   if (!refreshToken) return false;
 
   // ── مزامنة بين التبويبات ──────────────────────────────────────────────────
+  // إذا تاب آخر بدأ عملية refresh مؤخراً، انتظر حتى ينتهي بدل ما تعمل refresh ثاني
   if (typeof window !== "undefined") {
     const lastTs = localStorage.getItem(REFRESH_TS_KEY);
     if (lastTs && Date.now() - parseInt(lastTs, 10) < REFRESH_WINDOW_MS) {
-      await new Promise((r) => setTimeout(r, REFRESH_WINDOW_MS / 2));
-      return !!getAccessToken();
+      const oldToken = getAccessToken();
+      // انتظر حتى نهاية النافذة الزمنية ليتأكد أن التاب الثاني أنهى الـ refresh
+      await new Promise((r) => setTimeout(r, REFRESH_WINDOW_MS));
+      const newToken = getAccessToken();
+      // إذا تغير التوكن → الـ refresh نجح في تاب آخر
+      if (newToken && newToken !== oldToken) return true;
+      // إذا لم يتغير → نسمح لهذا التاب يحاول بنفسه
     }
   }
 
@@ -67,6 +73,11 @@ async function refreshAccessToken(): Promise<boolean> {
 
         if (!refreshRes.ok) {
           localStorage.removeItem(REFRESH_TS_KEY);
+          if (refreshRes.status === 401 || refreshRes.status === 403) {
+            // فشل دائم: التوكن منتهي أو في الـ blacklist → امسح كل شيء
+            clearTokens();
+          }
+          // 5xx أو أي خطأ آخر → فشل مؤقت (سيرفر نايم)، لا نمسح التوكنات
           return false;
         }
 
@@ -148,20 +159,32 @@ async function apiFetch<T>(
           return apiFetch<T>(endpoint, options, false);
         }
 
-        // الـ refresh فشل → انتهت الجلسة فعلاً
-        clearTokens();
-        if (
-          typeof window !== "undefined" &&
-          !window.location.pathname.startsWith("/login")
-        ) {
-          window.location.href = "/login?reason=session_expired";
+        // الـ refresh فشل
+        // إذا مُسحت التوكنات داخل refreshAccessToken (فشل دائم 401/403) → انتهت الجلسة
+        // إذا لا تزال التوكنات موجودة (فشل مؤقت 5xx/network) → لا نطرد المستخدم
+        const tokensCleared = !getAccessToken();
+        if (tokensCleared) {
+          if (
+            typeof window !== "undefined" &&
+            !window.location.pathname.startsWith("/login")
+          ) {
+            window.location.href = "/login?reason=session_expired";
+          }
+          return {
+            success: false,
+            error: {
+              code: 401,
+              message: "انتهت صلاحية الجلسة. يرجى تسجيل الدخول مجدداً.",
+            },
+          };
         }
 
+        // فشل مؤقت → أعد الخطأ بدون طرد المستخدم
         return {
           success: false,
           error: {
-            code: 401,
-            message: "انتهت صلاحية الجلسة. يرجى تسجيل الدخول مجدداً.",
+            code: 0,
+            message: "لا يمكن الاتصال بالخادم. تحقق من اتصال الإنترنت.",
           },
         };
       }
