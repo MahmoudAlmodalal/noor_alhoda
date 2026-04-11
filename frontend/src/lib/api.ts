@@ -4,7 +4,7 @@ import type { ApiResponse, LoginRequest, LoginResponse } from "@/types/api";
 // NEXT_PUBLIC_API_URL is only used if we need to point to a different domain.
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
-// ─── Token helpers ───────────────────────────────────────────────────────────
+// ─── Token helpers ────────────────────────────────────────────────────────────
 
 function getAccessToken(): string | null {
   if (typeof window === "undefined") return null;
@@ -24,11 +24,18 @@ function setTokens(access: string, refresh: string): void {
 function clearTokens(): void {
   localStorage.removeItem("access_token");
   localStorage.removeItem("refresh_token");
+  // أيضاً امسح مؤشر الـ refresh حتى لا يتعارض مع التبويبات الأخرى
+  localStorage.removeItem("_refresh_ts");
 }
 
-// ─── Core fetch wrapper ──────────────────────────────────────────────────────
+// ─── Core fetch wrapper ───────────────────────────────────────────────────────
 
 let refreshPromise: Promise<boolean> | null = null;
+
+// مفتاح مزامنة الـ refresh بين التبويبات المتعددة
+const REFRESH_TS_KEY = "_refresh_ts";
+// نافذة زمنية (ms) نعتبر فيها أن تبويباً آخر قام بالـ refresh مؤخراً
+const REFRESH_WINDOW_MS = 4_000;
 
 function normalizeEndpoint(endpoint: string): string {
   const [path, query = ""] = endpoint.split("?");
@@ -40,8 +47,26 @@ async function refreshAccessToken(): Promise<boolean> {
   const refreshToken = getRefreshToken();
   if (!refreshToken) return false;
 
+  // ── مزامنة بين التبويبات ──────────────────────────────────────────────────
+  // إذا كان تبويب آخر قام بالـ refresh مؤخراً (< REFRESH_WINDOW_MS)،
+  // انتظر قليلاً ثم استخدم الـ token الجديد الذي خزّنه ذلك التبويب.
+  if (typeof window !== "undefined") {
+    const lastTs = localStorage.getItem(REFRESH_TS_KEY);
+    if (lastTs && Date.now() - parseInt(lastTs, 10) < REFRESH_WINDOW_MS) {
+      await new Promise((r) => setTimeout(r, REFRESH_WINDOW_MS / 2));
+      // بعد الانتظار، إذا يوجد access token جديد صالح اعتبره نجاحاً
+      return !!getAccessToken();
+    }
+  }
+
+  // ── singleton داخل نفس التبويب ────────────────────────────────────────────
   if (!refreshPromise) {
     refreshPromise = (async () => {
+      // سجّل الطابع الزمني قبل الطلب لحجب التبويبات الأخرى
+      if (typeof window !== "undefined") {
+        localStorage.setItem(REFRESH_TS_KEY, Date.now().toString());
+      }
+
       try {
         const refreshRes = await fetch(`${BASE_URL}/api/auth/token/refresh/`, {
           method: "POST",
@@ -50,14 +75,31 @@ async function refreshAccessToken(): Promise<boolean> {
         });
 
         if (!refreshRes.ok) {
+          // الـ refresh token منتهي أو محظور — امسح الـ timestamp
+          if (typeof window !== "undefined") {
+            localStorage.removeItem(REFRESH_TS_KEY);
+          }
           return false;
         }
 
         const refreshData = await refreshRes.json();
-        const newRefreshToken = refreshData.refresh || refreshToken;
-        setTokens(refreshData.access, newRefreshToken);
+
+        // ROTATE_REFRESH_TOKENS=True يُرجع refresh token جديد دائماً؛
+        // إذا لم يأتِ في الرد (خطأ في الـ backend)، نعتبر العملية فاشلة
+        // لأن الـ token القديم أصبح في الـ blacklist.
+        if (!refreshData.access || !refreshData.refresh) {
+          if (typeof window !== "undefined") {
+            localStorage.removeItem(REFRESH_TS_KEY);
+          }
+          return false;
+        }
+
+        setTokens(refreshData.access, refreshData.refresh);
         return true;
       } catch {
+        if (typeof window !== "undefined") {
+          localStorage.removeItem(REFRESH_TS_KEY);
+        }
         return false;
       } finally {
         refreshPromise = null;
@@ -91,45 +133,46 @@ async function apiFetch<T>(
       headers,
     });
 
-    // Handle 401 — try token refresh once
+    // ── معالجة 401 ────────────────────────────────────────────────────────
     if (res.status === 401 && retry) {
       const refreshed = await refreshAccessToken();
+
       if (refreshed) {
+        // أعد المحاولة بالـ token الجديد
         return apiFetch<T>(endpoint, options, false);
       }
 
-      // If refresh fails, only redirect to login for critical endpoints
-      // Avoid redirecting for background tasks like notifications or profile fetch
-      const isCritical = !endpoint.includes("/notifications/") && !endpoint.includes("/auth/me/");
-      
-      if (isCritical) {
-        clearTokens();
-        if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
-          window.location.href = "/login";
-        }
+      // فشل الـ refresh — امسح كل شيء وأعد للـ login
+      clearTokens();
+
+      if (
+        typeof window !== "undefined" &&
+        !window.location.pathname.startsWith("/login")
+      ) {
+        window.location.href = "/login?reason=session_expired";
       }
-      
+
       return {
         success: false,
-        error: { code: 401, message: "انتهت صلاحية الجلسة. يرجى تسجيل الدخول مجدداً." },
+        error: {
+          code: 401,
+          message: "انتهت صلاحية الجلسة. يرجى تسجيل الدخول مجدداً.",
+        },
       };
     }
 
-    // Handle 204 No Content
+    // ── 204 No Content ─────────────────────────────────────────────────────
     if (res.status === 204) {
       return { success: true, data: {} as T };
     }
 
     const data = await res.json();
 
-    // The Django API wraps responses in {success, data/error}
     if (res.ok) {
-      // Some responses may already have {success: true, data: ...}
       if (data.success !== undefined) return data as ApiResponse<T>;
       return { success: true, data: data as T };
     }
 
-    // Error response
     if (data.error) {
       return { success: false, error: data.error };
     }
@@ -140,16 +183,21 @@ async function apiFetch<T>(
   } catch {
     return {
       success: false,
-      error: { code: 0, message: "لا يمكن الاتصال بالخادم. تحقق من اتصال الإنترنت." },
+      error: {
+        code: 0,
+        message: "لا يمكن الاتصال بالخادم. تحقق من اتصال الإنترنت.",
+      },
     };
   }
 }
 
-// ─── Public API ──────────────────────────────────────────────────────────────
+// ─── Public API ───────────────────────────────────────────────────────────────
 
 function buildQueryString(params?: Record<string, string | undefined>): string {
   if (!params) return "";
-  const filtered = Object.entries(params).filter(([, v]) => v !== undefined && v !== "");
+  const filtered = Object.entries(params).filter(
+    ([, v]) => v !== undefined && v !== ""
+  );
   if (filtered.length === 0) return "";
   return "?" + new URLSearchParams(filtered as [string, string][]).toString();
 }
@@ -192,7 +240,7 @@ export const api = {
     }
   },
 
-  // ─── Auth-specific methods ───────────────────────────────────────────────
+  // ─── Auth-specific methods ──────────────────────────────────────────────
 
   async login(body: LoginRequest): Promise<ApiResponse<LoginResponse>> {
     const res = await apiFetch<LoginResponse>("/api/auth/login/", {
@@ -218,6 +266,8 @@ export const api = {
   },
 
   me() {
-    return apiFetch<Record<string, unknown>>("/api/auth/me/", { method: "GET" });
+    return apiFetch<Record<string, unknown>>("/api/auth/me/", {
+      method: "GET",
+    });
   },
 };
