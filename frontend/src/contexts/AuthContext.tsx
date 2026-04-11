@@ -1,6 +1,13 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  type ReactNode,
+} from "react";
 import { api } from "@/lib/api";
 import type { UserProfile } from "@/types/api";
 
@@ -18,20 +25,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // On mount, validate existing token
+  // عند بدء التطبيق: تحقق من صلاحية الـ token الموجود
   useEffect(() => {
     if (typeof window === "undefined") {
       setIsLoading(false);
       return;
     }
 
-    // Only clear tokens if we are on the main login page, not sub-pages like forgot-password or reset-password
-    if (window.location.pathname === "/login") {
-      localStorage.removeItem("access_token");
-      localStorage.removeItem("refresh_token");
-      setIsLoading(false);
-      return;
-    }
+    // ❌ تم حذف: كانت هذه المنطقة تمسح الـ tokens فور الوصول لـ /login
+    // مما يمنع الـ auto-refresh ويسبب "انتهت الجلسة" بدون سبب حقيقي.
+    // الآن: نتحقق من الـ token عبر api.me() بغض النظر عن الصفحة الحالية.
 
     const token = localStorage.getItem("access_token");
     if (!token) {
@@ -39,57 +42,71 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    api.me().then((res) => {
-      if (res.success) {
-        const data = res.data;
-        setUser({
-          id: data.id as string,
-          phone_number: data.phone_number as string,
-          role: data.role as UserProfile["role"],
-          full_name: `${data.first_name || ""} ${data.last_name || ""}`.trim() || (data.full_name as string),
-          student_profile: data.student_profile as UserProfile["student_profile"],
-          teacher_profile: data.teacher_profile as UserProfile["teacher_profile"],
-          parent_profile: data.parent_profile as UserProfile["parent_profile"],
-        });
-      } else {
-        // Only clear tokens if it's a definitive 401/403 auth error
-        if (res.error && (res.error.code === 401 || res.error.code === 403)) {
-          localStorage.removeItem("access_token");
-          localStorage.removeItem("refresh_token");
+    api
+      .me()
+      .then((res) => {
+        if (res.success) {
+          const data = res.data;
+          setUser({
+            id: data.id as string,
+            phone_number: data.phone_number as string,
+            role: data.role as UserProfile["role"],
+            full_name:
+              `${data.first_name || ""} ${data.last_name || ""}`.trim() ||
+              (data.full_name as string),
+            student_profile: data.student_profile as UserProfile["student_profile"],
+            teacher_profile: data.teacher_profile as UserProfile["teacher_profile"],
+            parent_profile: data.parent_profile as UserProfile["parent_profile"],
+          });
+        } else {
+          // امسح الـ tokens فقط عند 401/403 المؤكدة
+          // (apiFetch يتولى تلقائياً الـ refresh قبل الوصول هنا)
+          if (res.error.code === 401 || res.error.code === 403) {
+            localStorage.removeItem("access_token");
+            localStorage.removeItem("refresh_token");
+          }
+          // 0 = خطأ شبكة، 500 = خطأ سيرفر — لا نمسح الـ tokens
         }
-      }
-    }).catch(() => {
-      // Network error, keep tokens
-    }).finally(() => {
-      setIsLoading(false);
-    });
+      })
+      .catch(() => {
+        // خطأ في الشبكة — لا نمسح الـ tokens حتى يتمكن المستخدم من إعادة المحاولة
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
   }, []);
 
-  const login = useCallback(async (phone_number: string, password: string): Promise<string | null> => {
-    const res = await api.login({ phone_number, password });
-    if (res.success) {
-      // After successful login, we should fetch the full profile to get student_profile/teacher_profile IDs
-      const meRes = await api.me();
-      if (meRes.success) {
-        const data = meRes.data;
-        setUser({
-          id: data.id as string,
-          phone_number: data.phone_number as string,
-          role: data.role as UserProfile["role"],
-          full_name: `${data.first_name || ""} ${data.last_name || ""}`.trim() || (data.full_name as string),
-          student_profile: data.student_profile as UserProfile["student_profile"],
-          teacher_profile: data.teacher_profile as UserProfile["teacher_profile"],
-          parent_profile: data.parent_profile as UserProfile["parent_profile"],
-        });
-      } else {
-        // If profile fetch fails but login succeeded, use basic user data from login response
-        // This prevents the user from being stuck if their profile is missing but account exists
-        setUser(res.data.user);
+  const login = useCallback(
+    async (phone_number: string, password: string): Promise<string | null> => {
+      const res = await api.login({ phone_number, password });
+
+      if (res.success) {
+        // بعد تسجيل الدخول نجلب الـ profile الكامل للحصول على IDs
+        const meRes = await api.me();
+        if (meRes.success) {
+          const data = meRes.data;
+          setUser({
+            id: data.id as string,
+            phone_number: data.phone_number as string,
+            role: data.role as UserProfile["role"],
+            full_name:
+              `${data.first_name || ""} ${data.last_name || ""}`.trim() ||
+              (data.full_name as string),
+            student_profile: data.student_profile as UserProfile["student_profile"],
+            teacher_profile: data.teacher_profile as UserProfile["teacher_profile"],
+            parent_profile: data.parent_profile as UserProfile["parent_profile"],
+          });
+        } else {
+          // تعذّر جلب الـ profile لكن تسجيل الدخول نجح — استخدم البيانات الأساسية
+          setUser(res.data.user);
+        }
+        return null;
       }
-      return null; // no error
-    }
-    return res.error.message;
-  }, []);
+
+      return res.error.message;
+    },
+    []
+  );
 
   const logout = useCallback(async () => {
     await api.logout();
