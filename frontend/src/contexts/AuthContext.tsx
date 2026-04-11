@@ -53,6 +53,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
       } else {
         // Only clear tokens if it's a definitive 401/403 auth error, not a network or 500 error
+        // Also, if the error is 404 (profile not found) or 500, we don't want to kick the user out
+        // if they still have a valid session token.
         if (res.error.code === 401 || res.error.code === 403) {
           localStorage.removeItem("access_token");
           localStorage.removeItem("refresh_token");
@@ -83,6 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
       } else {
         // If profile fetch fails but login succeeded, use basic user data from login response
+        // This prevents the user from being stuck if their profile is missing but account exists
         setUser(res.data.user);
       }
       return null; // no error

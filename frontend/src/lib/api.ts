@@ -99,8 +99,8 @@ async function apiFetch<T>(
       }
 
       // If refresh fails, only redirect to login for critical endpoints
-      // Avoid redirecting for background tasks like notifications
-      const isCritical = !endpoint.includes("/notifications/");
+      // Avoid redirecting for background tasks like notifications or profile fetch
+      const isCritical = !endpoint.includes("/notifications/") && !endpoint.includes("/auth/me/");
       
       if (isCritical) {
         clearTokens();
