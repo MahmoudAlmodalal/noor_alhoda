@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { Menu } from "lucide-react";
 import { Sidebar } from "./Sidebar";
 import { NotificationsProvider } from "@/contexts/NotificationsContext";
@@ -24,8 +25,8 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
                             <Menu className="w-6 h-6" />
                         </button>
 
-                        <div className="font-bold text-primary flex items-center gap-2 lg:hidden">
-                            <span>نور الهدى</span>
+                        <div className="flex items-center lg:hidden">
+                            <Image src="/logo.png" alt="نور الهدى" width={82} height={44} className="object-contain" />
                         </div>
 
                         <div className="hidden lg:block" />
