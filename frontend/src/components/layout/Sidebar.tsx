@@ -36,7 +36,7 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
             {/* Sidebar Drawer */}
             <div
                 className={cn(
-                    "fixed inset-y-0 start-0 z-50 w-72 bg-white transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:block shadow-lg lg:shadow-none border-e border-slate-100",
+                    "fixed inset-y-0 start-0 z-50 w-72 bg-primary transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:block shadow-lg border-e border-slate-100/10",
                     isOpen ? "translate-x-0" : "translate-x-full lg:translate-x-0"
                 )}
             >
@@ -53,11 +53,11 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
                                     className={cn(
                                         "flex items-center space-x-reverse space-x-3 px-4 py-3 rounded-xl transition-colors",
                                         isActive
-                                            ? "bg-primary text-white font-bold"
-                                            : "text-primary hover:bg-slate-50 font-medium"
+                                            ? "bg-white text-primary font-bold shadow-sm"
+                                            : "text-white/80 hover:bg-white/10 hover:text-white font-medium"
                                     )}
                                 >
-                                    <item.icon className={cn("w-5 h-5", isActive ? "text-white" : "text-primary")} />
+                                    <item.icon className={cn("w-5 h-5", isActive ? "text-primary" : "text-white/80")} />
                                     <span>{item.name}</span>
                                 </Link>
                             );
@@ -65,9 +65,10 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
                     </div>
 
                     <div className="px-6 mt-auto">
+                        <div className="border-t border-white/10 mb-4 px-2" />
                         <button
                             onClick={() => logout()}
-                            className="flex w-full items-center space-x-reverse space-x-3 px-4 py-3 rounded-xl text-red-600 hover:bg-red-50 font-medium transition-colors"
+                            className="flex w-full items-center space-x-reverse space-x-3 px-4 py-3 rounded-xl text-white/90 hover:bg-white/10 hover:text-white font-medium transition-colors"
                         >
                             <LogOut className="w-5 h-5" />
                             <span>تسجيل الخروج</span>

@@ -1,160 +1,261 @@
 "use client";
 
 import { Card, CardContent } from "@/components/ui/Card";
-import { Users, BookOpen, Star, PlusCircle, ClipboardCheck, Bell } from "lucide-react";
+import { Users, CheckCircle2, Clock, Star, Calendar, Play, Search, MoreVertical, PlusCircle, MessageSquare, ClipboardCheck, Filter } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
-import { useApi } from "@/hooks/useApi";
-import { useMutation } from "@/hooks/useMutation";
 import { PageLoading } from "@/components/ui/LoadingSpinner";
-import type { DashboardStats, Notification } from "@/types/api";
+import { useState } from "react";
 
 export default function Dashboard() {
-  const { user } = useAuth();
-  const { data: stats, isLoading: statsLoading } = useApi<DashboardStats>("/api/reports/dashboard/");
-  const { data: notifData, isLoading: notifLoading, refetch: refetchNotifs } = useApi<{ unread_count: number; data: Notification[] }>("/api/notifications/");
-  const { mutate: markRead } = useMutation<void>("patch");
-  const { mutate: markAllRead } = useMutation<void>("patch", "/api/notifications/read-all/");
-
-  const isLoading = statsLoading || notifLoading;
+  const { user, isLoading } = useAuth();
+  const [searchQuery, setSearchQuery] = useState("");
 
   if (isLoading) return <PageLoading />;
 
-  const notifications = notifData?.data?.slice(0, 5) ?? [];
-  const unreadCount = notifData?.unread_count ?? 0;
-
-  const handleNotifClick = async (notif: Notification) => {
-    if (notif.is_read) return;
-    const res = await markRead(undefined, { endpoint: `/api/notifications/${notif.id}/read/`, successMessage: " " });
-    if (res !== null) refetchNotifs();
+  // Mock data to match Figma exactly
+  const stats = {
+    totalStudents: 25,
+    attendanceToday: 22,
+    late: 2,
+    outstanding: 8,
   };
 
-  const handleMarkAllRead = async () => {
-    const res = await markAllRead(undefined, { successMessage: "تم تعليم الكل كمقروء" });
-    if (res !== null) refetchNotifs();
-  };
+  const schedule = [
+    { id: 1, title: "حلقة الفجر (مراجعة وتثبيت)", time: "من بعد صلاة الفجر إلى الإشراق", active: true, actionText: "بدء الحلقة" },
+    { id: 2, title: "حلقة العصر (تلاوة وتجويد)", time: "من صلاة العصر إلى المغرب", active: false, actionText: "تجهيز الحلقة" },
+  ];
+
+  const followUpStudents = [
+    { id: 1, name: "عمر عبدالله", subtitle: "جزء عم - 10 أجزاء", badge: "ضعيف", badgeColor: "text-slate-600 bg-slate-100", avatar: "ع" },
+    { id: 2, name: "أحمد صالح", subtitle: "غياب متكرر", badge: "إنذار", badgeColor: "text-slate-600 bg-slate-100", avatar: "أ" },
+    { id: 3, name: "خالد سعد", subtitle: "غياب متكرر", badge: "تنبيه", badgeColor: "text-slate-600 bg-slate-100", avatar: "خ" },
+  ];
+
+  const rosterStudents = [
+    { id: 1, name: "أحمد محمد علي", level: "جزء عم", eval: "ممتاز", attendance: "95%", status: "active" },
+    { id: 2, name: "عبدالله إبراهيم", level: "جزء تبارك", eval: "جيد جداً", attendance: "90%", status: "active" },
+    { id: 3, name: "عمر خالد", level: "جزء عم", eval: "ضعيف", attendance: "60%", status: "absent" },
+  ];
 
   return (
-    <div className="space-y-6 max-w-lg mx-auto">
-      {/* Welcome Section */}
-      <div className="text-center space-y-2 mb-8">
-        <h1 className="text-2xl font-bold text-primary">
-          مرحباً، {user?.full_name || "مدير المركز"}
+    <div className="space-y-6 max-w-5xl mx-auto pb-10">
+      {/* Top Welcome Banner */}
+      <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex flex-col items-center text-center">
+        <h1 className="text-2xl font-bold text-primary mb-1">
+          مرحباً، {user?.full_name || "الشيخ محمد"}
         </h1>
-        <p className="text-sm text-slate-500 max-w-xs mx-auto">
-          نسأل الله لك التوفيق في إدارة هذه المؤسسة المباركة
+        <p className="text-sm text-slate-500 mb-4">
+          مبارك لك تعلم القرآن وتعليمه
         </p>
-        <div className="mt-4 inline-flex items-center gap-2 border border-[#e6b150] text-[#0a528e] font-semibold bg-[#fffcf4] px-4 py-2 rounded-xl text-sm">
-          <span>العام الدراسي الحالي 1447هـ - 2026م</span>
-          <BookOpen className="w-4 h-4 text-[#e6b150]" />
+        <div className="inline-flex items-center gap-2 border border-blue-100 bg-blue-50/50 px-4 py-2 rounded-xl">
+          <div className="flex flex-col text-right">
+            <span className="text-[10px] text-slate-500 font-medium">جلسة اليوم</span>
+            <span className="text-sm font-bold text-primary">حلقة الفجر (عمر بن الخطاب)</span>
+          </div>
+          <Star className="w-5 h-5 text-primary ms-2" />
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="flex flex-col gap-4">
-        <Card className="rounded-2xl shadow-sm border-slate-100 overflow-hidden">
-          <CardContent className="p-0 flex items-center justify-between p-5">
-            <div className="text-start">
-              <p className="text-xs text-slate-500 font-medium mb-1">عدد الطلاب المسجلين</p>
-              <h2 className="text-4xl font-black text-primary">{stats?.total_students ?? 0}</h2>
+      {/* Stats Cards Row */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className="rounded-2xl shadow-sm border-slate-100">
+          <CardContent className="p-5 flex flex-col items-center justify-center text-center">
+            <div className="w-10 h-10 bg-blue-50 rounded-full flex items-center justify-center mb-2">
+              <Users className="w-5 h-5 text-primary" />
             </div>
-            <div className="bg-[#eef3f8] w-14 h-14 rounded-full flex items-center justify-center">
-              <Users className="w-7 h-7 text-primary" />
-            </div>
+            <p className="text-xs text-slate-500 font-medium mb-1">طلاب الحلقة</p>
+            <h2 className="text-2xl font-black text-slate-800">{stats.totalStudents}</h2>
           </CardContent>
         </Card>
 
-        <Card className="rounded-2xl shadow-sm border-slate-100 overflow-hidden">
-          <CardContent className="p-0 flex items-center justify-between p-5">
-            <div className="text-start">
-              <p className="text-xs text-slate-500 font-medium mb-1">عدد المحفظين</p>
-              <h2 className="text-4xl font-black text-[#e6b150]">{stats?.total_teachers ?? 0}</h2>
+        <Card className="rounded-2xl shadow-sm border-slate-100">
+          <CardContent className="p-5 flex flex-col items-center justify-center text-center">
+            <div className="w-10 h-10 bg-green-50 rounded-full flex items-center justify-center mb-2">
+              <CheckCircle2 className="w-5 h-5 text-green-500" />
             </div>
-            <div className="bg-[#fcf8ef] w-14 h-14 rounded-full flex items-center justify-center">
-              <BookOpen className="w-7 h-7 text-[#e6b150]" />
-            </div>
+            <p className="text-xs text-slate-500 font-medium mb-1">الحضور اليوم</p>
+            <h2 className="text-2xl font-black text-slate-800">{stats.attendanceToday}</h2>
           </CardContent>
         </Card>
 
-        <Card className="rounded-2xl shadow-sm border-slate-100 overflow-hidden">
-          <CardContent className="p-0 flex items-center justify-between p-5">
-            <div className="text-start">
-              <p className="text-xs text-slate-500 font-medium mb-1">الحضور اليوم</p>
-              <h2 className="text-4xl font-black text-primary">{stats?.today?.present ?? 0}</h2>
+        <Card className="rounded-2xl shadow-sm border-slate-100">
+          <CardContent className="p-5 flex flex-col items-center justify-center text-center">
+            <div className="w-10 h-10 bg-orange-50 rounded-full flex items-center justify-center mb-2">
+              <Clock className="w-5 h-5 text-orange-400" />
             </div>
-            <div className="bg-[#eef3f8] w-14 h-14 rounded-full flex items-center justify-center">
-              <Star className="w-7 h-7 text-primary" />
+            <p className="text-xs text-slate-500 font-medium mb-1">المتأخرين</p>
+            <h2 className="text-2xl font-black text-slate-800">{stats.late}</h2>
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-2xl shadow-sm border-slate-100">
+          <CardContent className="p-5 flex flex-col items-center justify-center text-center">
+            <div className="w-10 h-10 bg-purple-50 rounded-full flex items-center justify-center mb-2">
+              <Star className="w-5 h-5 text-purple-400" />
             </div>
+            <p className="text-xs text-slate-500 font-medium mb-1">المتفوقين</p>
+            <h2 className="text-2xl font-black text-slate-800">{stats.outstanding}</h2>
           </CardContent>
         </Card>
       </div>
 
-      {/* Quick Actions */}
-      <div className="grid grid-cols-2 gap-4">
-        <Link href="/students/register" className="flex flex-col items-center justify-center bg-primary text-white rounded-2xl p-4 shadow-md shadow-primary/20 hover:bg-primary/90 transition-colors gap-2 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-bl-full border-b border-l border-white/5" />
-          <PlusCircle className="w-8 h-8 z-10" />
-          <div className="text-center z-10">
-            <span className="block font-bold text-sm mb-0.5">تسجيل طالب جديد</span>
-            <span className="block text-[10px] text-white/80 max-w-[100px]">إضافة طالب جديد إلى المركز وإصدار بطاقته</span>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Today's Schedule */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+          <div className="flex items-center gap-2 mb-5">
+            <Calendar className="w-5 h-5 text-secondary" />
+            <h3 className="font-bold text-lg text-slate-800">جدول اليوم</h3>
+            <span className="ms-auto text-xs bg-slate-100 px-3 py-1 rounded-full text-slate-600 font-medium">16 شعبان 1445 هـ</span>
           </div>
-        </Link>
 
-        <Link href="/rings" className="flex flex-col items-center justify-center bg-[#e6b150] text-white rounded-2xl p-4 shadow-md shadow-[#e6b150]/20 hover:bg-[#e6b150]/90 transition-colors gap-2 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-bl-full border-b border-l border-white/5" />
-          <BookOpen className="w-8 h-8 z-10" />
-          <div className="text-center z-10">
-            <span className="block font-bold text-sm mb-0.5">تسجيل حلقة جديدة</span>
-            <span className="block text-[10px] text-white/80 max-w-[100px]">إنشاء حلقة للتحفيظ والمراجعة</span>
-          </div>
-        </Link>
-      </div>
-
-      {/* Recent Activities */}
-      <div className="bg-white rounded-t-3xl border-x border-t border-slate-100 shadow-[0_-4px_15px_-5px_rgba(0,0,0,0.05)] pt-6 pb-8 px-5 rounded-b-3xl -mx-4 md:mx-0">
-        <div className="flex items-center justify-between mb-5">
-          <h3 className="font-bold text-lg text-slate-900 relative pe-4">
-            أحدث النشاطات والإشعارات
-            <div className="absolute top-0 bottom-0 right-0 w-1 bg-primary rounded-full" />
-          </h3>
-          {unreadCount > 0 && (
-            <button
-              type="button"
-              onClick={handleMarkAllRead}
-              className="text-xs text-primary font-semibold hover:underline shrink-0"
-            >
-              تعليم الكل كمقروء
-            </button>
-          )}
-        </div>
-
-        <div className="space-y-3">
-          {notifications.length === 0 ? (
-            <p className="text-sm text-slate-400 text-center py-4">لا توجد إشعارات حديثة</p>
-          ) : (
-            notifications.map((notif) => (
-              <button
-                key={notif.id}
-                type="button"
-                onClick={() => handleNotifClick(notif)}
-                disabled={notif.is_read}
-                className={`w-full flex justify-between items-center p-4 rounded-xl text-right transition-opacity ${
-                  notif.is_read ? "bg-slate-50/60 opacity-60 cursor-default" : "bg-slate-50 hover:bg-slate-100"
-                }`}
-              >
-                <p className="text-sm text-slate-800 font-medium">{notif.title}</p>
-                <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-sm border border-slate-100 shrink-0 ms-3">
-                  {notif.type === "absence" ? (
-                    <ClipboardCheck className="w-4 h-4 text-[#9333ea]" />
-                  ) : (
-                    <Bell className="w-4 h-4 text-primary" />
-                  )}
+          <div className="space-y-3">
+            {schedule.map((session) => (
+              <div key={session.id} className={`p-4 rounded-xl border flex items-center justify-between ${session.active ? 'border-primary/20 bg-[#f8fbff]' : 'border-slate-100'}`}>
+                <div>
+                  <h4 className={`font-bold text-sm ${session.active ? 'text-primary' : 'text-slate-700'}`}>{session.title}</h4>
+                  <p className="text-xs text-slate-500 mt-1">{session.time}</p>
                 </div>
-              </button>
-            ))
-          )}
+                <button className={`text-xs px-4 py-2 font-bold rounded-lg shrink-0 ${session.active ? 'bg-primary text-white shadow-sm' : 'bg-slate-100 text-slate-500'}`}>
+                  {session.actionText}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Follow up students */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+          <div className="flex items-center gap-2 mb-5">
+            <Users className="w-5 h-5 text-primary" />
+            <h3 className="font-bold text-lg text-slate-800">طلاب يحتاجون متابعة</h3>
+          </div>
+
+          <div className="space-y-3">
+            {followUpStudents.map((student) => (
+              <div key={student.id} className="p-3 rounded-xl border border-slate-100 flex items-center gap-3">
+                <div className="w-10 h-10 bg-blue-50 text-primary font-bold rounded-full flex items-center justify-center shrink-0">
+                  {student.avatar}
+                </div>
+                <div className="flex-1">
+                  <h4 className="font-bold text-sm text-slate-800">{student.name}</h4>
+                  <p className="text-xs text-slate-500 mt-0.5">{student.subtitle}</p>
+                </div>
+                <div className={`px-3 py-1 rounded-full text-[10px] font-bold ${student.badgeColor}`}>
+                  {student.badge}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <button className="w-full mt-4 py-2 bg-blue-50 text-primary rounded-xl text-xs font-bold hover:bg-blue-100 transition-colors">
+            عرض كل الطلاب
+          </button>
+        </div>
+      </div>
+
+      {/* Quick Actions (Requested via prompt) */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Link href="/attendance" className="bg-white border border-slate-100 hover:border-primary/30 p-4 rounded-xl flex items-center gap-3 shadow-sm transition-all group">
+          <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+            <ClipboardCheck className="w-5 h-5 text-primary" />
+          </div>
+          <div>
+            <h4 className="font-bold text-sm text-slate-800">تسجيل الحضور</h4>
+            <p className="text-[10px] text-slate-500">حفظ غياب وحضور اليوم</p>
+          </div>
+        </Link>
+        <button className="bg-white border border-slate-100 hover:border-primary/30 p-4 rounded-xl flex items-center gap-3 shadow-sm transition-all group text-start">
+          <div className="w-10 h-10 bg-[#e6b150]/10 rounded-full flex items-center justify-center group-hover:bg-[#e6b150]/20 transition-colors">
+            <PlusCircle className="w-5 h-5 text-[#e6b150]" />
+          </div>
+          <div>
+            <h4 className="font-bold text-sm text-slate-800">إضافة واجب</h4>
+            <p className="text-[10px] text-slate-500">تحديد مقدار الحفظ والمراجعة</p>
+          </div>
+        </button>
+        <button className="bg-white border border-slate-100 hover:border-primary/30 p-4 rounded-xl flex items-center gap-3 shadow-sm transition-all group text-start">
+          <div className="w-10 h-10 bg-green-500/10 rounded-full flex items-center justify-center group-hover:bg-green-500/20 transition-colors">
+            <MessageSquare className="w-5 h-5 text-green-600" />
+          </div>
+          <div>
+            <h4 className="font-bold text-sm text-slate-800">إرسال رسالة</h4>
+            <p className="text-[10px] text-slate-500">مراسلة أولياء الأمور</p>
+          </div>
+        </button>
+      </div>
+
+      {/* Roster Table Section */}
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 mt-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+          <h3 className="font-bold text-lg text-slate-800">سجل طلاب الحلقة</h3>
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <Search className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="ابحث عن اسم الطالب..."
+                className="pl-4 pr-9 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm w-full md:w-64 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+            <button className="p-2 border border-slate-200 rounded-xl text-slate-500 hover:bg-slate-50">
+              <Filter className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm text-right">
+            <thead className="text-xs text-slate-500 bg-slate-50/80 uppercase">
+              <tr>
+                <th className="px-4 py-3 rounded-s-xl font-bold">اسم الطالب</th>
+                <th className="px-4 py-3 font-bold">المستوى (جزء)</th>
+                <th className="px-4 py-3 font-bold">التقييم العام</th>
+                <th className="px-4 py-3 font-bold">نسبة الحضور</th>
+                <th className="px-4 py-3 font-bold">الحالة</th>
+                <th className="px-4 py-3 rounded-e-xl text-center font-bold">إجراءات</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rosterStudents.map((student) => (
+                <tr key={student.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
+                  <td className="px-4 py-4 font-bold text-slate-800">{student.name}</td>
+                  <td className="px-4 py-4 text-slate-600">{student.level}</td>
+                  <td className="px-4 py-4">
+                    <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-1 rounded-md">{student.eval}</span>
+                  </td>
+                  <td className="px-4 py-4">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-slate-700">{student.attendance}</span>
+                      <div className="w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                        <div className="bg-primary h-full rounded-full" style={{ width: student.attendance }} />
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-4 py-4">
+                    {student.status === 'active' ? (
+                      <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded-md">منتظم</span>
+                    ) : (
+                      <span className="text-xs font-bold text-red-600 bg-red-50 px-2 py-1 rounded-md">غائب</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-4 text-center">
+                    <button className="text-slate-400 hover:text-primary transition-colors p-1">
+                      <MoreVertical className="w-5 h-5 mx-auto" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="flex justify-center mt-6">
+            <button className="px-4 py-2 border border-slate-200 text-slate-600 text-sm font-bold rounded-xl hover:bg-slate-50 transition-colors">عرض المزيد</button>
+          </div>
         </div>
       </div>
     </div>
   );
 }
+
