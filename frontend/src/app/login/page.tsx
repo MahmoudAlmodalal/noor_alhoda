@@ -55,14 +55,14 @@ export default function LoginPage() {
 
   return (
     <div>
-      <div className="text-center mb-8">
-        <h1 className="text-2xl font-black text-slate-800 mb-2">تسجيل الدخول</h1>
-        <p className="text-sm text-slate-500 font-medium">أهلاً بك مجدداً في نظام المركز</p>
+      <div className="text-center mb-6">
+        <h1 className="text-2xl font-bold text-[#1e2939] leading-8 mb-1">تسجيل الدخول</h1>
+        <p className="text-sm text-[#6a7282] leading-5">أهلاً بك مجدداً في نظام المركز</p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-5">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-6">
         <div className="space-y-2">
-          <label className="block text-sm font-bold text-slate-800">رقم الجوال</label>
+          <label className="block text-sm font-bold text-[#364153]">رقم الجوال</label>
           <Input
             type="tel"
             placeholder="05X XXX XXXX"
@@ -74,7 +74,7 @@ export default function LoginPage() {
         </div>
 
         <div className="space-y-2">
-          <label className="block text-sm font-bold text-slate-800">كلمة المرور</label>
+          <label className="block text-sm font-bold text-[#364153]">كلمة المرور</label>
           <Input
             type={showPassword ? "text" : "password"}
             value={password}
@@ -94,7 +94,7 @@ export default function LoginPage() {
           <p className="text-sm text-red-500 font-medium text-center">{error}</p>
         )}
 
-        <div className="flex items-center justify-start pt-1">
+        <div className="flex items-center justify-center">
           <Link
             href="/login/forgot-password"
             className="text-sm font-bold text-secondary hover:text-secondary/80 hover:underline"
@@ -105,8 +105,9 @@ export default function LoginPage() {
 
         <Button
           type="submit"
+          size="lg"
           disabled={isSubmitting}
-          className="w-full h-12 text-base font-bold shadow-md shadow-primary/10 mt-6"
+          className="w-full h-14 text-lg font-bold"
         >
           {isSubmitting ? (
             <>

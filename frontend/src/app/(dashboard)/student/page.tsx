@@ -91,7 +91,7 @@ function RatingText({ value }: { value: Rating }) {
         return <span className="text-[16px] font-bold text-[#2f944d]">ممتاز</span>;
     }
     if (value === "very_good") {
-        return <span className="text-[16px] font-bold text-[#0a528e]">جيد جداً</span>;
+        return <span className="text-[16px] font-bold text-[#0b5394]">جيد جداً</span>;
     }
     if (value === "good") {
         return <span className="text-[16px] font-bold text-[#ca3500]">جيد</span>;
@@ -224,7 +224,7 @@ export default function StudentDashboard() {
     return (
         <div className="mx-auto max-w-md space-y-8 pb-24" dir="rtl">
             {/* 1. Header card */}
-            <div className="flex items-center justify-between gap-4 rounded-[16px] border-t-[3px] border-t-[#1e88e5] bg-white px-5 pb-4 pt-[18px] shadow-sm">
+            <div className="flex items-center justify-between gap-4 rounded-[16px] border-t-[3px] border-t-primary bg-white px-5 pb-4 pt-[18px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1)]">
                 <div className="flex flex-col gap-1">
                     <h1 className="text-[24px] font-bold leading-8 text-[#0b5394]">
                         مرحباً، {firstName}
@@ -233,7 +233,7 @@ export default function StudentDashboard() {
                         طالب مجتهد، جعلك الله قرة عين لوالديك
                     </p>
                 </div>
-                <div className="flex shrink-0 items-center gap-3 rounded-[10px] border border-[#1e88e5]/30 bg-[#eff6ff] px-4 py-2">
+                <div className="flex shrink-0 items-center gap-3 rounded-[10px] border border-primary/20 bg-[#eff6ff] px-4 py-2">
                     <div className="flex flex-col text-right">
                         <span className="text-[12px] text-[#6a7282]">
                             مستوى الحفظ الحالي
@@ -249,14 +249,14 @@ export default function StudentDashboard() {
             {/* 2. Profile card */}
             <div className="flex items-center justify-between gap-4 rounded-[24px] border border-[#f3f4f6] bg-white p-6 shadow-sm">
                 <div className="flex min-w-0 flex-col gap-1">
-                    <h2 className="text-[24px] font-bold leading-8 text-[#0a528e]">
+                    <h2 className="text-[24px] font-bold leading-8 text-[#0b5394]">
                         السلام عليكم، {fullName}
                     </h2>
                     <p className="text-[14px] text-[#6a7282]">
                         {subtitleParts.join(" • ")}
                     </p>
                 </div>
-                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border border-[#e6b150] bg-[#fcf8ef] text-[30px]">
+                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border border-[#eabd5b] bg-[#fcf8ef] text-[30px]">
                     👤
                 </div>
             </div>
@@ -270,7 +270,7 @@ export default function StudentDashboard() {
                     value={memorizedParts}
                 />
                 <StatsTile
-                    icon={<Star className="h-6 w-6 fill-[#e6b150] text-[#e6b150]" />}
+                    icon={<Star className="h-6 w-6 fill-[#eabd5b] text-[#eabd5b]" />}
                     tileBg="bg-[#fefce8]"
                     label="النقاط"
                     value={points}
@@ -283,7 +283,7 @@ export default function StudentDashboard() {
                     labelMaxWidth="max-w-[90px]"
                 />
                 <StatsTile
-                    icon={<Trophy className="h-6 w-6 text-[#e6b150]" />}
+                    icon={<Trophy className="h-6 w-6 text-[#eabd5b]" />}
                     tileBg="bg-[#fff7ed]"
                     label="الترتيب في الحلقة"
                     value={classRank}
@@ -296,10 +296,10 @@ export default function StudentDashboard() {
                     <h3 className="text-[20px] font-bold text-[#1e2939]">
                         شارات الإنجاز
                     </h3>
-                    <Trophy className="h-6 w-6 text-[#e6b150]" />
+                    <Trophy className="h-6 w-6 text-[#eabd5b]" />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                    <div className="flex h-32 flex-col items-start justify-start gap-2 rounded-[16px] bg-[#0a528e] p-5 text-white shadow-lg">
+                    <div className="flex h-32 flex-col items-start justify-start gap-2 rounded-[16px] bg-[#0b5394] p-5 text-white shadow-lg">
                         <span className="w-full text-center text-[36px] leading-none">
                             📖
                         </span>
@@ -315,7 +315,7 @@ export default function StudentDashboard() {
                             30 يوم متواصل
                         </span>
                     </div>
-                    <div className="flex h-28 flex-col items-start justify-start gap-2 rounded-[16px] bg-[#e6b150] p-5 text-white shadow-lg">
+                    <div className="flex h-28 flex-col items-start justify-start gap-2 rounded-[16px] bg-[#eabd5b] p-5 text-white shadow-lg">
                         <span className="w-full text-center text-[36px] leading-none">
                             ⭐
                         </span>
@@ -335,14 +335,14 @@ export default function StudentDashboard() {
             </div>
 
             {/* 5. Goal card */}
-            <div className="relative overflow-hidden rounded-[24px] bg-gradient-to-l from-[#0a528e] to-[#1565c0] p-8 text-white shadow-lg">
+            <div className="relative overflow-hidden rounded-[24px] bg-gradient-to-l from-[#0b5394] to-[#1565c0] p-8 text-white shadow-lg">
                 <div className="pointer-events-none absolute -right-16 -top-32 h-64 w-64 rounded-full bg-white/5" />
                 <div className="relative">
                     <div className="mb-5 flex items-center justify-end gap-3">
                         <h3 className="text-[24px] font-bold leading-8">
                             الهدف الحالي: {currentGoal}
                         </h3>
-                        <Target className="h-6 w-6 text-[#e6b150]" />
+                        <Target className="h-6 w-6 text-[#eabd5b]" />
                     </div>
                     <p className="mb-6 text-[18px] leading-7 text-[#dbeafe]">
                         أنت على وشك إتمام حفظ سورة الملك! استمر في المراجعة اليومية
@@ -354,7 +354,7 @@ export default function StudentDashboard() {
                     </div>
                     <div className="h-2 w-full overflow-hidden rounded-full bg-black/20">
                         <div
-                            className="h-full rounded-full bg-gradient-to-l from-[#e6b150] to-[#f0c674]"
+                            className="h-full rounded-full bg-gradient-to-l from-[#eabd5b] to-[#f0c674]"
                             style={{ width: `${goalProgress}%` }}
                         />
                     </div>
@@ -365,7 +365,7 @@ export default function StudentDashboard() {
             <div className="rounded-[24px] border border-[#f3f4f6] bg-white p-6 shadow-sm">
                 <div className="mb-6 flex items-center justify-end gap-2">
                     <h3 className="text-[20px] font-bold text-[#1e2939]">تقييم اليوم</h3>
-                    <Star className="h-6 w-6 text-[#e6b150]" />
+                    <Star className="h-6 w-6 text-[#eabd5b]" />
                 </div>
                 <div className="space-y-4">
                     <EvalRow
@@ -407,7 +407,7 @@ export default function StudentDashboard() {
                     <h3 className="text-[20px] font-bold text-[#1e2939]">
                         الخطة الأسبوعية الحالية
                     </h3>
-                    <BookOpen className="h-6 w-6 text-[#e6b150]" />
+                    <BookOpen className="h-6 w-6 text-[#eabd5b]" />
                 </div>
                 <div className="overflow-x-auto">
                     <table className="w-full min-w-[560px] border-collapse text-right">
@@ -468,7 +468,7 @@ export default function StudentDashboard() {
             <div className="rounded-[24px] border border-[#f3f4f6] bg-white p-6 shadow-sm">
                 <div className="mb-6 flex items-center justify-end gap-2">
                     <h3 className="text-[20px] font-bold text-[#1e2939]">آخر التقييمات</h3>
-                    <Star className="h-6 w-6 text-[#e6b150]" />
+                    <Star className="h-6 w-6 text-[#eabd5b]" />
                 </div>
                 <div className="space-y-3">
                     {historyRows.map((item) => (

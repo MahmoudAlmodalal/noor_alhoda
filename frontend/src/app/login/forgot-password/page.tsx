@@ -50,14 +50,14 @@ export default function ForgotPasswordPage() {
 
     return (
         <div>
-            <div className="text-center mb-8">
-                <h1 className="text-2xl font-black text-slate-800 mb-2">استعادة كلمة المرور</h1>
-                <p className="text-sm text-slate-500 font-medium">الخطوة 1 من 3: أدخل رقم الجوال المسجل</p>
+            <div className="text-center mb-6">
+                <h1 className="text-2xl font-bold text-[#1e2939] leading-8 mb-1">استعادة كلمة المرور</h1>
+                <p className="text-sm text-[#6a7282] leading-5">الخطوة 1 من 3: أدخل رقم الجوال المسجل</p>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="flex flex-col gap-6">
                 <div className="space-y-2">
-                    <label className="block text-sm font-bold text-slate-800">رقم الجوال</label>
+                    <label className="block text-sm font-bold text-[#364153]">رقم الجوال</label>
                     <Input
                         type="tel"
                         placeholder="05X XXX XXXX"
@@ -72,8 +72,9 @@ export default function ForgotPasswordPage() {
 
                 <Button
                     type="submit"
+                    size="lg"
                     disabled={isSubmitting}
-                    className="w-full h-12 text-base font-bold shadow-md shadow-primary/10 mt-6"
+                    className="w-full h-14 text-lg font-bold"
                 >
                     {isSubmitting ? "جارٍ الإرسال..." : "إرسال رمز التحقق"}
                 </Button>

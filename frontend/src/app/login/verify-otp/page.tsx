@@ -65,17 +65,17 @@ export default function VerifyOTPPage() {
 
     return (
         <div>
-            <div className="text-center mb-8">
-                <h1 className="text-2xl font-black text-slate-800 mb-2">إدخال رمز التحقق</h1>
-                <p className="text-sm text-slate-500 font-medium">
+            <div className="text-center mb-6">
+                <h1 className="text-2xl font-bold text-[#1e2939] leading-8 mb-1">إدخال رمز التحقق</h1>
+                <p className="text-sm text-[#6a7282] leading-5">
                     الخطوة 2 من 3: تم إرسال رمز {OTP_LENGTH} أرقام إلى
                     <br />
-                    <span className="font-bold text-slate-700" dir="ltr">{phone}</span>
+                    <span className="font-bold text-[#364153]" dir="ltr">{phone}</span>
                 </p>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="flex justify-center mb-6 px-4">
+            <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+                <div className="flex justify-center px-2">
                     <OTPInput
                         length={OTP_LENGTH}
                         value={otp}
@@ -89,7 +89,7 @@ export default function VerifyOTPPage() {
                         type="button"
                         onClick={handleResend}
                         disabled={isResending}
-                        className="text-sm font-bold text-primary hover:underline disabled:opacity-50"
+                        className="text-sm font-bold text-secondary hover:underline disabled:opacity-50"
                     >
                         {isResending ? "جارٍ الإرسال..." : "إعادة إرسال الرمز"}
                     </button>
@@ -97,8 +97,9 @@ export default function VerifyOTPPage() {
 
                 <Button
                     type="submit"
+                    size="lg"
                     disabled={otp.length !== OTP_LENGTH}
-                    className="w-full h-12 text-base font-bold shadow-md shadow-primary/10"
+                    className="w-full h-14 text-lg font-bold"
                 >
                     تحقق من الرمز
                 </Button>

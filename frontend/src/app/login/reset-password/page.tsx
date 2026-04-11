@@ -90,14 +90,14 @@ export default function ResetPasswordPage() {
 
     return (
         <div>
-            <div className="text-center mb-8">
-                <h1 className="text-2xl font-black text-slate-800 mb-2">كلمة مرور جديدة</h1>
-                <p className="text-sm text-slate-500 font-medium">الخطوة 3 من 3: قم بتعيين كلمة مرور قوية</p>
+            <div className="text-center mb-6">
+                <h1 className="text-2xl font-bold text-[#1e2939] leading-8 mb-1">كلمة مرور جديدة</h1>
+                <p className="text-sm text-[#6a7282] leading-5">الخطوة 3 من 3: قم بتعيين كلمة مرور قوية</p>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-5">
+            <form onSubmit={handleSubmit} className="flex flex-col gap-6">
                 <div className="space-y-2">
-                    <label className="block text-sm font-bold text-slate-800">كلمة المرور الجديدة</label>
+                    <label className="block text-sm font-bold text-[#364153]">كلمة المرور الجديدة</label>
                     <Input
                         type="password"
                         value={password}
@@ -108,7 +108,7 @@ export default function ResetPasswordPage() {
                 </div>
 
                 <div className="space-y-2">
-                    <label className="block text-sm font-bold text-slate-800">تأكيد كلمة المرور</label>
+                    <label className="block text-sm font-bold text-[#364153]">تأكيد كلمة المرور</label>
                     <Input
                         type="password"
                         value={confirmPassword}
@@ -125,11 +125,12 @@ export default function ResetPasswordPage() {
 
                 <Button
                     type="submit"
+                    size="lg"
                     disabled={isSubmitting}
-                    className="w-full h-12 text-base font-bold shadow-md shadow-primary/10 mt-6 gap-2"
+                    className="w-full h-14 text-lg font-bold gap-2"
                 >
                     {isSubmitting ? "جارٍ الحفظ..." : "تأكيد وحفظ"}
-                    <CheckCircle2 className="w-5 h-5 bg-transparent rounded-full" />
+                    <CheckCircle2 className="w-5 h-5" />
                 </Button>
             </form>
         </div>

@@ -85,7 +85,7 @@ export default function StudentAchievements() {
             {/* Achievement & Progress Stats */}
             <div className="bg-white rounded-[24px] p-5 shadow-sm border border-slate-100">
                 <div className="flex items-center gap-2 mb-4">
-                    <Trophy className="w-5 h-5 text-[#e6b150]" />
+                    <Trophy className="w-5 h-5 text-[#eabd5b]" />
                     <h3 className="font-bold text-sm text-slate-800">سجل الإنجاز والتقدم</h3>
                 </div>
                 <p className="text-[10px] text-slate-500 mb-4">متابعة دقيقة لمسيرتك في حفظ كتاب الله</p>
@@ -105,7 +105,7 @@ export default function StudentAchievements() {
             {/* Weekly Development Curve (Chart) */}
             <div className="bg-white rounded-[24px] p-5 shadow-sm border border-slate-100">
                 <div className="flex items-center gap-2 mb-4">
-                    <TrendingUp className="w-5 h-5 text-[#e6b150]" />
+                    <TrendingUp className="w-5 h-5 text-[#eabd5b]" />
                     <h3 className="font-bold text-sm text-slate-800">منحنى التطور الأسبوعي</h3>
                 </div>
 
@@ -128,17 +128,17 @@ export default function StudentAchievements() {
                             <path
                                 d="M 5,25 L 25,20 L 45,15 L 65,20 L 85,10 L 100,12"
                                 fill="none"
-                                stroke="#0a528e"
+                                stroke="#0b5394"
                                 strokeWidth="2"
                                 strokeLinecap="round"
                                 strokeLinejoin="round"
                             />
-                            <circle cx="5" cy="25" r="3" fill="#0a528e" />
-                            <circle cx="25" cy="20" r="3" fill="#0a528e" />
-                            <circle cx="45" cy="15" r="3" fill="#0a528e" />
-                            <circle cx="65" cy="20" r="3" fill="#0a528e" />
-                            <circle cx="85" cy="10" r="3" fill="#0a528e" />
-                            <circle cx="100" cy="12" r="3" fill="#0a528e" />
+                            <circle cx="5" cy="25" r="3" fill="#0b5394" />
+                            <circle cx="25" cy="20" r="3" fill="#0b5394" />
+                            <circle cx="45" cy="15" r="3" fill="#0b5394" />
+                            <circle cx="65" cy="20" r="3" fill="#0b5394" />
+                            <circle cx="85" cy="10" r="3" fill="#0b5394" />
+                            <circle cx="100" cy="12" r="3" fill="#0b5394" />
                         </svg>
                         <div className="absolute bottom-0 left-0 w-full flex justify-between text-[8px] text-slate-400">
                             <span className="translate-x-1">الأسبوع 1</span>
@@ -153,7 +153,7 @@ export default function StudentAchievements() {
             {/* Certificates and Achievements */}
             <div className="bg-white rounded-[24px] p-5 shadow-sm border border-slate-100">
                 <div className="flex items-center gap-2 mb-4">
-                    <Award className="w-5 h-5 text-[#e6b150]" />
+                    <Award className="w-5 h-5 text-[#eabd5b]" />
                     <h3 className="font-bold text-sm text-slate-800">الشهادات والإنجازات</h3>
                 </div>
                 <div className="space-y-4">

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
@@ -67,12 +68,16 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
             {/* Sidebar Drawer */}
             <div
                 className={cn(
-                    "fixed inset-y-0 start-0 z-50 w-72 bg-primary transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:block shadow-lg border-e border-slate-100/10",
+                    "fixed inset-y-0 start-0 z-50 w-64 bg-white transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:block shadow-[2px_0_8px_rgba(0,0,0,0.06)] border-e border-slate-100",
                     isOpen ? "translate-x-0" : "translate-x-full lg:translate-x-0"
                 )}
             >
-                <div className="flex flex-col h-full py-8">
-                    <div className="px-6 space-y-2 flex-1 overflow-y-auto">
+                <div className="flex flex-col h-full pt-6 pb-8">
+                    {/* Logo — visible on desktop; mobile sees it in the top header */}
+                    <div className="px-6 pb-6 hidden lg:flex items-center justify-center">
+                        <Image src="/logo.png" alt="نور الهدى" width={72} height={52} className="object-contain" />
+                    </div>
+                    <div className="px-4 space-y-1 flex-1 overflow-y-auto">
                         {visibleItems.map((item) => {
                             const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
                             const showBadge = item.href === "/notifications" && unreadCount > 0;
@@ -83,13 +88,13 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
                                     href={item.href}
                                     onClick={() => setIsOpen(false)}
                                     className={cn(
-                                        "flex items-center space-x-reverse space-x-3 px-4 py-3 rounded-xl transition-colors",
+                                        "flex items-center space-x-reverse space-x-3 px-4 py-3 rounded-[14px] transition-colors",
                                         isActive
-                                            ? "bg-white text-primary font-bold shadow-sm"
-                                            : "text-white/80 hover:bg-white/10 hover:text-white font-medium"
+                                            ? "bg-primary text-white font-bold shadow-sm"
+                                            : "text-primary/70 hover:bg-primary/5 hover:text-primary font-medium"
                                     )}
                                 >
-                                    <item.icon className={cn("w-5 h-5", isActive ? "text-primary" : "text-white/80")} />
+                                    <item.icon className={cn("w-5 h-5", isActive ? "text-white" : "text-primary/70")} />
                                     <span className="flex-1">{item.name}</span>
                                     {showBadge && (
                                         <span className="min-w-[20px] h-5 px-1.5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
@@ -101,13 +106,13 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
                         })}
                     </div>
 
-                    <div className="px-6 mt-auto">
-                        <div className="border-t border-white/10 mb-4 px-2" />
+                    <div className="px-4 mt-auto">
+                        <div className="border-t border-slate-200 mb-4 px-2" />
                         <button
                             onClick={() => logout()}
-                            className="flex w-full items-center space-x-reverse space-x-3 px-4 py-3 rounded-xl text-white/90 hover:bg-white/10 hover:text-white font-medium transition-colors"
+                            className="flex w-full items-center space-x-reverse space-x-3 px-4 py-3 rounded-[14px] text-red-600 hover:bg-red-50 font-medium transition-colors"
                         >
-                            <LogOut className="w-5 h-5" />
+                            <LogOut className="w-5 h-5 text-red-600" />
                             <span>تسجيل الخروج</span>
                         </button>
                     </div>

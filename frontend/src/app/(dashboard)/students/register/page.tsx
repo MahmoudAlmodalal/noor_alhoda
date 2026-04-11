@@ -12,18 +12,18 @@ import { RoleGate } from "@/components/auth/RoleGate";
 function SectionTitle({ number, title }: { number: number; title: string }) {
   return (
     <div className="flex items-center gap-3 mb-5 mt-8">
-      <div className="w-7 h-7 rounded-full bg-[#e6b150] text-white flex items-center justify-center text-sm font-bold shrink-0">
+      <div className="w-8 h-8 rounded-full bg-secondary text-white flex items-center justify-center text-base font-bold shrink-0">
         {number}
       </div>
-      <h3 className="font-bold text-[#e6b150] text-base shrink-0">{title}</h3>
-      <div className="flex-1 h-px bg-slate-200" />
+      <h3 className="font-bold text-secondary text-lg shrink-0">{title}</h3>
+      <div className="flex-1 h-px bg-[#e6e6e6]" />
     </div>
   );
 }
 
 function SectionBand({ title }: { title: string }) {
   return (
-    <div className="bg-[#e6b150] text-white font-bold text-center py-2.5 rounded-xl mb-5 mt-8 max-w-[200px] mx-auto text-sm">
+    <div className="bg-secondary text-white font-bold text-center py-2.5 rounded-[10px] mb-5 mt-8 max-w-[200px] mx-auto text-sm">
       {title}
     </div>
   );
@@ -34,12 +34,12 @@ function FormGroup({ label, name, type = "text", value, onChange, error }: {
 }) {
   return (
     <div className="space-y-1.5 mb-4">
-      <label className="block text-sm font-medium text-slate-700">{label}</label>
+      <label className="block text-base font-medium text-[#575757]">{label}</label>
       <Input
         type={type}
         value={value}
         onChange={(e) => onChange(name, e.target.value)}
-        className="bg-slate-50 border-slate-100 h-12 rounded-xl"
+        className="border-[#e6e6e6]"
         dir={type === "tel" || type === "number" ? "ltr" : undefined}
       />
       {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
@@ -55,7 +55,7 @@ function CheckboxItem({ label, checked, onChange }: { label: string; checked: bo
         type="checkbox"
         checked={checked}
         onChange={onChange}
-        className="w-5 h-5 rounded border-slate-300 text-primary focus:ring-primary/20 accent-[#e6b150] bg-slate-50"
+        className="w-5 h-5 rounded border-slate-300 text-primary focus:ring-primary/20 accent-[#eabd5b] bg-slate-50"
       />
     </label>
   );
@@ -129,17 +129,15 @@ function StudentRegistrationInner() {
   return (
     <div className="max-w-md mx-auto space-y-6 pb-20">
       {/* Top Banner */}
-      <div className="bg-gradient-to-b from-[#0a528e] to-[#084172] rounded-t-[2.5rem] rounded-b-3xl p-8 text-center text-white relative overflow-hidden shadow-lg -mx-4 md:mx-0">
+      <div className="rounded-[16px] p-8 text-center text-white relative overflow-hidden shadow-lg" style={{ backgroundImage: "linear-gradient(270deg, #0b5394 0%, #1e88e5 100%)" }}>
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4"></div>
         <div className="absolute bottom-0 left-0 w-40 h-40 bg-black/10 rounded-full blur-2xl translate-y-1/3 -translate-x-1/4"></div>
         <div className="relative z-10">
-          <div className="w-20 h-20 mx-auto bg-white rounded-full flex items-center justify-center mb-5 shadow-inner p-1">
-            <div className="w-full h-full rounded-full border-2 border-dashed border-[#e6b150] flex flex-col items-center justify-center text-[#e6b150]">
-              <Building2 className="w-8 h-8" />
-            </div>
+          <div className="w-20 h-20 mx-auto bg-white rounded-full flex items-center justify-center mb-5 border-4 border-secondary shadow-[0px_10px_15px_0px_rgba(0,0,0,0.1)]">
+            <span className="text-4xl leading-none">🕌</span>
           </div>
-          <h2 className="text-xl font-black mb-2 text-white">بطاقة الانتساب - طالب جديد</h2>
-          <p className="text-xs text-blue-100 font-medium">مركز نور الهدى لتحفيظ القرآن الكريم وعلومه</p>
+          <h2 className="text-xl font-bold mb-2 text-white">بطاقة الانتساب - طالب جديد</h2>
+          <p className="text-sm text-[#dbeafe]">مركز نور الهدى لتحفيظ القرآن الكريم وعلومه</p>
         </div>
       </div>
 
@@ -177,7 +175,7 @@ function StudentRegistrationInner() {
 
         {/* Action Buttons */}
         <div className="space-y-3 mt-8">
-          <Button type="submit" disabled={isSubmitting} className="w-full h-14 rounded-2xl text-base font-bold shadow-md shadow-primary/20 gap-2">
+          <Button type="submit" size="lg" disabled={isSubmitting} className="w-full h-14 text-base font-bold gap-2">
             {isSubmitting ? (
               <>
                 <Loader2 className="w-5 h-5 animate-spin" />
@@ -187,7 +185,7 @@ function StudentRegistrationInner() {
               "حفظ البيانات وإصدار البطاقة"
             )}
           </Button>
-          <Button type="button" onClick={() => window.print()} variant="outline" className="w-[60%] mx-auto flex h-14 rounded-2xl text-base font-bold border-[#e6b150] text-[#e6b150] hover:bg-[#fffcf4] gap-2">
+          <Button type="button" onClick={() => window.print()} variant="outline" className="w-full h-12 text-base font-medium border-secondary text-secondary hover:bg-[#fffcf4] gap-2">
             طباعة البطاقة
             <Printer className="w-5 h-5" />
           </Button>

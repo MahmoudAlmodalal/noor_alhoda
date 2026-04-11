@@ -13,6 +13,8 @@ import {
   MessageSquare,
   ClipboardCheck,
   Filter,
+  BookOpen,
+  UserPlus,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -163,61 +165,61 @@ export default function Dashboard() {
   return (
     <div className="space-y-6 max-w-5xl mx-auto pb-10">
       {/* Top Welcome Banner */}
-      <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex flex-col items-center text-center">
+      <div className="bg-white rounded-2xl p-6 shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1)] border border-[#f3f4f6] flex flex-col items-center text-center">
         <h1 className="text-2xl font-bold text-primary mb-1">
           مرحباً، {user?.full_name || ""}
         </h1>
-        <p className="text-sm text-slate-500 mb-4">
-          مبارك لك تعلم القرآن وتعليمه
+        <p className="text-sm text-[#818181] mb-4">
+          نسأل الله لك التوفيق في إدارة هذه المؤسسة المباركة
         </p>
-        <div className="inline-flex items-center gap-2 border border-blue-100 bg-blue-50/50 px-4 py-2 rounded-xl">
+        <div className="inline-flex items-center gap-3 border border-secondary/50 bg-[rgba(251,242,222,0.6)] px-4 py-2 rounded-[10px]">
           <div className="flex flex-col text-right">
-            <span className="text-[10px] text-slate-500 font-medium">جلسة اليوم</span>
-            <span className="text-sm font-bold text-primary">{schedule[0]?.title}</span>
+            <span className="text-xs text-[#818181] font-normal">العام الدراسي الحالي</span>
+            <span className="text-base font-bold text-primary">1447هـ - 2026م</span>
           </div>
-          <Star className="w-5 h-5 text-primary ms-2" />
+          <Calendar className="w-6 h-6 text-secondary" />
         </div>
       </div>
 
       {/* Stats Cards Row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="rounded-2xl shadow-sm border-slate-100">
-          <CardContent className="p-5 flex flex-col items-center justify-center text-center">
-            <div className="w-10 h-10 bg-blue-50 rounded-full flex items-center justify-center mb-2">
-              <Users className="w-5 h-5 text-primary" />
+        <Card>
+          <CardContent className="p-5 flex flex-col items-start gap-3">
+            <div className="w-14 h-14 bg-[#ceddea] rounded-full flex items-center justify-center shadow-[0px_2px_4px_0px_rgba(0,0,0,0.1)]">
+              <Users className="w-7 h-7 text-primary" />
             </div>
-            <p className="text-xs text-slate-500 font-medium mb-1">طلاب الحلقة</p>
-            <h2 className="text-2xl font-black text-slate-800">{stats.totalStudents}</h2>
+            <p className="text-sm text-[#818181] font-medium">عدد الطلاب المسجلين</p>
+            <h2 className="text-4xl font-bold text-primary">{stats.totalStudents}</h2>
           </CardContent>
         </Card>
 
-        <Card className="rounded-2xl shadow-sm border-slate-100">
-          <CardContent className="p-5 flex flex-col items-center justify-center text-center">
-            <div className="w-10 h-10 bg-green-50 rounded-full flex items-center justify-center mb-2">
-              <CheckCircle2 className="w-5 h-5 text-green-500" />
+        <Card>
+          <CardContent className="p-5 flex flex-col items-start gap-3">
+            <div className="w-14 h-14 bg-[#ceddea] rounded-full flex items-center justify-center shadow-[0px_2px_4px_0px_rgba(0,0,0,0.1)]">
+              <CheckCircle2 className="w-7 h-7 text-primary" />
             </div>
-            <p className="text-xs text-slate-500 font-medium mb-1">الحضور اليوم</p>
-            <h2 className="text-2xl font-black text-slate-800">{stats.attendanceToday}</h2>
+            <p className="text-sm text-[#818181] font-medium">الحضور اليوم</p>
+            <h2 className="text-4xl font-bold text-primary">{stats.attendanceToday}</h2>
           </CardContent>
         </Card>
 
-        <Card className="rounded-2xl shadow-sm border-slate-100">
-          <CardContent className="p-5 flex flex-col items-center justify-center text-center">
-            <div className="w-10 h-10 bg-orange-50 rounded-full flex items-center justify-center mb-2">
-              <Clock className="w-5 h-5 text-orange-400" />
+        <Card>
+          <CardContent className="p-5 flex flex-col items-start gap-3">
+            <div className="w-14 h-14 bg-[#fbf2de] rounded-full flex items-center justify-center shadow-[0px_2px_4px_0px_rgba(0,0,0,0.1)]">
+              <BookOpen className="w-7 h-7 text-secondary" />
             </div>
-            <p className="text-xs text-slate-500 font-medium mb-1">المتأخرين</p>
-            <h2 className="text-2xl font-black text-slate-800">{stats.late}</h2>
+            <p className="text-sm text-[#818181] font-medium">عدد الحلقات</p>
+            <h2 className="text-4xl font-bold text-secondary">{stats.late}</h2>
           </CardContent>
         </Card>
 
-        <Card className="rounded-2xl shadow-sm border-slate-100">
-          <CardContent className="p-5 flex flex-col items-center justify-center text-center">
-            <div className="w-10 h-10 bg-purple-50 rounded-full flex items-center justify-center mb-2">
-              <Star className="w-5 h-5 text-purple-400" />
+        <Card>
+          <CardContent className="p-5 flex flex-col items-start gap-3">
+            <div className="w-14 h-14 bg-[#ceddea] rounded-full flex items-center justify-center shadow-[0px_2px_4px_0px_rgba(0,0,0,0.1)]">
+              <Star className="w-7 h-7 text-primary" />
             </div>
-            <p className="text-xs text-slate-500 font-medium mb-1">المتفوقين</p>
-            <h2 className="text-2xl font-black text-slate-800">{stats.outstanding}</h2>
+            <p className="text-sm text-[#818181] font-medium">الحفظة المتقنون</p>
+            <h2 className="text-4xl font-bold text-primary">{stats.outstanding}</h2>
           </CardContent>
         </Card>
       </div>
@@ -292,44 +294,51 @@ export default function Dashboard() {
       </div>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Link href="/attendance" className="bg-white border border-slate-100 hover:border-primary/30 p-4 rounded-xl flex items-center gap-3 shadow-sm transition-all group">
-          <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-            <ClipboardCheck className="w-5 h-5 text-primary" />
-          </div>
-          <div>
-            <h4 className="font-bold text-sm text-slate-800">تسجيل الحضور</h4>
-            <p className="text-[10px] text-slate-500">حفظ غياب وحضور اليوم</p>
-          </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {/* Primary action: Register student */}
+        <Link
+          href="/students/register"
+          className="relative overflow-hidden bg-primary rounded-2xl p-5 flex flex-col gap-2 shadow-[0px_4px_6px_-1px_rgba(0,0,0,0.1)] hover:bg-primary/90 transition-colors"
+        >
+          <div className="absolute w-32 h-32 rounded-full bg-white/10 -top-16 -start-16" />
+          <UserPlus className="w-7 h-7 text-white relative z-10" />
+          <h4 className="font-bold text-lg text-white relative z-10">تسجيل طالب جديد</h4>
+          <p className="text-xs text-white/80 relative z-10">إضافة طالب جديد إلى المركز</p>
         </Link>
-        <button
-          type="button"
-          onClick={() => setPlanModalOpen(true)}
-          className="bg-white border border-slate-100 hover:border-primary/30 p-4 rounded-xl flex items-center gap-3 shadow-sm transition-all group text-start"
+
+        {/* Secondary action: Add ring */}
+        <Link
+          href="/rings"
+          className="relative overflow-hidden bg-secondary rounded-2xl p-5 flex flex-col gap-2 shadow-[0px_4px_6px_-1px_rgba(0,0,0,0.1)] hover:bg-secondary/90 transition-colors"
         >
-          <div className="w-10 h-10 bg-[#e6b150]/10 rounded-full flex items-center justify-center group-hover:bg-[#e6b150]/20 transition-colors">
-            <PlusCircle className="w-5 h-5 text-[#e6b150]" />
-          </div>
-          <div>
-            <h4 className="font-bold text-sm text-slate-800">إضافة واجب</h4>
-            <p className="text-[10px] text-slate-500">تحديد مقدار الحفظ والمراجعة</p>
-          </div>
-        </button>
-        <button
-          type="button"
-          onClick={() => setAnnounceModalOpen(true)}
-          disabled={!isAdmin}
-          title={isAdmin ? undefined : "متاح للمشرفين فقط"}
-          className="bg-white border border-slate-100 hover:border-primary/30 p-4 rounded-xl flex items-center gap-3 shadow-sm transition-all group text-start disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <div className="w-10 h-10 bg-green-500/10 rounded-full flex items-center justify-center group-hover:bg-green-500/20 transition-colors">
-            <MessageSquare className="w-5 h-5 text-green-600" />
-          </div>
-          <div>
-            <h4 className="font-bold text-sm text-slate-800">إرسال رسالة</h4>
-            <p className="text-[10px] text-slate-500">مراسلة أولياء الأمور</p>
-          </div>
-        </button>
+          <div className="absolute w-32 h-32 rounded-full bg-white/10 -top-16 -start-16" />
+          <BookOpen className="w-7 h-7 text-white relative z-10" />
+          <h4 className="font-bold text-lg text-white relative z-10">إضافة حلقة</h4>
+          <p className="text-xs text-white/80 relative z-10">إضافة حلقة وشيخ</p>
+        </Link>
+
+        {/* Tertiary actions stacked */}
+        <div className="flex flex-col gap-3">
+          <Link href="/attendance" className="bg-white border border-[#f3f4f6] rounded-[14px] p-4 flex items-center gap-3 shadow-sm hover:border-primary/30 transition-colors">
+            <ClipboardCheck className="w-5 h-5 text-primary" />
+            <div>
+              <h4 className="font-bold text-sm text-[#2d2d2d]">تسجيل الحضور</h4>
+              <p className="text-[10px] text-[#818181]">حفظ غياب وحضور اليوم</p>
+            </div>
+          </Link>
+          <button
+            type="button"
+            onClick={() => setAnnounceModalOpen(true)}
+            disabled={!isAdmin}
+            className="bg-white border border-[#f3f4f6] rounded-[14px] p-4 flex items-center gap-3 shadow-sm hover:border-primary/30 transition-colors text-start disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <MessageSquare className="w-5 h-5 text-primary" />
+            <div>
+              <h4 className="font-bold text-sm text-[#2d2d2d]">إرسال رسالة</h4>
+              <p className="text-[10px] text-[#818181]">مراسلة أولياء الأمور</p>
+            </div>
+          </button>
+        </div>
       </div>
 
       {/* Roster Table Section */}

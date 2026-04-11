@@ -10,12 +10,22 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-cairo), sans-serif;
   
-  --color-primary: #0a528e; /* Main blue from screenshots */
-  --color-secondary: #e6b150; /* Gold/yellow from screenshots */
+  --color-primary: #0b5394; /* Figma primary/500 */
+  --color-secondary: #eabd5b; /* Figma secondary/500 */
   --color-success: #eefbee;
   --color-success-text: #2f944d;
   --color-danger: #fee2e2;
   --color-danger-text: #dc2626;
+
+  /* Figma neutral ramp */
+  --color-text-title: #111527;   /* Title 900 */
+  --color-text-body: #1e2939;    /* heading body */
+  --color-text-label: #364153;   /* form labels */
+  --color-text-muted: #6a7282;   /* helper/paragraph */
+  --color-text-placeholder: #818181;
+  --color-surface-subtle: #f9fafb; /* input bg */
+  --color-border-subtle: #e5e7eb;  /* input border */
+  --color-border-card: #f3f4f6;    /* card border */
 }
 
 body {
