@@ -25,8 +25,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    // On the login flow, force a clean auth state so stale tokens don't auto-redirect away from the form.
-    if (window.location.pathname.startsWith("/login")) {
+    // Only clear tokens if we are on the main login page, not sub-pages like forgot-password or reset-password
+    if (window.location.pathname === "/login") {
       localStorage.removeItem("access_token");
       localStorage.removeItem("refresh_token");
       setIsLoading(false);
@@ -52,15 +52,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           parent_profile: data.parent_profile as UserProfile["parent_profile"],
         });
       } else {
-        // Token is invalid or expired, clear it
-        localStorage.removeItem("access_token");
-        localStorage.removeItem("refresh_token");
+        // Only clear tokens if it's a definitive 401/403 auth error, not a network or 500 error
+        if (res.error.code === 401 || res.error.code === 403) {
+          localStorage.removeItem("access_token");
+          localStorage.removeItem("refresh_token");
+        }
       }
       setIsLoading(false);
     }).catch(() => {
-      // Network error or other issue, clear tokens to be safe
-      localStorage.removeItem("access_token");
-      localStorage.removeItem("refresh_token");
+      // Network error or other issue, don't clear tokens to allow retry
       setIsLoading(false);
     });
   }, []);
@@ -82,6 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           parent_profile: data.parent_profile as UserProfile["parent_profile"],
         });
       } else {
+        // If profile fetch fails but login succeeded, use basic user data from login response
         setUser(res.data.user);
       }
       return null; // no error
