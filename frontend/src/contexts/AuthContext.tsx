@@ -25,16 +25,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // دالة مشتركة لجلب بيانات المستخدم من الـ API
+  const fetchMe = useCallback(async (): Promise<boolean> => {
+    const res = await api.me();
+    if (res.success) {
+      const data = res.data;
+      setUser({
+        id: data.id as string,
+        phone_number: data.phone_number as string,
+        role: data.role as UserProfile["role"],
+        full_name:
+          `${data.first_name || ""} ${data.last_name || ""}`.trim() ||
+          (data.full_name as string),
+        student_profile: data.student_profile as UserProfile["student_profile"],
+        teacher_profile: data.teacher_profile as UserProfile["teacher_profile"],
+        parent_profile: data.parent_profile as UserProfile["parent_profile"],
+      });
+      return true;
+    }
+    if (res.error.code === 401 || res.error.code === 403) {
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("refresh_token");
+    }
+    return false;
+  }, []);
+
   // عند بدء التطبيق: تحقق من صلاحية الـ token الموجود
+  // مع retry تلقائي إذا كان السيرفر نايم (Render free tier cold start)
   useEffect(() => {
     if (typeof window === "undefined") {
       setIsLoading(false);
       return;
     }
-
-    // ❌ تم حذف: كانت هذه المنطقة تمسح الـ tokens فور الوصول لـ /login
-    // مما يمنع الـ auto-refresh ويسبب "انتهت الجلسة" بدون سبب حقيقي.
-    // الآن: نتحقق من الـ token عبر api.me() بغض النظر عن الصفحة الحالية.
 
     const token = localStorage.getItem("access_token");
     if (!token) {
@@ -42,38 +64,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    api
-      .me()
-      .then((res) => {
-        if (res.success) {
-          const data = res.data;
-          setUser({
-            id: data.id as string,
-            phone_number: data.phone_number as string,
-            role: data.role as UserProfile["role"],
-            full_name:
-              `${data.first_name || ""} ${data.last_name || ""}`.trim() ||
-              (data.full_name as string),
-            student_profile: data.student_profile as UserProfile["student_profile"],
-            teacher_profile: data.teacher_profile as UserProfile["teacher_profile"],
-            parent_profile: data.parent_profile as UserProfile["parent_profile"],
-          });
-        } else {
-          // امسح الـ tokens فقط عند 401/403 المؤكدة
-          // (apiFetch يتولى تلقائياً الـ refresh قبل الوصول هنا)
-          if (res.error.code === 401 || res.error.code === 403) {
-            localStorage.removeItem("access_token");
-            localStorage.removeItem("refresh_token");
+    // حاول الاتصال بالسيرفر — مع retry تلقائي إذا كان نايم
+    const MAX_RETRIES = 4;
+    const RETRY_DELAY_MS = 3000;
+
+    (async () => {
+      for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+        try {
+          const success = await fetchMe();
+          if (success) break; // نجح → انتهينا
+
+          // إذا مسحت التوكنات (401/403) → لا فائدة من المحاولة مجدداً
+          if (!localStorage.getItem("access_token")) break;
+
+          // فشل مؤقت → انتظر قبل المحاولة التالية
+          if (attempt < MAX_RETRIES - 1) {
+            await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
           }
-          // 0 = خطأ شبكة، 500 = خطأ سيرفر — لا نمسح الـ tokens
+        } catch {
+          if (attempt < MAX_RETRIES - 1) {
+            await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
+          }
         }
-      })
-      .catch(() => {
-        // خطأ في الشبكة — لا نمسح الـ tokens حتى يتمكن المستخدم من إعادة المحاولة
-      })
-      .finally(() => {
-        setIsLoading(false);
-      });
+      }
+      setIsLoading(false);
+    })();
   }, []);
 
   const login = useCallback(
@@ -82,21 +97,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (res.success) {
         // بعد تسجيل الدخول نجلب الـ profile الكامل للحصول على IDs
-        const meRes = await api.me();
-        if (meRes.success) {
-          const data = meRes.data;
-          setUser({
-            id: data.id as string,
-            phone_number: data.phone_number as string,
-            role: data.role as UserProfile["role"],
-            full_name:
-              `${data.first_name || ""} ${data.last_name || ""}`.trim() ||
-              (data.full_name as string),
-            student_profile: data.student_profile as UserProfile["student_profile"],
-            teacher_profile: data.teacher_profile as UserProfile["teacher_profile"],
-            parent_profile: data.parent_profile as UserProfile["parent_profile"],
-          });
-        } else {
+        const meSuccess = await fetchMe();
+        if (!meSuccess) {
           // تعذّر جلب الـ profile لكن تسجيل الدخول نجح — استخدم البيانات الأساسية
           setUser(res.data.user);
         }
@@ -105,7 +107,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       return res.error.message;
     },
-    []
+    [fetchMe]
   );
 
   const logout = useCallback(async () => {
