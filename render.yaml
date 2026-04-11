@@ -18,7 +18,7 @@ services:
       - key: DJANGO_SETTINGS_MODULE
         value: noor_alhuda.settings.production
       - key: SECRET_KEY
-        generateValue: true
+        sync: false
       - key: ALLOWED_HOSTS
         value: .onrender.com
       - key: DATABASE_URL
