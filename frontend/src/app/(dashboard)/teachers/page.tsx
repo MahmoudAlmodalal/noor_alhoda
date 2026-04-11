@@ -94,8 +94,8 @@ function TeachersPageInner() {
                   </div>
 
                   <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-lg px-4">
-                    <span className="text-sm text-slate-500 font-medium">��قصى عدد طلاب:</span>
-                    <span className="text-sm font-semibold text-slate-700">{teacher.max_students} طالب</span>
+                    <span className="text-sm text-slate-500 font-medium">اسم الحلقة:</span>
+                    <span className="text-sm font-semibold text-slate-700">{teacher.ring_name || "غير معين"}</span>
                   </div>
                 </div>
 

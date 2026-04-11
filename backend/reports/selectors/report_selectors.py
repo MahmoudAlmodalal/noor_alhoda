@@ -2,7 +2,7 @@ from django.db.models import Sum, Count, Avg, Q
 from django.utils import timezone
 from rest_framework.exceptions import PermissionDenied
 
-from students.models import Student
+from students.models import Student, Ring
 from records.models import DailyRecord, WeeklyPlan
 from accounts.models import Teacher, User
 
@@ -18,6 +18,18 @@ def dashboard_data(*, admin_user) -> dict:
 
     total_students = Student.objects.filter(is_active=True).count()
     total_teachers = Teacher.objects.count()
+
+    # Active rings count
+    rings_count = Ring.objects.filter(status=Ring.Status.ACTIVE).count()
+
+    # Outstanding memorizers: distinct students with at least one "excellent" record today
+    outstanding_count = (
+        DailyRecord.objects
+        .filter(date=today, quality="excellent")
+        .values("weekly_plan__student")
+        .distinct()
+        .count()
+    )
 
     # Today's attendance
     today_records = DailyRecord.objects.filter(date=today)
@@ -38,6 +50,8 @@ def dashboard_data(*, admin_user) -> dict:
     return {
         "total_students": total_students,
         "total_teachers": total_teachers,
+        "rings_count": rings_count,
+        "outstanding_count": outstanding_count,
         "today": {
             "date": str(today),
             "present": present_today,

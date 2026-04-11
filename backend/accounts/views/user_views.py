@@ -33,7 +33,7 @@ class UserInputSerializer(serializers.Serializer):
         choices=["admin", "teacher", "student", "parent"],
         default="student",
     )
-    password = serializers.CharField(required=False, default="nooralhuda2026")
+    password = serializers.CharField(required=False, default=None, allow_null=True)
 
 
 class UserOutputSerializer(serializers.Serializer):
@@ -55,7 +55,7 @@ class UserUpdateSerializer(serializers.Serializer):
     is_active = serializers.BooleanField(required=False)
     fcm_token = serializers.CharField(required=False)
     password = serializers.CharField(required=False)
-    specialization = serializers.CharField(required=False)
+    specialization = serializers.CharField(required=False, allow_blank=True)
 
 
 class TeacherInputSerializer(serializers.Serializer):
@@ -63,9 +63,9 @@ class TeacherInputSerializer(serializers.Serializer):
     username = serializers.CharField(required=False)
     first_name = serializers.CharField(required=False, default="")
     last_name = serializers.CharField(required=False, default="")
-    password = serializers.CharField(required=False, default="nooralhuda2026")
+    password = serializers.CharField(required=False, default=None, allow_null=True)
     full_name = serializers.CharField()
-    specialization = serializers.CharField(required=False, default="")
+    specialization = serializers.CharField(required=False, allow_blank=True, default="")
     session_days = serializers.ListField(child=serializers.CharField(), required=False, default=[])
     max_students = serializers.IntegerField(required=False, default=25)
 
@@ -74,10 +74,20 @@ class TeacherOutputSerializer(serializers.Serializer):
     id = serializers.UUIDField()
     user_id = serializers.UUIDField(source="user.id")
     full_name = serializers.CharField()
-    specialization = serializers.CharField()
+    specialization = serializers.CharField(allow_blank=True)
     session_days = serializers.JSONField()
     max_students = serializers.IntegerField()
     created_at = serializers.DateTimeField()
+    ring_id = serializers.SerializerMethodField()
+    ring_name = serializers.SerializerMethodField()
+
+    def get_ring_id(self, obj):
+        ring = obj.rings.first()
+        return str(ring.id) if ring else None
+
+    def get_ring_name(self, obj):
+        ring = obj.rings.first()
+        return ring.name if ring else None
 
 
 # ---------------------------------------------------------------------------

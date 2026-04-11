@@ -13,11 +13,17 @@ class RingOutputSerializer(serializers.Serializer):
     id = serializers.UUIDField()
     name = serializers.CharField()
     status = serializers.CharField()
-    level = serializers.CharField()
-    teacher_id = serializers.UUIDField(source="teacher.id", allow_null=True)
-    teacher_name = serializers.CharField(source="teacher.full_name", allow_null=True)
+    level = serializers.CharField(allow_blank=True)
+    teacher_id = serializers.SerializerMethodField()
+    teacher_name = serializers.SerializerMethodField()
     students_count = serializers.IntegerField()
     created_at = serializers.DateTimeField()
+
+    def get_teacher_id(self, obj):
+        return str(obj.teacher.id) if obj.teacher else None
+
+    def get_teacher_name(self, obj):
+        return obj.teacher.full_name if obj.teacher else None
 
 class RingInputSerializer(serializers.Serializer):
     name = serializers.CharField()

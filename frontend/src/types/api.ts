@@ -141,6 +141,8 @@ export interface DashboardStats {
   this_week: {
     avg_completion_rate: number;
   };
+  rings_count: number;
+  outstanding_count: number;
   outstanding?: number;
   late?: number;
 }

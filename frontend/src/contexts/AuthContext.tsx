@@ -20,7 +20,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // On mount, validate existing token
   useEffect(() => {
-    const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
+    if (typeof window === "undefined") {
+      setIsLoading(false);
+      return;
+    }
+
+    // On the login flow, force a clean auth state so stale tokens don't auto-redirect away from the form.
+    if (window.location.pathname.startsWith("/login")) {
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("refresh_token");
+      setIsLoading(false);
+      return;
+    }
+
+    const token = localStorage.getItem("access_token");
     if (!token) {
       setIsLoading(false);
       return;

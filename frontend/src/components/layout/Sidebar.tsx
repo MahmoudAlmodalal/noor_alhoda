@@ -77,7 +77,7 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
                 <div className="flex flex-col h-full pt-6 pb-8">
                     {/* Logo — visible on desktop; mobile sees it in the top header */}
                     <div className="px-6 pb-6 hidden lg:flex items-center justify-center">
-                        <Image src="/logo.png" alt="نور الهدى" width={72} height={52} className="object-contain" />
+                        <Image src="/logo.png" alt="نور الهدى" width={210} height={150} className="object-contain" />
                     </div>
                     <div className="px-4 space-y-1 flex-1 overflow-y-auto">
                         {visibleItems.map((item) => {

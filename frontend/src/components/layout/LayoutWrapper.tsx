@@ -26,7 +26,7 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
                         </button>
 
                         <div className="flex items-center lg:hidden">
-                            <Image src="/logo.png" alt="نور الهدى" width={82} height={44} className="object-contain" />
+                            <Image src="/logo.png" alt="نور الهدى" width={170} height={92} className="object-contain" />
                         </div>
 
                         <div className="hidden lg:block" />

@@ -108,8 +108,8 @@ export default function Dashboard() {
       return {
         totalStudents: dashStats.total_students,
         attendanceToday: dashStats.today.present,
-        late: dashStats.late ?? 0,
-        outstanding: dashStats.outstanding ?? 0,
+        ringsCount: dashStats.rings_count,
+        outstanding: dashStats.outstanding_count,
       };
     }
     if (isTeacher) {
@@ -118,11 +118,11 @@ export default function Dashboard() {
       return {
         totalStudents: list.length,
         attendanceToday: records.filter((r) => r.attendance === "present").length,
-        late: records.filter((r) => r.attendance === "late").length,
+        ringsCount: records.filter((r) => r.attendance === "late").length,
         outstanding: records.filter((r) => r.quality === "excellent").length,
       };
     }
-    return { totalStudents: 0, attendanceToday: 0, late: 0, outstanding: 0 };
+    return { totalStudents: 0, attendanceToday: 0, ringsCount: 0, outstanding: 0 };
   })();
 
   // ─── Schedule (derived from teacher session_days; backend has no endpoint) ─
@@ -209,7 +209,7 @@ export default function Dashboard() {
               <BookOpen className="w-7 h-7 text-secondary" />
             </div>
             <p className="text-sm text-[#818181] font-medium">عدد الحلقات</p>
-            <h2 className="text-4xl font-bold text-secondary">{stats.late}</h2>
+            <h2 className="text-4xl font-bold text-secondary">{stats.ringsCount}</h2>
           </CardContent>
         </Card>
 

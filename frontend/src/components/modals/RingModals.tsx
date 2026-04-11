@@ -23,7 +23,12 @@ export function AddRingModal({ isOpen, onClose, onSuccess }: { isOpen: boolean; 
   const { mutate, isSubmitting, fieldErrors, reset } = useMutation("post", "/api/students/rings/create/");
 
   const handleSubmit = async () => {
-    const result = await mutate(form, { successMessage: "تم إضافة الحلقة بنجاح" });
+    const payload: { name: string; level: string; teacher_id?: string | null } = {
+      name: form.name,
+      level: form.level,
+    };
+    if (form.teacher_id) payload.teacher_id = form.teacher_id;
+    const result = await mutate(payload, { successMessage: "تم إضافة الحلقة بنجاح" });
     if (result) {
       setForm({ name: "", level: "", teacher_id: "" });
       reset();
@@ -46,7 +51,7 @@ export function AddRingModal({ isOpen, onClose, onSuccess }: { isOpen: boolean; 
           <Input value={form.level} onChange={(e) => setForm({ ...form, level: e.target.value })} className="h-12 rounded-xl border-slate-200" />
         </div>
         <div className="space-y-1.5">
-          <label className="block text-sm font-bold text-slate-800">المحفظ المسؤول</label>
+          <label className="block text-sm font-bold text-slate-800">المحفظ المسؤول <span className="text-slate-400 font-normal">(اختياري)</span></label>
           <select
             value={form.teacher_id}
             onChange={(e) => setForm({ ...form, teacher_id: e.target.value })}
@@ -101,10 +106,13 @@ export function EditRingModal({
   }, [ring]);
 
   const handleSubmit = async () => {
-    const result = await mutate(form, { 
-      endpoint: `/api/students/rings/${ring.id}/`, 
-      successMessage: "تم تحديث بيانات الحلقة بنجاح" 
-    });
+    const result = await mutate(
+      { ...form, teacher_id: form.teacher_id || null },
+      {
+        endpoint: `/api/students/rings/${ring.id}/`,
+        successMessage: "تم تحديث بيانات الحلقة بنجاح",
+      }
+    );
     if (result) {
       onSuccess?.();
     }
@@ -125,7 +133,7 @@ export function EditRingModal({
           <Input value={form.level} onChange={(e) => setForm({ ...form, level: e.target.value })} className="h-12 rounded-xl border-slate-200 font-medium" />
         </div>
         <div className="space-y-1.5">
-          <label className="block text-sm font-bold text-slate-800">المحفظ المسؤول</label>
+          <label className="block text-sm font-bold text-slate-800">المحفظ المسؤول <span className="text-slate-400 font-normal">(اختياري)</span></label>
           <select
             value={form.teacher_id}
             onChange={(e) => setForm({ ...form, teacher_id: e.target.value })}

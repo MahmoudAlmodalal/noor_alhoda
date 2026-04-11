@@ -6,7 +6,7 @@ export default function LoginLayout({ children }: { children: React.ReactNode })
         <div className="min-h-screen bg-white flex flex-col items-center py-10 px-4 sm:px-6 lg:px-8" dir="rtl">
 
             <div className="w-full max-w-md flex flex-col items-center mb-6">
-                <div className="relative w-[104px] h-[74px] mb-3">
+                <div className="relative w-[220px] h-[155px] mb-3">
                     <Image
                         src="/logo.png"
                         alt="نور الهدى"

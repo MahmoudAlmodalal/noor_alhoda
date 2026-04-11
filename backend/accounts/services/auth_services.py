@@ -19,6 +19,12 @@ def user_login(*, phone: str, password: str) -> dict:
     FR-02: Access token 60min, Refresh token 7 days
     FR-03: Block after 5 failed attempts for 15 minutes (TODO: implement with django-ratelimit)
     """
+    phone = (phone or "").strip().replace(" ", "").replace("-", "")
+    if phone.startswith("+966"):
+        phone = "0" + phone[4:]
+    elif phone.startswith("966"):
+        phone = "0" + phone[3:]
+
     try:
         user = User.objects.get(phone_number=phone)
     except User.DoesNotExist:
