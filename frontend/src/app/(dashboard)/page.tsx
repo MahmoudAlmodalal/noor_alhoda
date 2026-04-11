@@ -5,19 +5,34 @@ import { Users, BookOpen, Star, PlusCircle, ClipboardCheck, Bell } from "lucide-
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
 import { useApi } from "@/hooks/useApi";
+import { useMutation } from "@/hooks/useMutation";
 import { PageLoading } from "@/components/ui/LoadingSpinner";
 import type { DashboardStats, Notification } from "@/types/api";
 
 export default function Dashboard() {
   const { user } = useAuth();
   const { data: stats, isLoading: statsLoading } = useApi<DashboardStats>("/api/reports/dashboard/");
-  const { data: notifData, isLoading: notifLoading } = useApi<{ unread_count: number; data: Notification[] }>("/api/notifications/");
+  const { data: notifData, isLoading: notifLoading, refetch: refetchNotifs } = useApi<{ unread_count: number; data: Notification[] }>("/api/notifications/");
+  const { mutate: markRead } = useMutation<void>("patch");
+  const { mutate: markAllRead } = useMutation<void>("patch", "/api/notifications/read-all/");
 
   const isLoading = statsLoading || notifLoading;
 
   if (isLoading) return <PageLoading />;
 
   const notifications = notifData?.data?.slice(0, 5) ?? [];
+  const unreadCount = notifData?.unread_count ?? 0;
+
+  const handleNotifClick = async (notif: Notification) => {
+    if (notif.is_read) return;
+    const res = await markRead(undefined, { endpoint: `/api/notifications/${notif.id}/read/`, successMessage: " " });
+    if (res !== null) refetchNotifs();
+  };
+
+  const handleMarkAllRead = async () => {
+    const res = await markAllRead(undefined, { successMessage: "تم تعليم الكل كمقروء" });
+    if (res !== null) refetchNotifs();
+  };
 
   return (
     <div className="space-y-6 max-w-lg mx-auto">
@@ -97,17 +112,36 @@ export default function Dashboard() {
 
       {/* Recent Activities */}
       <div className="bg-white rounded-t-3xl border-x border-t border-slate-100 shadow-[0_-4px_15px_-5px_rgba(0,0,0,0.05)] pt-6 pb-8 px-5 rounded-b-3xl -mx-4 md:mx-0">
-        <h3 className="font-bold text-lg text-slate-900 mb-5 relative pe-4">
-          أحدث النشاطات والإشعارات
-          <div className="absolute top-0 bottom-0 right-0 w-1 bg-primary rounded-full" />
-        </h3>
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="font-bold text-lg text-slate-900 relative pe-4">
+            أحدث النشاطات والإشعارات
+            <div className="absolute top-0 bottom-0 right-0 w-1 bg-primary rounded-full" />
+          </h3>
+          {unreadCount > 0 && (
+            <button
+              type="button"
+              onClick={handleMarkAllRead}
+              className="text-xs text-primary font-semibold hover:underline shrink-0"
+            >
+              تعليم الكل كمقروء
+            </button>
+          )}
+        </div>
 
         <div className="space-y-3">
           {notifications.length === 0 ? (
-            <p className="text-sm text-slate-400 text-center py-4">لا توجد إ��عارات حديثة</p>
+            <p className="text-sm text-slate-400 text-center py-4">لا توجد إشعارات حديثة</p>
           ) : (
             notifications.map((notif) => (
-              <div key={notif.id} className="flex justify-between items-center bg-slate-50 p-4 rounded-xl">
+              <button
+                key={notif.id}
+                type="button"
+                onClick={() => handleNotifClick(notif)}
+                disabled={notif.is_read}
+                className={`w-full flex justify-between items-center p-4 rounded-xl text-right transition-opacity ${
+                  notif.is_read ? "bg-slate-50/60 opacity-60 cursor-default" : "bg-slate-50 hover:bg-slate-100"
+                }`}
+              >
                 <p className="text-sm text-slate-800 font-medium">{notif.title}</p>
                 <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-sm border border-slate-100 shrink-0 ms-3">
                   {notif.type === "absence" ? (
@@ -116,7 +150,7 @@ export default function Dashboard() {
                     <Bell className="w-4 h-4 text-primary" />
                   )}
                 </div>
-              </div>
+              </button>
             ))
           )}
         </div>

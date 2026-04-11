@@ -186,7 +186,7 @@ export default function StudentRegistration() {
               "حفظ البيانات وإصدار البطاقة"
             )}
           </Button>
-          <Button type="button" variant="outline" className="w-[60%] mx-auto flex h-14 rounded-2xl text-base font-bold border-[#e6b150] text-[#e6b150] hover:bg-[#fffcf4] gap-2">
+          <Button type="button" onClick={() => window.print()} variant="outline" className="w-[60%] mx-auto flex h-14 rounded-2xl text-base font-bold border-[#e6b150] text-[#e6b150] hover:bg-[#fffcf4] gap-2">
             طباعة البطاقة
             <Printer className="w-5 h-5" />
           </Button>
