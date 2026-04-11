@@ -385,8 +385,8 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <WeeklyPlanModal open={planModalOpen} onOpenChange={setPlanModalOpen} />
-      <AnnounceModal open={announceModalOpen} onOpenChange={setAnnounceModalOpen} />
+      <WeeklyPlanModal isOpen={planModalOpen} onClose={() => setPlanModalOpen(false)} />
+      <AnnounceModal isOpen={announceModalOpen} onClose={() => setAnnounceModalOpen(false)} />
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { PageLoading } from "@/components/ui/LoadingSpinner";
 import {
     Award,
     BookOpen,
+    Calendar,
     Flame,
     Star,
     Target,
