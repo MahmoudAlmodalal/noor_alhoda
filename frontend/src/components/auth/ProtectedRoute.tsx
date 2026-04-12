@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -9,9 +9,10 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   // تحقق إذا في توكنات محفوظة — إذا في، ربما السيرفر كان نايم وسيصحى
-  const hasTokens =
-    typeof window !== "undefined" &&
-    !!localStorage.getItem("access_token");
+  const hasTokens = useMemo(
+    () => typeof window !== "undefined" && !!localStorage.getItem("access_token"),
+    []
+  );
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated && !hasTokens) {

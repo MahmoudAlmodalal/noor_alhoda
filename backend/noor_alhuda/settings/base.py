@@ -184,6 +184,7 @@ SIMPLE_JWT = {
 # CORS — configured per environment (local.py / production.py)
 # ---------------------------------------------------------------------------
 CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOWED_ORIGINS: list = []  # overridden per environment
 
 # ---------------------------------------------------------------------------
 # DRF Spectacular (Swagger)

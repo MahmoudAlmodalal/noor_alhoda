@@ -81,11 +81,11 @@ async function refreshAccessToken(): Promise<boolean> {
           return false;
         }
 
-        const refreshData = await refreshRes.json();
+        const refreshData = await refreshRes.json() as Record<string, string> | null;
 
         // ROTATE_REFRESH_TOKENS=True → الرد يحتوي دائماً على refresh جديد
         // إذا لم يأتِ، التوكن القديم في الـ blacklist ولا يمكن استخدامه
-        if (!refreshData.access || !refreshData.refresh) {
+        if (!refreshData?.access || !refreshData?.refresh) {
           localStorage.removeItem(REFRESH_TS_KEY);
           return false;
         }

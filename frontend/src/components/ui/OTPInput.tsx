@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect, KeyboardEvent, ClipboardEvent } from 'react';
-import { cn } from '@/lib/utils';
+import React, { useRef, type KeyboardEvent, type ClipboardEvent } from "react";
+import { cn } from "@/lib/utils";
 
 interface OTPInputProps {
     length?: number;
@@ -10,53 +10,53 @@ interface OTPInputProps {
 }
 
 export function OTPInput({ length = 4, value, onChange, error, className }: OTPInputProps) {
-    const [internalValue, setInternalValue] = useState<string[]>(Array(length).fill(''));
+    const digits = Array.from({ length }, (_, i) => value[i] ?? "");
     const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-    useEffect(() => {
-        // Sync external value to internal array
-        const valueArray = value.split('').slice(0, length);
-        const newInternal = Array(length).fill('');
-        valueArray.forEach((char, index) => {
-            newInternal[index] = char;
-        });
-        setInternalValue(newInternal);
-    }, [value, length]);
-
-    const triggerChange = (newValArray: string[]) => {
-        const newVal = newValArray.join('');
-        onChange(newVal);
+    const commit = (newDigits: string[]) => {
+        onChange(newDigits.join(""));
     };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
-        const char = e.target.value.replace(/[^0-9]/g, '').slice(-1);
-        if (!char && e.target.value !== '') return; // block non-numeric
+        const char = e.target.value.replace(/[^0-9]/g, "").slice(-1);
+        if (!char && e.target.value !== "") return;
 
-        const newInternal = [...internalValue];
-        newInternal[index] = char;
-        setInternalValue(newInternal);
-        triggerChange(newInternal);
+        const newDigits = [...digits];
+        newDigits[index] = char;
+        commit(newDigits);
 
-        // Move to next input
         if (char && index < length - 1) {
             inputRefs.current[index + 1]?.focus();
         }
     };
 
     const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>, index: number) => {
-        if (e.key === 'Backspace' && !internalValue[index] && index > 0) {
-            inputRefs.current[index - 1]?.focus();
+        if (e.key === "Backspace") {
+            if (digits[index]) {
+                // Clear current slot first
+                const newDigits = [...digits];
+                newDigits[index] = "";
+                commit(newDigits);
+            } else if (index > 0) {
+                // Move to previous slot and clear it
+                const newDigits = [...digits];
+                newDigits[index - 1] = "";
+                commit(newDigits);
+                inputRefs.current[index - 1]?.focus();
+            }
+            e.preventDefault();
+            return;
         }
-        // Handle left/right arrows for RTL or LTR
-        const isRtl = document.documentElement.dir === 'rtl';
-        if (e.key === 'ArrowLeft') {
+
+        const isRtl = document.documentElement.dir === "rtl";
+        if (e.key === "ArrowLeft") {
             const targetIndex = isRtl ? index + 1 : index - 1;
             if (targetIndex >= 0 && targetIndex < length) {
                 inputRefs.current[targetIndex]?.focus();
                 e.preventDefault();
             }
         }
-        if (e.key === 'ArrowRight') {
+        if (e.key === "ArrowRight") {
             const targetIndex = isRtl ? index - 1 : index + 1;
             if (targetIndex >= 0 && targetIndex < length) {
                 inputRefs.current[targetIndex]?.focus();
@@ -67,17 +67,15 @@ export function OTPInput({ length = 4, value, onChange, error, className }: OTPI
 
     const handlePaste = (e: ClipboardEvent<HTMLInputElement>) => {
         e.preventDefault();
-        const pastedData = e.clipboardData.getData('text').replace(/[^0-9]/g, '').slice(0, length);
+        const pastedData = e.clipboardData.getData("text").replace(/[^0-9]/g, "").slice(0, length);
         if (!pastedData) return;
 
-        const newInternal = [...internalValue];
-        pastedData.split('').forEach((char, i) => {
-            newInternal[i] = char;
+        const newDigits = [...digits];
+        pastedData.split("").forEach((char, i) => {
+            newDigits[i] = char;
         });
-        setInternalValue(newInternal);
-        triggerChange(newInternal);
+        commit(newDigits);
 
-        // Focus on the next empty or the last input
         const nextIndex = Math.min(pastedData.length, length - 1);
         inputRefs.current[nextIndex]?.focus();
     };
@@ -85,7 +83,7 @@ export function OTPInput({ length = 4, value, onChange, error, className }: OTPI
     return (
         <div className="w-full" dir="ltr">
             <div className={cn("flex items-center justify-between gap-2 sm:gap-4", className)}>
-                {internalValue.map((digit, index) => (
+                {digits.map((digit, index) => (
                     <input
                         key={index}
                         ref={(el) => { inputRefs.current[index] = el; }}

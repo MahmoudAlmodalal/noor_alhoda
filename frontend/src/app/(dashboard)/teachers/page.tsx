@@ -114,6 +114,7 @@ function TeachersPageInner() {
                     variant="ghost" size="icon"
                     className="text-slate-400 hover:text-primary hover:bg-slate-50"
                     onClick={() => setEditTeacher(teacher)}
+                    aria-label={`تعديل المحفظ ${teacher.full_name}`}
                   >
                     <Edit className="w-4 h-4" />
                   </Button>
@@ -122,6 +123,7 @@ function TeachersPageInner() {
                     variant="ghost" size="icon"
                     className="text-slate-400 hover:text-red-600 hover:bg-red-50"
                     onClick={() => setDeleteTeacher(teacher)}
+                    aria-label={`حذف المحفظ ${teacher.full_name}`}
                   >
                     <Trash2 className="w-4 h-4" />
                   </Button>

@@ -43,7 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       return true;
     }
-    if (res.error.code === 401 || res.error.code === 403) {
+    if (res.error?.code === 401 || res.error?.code === 403) {
       localStorage.removeItem("access_token");
       localStorage.removeItem("refresh_token");
     }
@@ -53,31 +53,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // عند بدء التطبيق: تحقق من صلاحية الـ token الموجود
   // مع retry تلقائي إذا كان السيرفر نايم (Render free tier cold start)
   useEffect(() => {
-    if (typeof window === "undefined") {
-      setIsLoading(false);
-      return;
-    }
+    let isMounted = true;
 
-    const token = localStorage.getItem("access_token");
-    if (!token) {
-      setIsLoading(false);
-      return;
-    }
+    const bootstrapAuth = async () => {
+      if (typeof window === "undefined") {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+        return;
+      }
 
-    // حاول الاتصال بالسيرفر — مع retry تلقائي إذا كان نايم
-    const MAX_RETRIES = 4;
-    const RETRY_DELAY_MS = 3000;
+      const token = localStorage.getItem("access_token");
+      if (!token) {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+        return;
+      }
 
-    (async () => {
+      const MAX_RETRIES = 4;
+      const RETRY_DELAY_MS = 3000;
+
       for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
         try {
           const success = await fetchMe();
-          if (success) break; // نجح → انتهينا
+          if (success) break;
 
-          // إذا مسحت التوكنات (401/403) → لا فائدة من المحاولة مجدداً
           if (!localStorage.getItem("access_token")) break;
 
-          // فشل مؤقت → انتظر قبل المحاولة التالية
           if (attempt < MAX_RETRIES - 1) {
             await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
           }
@@ -87,9 +90,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
         }
       }
-      setIsLoading(false);
-    })();
-  }, []);
+
+      if (isMounted) {
+        setIsLoading(false);
+      }
+    };
+
+    void bootstrapAuth();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [fetchMe]);
 
   const login = useCallback(
     async (phone_number: string, password: string): Promise<{ error: string | null; role: string | null }> => {

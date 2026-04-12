@@ -4,7 +4,8 @@ from rest_framework import status, serializers
 from django.db.models import Q, Count
 
 from core.permissions import IsAdmin
-from students.models import Ring, Teacher
+from students.models import Ring
+from accounts.models import Teacher
 
 # ---------------------------------------------------------------------------
 # Serializers

@@ -111,6 +111,7 @@ export default function StudentsPage() {
                       variant="ghost" size="icon"
                       className="text-slate-400 hover:text-primary hover:bg-slate-50 rounded-lg w-10 h-10"
                       onClick={() => setAssignModal({ open: true, student })}
+                      aria-label={`تعيين محفظ للطالب ${student.full_name}`}
                     >
                       <UserCog className="w-[18px] h-[18px]" />
                     </Button>
@@ -133,6 +134,7 @@ export default function StudentsPage() {
                         window.URL.revokeObjectURL(url);
                       }}
                       disabled={!student.id}
+                      aria-label={`تحميل تقرير الطالب ${student.full_name}`}
                     >
                       <FileText className="w-[18px] h-[18px]" />
                     </Button>
@@ -142,6 +144,7 @@ export default function StudentsPage() {
                       variant="ghost" size="icon"
                       className="text-slate-400 hover:text-primary hover:bg-slate-50 rounded-lg w-10 h-10"
                       onClick={() => setEditModal({ open: true, student })}
+                      aria-label={`تعديل الطالب ${student.full_name}`}
                     >
                       <Edit className="w-[18px] h-[18px]" />
                     </Button>
@@ -149,6 +152,7 @@ export default function StudentsPage() {
                       variant="ghost" size="icon"
                       className="text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg w-10 h-10"
                       onClick={() => setDeleteModal({ open: true, student })}
+                      aria-label={`حذف الطالب ${student.full_name}`}
                     >
                       <Trash2 className="w-[18px] h-[18px]" />
                     </Button>

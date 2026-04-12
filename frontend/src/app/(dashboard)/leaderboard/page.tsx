@@ -96,7 +96,10 @@ function LeaderboardContent() {
                       <Medal className="w-6 h-6" />
                     </div>
                     <h3 className="font-bold text-sm text-slate-800 mb-1 line-clamp-1">{entry.student_name}</h3>
-                    <p className="text-2xl font-black text-primary">{entry.score}</p>
+                    <p className="text-2xl font-black text-primary">{entry.total_achieved}</p>
+                    <p className="text-[10px] text-slate-400 mt-1">
+                      {entry.total_required > 0 ? `${entry.total_required} مطلوب` : `${entry.present_days} يوم حضور`}
+                    </p>
                     {entry.ring_name && (
                       <p className="text-[10px] text-slate-400 mt-1">{entry.ring_name}</p>
                     )}
@@ -127,7 +130,7 @@ function LeaderboardContent() {
                       <td className="px-4 py-3 font-bold text-slate-700">#{entry.rank}</td>
                       <td className="px-4 py-3 font-bold text-slate-800">{entry.student_name}</td>
                       <td className="px-4 py-3 text-slate-600">{entry.ring_name || "—"}</td>
-                      <td className="px-4 py-3 font-bold text-primary">{entry.score}</td>
+                      <td className="px-4 py-3 font-bold text-primary">{entry.total_achieved}</td>
                     </tr>
                   ))}
                 </tbody>

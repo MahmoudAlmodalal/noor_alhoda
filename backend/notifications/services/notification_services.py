@@ -90,7 +90,7 @@ def send_absence_notification(*, student, date) -> dict:
         if phone:
             formatted_phone = str(phone).strip()
             if formatted_phone.startswith("0"):
-                formatted_phone = f"+966{formatted_phone[1:]}"
+                formatted_phone = f"966{formatted_phone[1:]}"
                 
             message = quote(
                 f"السلام عليكم\nنحيطكم علماً بأن الطالب {student.full_name} "

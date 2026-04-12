@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { Loader2, Save } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
@@ -94,10 +94,6 @@ export function EditCourseModal({
     description: course.description || "",
   });
   const { mutate, isSubmitting, fieldErrors } = useMutation("patch");
-
-  useEffect(() => {
-    setForm({ name: course.name, description: course.description || "" });
-  }, [course]);
 
   const handleSubmit = async () => {
     const result = await mutate(form, {

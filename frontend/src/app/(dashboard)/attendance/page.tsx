@@ -10,7 +10,7 @@ import { useToast } from "@/contexts/ToastContext";
 import { api } from "@/lib/api";
 import type {
   BulkAttendanceRequest,
-  CreateRecordRequest,
+  BulkAttendanceResponse,
   DailyRecord,
   Student,
   Teacher,
@@ -80,8 +80,14 @@ function AttendanceContent() {
         dirty: false,
       });
     });
-    setDrafts(map);
-    setDirty(false);
+    const timeoutId = window.setTimeout(() => {
+      setDrafts(map);
+      setDirty(false);
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
   }, [students, records]);
 
   // Warn on unsaved changes
@@ -110,12 +116,22 @@ function AttendanceContent() {
       showToast("لا توجد تغييرات", "info");
       return;
     }
+
+    // Friday guard — backend blocks Fridays; give instant user feedback
+    const selectedDay = new Date(date + "T00:00:00").getDay(); // 0=Sun…5=Fri in JS
+    if (selectedDay === 5) {
+      showToast("لا يمكن تسجيل الحضور ليوم الجمعة", "error");
+      return;
+    }
+
     setIsSaving(true);
 
-    const draftList = Array.from(drafts.values()).filter((d) => d.dirty);
+    // Work on a local copy so we can patch record_ids without touching React state
+    const currentDrafts = new Map(drafts);
+    const draftList = Array.from(currentDrafts.values()).filter((d) => d.dirty);
     const withStatus = draftList.filter((d) => d.attendance);
 
-    // 1) Bulk attendance for everyone with a status
+    // 1) Bulk attendance — captures newly created record IDs
     if (withStatus.length > 0) {
       const payload: BulkAttendanceRequest = {
         date,
@@ -124,46 +140,37 @@ function AttendanceContent() {
           attendance: d.attendance!,
         })),
       };
-      const res = await api.post("/api/records/bulk-attendance/", payload);
+      const res = await api.post<BulkAttendanceResponse>("/api/records/bulk-attendance/", payload);
       if (!res.success) {
         showToast(res.error.message, "error");
         setIsSaving(false);
         return;
       }
+      // Sync record IDs into local draft copy so PATCH calls below have valid IDs
+      res.data.records.forEach((rec) => {
+        const d = currentDrafts.get(rec.student_id);
+        if (d && !d.record_id) {
+          currentDrafts.set(rec.student_id, { ...d, record_id: rec.id });
+        }
+      });
     }
 
-    // 2) Per-row PATCH/POST for memorization details
+    // 2) Per-row PATCH for memorization details (only when memo fields are present)
     let failed = 0;
-    for (const d of draftList) {
+    for (const d of Array.from(currentDrafts.values()).filter((d) => d.dirty)) {
       const hasMemo =
         d.surah_name || d.required_verses > 0 || d.achieved_verses > 0 || d.note;
-      if (!hasMemo) continue;
+      if (!hasMemo || !d.record_id) continue;
 
-      if (d.record_id) {
-        const update: UpdateRecordRequest = {
-          attendance: d.attendance,
-          surah_name: d.surah_name,
-          required_verses: d.required_verses,
-          achieved_verses: d.achieved_verses,
-          quality: d.quality,
-          note: d.note,
-        };
-        const res = await api.patch(`/api/records/${d.record_id}/`, update);
-        if (!res.success) failed++;
-      } else if (d.attendance) {
-        const create: CreateRecordRequest = {
-          student_id: d.student_id,
-          date,
-          attendance: d.attendance,
-          surah_name: d.surah_name || undefined,
-          required_verses: d.required_verses || undefined,
-          achieved_verses: d.achieved_verses || undefined,
-          quality: d.quality || undefined,
-          note: d.note || undefined,
-        };
-        const res = await api.post("/api/records/create/", create);
-        if (!res.success) failed++;
-      }
+      const update: UpdateRecordRequest = {
+        surah_name: d.surah_name,
+        required_verses: d.required_verses,
+        achieved_verses: d.achieved_verses,
+        quality: d.quality,
+        note: d.note,
+      };
+      const res = await api.patch(`/api/records/${d.record_id}/`, update);
+      if (!res.success) failed++;
     }
 
     setIsSaving(false);

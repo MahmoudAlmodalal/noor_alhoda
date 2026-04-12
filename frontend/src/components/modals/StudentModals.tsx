@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Loader2, Save } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
@@ -20,11 +20,6 @@ export function AssignStudentModal({
   const [teacherId, setTeacherId] = useState("");
   const { data: teachers } = useApi<Teacher[]>(isOpen ? "/api/users/teachers/" : null);
   const { mutate, isSubmitting } = useMutation("patch");
-
-  // Reset selection when modal opens
-  useEffect(() => {
-    if (isOpen) setTeacherId("");
-  }, [isOpen]);
 
   const handleSubmit = async () => {
     if (!teacherId) return;
@@ -91,19 +86,19 @@ export function EditStudentModal({
     guardian_mobile: student.guardian_mobile,
   });
 
-  useEffect(() => {
-    setForm({
-      full_name: student.full_name,
-      national_id: student.national_id,
-      birthdate: student.birthdate,
-      grade: student.grade,
-      phone_number: student.mobile || "",
-      address: student.address || "",
-      guardian_name: student.guardian_name,
-      guardian_national_id: student.guardian_national_id || "",
-      guardian_mobile: student.guardian_mobile,
-    });
-  }, [student]);
+  const [health, setHealth] = useState({
+    martyr_son: student.health_status === "martyr_son",
+    sick: student.health_status === "sick",
+    injured: student.health_status === "injured",
+    other: student.health_status === "other",
+  });
+
+  const [skills, setSkills] = useState({
+    quran: student.skills?.quran ?? false,
+    nasheed: student.skills?.nasheed ?? false,
+    poetry: student.skills?.poetry ?? false,
+    other: student.skills?.other ?? false,
+  });
 
   const { mutate, isSubmitting, fieldErrors } = useMutation("patch");
 
@@ -120,6 +115,12 @@ export function EditStudentModal({
   };
 
   const handleSubmit = async () => {
+    let health_status = "normal";
+    if (health.martyr_son) health_status = "martyr_son";
+    else if (health.sick) health_status = "sick";
+    else if (health.injured) health_status = "injured";
+    else if (health.other) health_status = "other";
+
     const result = await mutate(
       {
         full_name: form.full_name,
@@ -131,6 +132,8 @@ export function EditStudentModal({
         guardian_name: form.guardian_name,
         guardian_national_id: form.guardian_national_id,
         guardian_mobile: form.guardian_mobile,
+        health_status,
+        skills,
       },
       { endpoint: `/api/students/${student.id}/`, successMessage: "تم تحديث بيانات الطالب بنجاح" }
     );
@@ -196,6 +199,30 @@ export function EditStudentModal({
           <label className="block text-sm font-bold text-slate-800">جوال ولي الأمر</label>
           <Input type="tel" dir="ltr" value={form.guardian_mobile} onChange={(e) => handleChange("guardian_mobile", e.target.value)} className="h-12 rounded-xl border-slate-200" />
           {getFieldError("guardian_mobile") && <p className="text-xs text-red-500">{getFieldError("guardian_mobile")}</p>}
+        </div>
+
+        <div className="space-y-2 pt-2">
+          <label className="block text-sm font-bold text-slate-800">الحالة الصحية</label>
+          <div className="grid grid-cols-2 gap-3">
+            {([["martyr_son", "ابن شهيد"], ["sick", "مريض"], ["injured", "ابن أسير"], ["other", "أخرى"]] as const).map(([key, label]) => (
+              <label key={key} className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={health[key]} onChange={() => setHealth({ martyr_son: false, sick: false, injured: false, other: false, [key]: !health[key] })} className="w-4 h-4 rounded accent-[#eabd5b]" />
+                <span className="text-sm text-slate-700">{label}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <div className="space-y-2 pt-2">
+          <label className="block text-sm font-bold text-slate-800">المهارات والاهتمامات</label>
+          <div className="grid grid-cols-2 gap-3">
+            {([["quran", "قراءات قرآن"], ["nasheed", "إنشاد"], ["poetry", "شعر"], ["other", "أخرى"]] as const).map(([key, label]) => (
+              <label key={key} className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={skills[key]} onChange={() => setSkills({ ...skills, [key]: !skills[key] })} className="w-4 h-4 rounded accent-[#eabd5b]" />
+                <span className="text-sm text-slate-700">{label}</span>
+              </label>
+            ))}
+          </div>
         </div>
       </div>
 

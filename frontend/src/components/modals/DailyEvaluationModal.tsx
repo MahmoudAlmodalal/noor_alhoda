@@ -19,6 +19,11 @@ export function DailyEvaluationModal({ isOpen, onClose, studentName }: DailyEval
 
                 {/* Attendance Section */}
                 <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+                    {studentName && (
+                        <p className="text-sm text-slate-500 mb-4">
+                            تقييم الطالب: <span className="font-bold text-slate-800">{studentName}</span>
+                        </p>
+                    )}
                     <h3 className="font-bold text-slate-800 text-lg mb-4 text-start">حالة الحضور</h3>
                     <div className="grid grid-cols-2 gap-3">
                         {attendanceOptions.map((option) => (

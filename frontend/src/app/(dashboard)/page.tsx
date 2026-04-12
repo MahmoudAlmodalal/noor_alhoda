@@ -14,7 +14,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { PageLoading } from "@/components/ui/LoadingSpinner";
 import { useEffect, useMemo, useState } from "react";
 import { useApi } from "@/hooks/useApi";
-import { useDebounce } from "@/hooks/useDebounce";
 import type {
   DashboardStats,
   Student,
@@ -47,8 +46,6 @@ function todayWeekday(): string {
 export default function Dashboard() {
   const router = useRouter();
   const { user, isLoading: authLoading } = useAuth();
-  const [searchQuery, setSearchQuery] = useState("");
-  const debouncedSearch = useDebounce(searchQuery);
   const [planModalOpen, setPlanModalOpen] = useState(false);
   const [announceModalOpen, setAnnounceModalOpen] = useState(false);
 
@@ -82,10 +79,10 @@ export default function Dashboard() {
 
   // Roster table — admin sees all, teacher sees own
   const rosterParams = useMemo(() => {
-    const p: Record<string, string | undefined> = { search: debouncedSearch };
+    const p: Record<string, string | undefined> = {};
     if (isTeacher && teacherProfileId) p.teacher_id = teacherProfileId;
     return p;
-  }, [debouncedSearch, isTeacher, teacherProfileId]);
+  }, [isTeacher, teacherProfileId]);
 
   const { data: rosterData, isLoading: rosterLoading, refetch: refetchRoster } = useApi<Student[]>(
     isAdmin || isTeacher ? "/api/students/" : null
@@ -369,7 +366,7 @@ export default function Dashboard() {
               </button>
 
               <Link
-                href="/students/new"
+                href="/students/register"
                 className="flex items-center gap-3 bg-white/10 hover:bg-white/20 p-3 rounded-xl transition-colors text-right"
               >
                 <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">

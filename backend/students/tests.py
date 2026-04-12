@@ -175,7 +175,7 @@ class StudentRBACTests(StudentTestSetup):
         self.client.force_authenticate(self.teacher_a_user)
         response = self.client.get("/api/students/")
         self.assertEqual(response.status_code, 200)
-        student_ids = [s["id"] for s in response.data["data"]["results"]]
+        student_ids = [s["id"] for s in response.data["data"]]
         self.assertIn(str(self.student_a.id), student_ids)
         self.assertNotIn(str(self.student_b.id), student_ids)
 
@@ -184,7 +184,7 @@ class StudentRBACTests(StudentTestSetup):
         self.client.force_authenticate(self.admin)
         response = self.client.get("/api/students/?search=Student A")
         self.assertEqual(response.status_code, 200)
-        results = response.data["data"]["results"]
+        results = response.data["data"]
         self.assertTrue(any(s["full_name"] == "Student A" for s in results))
 
     def test_student_list_filter_by_teacher(self):
@@ -192,7 +192,7 @@ class StudentRBACTests(StudentTestSetup):
         self.client.force_authenticate(self.admin)
         response = self.client.get(f"/api/students/?teacher_id={self.teacher_a.id}")
         self.assertEqual(response.status_code, 200)
-        for s in response.data["data"]["results"]:
+        for s in response.data["data"]:
             self.assertEqual(s.get("teacher_id") or s.get("teacher", {}).get("id"), str(self.teacher_a.id))
 
 
@@ -200,7 +200,7 @@ class StudentOperationsTests(StudentTestSetup):
     def test_admin_soft_deletes_student(self):
         """STU-11 / Feature 2.5: Soft-delete deactivates student and user."""
         self.client.force_authenticate(self.admin)
-        response = self.client.delete(f"/api/students/{self.student_a.id}/delete/")
+        response = self.client.delete(f"/api/students/{self.student_a.id}/")
         self.assertEqual(response.status_code, 200)
         self.student_a.refresh_from_db()
         self.assertFalse(self.student_a.is_active)

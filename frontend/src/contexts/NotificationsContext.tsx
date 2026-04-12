@@ -39,13 +39,17 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
     const res = await api.get<NotificationsPayload | Notification[]>("/api/notifications/");
     if (res.success) {
-      const payload = res.data as NotificationsPayload & { results?: Notification[] };
+      const payload = res.data as NotificationsPayload | Notification[];
       const list: Notification[] = Array.isArray(payload)
         ? payload
         : payload.items ?? payload.results ?? [];
       setItems(list);
-      if (!Array.isArray(payload) && typeof payload.unread_count === "number") {
-        setUnreadCount(payload.unread_count);
+      const unreadCount =
+        "unread_count" in res && typeof res.unread_count === "number"
+          ? res.unread_count
+          : undefined;
+      if (typeof unreadCount === "number") {
+        setUnreadCount(unreadCount);
       } else {
         setUnreadCount(list.filter((n) => !n.is_read).length);
       }
@@ -77,11 +81,21 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!isAuthenticated) {
-      setItems([]);
-      setUnreadCount(0);
+      const timeoutId = window.setTimeout(() => {
+        setItems([]);
+        setUnreadCount(0);
+        setIsLoading(false);
+      }, 0);
+      return () => window.clearTimeout(timeoutId);
+    }
+
+    if (typeof window === "undefined") {
       return;
     }
-    refetch();
+
+    const refetchTimeoutId = window.setTimeout(() => {
+      void refetch();
+    }, 0);
 
     const onFocus = () => refetch();
     window.addEventListener("focus", onFocus);
@@ -91,6 +105,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     }, POLL_INTERVAL_MS);
 
     return () => {
+      window.clearTimeout(refetchTimeoutId);
       window.removeEventListener("focus", onFocus);
       window.clearInterval(interval);
     };

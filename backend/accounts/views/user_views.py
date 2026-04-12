@@ -71,6 +71,7 @@ class TeacherInputSerializer(serializers.Serializer):
 class TeacherOutputSerializer(serializers.Serializer):
     id = serializers.UUIDField()
     user_id = serializers.UUIDField(source="user.id")
+    phone_number = serializers.CharField(source="user.phone_number")
     full_name = serializers.CharField()
     specialization = serializers.CharField(allow_blank=True)
     session_days = serializers.JSONField()

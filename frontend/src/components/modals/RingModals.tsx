@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Loader2, Save } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
@@ -96,15 +96,6 @@ export function EditRingModal({
   const { data: teachers } = useApi<Teacher[]>(isOpen ? "/api/users/teachers/" : null);
   const { mutate, isSubmitting, fieldErrors } = useMutation("patch");
 
-  useEffect(() => {
-    setForm({
-      name: ring.name,
-      level: ring.level || "",
-      teacher_id: ring.teacher_id || "",
-      status: ring.status,
-    });
-  }, [ring]);
-
   const handleSubmit = async () => {
     const result = await mutate(
       { ...form, teacher_id: form.teacher_id || null },
@@ -149,7 +140,12 @@ export function EditRingModal({
           <label className="block text-sm font-bold text-slate-800">الحالة</label>
           <select
             value={form.status}
-            onChange={(e) => setForm({ ...form, status: e.target.value as any })}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                status: e.target.value as Ring["status"],
+              })
+            }
             className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
           >
             <option value="active">نشطة</option>

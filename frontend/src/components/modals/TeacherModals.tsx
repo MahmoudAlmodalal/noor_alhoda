@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Trash2, Save, Loader2 } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
@@ -21,10 +21,6 @@ export function AssignRingModal({
   const [ringId, setRingId] = useState("");
   const { data: rings } = useApi<Ring[]>(isOpen ? "/api/students/rings/" : null);
   const { mutate, isSubmitting } = useMutation("patch");
-
-  useEffect(() => {
-    if (isOpen) setRingId("");
-  }, [isOpen]);
 
   const handleSubmit = async () => {
     if (!ringId) return;
@@ -76,7 +72,7 @@ export function AddTeacherModal({ isOpen, onClose, onSuccess }: { isOpen: boolea
   const [form, setForm] = useState({
     full_name: "",
     phone_number: "",
-    password: "nooralhuda2026",
+    password: "",
     specialization: "",
   });
 
@@ -94,7 +90,7 @@ export function AddTeacherModal({ isOpen, onClose, onSuccess }: { isOpen: boolea
     }, { successMessage: "تم إضافة المحفظ بنجاح" });
 
     if (result) {
-      setForm({ full_name: "", phone_number: "", password: "nooralhuda2026", specialization: "" });
+      setForm({ full_name: "", phone_number: "", password: "", specialization: "" });
       reset();
       onSuccess?.();
     }
@@ -114,6 +110,11 @@ export function AddTeacherModal({ isOpen, onClose, onSuccess }: { isOpen: boolea
           <label className="block text-sm font-bold text-slate-800">رقم الجوال</label>
           <Input type="tel" dir="ltr" value={form.phone_number} onChange={(e) => setForm({ ...form, phone_number: e.target.value })} className="h-12 rounded-xl border-slate-200" />
           {fieldErrors?.phone_number && <p className="text-xs text-red-500">{fieldErrors.phone_number}</p>}
+        </div>
+        <div className="space-y-1.5">
+          <label className="block text-sm font-bold text-slate-800">كلمة المرور</label>
+          <Input type="password" dir="ltr" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className="h-12 rounded-xl border-slate-200" />
+          {fieldErrors?.password && <p className="text-xs text-red-500">{fieldErrors.password}</p>}
         </div>
         <div className="space-y-1.5">
           <label className="block text-sm font-bold text-slate-800">التخصص (اختياري)</label>
@@ -188,28 +189,28 @@ export function EditTeacherModal({
 }) {
   const [form, setForm] = useState({
     full_name: teacher.full_name,
+    phone_number: teacher.phone_number || "",
+    password: "",
     specialization: teacher.specialization || "",
   });
-
-  useEffect(() => {
-    setForm({
-      full_name: teacher.full_name,
-      specialization: teacher.specialization || "",
-    });
-  }, [teacher]);
 
   const { mutate, isSubmitting, fieldErrors } = useMutation("patch");
 
   const handleSubmit = async () => {
     const nameParts = form.full_name.trim().split(" ");
-    const result = await mutate(
-      {
-        first_name: nameParts[0] || "",
-        last_name: nameParts.slice(1).join(" ") || "",
-        specialization: form.specialization,
-      },
-      { endpoint: `/api/users/${teacher.user_id}/`, successMessage: "تم تحديث بيانات المحفظ بنجاح" }
-    );
+    const payload: Record<string, string> = {
+      first_name: nameParts[0] || "",
+      last_name: nameParts.slice(1).join(" ") || "",
+      phone_number: form.phone_number,
+      specialization: form.specialization,
+    };
+    if (form.password) {
+      payload.password = form.password;
+    }
+    const result = await mutate(payload, {
+      endpoint: `/api/users/${teacher.user_id}/`,
+      successMessage: "تم تحديث بيانات المحفظ بنجاح",
+    });
     if (result) {
       onSuccess?.();
     }
@@ -224,6 +225,16 @@ export function EditTeacherModal({
           <label className="block text-sm font-bold text-slate-800">الاسم الرباعي</label>
           <Input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} className="h-12 rounded-xl border-slate-200 font-medium" />
           {fieldErrors?.full_name && <p className="text-xs text-red-500">{fieldErrors.full_name}</p>}
+        </div>
+        <div className="space-y-1.5">
+          <label className="block text-sm font-bold text-slate-800">رقم الجوال</label>
+          <Input type="tel" dir="ltr" value={form.phone_number} onChange={(e) => setForm({ ...form, phone_number: e.target.value })} className="h-12 rounded-xl border-slate-200 font-medium" />
+          {fieldErrors?.phone_number && <p className="text-xs text-red-500">{fieldErrors.phone_number}</p>}
+        </div>
+        <div className="space-y-1.5">
+          <label className="block text-sm font-bold text-slate-800">كلمة المرور</label>
+          <Input type="password" dir="ltr" placeholder="اتركه فارغاً إذا لم ترد التغيير" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className="h-12 rounded-xl border-slate-200 font-medium" />
+          {fieldErrors?.password && <p className="text-xs text-red-500">{fieldErrors.password}</p>}
         </div>
         <div className="space-y-1.5">
           <label className="block text-sm font-bold text-slate-800">التخصص</label>

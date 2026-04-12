@@ -27,6 +27,27 @@ interface Props {
 }
 
 export function WeeklyPlanModal({ isOpen, onClose, studentId, studentName, onCreated }: Props) {
+  if (!isOpen) return null;
+
+  return (
+    <WeeklyPlanModalContent
+      isOpen={isOpen}
+      onClose={onClose}
+      studentId={studentId}
+      studentName={studentName}
+      onCreated={onCreated}
+    />
+  );
+}
+
+function getWeekNumber(weekStart: string): number {
+  const d = new Date(weekStart);
+  const firstDay = new Date(Date.UTC(d.getFullYear(), 0, 1));
+  const diffDays = Math.floor((d.getTime() - firstDay.getTime()) / 86_400_000);
+  return Math.floor(diffDays / 7) + 1;
+}
+
+function WeeklyPlanModalContent({ isOpen, onClose, studentId, studentName, onCreated }: Props) {
   const [selectedId, setSelectedId] = useState(studentId ?? "");
   const [selectedName, setSelectedName] = useState(studentName ?? "");
   const [search, setSearch] = useState("");
@@ -41,16 +62,6 @@ export function WeeklyPlanModal({ isOpen, onClose, studentId, studentName, onCre
     if (isOpen && !studentId) refetch({ search: debouncedSearch });
   }, [isOpen, studentId, debouncedSearch, refetch]);
 
-  useEffect(() => {
-    if (isOpen) {
-      setSelectedId(studentId ?? "");
-      setSelectedName(studentName ?? "");
-      setWeekStart(nextSaturday());
-      setTotalRequired(20);
-      setSearch("");
-    }
-  }, [isOpen, studentId, studentName]);
-
   const { mutate, isSubmitting, fieldErrors, error } = useMutation(
     "post",
     "/api/records/weekly-plans/"
@@ -63,6 +74,7 @@ export function WeeklyPlanModal({ isOpen, onClose, studentId, studentName, onCre
     const payload: WeeklyPlanRequest = {
       student_id: selectedId,
       week_start: weekStart,
+      week_number: getWeekNumber(weekStart),
       total_required: Number(totalRequired) || 0,
     };
     const result = await mutate(payload, { successMessage: "تم إنشاء الخطة الأسبوعية" });

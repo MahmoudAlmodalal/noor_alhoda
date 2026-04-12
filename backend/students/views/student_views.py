@@ -48,7 +48,7 @@ class StudentInputSerializer(serializers.Serializer):
     health_status = serializers.CharField(required=False, default="normal")
     health_note = serializers.CharField(required=False, default="")
     skills = serializers.JSONField(required=False, default=dict)
-    password = serializers.CharField(required=False, default="nooralhuda2026")
+    password = serializers.CharField(required=True)
 
 
 class StudentOutputSerializer(serializers.Serializer):
@@ -160,9 +160,13 @@ class StudentDetailApi(APIView):
     """
     GET /api/students/<id>/ — بيانات طالب واحد
     PATCH /api/students/<id>/ — تعديل بيانات الطالب
+    DELETE /api/students/<id>/ — إيقاف تسجيل الطالب (للمشرفين فقط)
     """
 
-    permission_classes = [IsAdminOrTeacherOrSelf]
+    def get_permissions(self):
+        if self.request.method == "DELETE":
+            return [IsAdmin()]
+        return [IsAdminOrTeacherOrSelf()]
 
     def get(self, request, student_id):
         student = student_get(student_id=student_id, actor=request.user)
@@ -189,14 +193,6 @@ class StudentDetailApi(APIView):
 
     def delete(self, request, student_id):
         """DELETE /api/students/<id>/ — إلغاء تسجيل (soft delete)"""
-        # Ensure only admins can delete
-        from core.permissions import is_admin_user
-        if not is_admin_user(request.user):
-            return Response(
-                {"success": False, "error": {"code": 403, "message": "ليس لديك صلاحية للوصول"}},
-                status=status.HTTP_403_FORBIDDEN
-            )
-            
         student_deactivate(student_id=student_id, actor=request.user)
         return Response(
             {"success": True, "message": "تم إيقاف تسجيل الطالب بنجاح."},

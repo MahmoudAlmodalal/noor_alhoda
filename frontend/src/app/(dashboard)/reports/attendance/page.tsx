@@ -6,32 +6,19 @@ import { BarChart3 } from "lucide-react";
 import { PageLoading } from "@/components/ui/LoadingSpinner";
 import { useApi } from "@/hooks/useApi";
 import { useAuth } from "@/contexts/AuthContext";
-import type { AttendanceReport, AttendanceStatus, Teacher } from "@/types/api";
+import type { AttendanceReport, Teacher } from "@/types/api";
 
 const MONTHS_AR = [
   "يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو",
   "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر",
 ];
 
-const STATUS_COLORS: Record<AttendanceStatus, string> = {
-  present: "bg-green-100 text-green-700",
-  absent: "bg-red-100 text-red-700",
-  late: "bg-orange-100 text-orange-700",
-  excused: "bg-blue-100 text-blue-700",
-};
-
-const STATUS_SHORT: Record<AttendanceStatus, string> = {
-  present: "ح",
-  absent: "غ",
-  late: "م",
-  excused: "ع",
-};
-
 function ReportContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
+  const teacherProfileId = user?.teacher_profile?.id;
 
   const now = new Date();
   const [month, setMonth] = useState<number>(
@@ -41,7 +28,7 @@ function ReportContent() {
     Number(searchParams.get("year")) || now.getFullYear()
   );
   const [teacherId, setTeacherId] = useState<string>(
-    searchParams.get("teacher") || (user?.role === "teacher" && user.id ? user.id : "")
+    searchParams.get("teacher") || (user?.role === "teacher" && teacherProfileId ? teacherProfileId : "")
   );
 
   const { data: teachers } = useApi<Teacher[]>(isAdmin ? "/api/users/teachers/" : null);
@@ -69,9 +56,7 @@ function ReportContent() {
     router.replace(`/reports/attendance?${qs.toString()}`);
   }, [params, refetch, router, month, year, teacherId]);
 
-  const daysInMonth = new Date(year, month, 0).getDate();
-  const dayKeys = Array.from({ length: daysInMonth }, (_, i) => String(i + 1).padStart(2, "0"));
-  const rows = data?.rows ?? [];
+  const rows = data?.students ?? [];
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-10">
@@ -114,7 +99,7 @@ function ReportContent() {
             >
               <option value="">جميع المحفظين</option>
               {(teachers ?? []).map((t) => (
-                <option key={t.id} value={t.user_id}>{t.full_name}</option>
+                <option key={t.id} value={t.id}>{t.full_name}</option>
               ))}
             </select>
           )}
@@ -123,9 +108,9 @@ function ReportContent() {
 
       {data?.summary && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <SummaryCard label="إجمالي الجلسات" value={data.summary.total_sessions ?? "—"} />
-          <SummaryCard label="متوسط الحضور" value={data.summary.avg_attendance != null ? `${data.summary.avg_attendance}%` : "—"} />
-          <SummaryCard label="الأكثر غياباً" value={data.summary.most_absent_student ?? "—"} />
+          <SummaryCard label="إجمالي السجلات" value={data.summary.total_records} />
+          <SummaryCard label="نسبة الحضور" value={`${data.summary.attendance_rate}%`} />
+          <SummaryCard label="عدد الغياب" value={data.summary.absent} />
         </div>
       )}
 
@@ -138,35 +123,24 @@ function ReportContent() {
       ) : (
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="text-xs text-right">
+            <table className="min-w-full text-sm text-right">
               <thead className="text-[10px] text-slate-500 bg-slate-50/80">
                 <tr>
-                  <th className="px-3 py-3 font-bold sticky right-0 bg-slate-50 min-w-[140px]">الطالب</th>
-                  {dayKeys.map((d) => (
-                    <th key={d} className="px-2 py-3 font-bold text-center">{d}</th>
-                  ))}
+                  <th className="px-4 py-3 font-bold">الطالب</th>
+                  <th className="px-4 py-3 font-bold text-center">إجمالي الأيام</th>
+                  <th className="px-4 py-3 font-bold text-center">أيام الحضور</th>
+                  <th className="px-4 py-3 font-bold text-center">أيام الغياب</th>
                   <th className="px-3 py-3 font-bold text-center">النسبة</th>
                 </tr>
               </thead>
               <tbody>
                 {rows.map((row) => (
                   <tr key={row.student_id} className="border-b border-slate-50">
-                    <td className="px-3 py-2 font-bold text-slate-700 sticky right-0 bg-white">{row.student_name}</td>
-                    {dayKeys.map((d) => {
-                      const status = row.days?.[d];
-                      return (
-                        <td key={d} className="px-1 py-2 text-center">
-                          {status ? (
-                            <span className={`inline-block w-6 h-6 leading-6 rounded text-[10px] font-bold ${STATUS_COLORS[status]}`}>
-                              {STATUS_SHORT[status]}
-                            </span>
-                          ) : (
-                            <span className="text-slate-300">·</span>
-                          )}
-                        </td>
-                      );
-                    })}
-                    <td className="px-3 py-2 text-center font-bold text-primary">{row.rate}%</td>
+                    <td className="px-4 py-3 font-bold text-slate-700">{row.student_name}</td>
+                    <td className="px-4 py-3 text-center text-slate-600">{row.total_days}</td>
+                    <td className="px-4 py-3 text-center text-green-700 font-bold">{row.present_days}</td>
+                    <td className="px-4 py-3 text-center text-red-600 font-bold">{row.absent_days}</td>
+                    <td className="px-3 py-3 text-center font-bold text-primary">{row.rate}%</td>
                   </tr>
                 ))}
               </tbody>

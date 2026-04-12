@@ -17,6 +17,8 @@ from records.services.record_services import (
 # ---------------------------------------------------------------------------
 class DailyRecordOutputSerializer(serializers.Serializer):
     id = serializers.UUIDField()
+    student_id = serializers.UUIDField(source="weekly_plan.student_id")
+    student_name = serializers.CharField(source="weekly_plan.student.full_name")
     day = serializers.CharField()
     date = serializers.DateField()
     attendance = serializers.CharField()
@@ -26,7 +28,6 @@ class DailyRecordOutputSerializer(serializers.Serializer):
     quality = serializers.CharField()
     result = serializers.CharField()
     note = serializers.CharField()
-    student_name = serializers.CharField(source="weekly_plan.student.full_name")
     created_at = serializers.DateTimeField()
     updated_at = serializers.DateTimeField()
 
@@ -89,7 +90,8 @@ class BulkAttendanceInputSerializer(serializers.Serializer):
 class WeeklyPlanInputSerializer(serializers.Serializer):
     student_id = serializers.UUIDField()
     week_start = serializers.DateField()
-    week_number = serializers.IntegerField()
+    week_number = serializers.IntegerField(required=False)
+    total_required = serializers.IntegerField(required=False, default=0)
 
 
 # ---------------------------------------------------------------------------
@@ -172,8 +174,10 @@ class BulkAttendanceApi(APIView):
         return Response(
             {
                 "success": True,
-                "message": f"تم تسجيل حضور {len(records)} طالب.",
-                "count": len(records),
+                "records": [
+                    {"student_id": str(r.weekly_plan.student_id), "id": str(r.id)}
+                    for r in records
+                ],
             },
             status=status.HTTP_201_CREATED,
         )
@@ -213,7 +217,8 @@ class WeeklyPlanCreateApi(APIView):
         plan = weekly_plan_create(
             student_id=serializer.validated_data["student_id"],
             week_start=serializer.validated_data["week_start"],
-            week_number=serializer.validated_data["week_number"],
+            week_number=serializer.validated_data.get("week_number"),
+            total_required=serializer.validated_data.get("total_required", 0),
             teacher=request.user,
         )
 
@@ -225,6 +230,7 @@ class WeeklyPlanCreateApi(APIView):
                     "student": plan.student.full_name,
                     "week_number": plan.week_number,
                     "week_start": str(plan.week_start),
+                    "total_required": plan.total_required,
                 },
             },
             status=status.HTTP_201_CREATED,

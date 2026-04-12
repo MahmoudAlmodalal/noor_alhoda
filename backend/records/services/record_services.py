@@ -12,7 +12,14 @@ from core.permissions import is_admin_user
 
 
 @transaction.atomic
-def weekly_plan_create(*, student_id, week_start, week_number, teacher: User) -> WeeklyPlan:
+def weekly_plan_create(
+    *,
+    student_id,
+    week_start,
+    week_number=None,
+    total_required=0,
+    teacher: User,
+) -> WeeklyPlan:
     """Create a weekly plan for a student."""
     if not (is_admin_user(teacher) or teacher.role == "teacher"):
         raise PermissionDenied("ليس لديك صلاحية لإنشاء خطة أسبوعية.")
@@ -32,8 +39,9 @@ def weekly_plan_create(*, student_id, week_start, week_number, teacher: User) ->
 
     plan = WeeklyPlan(
         student=student,
-        week_number=week_number,
+        week_number=week_number or week_start.isocalendar()[1],
         week_start=week_start,
+        total_required=total_required or 0,
     )
     plan.full_clean()
     plan.save()

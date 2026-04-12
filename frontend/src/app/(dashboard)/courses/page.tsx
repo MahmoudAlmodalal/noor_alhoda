@@ -77,6 +77,7 @@ function CoursesPageInner() {
                     variant="ghost"
                     className="bg-[#fff4ed] text-[#e85b2e] hover:bg-[#ffe6da] hover:text-[#e85b2e] flex-1 font-bold h-12 rounded-2xl gap-2"
                     onClick={() => setEditCourse(course)}
+                    aria-label={`تعديل الدورة ${course.name}`}
                   >
                     تعديل
                     <Edit className="w-4 h-4" />
@@ -86,6 +87,7 @@ function CoursesPageInner() {
                     size="icon"
                     className="text-[#f43f5e] bg-[#fff1f2] hover:bg-[#ffe4e6] rounded-2xl w-12 h-12 shrink-0"
                     onClick={() => setDeleteCourse(course)}
+                    aria-label={`حذف الدورة ${course.name}`}
                   >
                     <Trash2 className="w-5 h-5" />
                   </Button>

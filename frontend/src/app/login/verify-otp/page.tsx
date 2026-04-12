@@ -14,27 +14,41 @@ export default function VerifyOTPPage() {
     const [phone, setPhone] = useState<string>("");
     const [otp, setOtp] = useState("");
     const [error, setError] = useState<string | null>(null);
+    const [isResolved, setIsResolved] = useState(false);
     const { mutate: resend, isSubmitting: isResending } = useMutation<unknown>(
         "post",
         "/api/auth/otp/send/"
     );
 
     useEffect(() => {
+        let timeoutId: number | undefined;
         const stored = sessionStorage.getItem("pw_reset");
         if (!stored) {
             router.replace("/login/forgot-password");
+            timeoutId = window.setTimeout(() => setIsResolved(true), 0);
             return;
         }
         try {
-            const parsed = JSON.parse(stored);
+            const parsed = JSON.parse(stored) as { phone_number?: string };
             if (!parsed.phone_number) {
                 router.replace("/login/forgot-password");
+                timeoutId = window.setTimeout(() => setIsResolved(true), 0);
                 return;
             }
-            setPhone(parsed.phone_number);
+            timeoutId = window.setTimeout(() => {
+                setPhone(parsed.phone_number ?? "");
+                setIsResolved(true);
+            }, 0);
         } catch {
             router.replace("/login/forgot-password");
+            timeoutId = window.setTimeout(() => setIsResolved(true), 0);
         }
+
+        return () => {
+            if (timeoutId !== undefined) {
+                window.clearTimeout(timeoutId);
+            }
+        };
     }, [router]);
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -59,7 +73,7 @@ export default function VerifyOTPPage() {
         await resend(payload, { successMessage: "تم إرسال رمز جديد" });
     };
 
-    if (!phone) {
+    if (!isResolved || !phone) {
         return <div className="text-center py-10">جاري التحميل...</div>;
     }
 

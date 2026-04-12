@@ -15,28 +15,45 @@ export default function ResetPasswordPage() {
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
     const [validationError, setValidationError] = useState<string | null>(null);
+    const [isResolved, setIsResolved] = useState(false);
     const { mutate, isSubmitting, error, fieldErrors } = useMutation<unknown>(
         "post",
         "/api/auth/otp/verify/"
     );
 
     useEffect(() => {
+        let timeoutId: number | undefined;
         const stored = sessionStorage.getItem("pw_reset");
         if (!stored) {
             router.replace("/login/forgot-password");
+            timeoutId = window.setTimeout(() => setIsResolved(true), 0);
             return;
         }
         try {
-            const parsed = JSON.parse(stored);
+            const parsed = JSON.parse(stored) as {
+                phone_number?: string;
+                code?: string;
+            };
             if (!parsed.phone_number || !parsed.code) {
                 router.replace("/login/forgot-password");
+                timeoutId = window.setTimeout(() => setIsResolved(true), 0);
                 return;
             }
-            setPhone(parsed.phone_number);
-            setCode(parsed.code);
+            timeoutId = window.setTimeout(() => {
+                setPhone(parsed.phone_number ?? "");
+                setCode(parsed.code ?? "");
+                setIsResolved(true);
+            }, 0);
         } catch {
             router.replace("/login/forgot-password");
+            timeoutId = window.setTimeout(() => setIsResolved(true), 0);
         }
+
+        return () => {
+            if (timeoutId !== undefined) {
+                window.clearTimeout(timeoutId);
+            }
+        };
     }, [router]);
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -84,7 +101,7 @@ export default function ResetPasswordPage() {
                 : fieldErrors.new_password
             : null);
 
-    if (!phone || !code) {
+    if (!isResolved || !phone || !code) {
         return <div className="text-center py-10">جاري التحميل...</div>;
     }
 
@@ -102,6 +119,7 @@ export default function ResetPasswordPage() {
                         type="password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
+                        aria-label="كلمة المرور الجديدة"
                         dir="ltr"
                         disabled={isSubmitting}
                     />
@@ -113,6 +131,7 @@ export default function ResetPasswordPage() {
                         type="password"
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
+                        aria-label="تأكيد كلمة المرور"
                         dir="ltr"
                         disabled={isSubmitting}
                     />

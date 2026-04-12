@@ -11,7 +11,10 @@ export function useApi<T>(
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const paramsRef = useRef(params);
-  paramsRef.current = params;
+
+  useEffect(() => {
+    paramsRef.current = params;
+  }, [params]);
 
   const fetchData = useCallback(async () => {
     if (!endpoint) {
@@ -33,7 +36,13 @@ export function useApi<T>(
   }, [endpoint]);
 
   useEffect(() => {
-    fetchData();
+    const timeoutId = window.setTimeout(() => {
+      void fetchData();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
   }, [fetchData]);
 
   // Allow refetch with new params

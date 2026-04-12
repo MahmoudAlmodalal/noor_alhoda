@@ -4,21 +4,44 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useApi } from "@/hooks/useApi";
 import { api } from "@/lib/api";
 import { PageLoading } from "@/components/ui/LoadingSpinner";
+import type { Student, StudentStats, WeeklyPlan } from "@/types/api";
 import { Award, Trophy, TrendingUp, FileText, Book, Download } from "lucide-react";
+
+interface AchievementCertificate {
+    id: number | string;
+    title: string;
+    date: string;
+    grade: string;
+    color: string;
+    badgeColor: string;
+}
+
+interface DailyHistoryRow {
+    date: string;
+    hifz: string;
+    murajaah: string;
+}
+
+interface StudentAchievementStats extends StudentStats {
+    certificates?: AchievementCertificate[];
+    overall_rate?: string;
+    overall_grade?: string;
+}
 
 export default function StudentAchievements() {
     const { user } = useAuth();
+    const studentProfileId = user?.student_profile?.id;
 
-    const { data: profile, isLoading: isProfileLoading } = useApi<any>(
-        user?.id ? `/api/students/${user.id}/` : null
+    const { data: profile, isLoading: isProfileLoading } = useApi<Student>(
+        studentProfileId ? `/api/students/${studentProfileId}/` : null
     );
 
-    const { data: stats, isLoading: isStatsLoading } = useApi<any>(
-        user?.id ? `/api/students/${user.id}/stats/` : null
+    const { data: stats, isLoading: isStatsLoading } = useApi<StudentAchievementStats>(
+        studentProfileId ? `/api/students/${studentProfileId}/stats/` : null
     );
 
-    const { data: history, isLoading: isHistoryLoading } = useApi<any[]>(
-        user?.id ? `/api/students/${user.id}/history/` : null
+    const { data: history } = useApi<WeeklyPlan[]>(
+        studentProfileId ? `/api/students/${studentProfileId}/history/` : null
     );
 
     if (isProfileLoading || isStatsLoading) {
@@ -34,7 +57,7 @@ export default function StudentAchievements() {
         { id: 3, title: "دورة التجويد الأساسية", date: "20 فبراير 2026", grade: "مجتاز", color: "bg-purple-500", badgeColor: "text-slate-600 bg-slate-50 border-slate-100" },
     ];
 
-    const actualCertificates = stats?.certificates || mockCertificates;
+    const actualCertificates: AchievementCertificate[] = stats?.certificates || mockCertificates;
 
     const mockDailyHistory = [
         { date: "15 يوليو 2026", hifz: "ممتاز", murajaah: "جيد جداً" },
@@ -42,11 +65,17 @@ export default function StudentAchievements() {
         { date: "3 يونيو 2026", hifz: "جيد جداً", murajaah: "ممتاز" },
     ];
 
-    const actualDailyHistory = history?.length ? history : mockDailyHistory;
+    const actualDailyHistory: DailyHistoryRow[] = history?.length
+        ? history.map((item) => ({
+            date: item.week_start,
+            hifz: `${item.total_achieved}/${item.total_required}`,
+            murajaah: `الأسبوع ${item.week_number}`,
+        }))
+        : mockDailyHistory;
 
     const handleDownloadPDF = async () => {
-        if (!user?.id) return;
-        const blob = await api.downloadBlob(`/api/reports/student/${user.id}/pdf/`);
+        if (!studentProfileId) return;
+        const blob = await api.downloadBlob(`/api/reports/student/${studentProfileId}/pdf/`);
         if (!blob) {
             console.error("Failed to download PDF");
             return;
@@ -54,7 +83,7 @@ export default function StudentAchievements() {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `report_${user.id}.pdf`;
+        a.download = `report_${studentProfileId}.pdf`;
         document.body.appendChild(a);
         a.click();
         a.remove();
@@ -157,7 +186,7 @@ export default function StudentAchievements() {
                     <h3 className="font-bold text-sm text-slate-800">الشهادات والإنجازات</h3>
                 </div>
                 <div className="space-y-4">
-                    {actualCertificates.map((cert: any) => (
+                    {actualCertificates.map((cert) => (
                         <div key={cert.id} className="border border-slate-100 rounded-[16px] p-4 flex items-center gap-4">
                             <div className="flex-1">
                                 <h4 className="font-bold text-sm text-slate-800">{cert.title}</h4>
@@ -193,7 +222,7 @@ export default function StudentAchievements() {
                             </tr>
                         </thead>
                         <tbody>
-                            {actualDailyHistory.map((row: any, idx: number) => (
+                            {actualDailyHistory.map((row, idx) => (
                                 <tr key={idx} className="border-b border-slate-50 py-1">
                                     <td className="py-3 px-1 text-slate-500 whitespace-nowrap">{row.date}</td>
                                     <td className="py-3 px-1 font-bold text-green-600 whitespace-nowrap">{row.hifz}</td>

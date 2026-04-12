@@ -63,6 +63,7 @@ export default function ForgotPasswordPage() {
                         placeholder="05X XXX XXXX"
                         value={phone}
                         onChange={(e) => setPhone(e.target.value)}
+                        aria-label="رقم الجوال"
                         className="text-start"
                         dir="ltr"
                         disabled={isSubmitting}

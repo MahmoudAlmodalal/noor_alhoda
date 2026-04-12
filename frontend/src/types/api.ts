@@ -65,6 +65,7 @@ export interface Ring {
 export interface Teacher {
   id: string;
   user_id: string;
+  phone_number: string;
   full_name: string;
   specialization: string;
   session_days: string[];
@@ -198,6 +199,10 @@ export interface BulkAttendanceRequest {
   records: { student_id: string; attendance: AttendanceStatus }[];
 }
 
+export interface BulkAttendanceResponse {
+  records: { student_id: string; id: string }[];
+}
+
 export interface CreateRecordRequest {
   student_id: string;
   date: string;
@@ -264,6 +269,7 @@ export interface WeeklyPlan {
 export interface WeeklyPlanRequest {
   student_id: string;
   week_start: string;
+  week_number?: number;
   total_required: number;
 }
 
@@ -272,18 +278,17 @@ export interface LeaderboardEntry {
   student_id: string;
   student_name: string;
   ring_name?: string;
-  score: number;
-  memorized_ajza?: number;
-  attendance_rate?: number;
+  total_achieved: number;
+  total_required: number;
+  present_days: number;
 }
 
 export interface AttendanceReportRow {
   student_id: string;
   student_name: string;
-  days: Record<string, AttendanceStatus>;
-  present_count: number;
-  absent_count: number;
-  late_count?: number;
+  total_days: number;
+  present_days: number;
+  absent_days: number;
   rate: number;
 }
 
@@ -291,11 +296,13 @@ export interface AttendanceReport {
   month: number;
   year: number;
   teacher_id?: string;
-  rows: AttendanceReportRow[];
-  summary?: {
-    total_sessions?: number;
-    avg_attendance?: number;
-    most_absent_student?: string;
+  students: AttendanceReportRow[];
+  summary: {
+    total_records: number;
+    present: number;
+    absent: number;
+    excused: number;
+    attendance_rate: number;
   };
 }
 
@@ -318,11 +325,10 @@ export interface NotificationsPayload {
 }
 
 export interface AnnounceRequest {
-  audience: "all" | "teachers" | "parents" | "students" | "ring";
-  ring_id?: string;
-  recipient_ids?: string[];
   title: string;
   body: string;
+  target_roles?: ("teacher" | "student" | "parent")[];
+  target_user_ids?: string[];
 }
 
 // ─── Courses ─────────────────────────────────────────────────────────────────

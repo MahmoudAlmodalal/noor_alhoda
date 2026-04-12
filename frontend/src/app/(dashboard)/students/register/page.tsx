@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Printer, Building2, Loader2 } from "lucide-react";
+import { Printer, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { useMutation } from "@/hooks/useMutation";
@@ -39,6 +39,7 @@ function FormGroup({ label, name, type = "text", value, onChange, error }: {
         type={type}
         value={value}
         onChange={(e) => onChange(name, e.target.value)}
+        aria-label={label}
         className="border-[#e6e6e6]"
         dir={type === "tel" || type === "number" ? "ltr" : undefined}
       />

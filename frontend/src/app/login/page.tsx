@@ -71,6 +71,7 @@ function LoginForm() {
             placeholder="05X XXX XXXX"
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
+            aria-label="رقم الجوال"
             className="text-start"
             dir="ltr"
           />
@@ -84,6 +85,7 @@ function LoginForm() {
             type={showPassword ? "text" : "password"}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            aria-label="كلمة المرور"
             endIcon={
               showPassword ? (
                 <EyeOff

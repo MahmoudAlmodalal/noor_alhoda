@@ -6,8 +6,15 @@ import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useMutation } from "@/hooks/useMutation";
-import { useApi } from "@/hooks/useApi";
-import type { AnnounceRequest, Ring } from "@/types/api";
+import type { AnnounceRequest } from "@/types/api";
+
+type Audience = "all" | "teachers" | "parents" | "students";
+
+const AUDIENCE_TO_ROLES: Record<Exclude<Audience, "all">, AnnounceRequest["target_roles"]> = {
+  teachers: ["teacher"],
+  parents: ["parent"],
+  students: ["student"],
+};
 
 export function AnnounceModal({
   isOpen,
@@ -18,11 +25,9 @@ export function AnnounceModal({
   onClose: () => void;
   onSent?: () => void;
 }) {
-  const [audience, setAudience] = useState<AnnounceRequest["audience"]>("all");
-  const [ringId, setRingId] = useState("");
+  const [audience, setAudience] = useState<Audience>("all");
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
-  const { data: rings } = useApi<Ring[]>(isOpen && audience === "ring" ? "/api/students/rings/" : null);
   const { mutate, isSubmitting, fieldErrors, error } = useMutation(
     "post",
     "/api/notifications/announce/"
@@ -30,17 +35,15 @@ export function AnnounceModal({
 
   const handleSubmit = async () => {
     const payload: AnnounceRequest = {
-      audience,
       title,
       body,
-      ...(audience === "ring" && ringId ? { ring_id: ringId } : {}),
+      ...(audience === "all" ? {} : { target_roles: AUDIENCE_TO_ROLES[audience] }),
     };
     const result = await mutate(payload, { successMessage: "تم إرسال الإعلان" });
     if (result !== null) {
       setTitle("");
       setBody("");
       setAudience("all");
-      setRingId("");
       onSent?.();
       onClose();
     }
@@ -55,34 +58,15 @@ export function AnnounceModal({
           <label className="block text-sm font-bold text-slate-800">الجمهور</label>
           <select
             value={audience}
-            onChange={(e) => setAudience(e.target.value as AnnounceRequest["audience"])}
+            onChange={(e) => setAudience(e.target.value as Audience)}
             className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
           >
             <option value="all">الجميع</option>
             <option value="teachers">المحفظون</option>
             <option value="parents">أولياء الأمور</option>
             <option value="students">الطلاب</option>
-            <option value="ring">حلقة محددة</option>
           </select>
         </div>
-
-        {audience === "ring" && (
-          <div className="space-y-1.5">
-            <label className="block text-sm font-bold text-slate-800">الحلقة</label>
-            <select
-              value={ringId}
-              onChange={(e) => setRingId(e.target.value)}
-              className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-            >
-              <option value="">— اختر الحلقة —</option>
-              {(rings ?? []).map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
 
         <div className="space-y-1.5">
           <label className="block text-sm font-bold text-slate-800">العنوان</label>
@@ -124,7 +108,7 @@ export function AnnounceModal({
         </Button>
         <Button
           onClick={handleSubmit}
-          disabled={isSubmitting || !title || !body || (audience === "ring" && !ringId)}
+          disabled={isSubmitting || !title || !body}
           className="flex-[1.5] h-12 rounded-xl font-bold gap-2"
         >
           {isSubmitting ? (
