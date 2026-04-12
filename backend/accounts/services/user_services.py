@@ -25,8 +25,9 @@ def user_create(*, creator: User, **data) -> User:
         raise ValidationError({"phone_number": "رقم الجوال مسجل مسبقاً."})
 
     role = data.get("role", "student")
-    password = data.get("password") or phone_number[-4:]
-    logger.info("Created user %s with default password = last 4 digits of phone.", phone_number)
+    password = data.get("password") if data.get("password") is not None else phone_number[-4:]
+    if data.get("password") is None:
+        logger.info("Created user %s with default password = last 4 digits of phone.", phone_number)
 
     user = User(
         phone_number=phone_number,
