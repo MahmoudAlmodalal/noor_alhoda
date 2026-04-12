@@ -26,6 +26,39 @@ def daily_records_by_date(*, teacher_user: User, date) -> QuerySet[DailyRecord]:
     return qs.order_by("weekly_plan__student__full_name")
 
 
+def weekly_plans_list(*, actor: User, week_start=None) -> list:
+    """
+    List weekly plans for a teacher's students (or all if admin).
+    Optionally filtered by week_start date.
+    """
+    if not (is_admin_user(actor) or actor.role == "teacher"):
+        raise PermissionDenied("ليس لديك صلاحية لعرض الخطط.")
+
+    qs = WeeklyPlan.objects.select_related("student", "student__teacher").order_by("-week_start", "student__full_name")
+
+    if actor.role == "teacher":
+        if not hasattr(actor, "teacher_profile"):
+            raise PermissionDenied("حساب المحفظ غير مكتمل.")
+        qs = qs.filter(student__teacher=actor.teacher_profile)
+
+    if week_start:
+        qs = qs.filter(week_start=week_start)
+
+    return [
+        {
+            "id": str(p.id),
+            "student_id": str(p.student_id),
+            "student_name": p.student.full_name,
+            "week_number": p.week_number,
+            "week_start": str(p.week_start),
+            "total_required": p.total_required,
+            "total_achieved": p.total_achieved,
+            "completion_rate": p.completion_rate,
+        }
+        for p in qs
+    ]
+
+
 def weekly_summary(*, student_id, week_start, actor: User) -> dict:
     """
     Get weekly summary for a specific student and week.

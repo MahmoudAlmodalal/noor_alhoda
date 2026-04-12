@@ -259,11 +259,13 @@ export interface WeeklySummary {
 export interface WeeklyPlan {
   id: string;
   student_id: string;
+  student_name?: string;
   week_number: number;
   week_start: string;
   total_required: number;
   total_achieved: number;
-  created_at: string;
+  completion_rate?: number;
+  created_at?: string;
 }
 
 export interface WeeklyPlanRequest {

@@ -31,16 +31,30 @@ interface NavItem {
 }
 
 export const menuItems: NavItem[] = [
-    { name: "الرئيسية", href: "/", icon: LayoutGrid, roles: ["admin", "teacher", "student", "parent"] },
+    // الرئيسية — مختلفة حسب الدور
+    { name: "الرئيسية", href: "/", icon: LayoutGrid, roles: ["admin", "teacher", "parent"] },
+    { name: "الرئيسية", href: "/student", icon: LayoutGrid, roles: ["student"] },
+
+    // Admin فقط
     { name: "تسجيل طالب", href: "/students/register", icon: UserPlus, roles: ["admin"] },
     { name: "إدارة المحفظين", href: "/teachers", icon: UserCheck, roles: ["admin"] },
-    { name: "سجل الطلاب", href: "/students", icon: Users, roles: ["admin", "teacher"] },
+    { name: "سجل الطلاب", href: "/students", icon: Users, roles: ["admin"] },
     { name: "إدارة الحلقات", href: "/rings", icon: BookOpen, roles: ["admin"] },
     { name: "إدارة الدورات", href: "/courses", icon: BookMarked, roles: ["admin"] },
-    { name: "تسجيل الحضور", href: "/attendance", icon: ClipboardCheck, roles: ["admin", "teacher"] },
-    { name: "لوحة الشرف", href: "/leaderboard", icon: Trophy, roles: ["admin", "teacher", "student", "parent"] },
-    { name: "تقارير الحضور", href: "/reports/attendance", icon: BarChart3, roles: ["admin", "teacher"] },
-    { name: "الإشعارات", href: "/notifications", icon: Bell, roles: ["admin", "teacher", "student", "parent"] },
+    { name: "تسجيل الحضور", href: "/attendance", icon: ClipboardCheck, roles: ["admin"] },
+    { name: "لوحة الشرف", href: "/leaderboard", icon: Trophy, roles: ["admin"] },
+    { name: "تقارير الحضور", href: "/reports/attendance", icon: BarChart3, roles: ["admin"] },
+    { name: "الإشعارات", href: "/notifications", icon: Bell, roles: ["admin", "parent"] },
+
+    // المحفظ فقط
+    { name: "حلقاتي", href: "/students", icon: Users, roles: ["teacher"] },
+    { name: "الحضور والتقييم", href: "/attendance", icon: ClipboardCheck, roles: ["teacher"] },
+    { name: "خطط التسميع", href: "/plans", icon: BookOpen, roles: ["teacher"] },
+    { name: "تقارير الحضور", href: "/reports/attendance", icon: BarChart3, roles: ["teacher"] },
+    { name: "لوحة الشرف", href: "/leaderboard", icon: Trophy, roles: ["teacher"] },
+
+    // الطالب فقط
+    { name: "سجل الإنجاز", href: "/student/achievements", icon: Trophy, roles: ["student"] },
 ];
 
 interface SidebarProps {

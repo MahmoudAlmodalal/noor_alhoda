@@ -36,8 +36,8 @@ export default function StudentsPage() {
     <div className="space-y-6 max-w-lg mx-auto">
       {/* Header */}
       <div className="text-center space-y-1 mb-6">
-        <h1 className="text-2xl font-bold text-primary">سجل ال��لاب</h1>
-        <p className="text-sm text-slate-500">إدارة ومتابعة جميع ��لطلاب المسجلين بالمركز</p>
+        <h1 className="text-2xl font-bold text-primary">سجل الطلاب</h1>
+        <p className="text-sm text-slate-500">إدارة ومتابعة جميع الطلاب المسجلين بالمركز</p>
       </div>
 
       {/* Toolbar */}

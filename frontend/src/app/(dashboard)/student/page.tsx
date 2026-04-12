@@ -172,6 +172,10 @@ interface StudentStatsLike {
     current_goal?: string;
     goal_progress?: number;
     memorization_level?: string;
+    total_absent?: number;
+    total_present?: number;
+    avg_grade?: string;
+    overall_rate?: string;
 }
 
 export default function StudentDashboard() {
@@ -215,8 +219,9 @@ export default function StudentDashboard() {
 
     const points = stats?.points ?? "1,250";
     const memorizedParts = stats?.memorized_parts ?? 3;
-    const streak = stats?.streak ?? 14;
-    const classRank = stats?.class_rank ?? 2;
+    const streak = stats?.streak ?? 30;
+    const absentDays = stats?.total_absent ?? 2;
+    const studyDays = stats?.total_present ?? 14;
     const currentGoal = stats?.current_goal || "حفظ سورة الملك";
     const goalProgress = stats?.goal_progress ?? 80;
 
@@ -282,17 +287,38 @@ export default function StudentDashboard() {
                 <StatsTile
                     icon={<Flame className="h-6 w-6 text-[#f43f5e]" />}
                     tileBg="bg-[#fef2f2]"
-                    label="أيام الحضور المتتالية"
-                    value={streak}
-                    labelMaxWidth="max-w-[90px]"
+                    label="الغيابات"
+                    value={absentDays}
                 />
                 <StatsTile
-                    icon={<Trophy className="h-6 w-6 text-[#eabd5b]" />}
-                    tileBg="bg-[#fefce8]"
-                    label="الترتيب في الحلقة"
-                    value={classRank}
+                    icon={<Calendar className="h-6 w-6 text-[#0b5394]" />}
+                    tileBg="bg-[#eff6ff]"
+                    label="أيام الدراسة"
+                    value={studyDays}
                 />
             </div>
+
+            {/* 3b. Achievement badges */}
+            {streak >= 7 && (
+                <div className="space-y-2">
+                    {streak >= 30 && (
+                        <div className="flex items-center gap-3 rounded-[14px] bg-[#fefce8] border border-[#eabd5b]/30 px-4 py-3">
+                            <Trophy className="h-5 w-5 shrink-0 text-[#eabd5b]" />
+                            <span className="text-[13px] font-bold text-[#1e2939]">
+                                نبارك الإنجاز! {streak} يوم حضور متواصل
+                            </span>
+                        </div>
+                    )}
+                    {memorizedParts >= 7 && (
+                        <div className="flex items-center gap-3 rounded-[14px] bg-[#dcfce7] border border-emerald-200 px-4 py-3">
+                            <Award className="h-5 w-5 shrink-0 text-emerald-600" />
+                            <span className="text-[13px] font-bold text-[#1e2939]">
+                                نبارك إتمام {memorizedParts} أجزاء من القرآن الكريم
+                            </span>
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* 4. Goal progress */}
             <div className="rounded-[24px] border border-[#f3f4f6] bg-white p-6 shadow-sm">
@@ -318,12 +344,42 @@ export default function StudentDashboard() {
                 </div>
             </div>
 
+            {/* 4b. Today's Evaluation */}
+            <div className="rounded-[24px] border border-[#f3f4f6] bg-white p-5 shadow-sm">
+                <div className="mb-4 flex items-center gap-2">
+                    <Star className="h-5 w-5 text-[#eabd5b] fill-[#eabd5b]" />
+                    <h3 className="text-[16px] font-bold text-[#1e2939]">تقييم اليوم</h3>
+                </div>
+                <div className="space-y-3">
+                    {[
+                        { label: "الحضور", value: "حاضر", stars: 3, color: "text-emerald-600" },
+                        { label: "الحفظ", value: stats?.avg_grade || "ممتاز", stars: 3, color: "text-[#0b5394]" },
+                        { label: "المراجعة", value: "جيد جداً", stars: 2, color: "text-[#0b5394]" },
+                    ].map(({ label, value, stars, color }) => (
+                        <div key={label} className="flex items-center justify-between">
+                            <span className="text-[13px] text-[#6a7282] font-medium">{label}</span>
+                            <div className="flex items-center gap-2">
+                                <span className={"text-[13px] font-bold " + color}>{value}</span>
+                                <div className="flex gap-0.5">
+                                    {[1, 2, 3].map((s) => (
+                                        <Star
+                                            key={s}
+                                            className={"h-3.5 w-3.5 " + (s <= stars ? "fill-[#eabd5b] text-[#eabd5b]" : "text-[#e5e7eb]")}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
             {/* 5. Weekly plan table */}
             <div className="rounded-[24px] border border-[#f3f4f6] bg-white p-6 shadow-sm">
                 <div className="mb-5 flex items-center gap-2">
                     <Calendar className="h-5 w-5 text-[#0b5394]" />
                     <h3 className="text-[18px] font-bold text-[#1e2939]">
-                        الخطة الأسبوعية
+                        الخطة الأسبوعية الحالية
                     </h3>
                 </div>
                 <div className="overflow-x-auto">

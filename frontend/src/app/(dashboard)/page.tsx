@@ -7,6 +7,8 @@ import {
   Star,
   Calendar,
   BookOpen,
+  Clock,
+  UserX,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -19,6 +21,7 @@ import type {
   Student,
   DailyRecord,
   ScheduleItem,
+  Ring,
 } from "@/types/api";
 import { WeeklyPlanModal } from "@/components/plans/WeeklyPlanModal";
 import { AnnounceModal } from "@/components/notifications/AnnounceModal";
@@ -67,7 +70,7 @@ export default function Dashboard() {
     isAdmin ? "/api/reports/dashboard/" : null
   );
 
-  // Teacher fallback: list own students + today's records
+  // Teacher fallback: list own students + today's records + rings
   const { data: teacherStudents } = useApi<Student[]>(
     isTeacher && teacherProfileId ? "/api/students/" : null,
     isTeacher && teacherProfileId ? { teacher_id: teacherProfileId } : undefined
@@ -76,6 +79,8 @@ export default function Dashboard() {
     isTeacher ? "/api/records/" : null,
     isTeacher ? { date: todayKey() } : undefined
   );
+  const { data: ringsData } = useApi<Ring[]>(isTeacher ? "/api/rings/" : null);
+  const teacherRing = ringsData?.find((r) => r.teacher_id === teacherProfileId);
 
   // Roster table — admin sees all, teacher sees own
   const rosterParams = useMemo(() => {
@@ -111,8 +116,8 @@ export default function Dashboard() {
       return {
         totalStudents: list.length,
         attendanceToday: records.filter((r) => r.attendance === "present").length,
-        ringsCount: records.filter((r) => r.attendance === "late").length,
-        outstanding: records.filter((r) => r.quality === "excellent").length,
+        ringsCount: records.filter((r) => r.attendance === "late").length,   // المتأخرين
+        outstanding: records.filter((r) => r.attendance === "absent").length, // المتغيبون
       };
     }
     return { totalStudents: 0, attendanceToday: 0, ringsCount: 0, outstanding: 0 };
@@ -147,9 +152,9 @@ export default function Dashboard() {
     .map((s) => ({
       id: s.id,
       name: s.full_name,
-      subtitle: !s.is_active ? "متوقف" : "بدون محفظ",
-      badge: !s.is_active ? "إنذار" : "تنبيه",
-      badgeColor: "text-slate-600 bg-slate-100",
+      subtitle: s.grade || (!s.is_active ? "متوقف" : "بدون محفظ"),
+      badge: s.grade || (!s.is_active ? "إنذار" : "تنبيه"),
+      badgeColor: "text-primary bg-blue-50 border border-primary/20",
       avatar: s.full_name?.[0] ?? "؟",
     }));
 
@@ -160,18 +165,29 @@ export default function Dashboard() {
       {/* Top Welcome Banner */}
       <div className="bg-white rounded-2xl p-6 shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1)] border border-[#f3f4f6] flex flex-col items-center text-center">
         <h1 className="text-2xl font-bold text-primary mb-1">
-          مرحباً، {user?.full_name || ""}
+          {isTeacher ? "مرحباً، الشيخ " : "مرحباً، "}{user?.full_name || ""}
         </h1>
         <p className="text-sm text-[#818181] mb-4">
-          نسأل الله لك التوفيق في إدارة هذه المؤسسة المباركة
+          {isTeacher
+            ? "خيركم من تعلم القرآن وعلّمه"
+            : "نسأل الله لك التوفيق في إدارة هذه المؤسسة المباركة"}
         </p>
-        <div className="inline-flex items-center gap-3 border border-secondary/50 bg-[rgba(251,242,222,0.6)] px-4 py-2 rounded-[10px]">
-          <div className="flex flex-col text-right">
-            <span className="text-xs text-[#818181] font-normal">العام الدراسي الحالي</span>
-            <span className="text-base font-bold text-primary">1447هـ - 2026م</span>
+        {isTeacher ? (
+          teacherRing && (
+            <div className="inline-flex items-center gap-2 border border-secondary/50 bg-[rgba(251,242,222,0.6)] px-4 py-2 rounded-[10px]">
+              <Star className="w-4 h-4 text-secondary fill-secondary" />
+              <span className="text-sm font-bold text-primary">{teacherRing.name}</span>
+            </div>
+          )
+        ) : (
+          <div className="inline-flex items-center gap-3 border border-secondary/50 bg-[rgba(251,242,222,0.6)] px-4 py-2 rounded-[10px]">
+            <div className="flex flex-col text-right">
+              <span className="text-xs text-[#818181] font-normal">العام الدراسي الحالي</span>
+              <span className="text-base font-bold text-primary">1447هـ - 2026م</span>
+            </div>
+            <Calendar className="w-6 h-6 text-secondary" />
           </div>
-          <Calendar className="w-6 h-6 text-secondary" />
-        </div>
+        )}
       </div>
 
       {/* Stats Cards Row */}
@@ -181,38 +197,52 @@ export default function Dashboard() {
             <div className="w-14 h-14 bg-[#ceddea] rounded-full flex items-center justify-center shadow-[0px_2px_4px_0px_rgba(0,0,0,0.1)]">
               <Users className="w-7 h-7 text-primary" />
             </div>
-            <p className="text-sm text-[#818181] font-medium">عدد الطلاب المسجلين</p>
+            <p className="text-sm text-[#818181] font-medium">
+              {isTeacher ? "طلاب الحلقة" : "عدد الطلاب المسجلين"}
+            </p>
             <h2 className="text-4xl font-bold text-primary">{stats.totalStudents}</h2>
           </CardContent>
         </Card>
 
         <Card>
           <CardContent className="p-5 flex flex-col items-start gap-3">
-            <div className="w-14 h-14 bg-[#ceddea] rounded-full flex items-center justify-center shadow-[0px_2px_4px_0px_rgba(0,0,0,0.1)]">
-              <CheckCircle2 className="w-7 h-7 text-primary" />
+            <div className="w-14 h-14 bg-[#d1fae5] rounded-full flex items-center justify-center shadow-[0px_2px_4px_0px_rgba(0,0,0,0.1)]">
+              <CheckCircle2 className="w-7 h-7 text-emerald-600" />
             </div>
             <p className="text-sm text-[#818181] font-medium">الحضور اليوم</p>
-            <h2 className="text-4xl font-bold text-primary">{stats.attendanceToday}</h2>
+            <h2 className="text-4xl font-bold text-emerald-600">{stats.attendanceToday}</h2>
           </CardContent>
         </Card>
 
         <Card>
           <CardContent className="p-5 flex flex-col items-start gap-3">
-            <div className="w-14 h-14 bg-[#fbf2de] rounded-full flex items-center justify-center shadow-[0px_2px_4px_0px_rgba(0,0,0,0.1)]">
-              <BookOpen className="w-7 h-7 text-secondary" />
+            <div className={`w-14 h-14 rounded-full flex items-center justify-center shadow-[0px_2px_4px_0px_rgba(0,0,0,0.1)] ${isTeacher ? "bg-[#fef3c7]" : "bg-[#fbf2de]"}`}>
+              {isTeacher
+                ? <Clock className="w-7 h-7 text-amber-600" />
+                : <BookOpen className="w-7 h-7 text-secondary" />}
             </div>
-            <p className="text-sm text-[#818181] font-medium">عدد الحلقات</p>
-            <h2 className="text-4xl font-bold text-secondary">{stats.ringsCount}</h2>
+            <p className="text-sm text-[#818181] font-medium">
+              {isTeacher ? "المتأخرين" : "عدد الحلقات"}
+            </p>
+            <h2 className={`text-4xl font-bold ${isTeacher ? "text-amber-600" : "text-secondary"}`}>
+              {stats.ringsCount}
+            </h2>
           </CardContent>
         </Card>
 
         <Card>
           <CardContent className="p-5 flex flex-col items-start gap-3">
-            <div className="w-14 h-14 bg-[#ceddea] rounded-full flex items-center justify-center shadow-[0px_2px_4px_0px_rgba(0,0,0,0.1)]">
-              <Star className="w-7 h-7 text-primary" />
+            <div className={`w-14 h-14 rounded-full flex items-center justify-center shadow-[0px_2px_4px_0px_rgba(0,0,0,0.1)] ${isTeacher ? "bg-[#fce7f3]" : "bg-[#ceddea]"}`}>
+              {isTeacher
+                ? <UserX className="w-7 h-7 text-pink-600" />
+                : <Star className="w-7 h-7 text-primary" />}
             </div>
-            <p className="text-sm text-[#818181] font-medium">الحفظة المتقنون</p>
-            <h2 className="text-4xl font-bold text-primary">{stats.outstanding}</h2>
+            <p className="text-sm text-[#818181] font-medium">
+              {isTeacher ? "المتغيبون" : "الحفظة المتقنون"}
+            </p>
+            <h2 className={`text-4xl font-bold ${isTeacher ? "text-pink-600" : "text-primary"}`}>
+              {stats.outstanding}
+            </h2>
           </CardContent>
         </Card>
       </div>
@@ -381,6 +411,57 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* Recent Daily Records — teacher only */}
+      {isTeacher && (todayRecords ?? []).length > 0 && (
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+          <div className="p-5 border-b border-slate-50">
+            <h3 className="font-bold text-lg text-slate-800">آخر التقييمات</h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-right text-sm">
+              <thead className="bg-slate-50 text-slate-500 text-xs font-bold">
+                <tr>
+                  <th className="px-5 py-3">التاريخ</th>
+                  <th className="px-5 py-3">الطالب</th>
+                  <th className="px-5 py-3">الحضور</th>
+                  <th className="px-5 py-3">الحفظ</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {(todayRecords ?? []).slice(0, 8).map((r) => {
+                  const qualityLabel: Record<string, string> = {
+                    excellent: "ممتاز", good: "جيد", acceptable: "مقبول", weak: "ضعيف", none: "-",
+                  };
+                  const attLabel: Record<string, string> = {
+                    present: "حاضر", absent: "غائب", late: "متأخر", excused: "مستأذن",
+                  };
+                  const attColor: Record<string, string> = {
+                    present: "bg-emerald-50 text-emerald-700",
+                    absent: "bg-rose-50 text-rose-600",
+                    late: "bg-amber-50 text-amber-700",
+                    excused: "bg-slate-100 text-slate-500",
+                  };
+                  return (
+                    <tr key={r.id} className="hover:bg-slate-50/50">
+                      <td className="px-5 py-3 text-slate-500 text-xs">{r.date}</td>
+                      <td className="px-5 py-3 font-medium text-slate-700">{r.student_name || "—"}</td>
+                      <td className="px-5 py-3">
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${attColor[r.attendance] || "bg-slate-100 text-slate-500"}`}>
+                          {attLabel[r.attendance] || r.attendance}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3 font-bold text-slate-700">
+                        {qualityLabel[r.quality] || "-"}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       <WeeklyPlanModal isOpen={planModalOpen} onClose={() => setPlanModalOpen(false)} />
       <AnnounceModal isOpen={announceModalOpen} onClose={() => setAnnounceModalOpen(false)} />

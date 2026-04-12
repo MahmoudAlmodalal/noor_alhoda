@@ -61,7 +61,6 @@ class TeacherInputSerializer(serializers.Serializer):
     phone_number = serializers.CharField()
     first_name = serializers.CharField(required=False, default="")
     last_name = serializers.CharField(required=False, default="")
-    password = serializers.CharField(required=False, default=None, allow_null=True, write_only=True)
     full_name = serializers.CharField()
     specialization = serializers.CharField(required=False, allow_blank=True, default="")
     session_days = serializers.ListField(child=serializers.CharField(), required=False, default=[])

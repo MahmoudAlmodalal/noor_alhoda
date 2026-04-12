@@ -184,6 +184,17 @@ function AttendanceContent() {
 
   const studentList = students ?? [];
 
+  // Attendance summary stats computed from drafts
+  const attendanceStats = useMemo(() => {
+    const all = Array.from(drafts.values());
+    const total = all.length;
+    const present = all.filter((d) => d.attendance === "present").length;
+    const absent = all.filter((d) => d.attendance === "absent").length;
+    const late = all.filter((d) => d.attendance === "late").length;
+    const recorded = all.filter((d) => d.attendance).length;
+    return { total, present, absent, late, recorded };
+  }, [drafts]);
+
   return (
     <div className="space-y-6 max-w-5xl mx-auto pb-10">
       {/* Header */}
@@ -244,6 +255,30 @@ function AttendanceContent() {
           </div>
         </div>
       </div>
+
+      {/* Quick Stats */}
+      {attendanceStats.total > 0 && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm text-center">
+            <p className="text-[10px] text-slate-500 font-medium mb-1">الحاضرون</p>
+            <h3 className="text-2xl font-black text-emerald-600">{attendanceStats.present}</h3>
+          </div>
+          <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm text-center">
+            <p className="text-[10px] text-slate-500 font-medium mb-1">الغائبون</p>
+            <h3 className="text-2xl font-black text-red-500">{attendanceStats.absent}</h3>
+          </div>
+          <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm text-center">
+            <p className="text-[10px] text-slate-500 font-medium mb-1">المتأخرون</p>
+            <h3 className="text-2xl font-black text-amber-600">{attendanceStats.late}</h3>
+          </div>
+          <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm text-center">
+            <p className="text-[10px] text-slate-500 font-medium mb-1">تم التسجيل</p>
+            <h3 className="text-2xl font-black text-primary">
+              {attendanceStats.recorded}<span className="text-sm text-slate-400 font-bold">/{attendanceStats.total}</span>
+            </h3>
+          </div>
+        </div>
+      )}
 
       {/* Students */}
       <div className="space-y-3">

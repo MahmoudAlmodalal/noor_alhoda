@@ -76,7 +76,6 @@ export function AddTeacherModal({ isOpen, onClose, onSuccess }: { isOpen: boolea
   const [form, setForm] = useState({
     full_name: "",
     phone_number: "",
-    password: "",
     specialization: "",
   });
 
@@ -88,13 +87,12 @@ export function AddTeacherModal({ isOpen, onClose, onSuccess }: { isOpen: boolea
       phone_number: form.phone_number,
       first_name: nameParts[0] || "",
       last_name: nameParts.slice(1).join(" ") || "",
-      password: form.password,
       full_name: form.full_name,
       specialization: form.specialization,
     }, { successMessage: "تم إضافة المحفظ بنجاح" });
 
     if (result) {
-      setForm({ full_name: "", phone_number: "", password: "", specialization: "" });
+      setForm({ full_name: "", phone_number: "", specialization: "" });
       reset();
       onSuccess?.();
     }
@@ -114,11 +112,6 @@ export function AddTeacherModal({ isOpen, onClose, onSuccess }: { isOpen: boolea
           <label className="block text-sm font-bold text-slate-800">رقم الجوال</label>
           <Input type="tel" dir="ltr" value={form.phone_number} onChange={(e) => setForm({ ...form, phone_number: e.target.value })} aria-label="رقم الجوال" className="h-12 rounded-xl border-slate-200" />
           {fieldErrors?.phone_number && <p className="text-xs text-red-500">{fieldErrors.phone_number}</p>}
-        </div>
-        <div className="space-y-1.5">
-          <label className="block text-sm font-bold text-slate-800">كلمة المرور</label>
-          <Input type="password" dir="ltr" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} aria-label="كلمة المرور" className="h-12 rounded-xl border-slate-200" />
-          {fieldErrors?.password && <p className="text-xs text-red-500">{fieldErrors.password}</p>}
         </div>
         <div className="space-y-1.5">
           <label className="block text-sm font-bold text-slate-800">التخصص (اختياري)</label>
@@ -202,7 +195,6 @@ export function EditTeacherModal({
   const [form, setForm] = useState({
     full_name: teacher.full_name,
     phone_number: teacher.phone_number || "",
-    password: "",
     specialization: teacher.specialization || "",
   });
 
@@ -216,9 +208,6 @@ export function EditTeacherModal({
       phone_number: form.phone_number,
       specialization: form.specialization,
     };
-    if (form.password) {
-      payload.password = form.password;
-    }
     const result = await mutate(payload, {
       endpoint: `/api/users/${teacher.user_id}/`,
       successMessage: "تم تحديث بيانات المحفظ بنجاح",
@@ -242,11 +231,6 @@ export function EditTeacherModal({
           <label className="block text-sm font-bold text-slate-800">رقم الجوال</label>
           <Input type="tel" dir="ltr" value={form.phone_number} onChange={(e) => setForm({ ...form, phone_number: e.target.value })} aria-label="رقم الجوال" className="h-12 rounded-xl border-slate-200 font-medium" />
           {fieldErrors?.phone_number && <p className="text-xs text-red-500">{fieldErrors.phone_number}</p>}
-        </div>
-        <div className="space-y-1.5">
-          <label className="block text-sm font-bold text-slate-800">كلمة المرور</label>
-          <Input type="password" dir="ltr" placeholder="اتركه فارغاً إذا لم ترد التغيير" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} aria-label="كلمة المرور" className="h-12 rounded-xl border-slate-200 font-medium" />
-          {fieldErrors?.password && <p className="text-xs text-red-500">{fieldErrors.password}</p>}
         </div>
         <div className="space-y-1.5">
           <label className="block text-sm font-bold text-slate-800">التخصص</label>

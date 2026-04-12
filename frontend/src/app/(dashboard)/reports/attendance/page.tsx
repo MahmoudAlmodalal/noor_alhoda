@@ -91,7 +91,7 @@ function ReportContent() {
               return <option key={y} value={y}>{y}</option>;
             })}
           </select>
-          {isAdmin && (
+          {isAdmin ? (
             <select
               value={teacherId}
               onChange={(e) => setTeacherId(e.target.value)}
@@ -102,7 +102,11 @@ function ReportContent() {
                 <option key={t.id} value={t.id}>{t.full_name}</option>
               ))}
             </select>
-          )}
+          ) : user?.full_name ? (
+            <div className="h-10 rounded-xl border border-slate-200 bg-slate-50 px-4 flex items-center text-sm font-bold text-slate-600">
+              المحفظ: {user.full_name}
+            </div>
+          ) : null}
         </div>
       </div>
 

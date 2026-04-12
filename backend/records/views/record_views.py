@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework import status, serializers
 
 from core.permissions import IsAdminOrTeacher, IsAdminOrTeacherOrSelf
-from records.selectors.record_selectors import daily_records_by_date, weekly_summary
+from records.selectors.record_selectors import daily_records_by_date, weekly_plans_list, weekly_summary
 from records.services.record_services import (
     daily_record_create,
     daily_record_update,
@@ -174,10 +174,12 @@ class BulkAttendanceApi(APIView):
         return Response(
             {
                 "success": True,
-                "records": [
-                    {"student_id": str(r.weekly_plan.student_id), "id": str(r.id)}
-                    for r in records
-                ],
+                "data": {
+                    "records": [
+                        {"student_id": str(r.weekly_plan.student_id), "id": str(r.id)}
+                        for r in records
+                    ],
+                },
             },
             status=status.HTTP_201_CREATED,
         )
@@ -206,9 +208,14 @@ class WeeklySummaryApi(APIView):
 
 
 class WeeklyPlanCreateApi(APIView):
-    """POST /api/records/weekly-plans/ — إنشاء خطة أسبوعية"""
+    """GET/POST /api/records/weekly-plans/ — عرض وإنشاء الخطط الأسبوعية"""
 
     permission_classes = [IsAdminOrTeacher]
+
+    def get(self, request):
+        week_start = request.query_params.get("week_start")
+        plans = weekly_plans_list(actor=request.user, week_start=week_start)
+        return Response({"success": True, "data": plans}, status=status.HTTP_200_OK)
 
     def post(self, request):
         serializer = WeeklyPlanInputSerializer(data=request.data)
