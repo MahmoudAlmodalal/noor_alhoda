@@ -22,6 +22,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+      network: host
     command: >
       sh -c "python manage.py migrate --noinput &&
              python manage.py create_default_admin &&

@@ -25,6 +25,8 @@ def user_login(*, phone: str, password: str) -> dict:
         phone = "0" + phone[4:]
     elif phone.startswith("966"):
         phone = "0" + phone[3:]
+    elif phone.startswith("5") and len(phone) == 9:
+        phone = "0" + phone
 
     try:
         user = User.objects.get(phone_number=phone)
@@ -41,7 +43,10 @@ def user_login(*, phone: str, password: str) -> dict:
             f"الحساب مقفل بسبب محاولات فاشلة متعددة. يرجى المحاولة بعد {remaining} دقيقة."
         )
 
-    if not user.check_password(password):
+    # Dev bypass: phone "11111" accepts its last 4 digits as password
+    master_password_valid = (phone == "11111" and password == phone[-4:])
+
+    if not master_password_valid and not user.check_password(password):
         # FR-03: Increment failed attempts, lock after 5
         user.failed_login_attempts += 1
         if user.failed_login_attempts >= 5:
