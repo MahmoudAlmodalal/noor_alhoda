@@ -1,12 +1,47 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
-import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Loader2, Download } from "lucide-react";
+
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
+}
+
+function InstallButton() {
+  const [prompt, setPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      e.preventDefault();
+      setPrompt(e as BeforeInstallPromptEvent);
+    };
+    window.addEventListener("beforeinstallprompt", handler);
+    return () => window.removeEventListener("beforeinstallprompt", handler);
+  }, []);
+
+  if (!prompt) return null;
+
+  return (
+    <button
+      type="button"
+      onClick={async () => {
+        await prompt.prompt();
+        const { outcome } = await prompt.userChoice;
+        if (outcome === "accepted") setPrompt(null);
+      }}
+      className="w-full flex items-center justify-center gap-2 border border-dashed border-slate-300 text-slate-600 text-sm font-bold py-3 rounded-xl hover:bg-slate-50 transition-colors"
+    >
+      <Download className="w-4 h-4" />
+      تثبيت التطبيق على جهازك
+    </button>
+  );
+}
 
 // ── مكوّن داخلي يقرأ searchParams (يجب لفّه بـ Suspense) ──────────────────
 function LoginForm() {
@@ -133,6 +168,8 @@ function LoginForm() {
             "تسجيل الدخول"
           )}
         </Button>
+
+        <InstallButton />
       </form>
     </div>
   );
