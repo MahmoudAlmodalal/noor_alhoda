@@ -62,22 +62,74 @@ def weekly_plans_list(*, actor: User, week_start=None) -> list:
 def weekly_summary(*, student_id, week_start, actor: User) -> dict:
     """
     Get weekly summary for a specific student and week.
+    Automatically snaps any given date to the corresponding Saturday (week start).
     """
+    from datetime import date as date_cls, timedelta
     from students.selectors.student_selectors import can_access_student, student_get
 
     student = student_get(student_id=student_id, actor=actor)
 
+    # Snap to the Saturday of the given week
+    parsed_date = date_cls.fromisoformat(str(week_start))
+    days_since_sat = (parsed_date.weekday() - 5) % 7
+    saturday = parsed_date - timedelta(days=days_since_sat)
+
     try:
-        plan = WeeklyPlan.objects.get(student=student, week_start=week_start)
+        plan = WeeklyPlan.objects.get(student=student, week_start=saturday)
     except WeeklyPlan.DoesNotExist:
         return {
             "student_id": str(student.id),
             "student_name": student.full_name,
-            "week_start": str(week_start),
+            "week_start": str(saturday),
+            "days": [],
             "message": "لا توجد خطة لهذا الأسبوع.",
         }
 
     records = plan.daily_records.all().order_by("date")
+
+    # Build days list with recorded data
+    all_days = ["sat", "sun", "mon", "tue", "wed", "thu"]
+    day_labels = {
+        "sat": "السبت", "sun": "الأحد", "mon": "الاثنين",
+        "tue": "الثلاثاء", "wed": "الأربعاء", "thu": "الخميس",
+    }
+
+    # Index recorded days
+    recorded = {}
+    for r in records:
+        recorded[r.day] = r
+
+    today = date_cls.today()
+    days_list = []
+    for i, day_code in enumerate(all_days):
+        day_date = saturday + timedelta(days=i)
+        if day_code in recorded:
+            r = recorded[day_code]
+            days_list.append({
+                "day": day_labels[day_code],
+                "date": str(r.date),
+                "attendance": r.attendance,
+                "required": f"{r.required_verses} آيات" if r.required_verses else "-",
+                "achieved": f"{r.achieved_verses} آيات" if r.achieved_verses else "-",
+                "evaluation": r.quality,
+                "result": r.result,
+                "surah_name": r.surah_name,
+                "note": r.note,
+            })
+        else:
+            # Upcoming or missed day
+            attendance = "upcoming" if day_date > today else "absent"
+            days_list.append({
+                "day": day_labels[day_code],
+                "date": str(day_date),
+                "attendance": attendance,
+                "required": "-",
+                "achieved": "-",
+                "evaluation": "none",
+                "result": "none",
+                "surah_name": "",
+                "note": "",
+            })
 
     return {
         "student_id": str(student.id),
@@ -87,18 +139,5 @@ def weekly_summary(*, student_id, week_start, actor: User) -> dict:
         "total_required": plan.total_required,
         "total_achieved": plan.total_achieved,
         "completion_rate": plan.completion_rate,
-        "days": [
-            {
-                "day": r.get_day_display(),
-                "date": str(r.date),
-                "attendance": r.get_attendance_display(),
-                "required_verses": r.required_verses,
-                "achieved_verses": r.achieved_verses,
-                "surah_name": r.surah_name,
-                "quality": r.get_quality_display(),
-                "result": r.get_result_display(),
-                "note": r.note,
-            }
-            for r in records
-        ],
+        "days": days_list,
     }

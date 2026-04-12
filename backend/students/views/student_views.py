@@ -70,6 +70,8 @@ class StudentOutputSerializer(serializers.Serializer):
     guardian_mobile = serializers.CharField()
     teacher_id = serializers.UUIDField(source="teacher.id", default=None)
     teacher_name = serializers.CharField(source="teacher.full_name", default=None)
+    ring_id = serializers.UUIDField(source="ring.id", default=None)
+    ring_name = serializers.CharField(source="ring.name", default=None)
     health_status = serializers.CharField()
     health_note = serializers.CharField()
     skills = serializers.JSONField()
@@ -208,7 +210,7 @@ class StudentHistoryApi(APIView):
     def get(self, request, student_id):
         history = student_history(student_id=student_id, actor=request.user)
         return Response(
-            {"success": True, "data": WeeklyPlanOutputSerializer(history, many=True).data},
+            {"success": True, "data": history},
             status=status.HTTP_200_OK,
         )
 

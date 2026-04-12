@@ -34,6 +34,7 @@ def student_create(*, creator: User, **data) -> Student:
         last_name=data.get("last_name", " ".join(data["full_name"].split()[1:]) if data["full_name"] else ""),
         password=data.get("password"),
         role="student",
+        _internal_student_create=True,
     )
 
     # Resolve teacher

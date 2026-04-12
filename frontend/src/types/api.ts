@@ -118,6 +118,8 @@ export interface Student {
   guardian_mobile: string;
   teacher_id: string | null;
   teacher_name: string | null;
+  ring_id: string | null;
+  ring_name: string | null;
   health_status: string;
   health_note: string;
   skills: Record<string, boolean>;
@@ -225,15 +227,36 @@ export interface UpdateRecordRequest {
 }
 
 export interface StudentStats {
+  student_id: string;
+  student_name: string;
   attendance_rate: number;
-  memorized_ajza: number;
-  review_count: number;
-  avg_grade: number | string;
+  total_days: number;
+  present_days: number;
+  total_present: number;
+  total_absent: number;
+  total_required_verses: number;
+  total_achieved_verses: number;
+  overall_completion_rate: number;
+  overall_rate: string;
+  avg_grade: string;
+  memorized_parts: number;
+  streak: number;
+  points: number;
+  memorization_level: string;
+  current_goal: string;
+  goal_progress: number;
+  today_record: {
+    attendance: string;
+    quality: string;
+    result: string;
+    surah_name: string;
+    achieved_verses: number;
+    required_verses: number;
+  } | null;
+  // Legacy compat
+  memorized_ajza?: number;
+  review_count?: number;
   longest_streak?: number;
-  total_present?: number;
-  total_absent?: number;
-  total_required_verses?: number;
-  total_achieved_verses?: number;
 }
 
 export interface HistoryEntry {

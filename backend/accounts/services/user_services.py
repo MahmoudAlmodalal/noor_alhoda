@@ -26,6 +26,14 @@ def user_create(*, creator: User, **data) -> User:
         raise ValidationError({"phone_number": "رقم الجوال مسجل مسبقاً."})
 
     role = data.get("role", "student")
+
+    # Prevent creating student users directly — use student_create() instead
+    # to ensure a Student profile is always created alongside the User.
+    if role == "student" and not data.get("_internal_student_create"):
+        raise ValidationError(
+            {"role": "لإنشاء حساب طالب، استخدم صفحة تسجيل الطلاب."}
+        )
+
     password = data.get("password") if data.get("password") is not None else phone_number[-4:]
     if data.get("password") is None:
         logger.info("Created user %s with default password = last 4 digits of phone.", phone_number)
