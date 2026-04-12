@@ -3,6 +3,7 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { useApi } from "@/hooks/useApi";
 import { PageLoading } from "@/components/ui/LoadingSpinner";
+import type { StudentStats } from "@/types/api";
 import {
     Award,
     BookOpen,
@@ -13,42 +14,53 @@ import {
     Trophy,
 } from "lucide-react";
 
-type Attendance = "present" | "absent" | "upcoming";
-type ResultKey = "pass" | "none";
-type Rating = "excellent" | "very_good" | "good" | "none";
+type Attendance = "present" | "absent" | "late" | "excused" | "upcoming";
+type ResultKey = "pass" | "fail" | "pending" | "none";
+type Quality = "excellent" | "good" | "acceptable" | "weak" | "none";
 
 interface WeeklyRow {
     day: string;
     attendance: Attendance;
     required: string;
     achieved: string;
-    evaluation: Rating;
+    evaluation: Quality;
     result: ResultKey;
+}
+
+interface WeeklySummaryResponse {
+    student_id: string;
+    student_name: string;
+    week_start: string;
+    week_number?: number;
+    total_required?: number;
+    total_achieved?: number;
+    completion_rate?: number;
+    days: WeeklyRow[];
+    message?: string;
 }
 
 interface HistoryRow {
     id: number | string;
     title: string;
     date: string;
-    rating: Rating;
+    rating: "excellent" | "very_good" | "good" | "none";
 }
 
-const FIGMA_WEEKLY: WeeklyRow[] = [
-    { day: "السبت", attendance: "present", required: "5 آيات", achieved: "5 آيات", evaluation: "excellent", result: "pass" },
-    { day: "الأحد", attendance: "present", required: "5 آيات", achieved: "5 آيات", evaluation: "very_good", result: "pass" },
-    { day: "الإثنين", attendance: "present", required: "مراجعة وجه", achieved: "وجه كامل", evaluation: "excellent", result: "pass" },
-    { day: "الثلاثاء", attendance: "present", required: "5 آيات", achieved: "5 آيات", evaluation: "excellent", result: "pass" },
-    { day: "الأربعاء", attendance: "absent", required: "-", achieved: "-", evaluation: "none", result: "none" },
-    { day: "الخميس", attendance: "upcoming", required: "مراجعة", achieved: "-", evaluation: "none", result: "none" },
-];
+interface StudentProfile {
+    full_name?: string;
+    grade?: string;
+    ring_name?: string;
+    teacher_name?: string;
+}
 
-const FIGMA_HISTORY: HistoryRow[] = [
-    { id: 1, title: "تسميع سورة الملك (1-10)", date: "12 شعبان 1447", rating: "excellent" },
-    { id: 2, title: "مراجعة سورة القلم", date: "11 شعبان 1447", rating: "very_good" },
-    { id: 3, title: "تسميع سورة الحاقة", date: "10 شعبان 1447", rating: "excellent" },
-    { id: 4, title: "مراجعة جزء تبارك", date: "9 شعبان 1447", rating: "good" },
-    { id: 5, title: "تسميع سورة الملك (11-20)", date: "8 شعبان 1447", rating: "excellent" },
-];
+/** Calculate the Saturday (week start) for a given date */
+function getSaturday(date: Date): string {
+    const day = date.getDay(); // 0=Sun, 6=Sat
+    const diff = (day + 1) % 7; // days since Saturday
+    const saturday = new Date(date);
+    saturday.setDate(date.getDate() - diff);
+    return saturday.toISOString().split("T")[0];
+}
 
 function AttendancePill({ value }: { value: Attendance }) {
     if (value === "present") {
@@ -58,10 +70,24 @@ function AttendancePill({ value }: { value: Attendance }) {
             </span>
         );
     }
+    if (value === "late") {
+        return (
+            <span className="inline-block rounded-[4px] bg-[#fef3c7] px-2 py-1 text-[12px] font-bold text-[#b45309]">
+                متأخر
+            </span>
+        );
+    }
     if (value === "absent") {
         return (
             <span className="inline-block rounded-[4px] bg-[#ffe2e2] px-2 py-1 text-[12px] font-bold text-[#c10007]">
                 غائب
+            </span>
+        );
+    }
+    if (value === "excused") {
+        return (
+            <span className="inline-block rounded-[4px] bg-[#e0e7ff] px-2 py-1 text-[12px] font-bold text-[#4338ca]">
+                مستأذن
             </span>
         );
     }
@@ -80,6 +106,20 @@ function ResultPill({ value }: { value: ResultKey }) {
             </span>
         );
     }
+    if (value === "fail") {
+        return (
+            <span className="inline-block rounded-[4px] bg-[#ffe2e2] px-2 py-1 text-[12px] font-bold text-[#c10007]">
+                راسب
+            </span>
+        );
+    }
+    if (value === "pending") {
+        return (
+            <span className="inline-block rounded-[4px] bg-[#fef3c7] px-2 py-1 text-[12px] font-bold text-[#b45309]">
+                معلّق
+            </span>
+        );
+    }
     return (
         <span className="inline-block rounded-[4px] bg-[#f3f4f6] px-2 py-1 text-[12px] font-bold text-[#6a7282]">
             -
@@ -87,20 +127,39 @@ function ResultPill({ value }: { value: ResultKey }) {
     );
 }
 
-function RatingText({ value }: { value: Rating }) {
+const QUALITY_LABELS: Record<string, string> = {
+    excellent: "ممتاز",
+    good: "جيد جداً",
+    acceptable: "جيد",
+    weak: "ضعيف",
+    none: "-",
+};
+
+const QUALITY_STARS: Record<string, number> = {
+    excellent: 3,
+    good: 2,
+    acceptable: 1,
+    weak: 0,
+    none: 0,
+};
+
+function RatingText({ value }: { value: Quality }) {
     if (value === "excellent") {
         return <span className="text-[16px] font-bold text-[#2f944d]">ممتاز</span>;
     }
-    if (value === "very_good") {
+    if (value === "good") {
         return <span className="text-[16px] font-bold text-[#0b5394]">جيد جداً</span>;
     }
-    if (value === "good") {
+    if (value === "acceptable") {
         return <span className="text-[16px] font-bold text-[#ca3500]">جيد</span>;
+    }
+    if (value === "weak") {
+        return <span className="text-[16px] font-bold text-[#c10007]">ضعيف</span>;
     }
     return <span className="text-[16px] font-bold text-[#6a7282]">-</span>;
 }
 
-function RatingPill({ value }: { value: Rating }) {
+function RatingPill({ value }: { value: string }) {
     if (value === "excellent") {
         return (
             <span className="inline-block rounded-[10px] bg-[#dcfce7] px-3 py-1 text-[14px] font-bold text-[#008236]">
@@ -157,44 +216,22 @@ function StatsTile({
     );
 }
 
-interface StudentProfile {
-    full_name?: string;
-    grade?: string;
-    ring_name?: string;
-    teacher_name?: string;
-}
-
-interface StudentStatsLike {
-    points?: number | string;
-    memorized_parts?: number;
-    streak?: number;
-    class_rank?: number;
-    current_goal?: string;
-    goal_progress?: number;
-    memorization_level?: string;
-    total_absent?: number;
-    total_present?: number;
-    avg_grade?: string;
-    overall_rate?: string;
-}
-
 export default function StudentDashboard() {
     const { user } = useAuth();
 
-    // For students, we need their profile ID, not their user ID
     const studentProfileId = user?.student_profile?.id;
 
     const { data: profile, isLoading: isProfileLoading } = useApi<StudentProfile>(
         studentProfileId ? `/api/students/${studentProfileId}/` : null
     );
 
-    const { data: stats, isLoading: isStatsLoading } = useApi<StudentStatsLike>(
+    const { data: stats, isLoading: isStatsLoading } = useApi<StudentStats>(
         studentProfileId ? `/api/students/${studentProfileId}/stats/` : null
     );
 
-    const { data: weeklyPlan } = useApi<WeeklyRow[]>(
+    const { data: weeklyPlan } = useApi<WeeklySummaryResponse>(
         studentProfileId ? `/api/records/weekly-summary/${studentProfileId}/` : null,
-        { week_start: new Date().toISOString().split("T")[0] }
+        { week_start: getSaturday(new Date()) }
     );
 
     const { data: history } = useApi<HistoryRow[]>(
@@ -208,27 +245,28 @@ export default function StudentDashboard() {
     const firstName =
         profile?.full_name?.split(" ")[0] ||
         user?.full_name?.split(" ")[0] ||
-        "عمر";
-    const fullName = profile?.full_name || user?.full_name || "أحمد محمد";
-    const memorizationLevel = stats?.memorization_level || "جزء عم - ممتاز";
+        "طالب";
+    const fullName = profile?.full_name || user?.full_name || "";
+    const memorizationLevel = stats?.memorization_level || "-";
     const subtitleParts = [
-        profile?.grade || "الصف الأول المتوسط",
-        profile?.ring_name || "حلقة الفجر",
-        profile?.teacher_name ? `الشيخ ${profile.teacher_name}` : "الشيخ محمد عبدالله",
-    ];
+        profile?.grade || "",
+        profile?.ring_name || "",
+        profile?.teacher_name ? `الشيخ ${profile.teacher_name}` : "",
+    ].filter(Boolean);
 
-    const points = stats?.points ?? "1,250";
-    const memorizedParts = stats?.memorized_parts ?? 3;
-    const streak = stats?.streak ?? 30;
-    const absentDays = stats?.total_absent ?? 2;
-    const studyDays = stats?.total_present ?? 14;
-    const currentGoal = stats?.current_goal || "حفظ سورة الملك";
-    const goalProgress = stats?.goal_progress ?? 80;
+    const points = stats?.points ?? 0;
+    const memorizedParts = stats?.memorized_parts ?? 0;
+    const streak = stats?.streak ?? 0;
+    const absentDays = stats?.total_absent ?? 0;
+    const studyDays = stats?.total_present ?? 0;
+    const currentGoal = stats?.current_goal || "لم يتم تحديد هدف بعد";
+    const goalProgress = stats?.goal_progress ?? 0;
 
-    const planRows: WeeklyRow[] =
-        weeklyPlan && weeklyPlan.length ? weeklyPlan : FIGMA_WEEKLY;
-    const historyRows: HistoryRow[] =
-        history && history.length ? history : FIGMA_HISTORY;
+    const planRows: WeeklyRow[] = weeklyPlan?.days?.length ? weeklyPlan.days : [];
+    const historyRows: HistoryRow[] = history?.length ? history : [];
+
+    // Today's evaluation from stats
+    const todayRecord = stats?.today_record;
 
     return (
         <div className="mx-auto max-w-md space-y-8 pb-24" dir="rtl">
@@ -261,9 +299,11 @@ export default function StudentDashboard() {
                     <h2 className="text-[24px] font-bold leading-8 text-[#0b5394]">
                         السلام عليكم، {fullName}
                     </h2>
-                    <p className="text-[14px] text-[#6a7282]">
-                        {subtitleParts.join(" • ")}
-                    </p>
+                    {subtitleParts.length > 0 && (
+                        <p className="text-[14px] text-[#6a7282]">
+                            {subtitleParts.join(" • ")}
+                        </p>
+                    )}
                 </div>
                 <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border border-[#eabd5b] bg-[#fcf8ef] text-[30px]">
                     👤
@@ -282,7 +322,7 @@ export default function StudentDashboard() {
                     icon={<Star className="h-6 w-6 fill-[#eabd5b] text-[#eabd5b]" />}
                     tileBg="bg-[#fefce8]"
                     label="النقاط"
-                    value={points}
+                    value={points.toLocaleString("ar-SA")}
                 />
                 <StatsTile
                     icon={<Flame className="h-6 w-6 text-[#f43f5e]" />}
@@ -339,7 +379,7 @@ export default function StudentDashboard() {
                 <div className="h-2 w-full rounded-full bg-[#f3f4f6]">
                     <div
                         className="h-full rounded-full bg-primary"
-                        style={{ width: `${goalProgress}%` }}
+                        style={{ width: `${Math.min(goalProgress, 100)}%` }}
                     />
                 </div>
             </div>
@@ -350,28 +390,47 @@ export default function StudentDashboard() {
                     <Star className="h-5 w-5 text-[#eabd5b] fill-[#eabd5b]" />
                     <h3 className="text-[16px] font-bold text-[#1e2939]">تقييم اليوم</h3>
                 </div>
-                <div className="space-y-3">
-                    {[
-                        { label: "الحضور", value: "حاضر", stars: 3, color: "text-emerald-600" },
-                        { label: "الحفظ", value: stats?.avg_grade || "ممتاز", stars: 3, color: "text-[#0b5394]" },
-                        { label: "المراجعة", value: "جيد جداً", stars: 2, color: "text-[#0b5394]" },
-                    ].map(({ label, value, stars, color }) => (
-                        <div key={label} className="flex items-center justify-between">
-                            <span className="text-[13px] text-[#6a7282] font-medium">{label}</span>
-                            <div className="flex items-center gap-2">
-                                <span className={"text-[13px] font-bold " + color}>{value}</span>
-                                <div className="flex gap-0.5">
-                                    {[1, 2, 3].map((s) => (
-                                        <Star
-                                            key={s}
-                                            className={"h-3.5 w-3.5 " + (s <= stars ? "fill-[#eabd5b] text-[#eabd5b]" : "text-[#e5e7eb]")}
-                                        />
-                                    ))}
+                {todayRecord ? (
+                    <div className="space-y-3">
+                        {[
+                            {
+                                label: "الحضور",
+                                value: todayRecord.attendance === "present" ? "حاضر" : todayRecord.attendance === "late" ? "متأخر" : todayRecord.attendance === "absent" ? "غائب" : "مستأذن",
+                                stars: todayRecord.attendance === "present" ? 3 : todayRecord.attendance === "late" ? 2 : 0,
+                                color: todayRecord.attendance === "present" ? "text-emerald-600" : todayRecord.attendance === "late" ? "text-amber-600" : "text-rose-600",
+                            },
+                            {
+                                label: "الحفظ",
+                                value: QUALITY_LABELS[todayRecord.quality] || "-",
+                                stars: QUALITY_STARS[todayRecord.quality] || 0,
+                                color: "text-[#0b5394]",
+                            },
+                            {
+                                label: "المنجز",
+                                value: todayRecord.achieved_verses > 0 ? `${todayRecord.achieved_verses} آيات` : "-",
+                                stars: todayRecord.achieved_verses >= 5 ? 3 : todayRecord.achieved_verses >= 3 ? 2 : todayRecord.achieved_verses >= 1 ? 1 : 0,
+                                color: "text-[#0b5394]",
+                            },
+                        ].map(({ label, value, stars, color }) => (
+                            <div key={label} className="flex items-center justify-between">
+                                <span className="text-[13px] text-[#6a7282] font-medium">{label}</span>
+                                <div className="flex items-center gap-2">
+                                    <span className={"text-[13px] font-bold " + color}>{value}</span>
+                                    <div className="flex gap-0.5">
+                                        {[1, 2, 3].map((s) => (
+                                            <Star
+                                                key={s}
+                                                className={"h-3.5 w-3.5 " + (s <= stars ? "fill-[#eabd5b] text-[#eabd5b]" : "text-[#e5e7eb]")}
+                                            />
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    ))}
-                </div>
+                        ))}
+                    </div>
+                ) : (
+                    <p className="text-[13px] text-[#6a7282] text-center py-4">لا يوجد تقييم لليوم بعد</p>
+                )}
             </div>
 
             {/* 5. Weekly plan table */}
@@ -382,40 +441,44 @@ export default function StudentDashboard() {
                         الخطة الأسبوعية الحالية
                     </h3>
                 </div>
-                <div className="overflow-x-auto">
-                    <table className="w-full text-right">
-                        <thead>
-                            <tr className="border-b border-[#f3f4f6] text-[12px] font-bold text-[#6a7282]">
-                                <th className="pb-3 pr-2">اليوم</th>
-                                <th className="pb-3">الحضور</th>
-                                <th className="pb-3">المطلوب</th>
-                                <th className="pb-3">المنجز</th>
-                                <th className="pb-3">التقييم</th>
-                                <th className="pb-3 pl-2">النتيجة</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-[#f3f4f6]">
-                            {planRows.map((row, idx) => (
-                                <tr key={idx} className="text-[14px]">
-                                    <td className="py-4 pr-2 font-bold text-[#1e2939]">
-                                        {row.day}
-                                    </td>
-                                    <td className="py-4">
-                                        <AttendancePill value={row.attendance} />
-                                    </td>
-                                    <td className="py-4 text-[#1e2939]">{row.required}</td>
-                                    <td className="py-4 text-[#1e2939]">{row.achieved}</td>
-                                    <td className="py-4">
-                                        <RatingText value={row.evaluation} />
-                                    </td>
-                                    <td className="py-4 pl-2">
-                                        <ResultPill value={row.result} />
-                                    </td>
+                {planRows.length > 0 ? (
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-right">
+                            <thead>
+                                <tr className="border-b border-[#f3f4f6] text-[12px] font-bold text-[#6a7282]">
+                                    <th className="pb-3 pr-2">اليوم</th>
+                                    <th className="pb-3">الحضور</th>
+                                    <th className="pb-3">المطلوب</th>
+                                    <th className="pb-3">المنجز</th>
+                                    <th className="pb-3">التقييم</th>
+                                    <th className="pb-3 pl-2">النتيجة</th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
+                            </thead>
+                            <tbody className="divide-y divide-[#f3f4f6]">
+                                {planRows.map((row, idx) => (
+                                    <tr key={idx} className="text-[14px]">
+                                        <td className="py-4 pr-2 font-bold text-[#1e2939]">
+                                            {row.day}
+                                        </td>
+                                        <td className="py-4">
+                                            <AttendancePill value={row.attendance} />
+                                        </td>
+                                        <td className="py-4 text-[#1e2939]">{row.required}</td>
+                                        <td className="py-4 text-[#1e2939]">{row.achieved}</td>
+                                        <td className="py-4">
+                                            <RatingText value={row.evaluation} />
+                                        </td>
+                                        <td className="py-4 pl-2">
+                                            <ResultPill value={row.result} />
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                ) : (
+                    <p className="text-[13px] text-[#6a7282] text-center py-6">لا توجد خطة أسبوعية حالياً</p>
+                )}
             </div>
 
             {/* 6. History list */}
@@ -426,24 +489,28 @@ export default function StudentDashboard() {
                         آخر الإنجازات
                     </h3>
                 </div>
-                <div className="space-y-4">
-                    {historyRows.map((item) => (
-                        <div
-                            key={item.id}
-                            className="flex items-center justify-between rounded-[16px] border border-[#f3f4f6] p-4"
-                        >
-                            <div className="flex flex-col gap-1">
-                                <span className="text-[16px] font-bold text-[#1e2939]">
-                                    {item.title}
-                                </span>
-                                <span className="text-[12px] text-[#6a7282]">
-                                    {item.date}
-                                </span>
+                {historyRows.length > 0 ? (
+                    <div className="space-y-4">
+                        {historyRows.slice(0, 5).map((item) => (
+                            <div
+                                key={item.id}
+                                className="flex items-center justify-between rounded-[16px] border border-[#f3f4f6] p-4"
+                            >
+                                <div className="flex flex-col gap-1">
+                                    <span className="text-[16px] font-bold text-[#1e2939]">
+                                        {item.title}
+                                    </span>
+                                    <span className="text-[12px] text-[#6a7282]">
+                                        {item.date}
+                                    </span>
+                                </div>
+                                <RatingPill value={item.rating} />
                             </div>
-                            <RatingPill value={item.rating} />
-                        </div>
-                    ))}
-                </div>
+                        ))}
+                    </div>
+                ) : (
+                    <p className="text-[13px] text-[#6a7282] text-center py-6">لا توجد إنجازات مسجلة بعد</p>
+                )}
             </div>
         </div>
     );

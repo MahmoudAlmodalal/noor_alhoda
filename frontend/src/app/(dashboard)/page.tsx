@@ -79,7 +79,7 @@ export default function Dashboard() {
     isTeacher ? "/api/records/" : null,
     isTeacher ? { date: todayKey() } : undefined
   );
-  const { data: ringsData } = useApi<Ring[]>(isTeacher ? "/api/rings/" : null);
+  const { data: ringsData } = useApi<Ring[]>(isTeacher ? "/api/students/rings/" : null);
   const teacherRing = ringsData?.find((r) => r.teacher_id === teacherProfileId);
 
   // Roster table — admin sees all, teacher sees own
