@@ -15,8 +15,15 @@ interface BeforeInstallPromptEvent extends Event {
 
 function InstallButton() {
   const [prompt, setPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [installed, setInstalled] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
 
   useEffect(() => {
+    // Already installed as PWA
+    if (window.matchMedia("(display-mode: standalone)").matches) {
+      setInstalled(true);
+      return;
+    }
     const handler = (e: Event) => {
       e.preventDefault();
       setPrompt(e as BeforeInstallPromptEvent);
@@ -25,21 +32,50 @@ function InstallButton() {
     return () => window.removeEventListener("beforeinstallprompt", handler);
   }, []);
 
-  if (!prompt) return null;
+  if (installed) return null;
 
+  // Browser supports install prompt
+  if (prompt) {
+    return (
+      <button
+        type="button"
+        onClick={async () => {
+          await prompt.prompt();
+          const { outcome } = await prompt.userChoice;
+          if (outcome === "accepted") setInstalled(true);
+        }}
+        className="w-full flex items-center justify-center gap-2 border border-dashed border-slate-300 text-slate-600 text-sm font-bold py-3 rounded-xl hover:bg-slate-50 transition-colors"
+      >
+        <Download className="w-4 h-4" />
+        تثبيت التطبيق على جهازك
+      </button>
+    );
+  }
+
+  // Fallback: manual install guide
   return (
-    <button
-      type="button"
-      onClick={async () => {
-        await prompt.prompt();
-        const { outcome } = await prompt.userChoice;
-        if (outcome === "accepted") setPrompt(null);
-      }}
-      className="w-full flex items-center justify-center gap-2 border border-dashed border-slate-300 text-slate-600 text-sm font-bold py-3 rounded-xl hover:bg-slate-50 transition-colors"
-    >
-      <Download className="w-4 h-4" />
-      تثبيت التطبيق على جهازك
-    </button>
+    <div className="w-full">
+      <button
+        type="button"
+        onClick={() => setShowGuide((v) => !v)}
+        className="w-full flex items-center justify-center gap-2 border border-dashed border-slate-300 text-slate-600 text-sm font-bold py-3 rounded-xl hover:bg-slate-50 transition-colors"
+      >
+        <Download className="w-4 h-4" />
+        تثبيت التطبيق على جهازك
+      </button>
+      {showGuide && (
+        <div className="mt-2 text-xs text-slate-500 bg-slate-50 rounded-xl p-3 leading-6 text-right space-y-1">
+          <p className="font-bold text-slate-700">كيفية التثبيت:</p>
+          <p>
+            <span className="font-bold">Android Chrome:</span> القائمة (⋮) ← &quot;تثبيت التطبيق&quot;
+          </p>
+          <p>
+            <span className="font-bold">iOS Safari:</span> زر المشاركة (
+            <span className="font-bold">⎙</span>) ← &quot;إضافة إلى الشاشة الرئيسية&quot;
+          </p>
+        </div>
+      )}
+    </div>
   );
 }
 

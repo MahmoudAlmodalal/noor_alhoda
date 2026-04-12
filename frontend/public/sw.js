@@ -10,7 +10,13 @@ self.addEventListener('install', (event) => {
       ]);
     })
   );
-  self.skipWaiting();
+  // Don't skipWaiting automatically — wait for explicit trigger
+});
+
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 self.addEventListener('activate', (event) => {
