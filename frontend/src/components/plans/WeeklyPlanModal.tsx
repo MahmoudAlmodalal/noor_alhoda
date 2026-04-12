@@ -103,6 +103,7 @@ function WeeklyPlanModalContent({ isOpen, onClose, studentId, studentName, onCre
               placeholder="ابحث عن طالب..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
+              aria-label="ابحث عن طالب"
               className="h-12 rounded-xl border-slate-200"
             />
             {filteredStudents.length > 0 && !selectedId && (
@@ -140,6 +141,7 @@ function WeeklyPlanModalContent({ isOpen, onClose, studentId, studentName, onCre
             type="date"
             value={weekStart}
             onChange={(e) => setWeekStart(e.target.value)}
+            aria-label="بداية الأسبوع"
             className="h-12 rounded-xl border-slate-200"
             dir="ltr"
           />
@@ -155,6 +157,7 @@ function WeeklyPlanModalContent({ isOpen, onClose, studentId, studentName, onCre
             min={1}
             value={totalRequired}
             onChange={(e) => setTotalRequired(Number(e.target.value))}
+            aria-label="عدد الآيات المطلوبة"
             className="h-12 rounded-xl border-slate-200"
             dir="ltr"
           />

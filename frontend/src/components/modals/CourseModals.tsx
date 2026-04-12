@@ -18,7 +18,7 @@ export function AddCourseModal({
   onSuccess?: () => void;
 }) {
   const [form, setForm] = useState({ name: "", description: "" });
-  const { mutate, isSubmitting, fieldErrors, reset } = useMutation(
+  const { mutate, isSubmitting, fieldErrors, reset, error } = useMutation(
     "post",
     "/api/courses/create/"
   );
@@ -42,6 +42,7 @@ export function AddCourseModal({
           <Input
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
+            aria-label="اسم الدورة"
             className="h-12 rounded-xl border-slate-200"
           />
           {fieldErrors?.name && <p className="text-xs text-red-500">{fieldErrors.name}</p>}
@@ -51,11 +52,16 @@ export function AddCourseModal({
           <textarea
             value={form.description}
             onChange={(e) => setForm({ ...form, description: e.target.value })}
+            aria-label="وصف الدورة"
             rows={4}
             className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 resize-none"
           />
         </div>
       </div>
+
+      {error && !fieldErrors && (
+        <p className="text-sm text-red-500 mb-4">{error}</p>
+      )}
 
       <div className="flex items-center gap-3">
         <Button
@@ -93,7 +99,7 @@ export function EditCourseModal({
     name: course.name,
     description: course.description || "",
   });
-  const { mutate, isSubmitting, fieldErrors } = useMutation("patch");
+  const { mutate, isSubmitting, fieldErrors, error } = useMutation("patch");
 
   const handleSubmit = async () => {
     const result = await mutate(form, {
@@ -115,6 +121,7 @@ export function EditCourseModal({
           <Input
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
+            aria-label="اسم الدورة"
             className="h-12 rounded-xl border-slate-200 font-medium"
           />
           {fieldErrors?.name && <p className="text-xs text-red-500">{fieldErrors.name}</p>}
@@ -124,11 +131,16 @@ export function EditCourseModal({
           <textarea
             value={form.description}
             onChange={(e) => setForm({ ...form, description: e.target.value })}
+            aria-label="وصف الدورة"
             rows={4}
             className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 resize-none"
           />
         </div>
       </div>
+
+      {error && !fieldErrors && (
+        <p className="text-sm text-red-500 mb-4">{error}</p>
+      )}
 
       <div className="flex items-center gap-3">
         <Button

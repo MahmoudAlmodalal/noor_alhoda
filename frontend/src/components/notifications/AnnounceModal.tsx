@@ -59,6 +59,7 @@ export function AnnounceModal({
           <select
             value={audience}
             onChange={(e) => setAudience(e.target.value as Audience)}
+            aria-label="الجمهور"
             className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
           >
             <option value="all">الجميع</option>
@@ -73,6 +74,7 @@ export function AnnounceModal({
           <Input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
+            aria-label="عنوان الإعلان"
             className="h-12 rounded-xl border-slate-200"
           />
           {fieldErrors?.title && (
@@ -85,6 +87,7 @@ export function AnnounceModal({
           <textarea
             value={body}
             onChange={(e) => setBody(e.target.value)}
+            aria-label="رسالة الإعلان"
             rows={4}
             className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 resize-none"
           />

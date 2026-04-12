@@ -20,7 +20,7 @@ export function AssignRingModal({
 }) {
   const [ringId, setRingId] = useState("");
   const { data: rings } = useApi<Ring[]>(isOpen ? "/api/students/rings/" : null);
-  const { mutate, isSubmitting } = useMutation("patch");
+  const { mutate, isSubmitting, error } = useMutation("patch");
 
   const handleSubmit = async () => {
     if (!ringId) return;
@@ -44,6 +44,7 @@ export function AssignRingModal({
         <select
           value={ringId}
           onChange={(e) => setRingId(e.target.value)}
+          aria-label="اختر الحلقة"
           className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
         >
           <option value="">— اختر الحلقة —</option>
@@ -52,6 +53,9 @@ export function AssignRingModal({
           ))}
         </select>
       </div>
+      {error && (
+        <p className="text-sm text-red-500 mb-4">{error}</p>
+      )}
       <div className="flex items-center gap-3">
         <Button variant="ghost" onClick={onClose} className="flex-1 bg-slate-100/80 text-slate-700 hover:bg-slate-200 h-12 rounded-xl font-bold">
           إلغاء
@@ -76,7 +80,7 @@ export function AddTeacherModal({ isOpen, onClose, onSuccess }: { isOpen: boolea
     specialization: "",
   });
 
-  const { mutate, isSubmitting, fieldErrors, reset } = useMutation("post", "/api/users/teachers/create/");
+  const { mutate, isSubmitting, fieldErrors, reset, error } = useMutation("post", "/api/users/teachers/create/");
 
   const handleSubmit = async () => {
     const nameParts = form.full_name.trim().split(" ");
@@ -103,24 +107,28 @@ export function AddTeacherModal({ isOpen, onClose, onSuccess }: { isOpen: boolea
       <div className="space-y-4 mb-8">
         <div className="space-y-1.5">
           <label className="block text-sm font-bold text-slate-800">الاسم الرباعي</label>
-          <Input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} className="h-12 rounded-xl border-slate-200" />
+          <Input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} aria-label="الاسم الرباعي" className="h-12 rounded-xl border-slate-200" />
           {fieldErrors?.full_name && <p className="text-xs text-red-500">{fieldErrors.full_name}</p>}
         </div>
         <div className="space-y-1.5">
           <label className="block text-sm font-bold text-slate-800">رقم الجوال</label>
-          <Input type="tel" dir="ltr" value={form.phone_number} onChange={(e) => setForm({ ...form, phone_number: e.target.value })} className="h-12 rounded-xl border-slate-200" />
+          <Input type="tel" dir="ltr" value={form.phone_number} onChange={(e) => setForm({ ...form, phone_number: e.target.value })} aria-label="رقم الجوال" className="h-12 rounded-xl border-slate-200" />
           {fieldErrors?.phone_number && <p className="text-xs text-red-500">{fieldErrors.phone_number}</p>}
         </div>
         <div className="space-y-1.5">
           <label className="block text-sm font-bold text-slate-800">كلمة المرور</label>
-          <Input type="password" dir="ltr" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className="h-12 rounded-xl border-slate-200" />
+          <Input type="password" dir="ltr" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} aria-label="كلمة المرور" className="h-12 rounded-xl border-slate-200" />
           {fieldErrors?.password && <p className="text-xs text-red-500">{fieldErrors.password}</p>}
         </div>
         <div className="space-y-1.5">
           <label className="block text-sm font-bold text-slate-800">التخصص (اختياري)</label>
-          <Input value={form.specialization} onChange={(e) => setForm({ ...form, specialization: e.target.value })} className="h-12 rounded-xl border-slate-200" />
+          <Input value={form.specialization} onChange={(e) => setForm({ ...form, specialization: e.target.value })} aria-label="التخصص" className="h-12 rounded-xl border-slate-200" />
         </div>
       </div>
+
+      {error && !fieldErrors && (
+        <p className="text-sm text-red-500 mb-4">{error}</p>
+      )}
 
       <div className="flex items-center gap-3">
         <Button variant="ghost" onClick={onClose} className="flex-1 bg-slate-100/80 text-slate-700 hover:bg-slate-200 h-12 rounded-xl font-bold">
@@ -143,7 +151,7 @@ export function ConfirmDeleteModal({
 }: {
   isOpen: boolean; onClose: () => void; targetName: string; deleteEndpoint?: string; onSuccess?: () => void;
 }) {
-  const { mutate, isSubmitting } = useMutation("delete");
+  const { mutate, isSubmitting, error } = useMutation("delete");
 
   const handleDelete = async () => {
     if (!deleteEndpoint) return;
@@ -165,6 +173,10 @@ export function ConfirmDeleteModal({
       <p className="text-lg text-slate-600 font-medium mb-8">
         هل أنت متأكد من حذف <br /> <span className="font-bold text-primary">{targetName}</span>؟
       </p>
+
+      {error && (
+        <p className="text-sm text-red-500 mb-4">{error}</p>
+      )}
 
       <div className="flex items-center gap-3">
         <Button variant="ghost" onClick={onClose} disabled={isSubmitting} className="flex-1 bg-slate-100/80 text-slate-700 hover:bg-slate-200 h-14 rounded-2xl font-bold text-lg">
@@ -194,7 +206,7 @@ export function EditTeacherModal({
     specialization: teacher.specialization || "",
   });
 
-  const { mutate, isSubmitting, fieldErrors } = useMutation("patch");
+  const { mutate, isSubmitting, fieldErrors, error } = useMutation("patch");
 
   const handleSubmit = async () => {
     const nameParts = form.full_name.trim().split(" ");
@@ -223,24 +235,28 @@ export function EditTeacherModal({
       <div className="space-y-4 mb-8">
         <div className="space-y-1.5">
           <label className="block text-sm font-bold text-slate-800">الاسم الرباعي</label>
-          <Input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} className="h-12 rounded-xl border-slate-200 font-medium" />
+          <Input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} aria-label="الاسم الرباعي" className="h-12 rounded-xl border-slate-200 font-medium" />
           {fieldErrors?.full_name && <p className="text-xs text-red-500">{fieldErrors.full_name}</p>}
         </div>
         <div className="space-y-1.5">
           <label className="block text-sm font-bold text-slate-800">رقم الجوال</label>
-          <Input type="tel" dir="ltr" value={form.phone_number} onChange={(e) => setForm({ ...form, phone_number: e.target.value })} className="h-12 rounded-xl border-slate-200 font-medium" />
+          <Input type="tel" dir="ltr" value={form.phone_number} onChange={(e) => setForm({ ...form, phone_number: e.target.value })} aria-label="رقم الجوال" className="h-12 rounded-xl border-slate-200 font-medium" />
           {fieldErrors?.phone_number && <p className="text-xs text-red-500">{fieldErrors.phone_number}</p>}
         </div>
         <div className="space-y-1.5">
           <label className="block text-sm font-bold text-slate-800">كلمة المرور</label>
-          <Input type="password" dir="ltr" placeholder="اتركه فارغاً إذا لم ترد التغيير" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className="h-12 rounded-xl border-slate-200 font-medium" />
+          <Input type="password" dir="ltr" placeholder="اتركه فارغاً إذا لم ترد التغيير" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} aria-label="كلمة المرور" className="h-12 rounded-xl border-slate-200 font-medium" />
           {fieldErrors?.password && <p className="text-xs text-red-500">{fieldErrors.password}</p>}
         </div>
         <div className="space-y-1.5">
           <label className="block text-sm font-bold text-slate-800">التخصص</label>
-          <Input value={form.specialization} onChange={(e) => setForm({ ...form, specialization: e.target.value })} className="h-12 rounded-xl border-slate-200 font-medium" />
+          <Input value={form.specialization} onChange={(e) => setForm({ ...form, specialization: e.target.value })} aria-label="التخصص" className="h-12 rounded-xl border-slate-200 font-medium" />
         </div>
       </div>
+
+      {error && !fieldErrors && (
+        <p className="text-sm text-red-500 mb-4">{error}</p>
+      )}
 
       <div className="flex items-center gap-3">
         <Button variant="ghost" onClick={onClose} className="flex-1 bg-slate-100/80 text-slate-700 hover:bg-slate-200 h-12 rounded-xl font-bold">

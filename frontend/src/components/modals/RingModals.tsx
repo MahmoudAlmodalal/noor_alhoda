@@ -20,7 +20,7 @@ export function AddRingModal({ isOpen, onClose, onSuccess }: { isOpen: boolean; 
   });
 
   const { data: teachers } = useApi<Teacher[]>(isOpen ? "/api/users/teachers/" : null);
-  const { mutate, isSubmitting, fieldErrors, reset } = useMutation("post", "/api/students/rings/create/");
+  const { mutate, isSubmitting, fieldErrors, reset, error } = useMutation("post", "/api/students/rings/create/");
 
   const handleSubmit = async () => {
     const payload: { name: string; level: string; teacher_id?: string | null } = {
@@ -43,18 +43,19 @@ export function AddRingModal({ isOpen, onClose, onSuccess }: { isOpen: boolean; 
       <div className="space-y-4 mb-8">
         <div className="space-y-1.5">
           <label className="block text-sm font-bold text-slate-800">اسم الحلقة</label>
-          <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="h-12 rounded-xl border-slate-200" />
+          <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} aria-label="اسم الحلقة" className="h-12 rounded-xl border-slate-200" />
           {fieldErrors?.name && <p className="text-xs text-red-500">{fieldErrors.name}</p>}
         </div>
         <div className="space-y-1.5">
           <label className="block text-sm font-bold text-slate-800">المستوى</label>
-          <Input value={form.level} onChange={(e) => setForm({ ...form, level: e.target.value })} className="h-12 rounded-xl border-slate-200" />
+          <Input value={form.level} onChange={(e) => setForm({ ...form, level: e.target.value })} aria-label="مستوى الحلقة" className="h-12 rounded-xl border-slate-200" />
         </div>
         <div className="space-y-1.5">
           <label className="block text-sm font-bold text-slate-800">المحفظ المسؤول <span className="text-slate-400 font-normal">(اختياري)</span></label>
           <select
             value={form.teacher_id}
             onChange={(e) => setForm({ ...form, teacher_id: e.target.value })}
+            aria-label="المحفظ المسؤول"
             className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
           >
             <option value="">— اختر المحفظ —</option>
@@ -64,6 +65,10 @@ export function AddRingModal({ isOpen, onClose, onSuccess }: { isOpen: boolean; 
           </select>
         </div>
       </div>
+
+      {error && !fieldErrors && (
+        <p className="text-sm text-red-500 mb-4">{error}</p>
+      )}
 
       <div className="flex items-center gap-3">
         <Button variant="ghost" onClick={onClose} className="flex-1 bg-slate-100/80 text-slate-700 hover:bg-slate-200 h-12 rounded-xl font-bold">
@@ -94,7 +99,7 @@ export function EditRingModal({
   });
 
   const { data: teachers } = useApi<Teacher[]>(isOpen ? "/api/users/teachers/" : null);
-  const { mutate, isSubmitting, fieldErrors } = useMutation("patch");
+  const { mutate, isSubmitting, fieldErrors, error } = useMutation("patch");
 
   const handleSubmit = async () => {
     const result = await mutate(
@@ -116,18 +121,19 @@ export function EditRingModal({
       <div className="space-y-4 mb-8">
         <div className="space-y-1.5">
           <label className="block text-sm font-bold text-slate-800">اسم الحلقة</label>
-          <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="h-12 rounded-xl border-slate-200 font-medium" />
+          <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} aria-label="اسم الحلقة" className="h-12 rounded-xl border-slate-200 font-medium" />
           {fieldErrors?.name && <p className="text-xs text-red-500">{fieldErrors.name}</p>}
         </div>
         <div className="space-y-1.5">
           <label className="block text-sm font-bold text-slate-800">المستوى</label>
-          <Input value={form.level} onChange={(e) => setForm({ ...form, level: e.target.value })} className="h-12 rounded-xl border-slate-200 font-medium" />
+          <Input value={form.level} onChange={(e) => setForm({ ...form, level: e.target.value })} aria-label="مستوى الحلقة" className="h-12 rounded-xl border-slate-200 font-medium" />
         </div>
         <div className="space-y-1.5">
           <label className="block text-sm font-bold text-slate-800">المحفظ المسؤول <span className="text-slate-400 font-normal">(اختياري)</span></label>
           <select
             value={form.teacher_id}
             onChange={(e) => setForm({ ...form, teacher_id: e.target.value })}
+            aria-label="المحفظ المسؤول"
             className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
           >
             <option value="">— اختر المحفظ —</option>
@@ -146,6 +152,7 @@ export function EditRingModal({
                 status: e.target.value as Ring["status"],
               })
             }
+            aria-label="حالة الحلقة"
             className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
           >
             <option value="active">نشطة</option>
@@ -153,6 +160,10 @@ export function EditRingModal({
           </select>
         </div>
       </div>
+
+      {error && !fieldErrors && (
+        <p className="text-sm text-red-500 mb-4">{error}</p>
+      )}
 
       <div className="flex items-center gap-3">
         <Button variant="ghost" onClick={onClose} className="flex-1 bg-slate-100/80 text-slate-700 hover:bg-slate-200 h-12 rounded-xl font-bold">
