@@ -1,25 +1,18 @@
 import io
 from pathlib import Path
 
-import arabic_reshaper
-from bidi.algorithm import get_display
-from reportlab.lib import colors
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import cm
-from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-
 from students.models import Student
 from records.models import WeeklyPlan, DailyRecord
 
 FONT_PATH = Path(__file__).resolve().parent.parent.parent / "fonts" / "Amiri-Regular.ttf"
-pdfmetrics.registerFont(TTFont("Arabic", str(FONT_PATH)))
+_font_registered = False
 
 
 def _ar(text: str) -> str:
     """Reshape and apply BiDi algorithm so Arabic renders correctly in PDF."""
+    import arabic_reshaper
+    from bidi.algorithm import get_display
+
     reshaped = arabic_reshaper.reshape(str(text))
     return get_display(reshaped)
 
@@ -29,6 +22,19 @@ def generate_student_pdf(*, student_id) -> bytes:
     Generate a PDF report for a student (feature 5.5).
     Contains student info + memorization history table.
     """
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import cm
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+
+    global _font_registered
+    if not _font_registered:
+        pdfmetrics.registerFont(TTFont("Arabic", str(FONT_PATH)))
+        _font_registered = True
+
     student = Student.objects.select_related("user", "teacher").get(id=student_id)
 
     buffer = io.BytesIO()
