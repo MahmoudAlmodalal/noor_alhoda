@@ -65,7 +65,7 @@ export interface Ring {
 export interface Teacher {
   id: string;
   user_id: string;
-  phone_number: string;
+  phone_number?: string;
   full_name: string;
   specialization: string;
   session_days: string[];
