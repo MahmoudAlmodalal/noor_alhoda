@@ -88,7 +88,7 @@ export default function Dashboard() {
   }, [debouncedSearch, isTeacher, teacherProfileId]);
 
   const { data: rosterData, isLoading: rosterLoading, refetch: refetchRoster } = useApi<Student[]>(
-    "/api/students/"
+    isAdmin || isTeacher ? "/api/students/" : null
   );
   useEffect(() => {
     refetchRoster(rosterParams);

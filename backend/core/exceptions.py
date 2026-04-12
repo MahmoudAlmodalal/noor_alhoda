@@ -49,8 +49,13 @@ def custom_exception_handler(exc, context):
 
 
 def _get_error_message(response):
-    """Return a human-readable error message based on status code."""
-    messages = {
+    """Return the actual error message from the response, falling back to a generic one."""
+    data = response.data
+    if isinstance(data, dict):
+        msg = data.get("detail") or data.get("message")
+        if msg:
+            return str(msg)
+    fallback = {
         400: "طلب غير صالح",
         401: "غير مصرح - يرجى تسجيل الدخول",
         403: "ليس لديك صلاحية للوصول",
@@ -58,4 +63,4 @@ def _get_error_message(response):
         405: "الطريقة غير مسموحة",
         429: "عدد الطلبات تجاوز الحد المسموح",
     }
-    return messages.get(response.status_code, "حدث خطأ")
+    return fallback.get(response.status_code, "حدث خطأ")

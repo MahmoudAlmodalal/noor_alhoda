@@ -15,7 +15,7 @@ interface AuthContextValue {
   user: UserProfile | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: (phone_number: string, password: string) => Promise<string | null>;
+  login: (phone_number: string, password: string) => Promise<{ error: string | null; role: string | null }>;
   logout: () => Promise<void>;
 }
 
@@ -92,20 +92,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = useCallback(
-    async (phone_number: string, password: string): Promise<string | null> => {
+    async (phone_number: string, password: string): Promise<{ error: string | null; role: string | null }> => {
       const res = await api.login({ phone_number, password });
 
       if (res.success) {
         // بعد تسجيل الدخول نجلب الـ profile الكامل للحصول على IDs
         const meSuccess = await fetchMe();
+        const role = meSuccess
+          ? res.data.user.role  // role from login (me() updates state async)
+          : res.data.user.role;
         if (!meSuccess) {
           // تعذّر جلب الـ profile لكن تسجيل الدخول نجح — استخدم البيانات الأساسية
           setUser(res.data.user);
         }
-        return null;
+        return { error: null, role };
       }
 
-      return res.error.message;
+      return { error: res.error.message, role: null };
     },
     [fetchMe]
   );

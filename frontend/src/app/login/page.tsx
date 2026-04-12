@@ -36,13 +36,17 @@ function LoginForm() {
     }
 
     setIsSubmitting(true);
-    const errorMsg = await login(phone, password);
+    const { error: errorMsg, role } = await login(phone, password);
     setIsSubmitting(false);
 
     if (errorMsg) {
       setError(errorMsg);
     } else {
-      router.push("/");
+      if (role === "student") {
+        router.push("/student");
+      } else {
+        router.push("/");
+      }
     }
   };
 
