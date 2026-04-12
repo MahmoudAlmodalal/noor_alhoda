@@ -4,6 +4,7 @@ from django.db import transaction
 from rest_framework.exceptions import ValidationError, PermissionDenied
 
 from accounts.models import User, Teacher, Parent
+from accounts.utils import normalize_phone
 from core.permissions import is_admin_user
 
 logger = logging.getLogger(__name__)
@@ -17,7 +18,7 @@ def user_create(*, creator: User, **data) -> User:
     if not is_admin_user(creator):
         raise PermissionDenied("فقط المدير يمكنه إنشاء حسابات جديدة.")
 
-    phone_number = data.get("phone_number")
+    phone_number = normalize_phone(data.get("phone_number", ""))
     if not phone_number:
         raise ValidationError({"phone_number": "رقم الجوال مطلوب."})
 

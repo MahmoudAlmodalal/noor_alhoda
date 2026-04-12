@@ -10,6 +10,7 @@ from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.token_blacklist.models import OutstandingToken, BlacklistedToken
 
 from accounts.models import User, OTPCode
+from accounts.utils import normalize_phone
 from core.permissions import is_admin_user
 
 
@@ -20,13 +21,7 @@ def user_login(*, phone: str, password: str) -> dict:
     FR-02: Access token 60min, Refresh token 7 days
     FR-03: Block after 5 failed attempts for 15 minutes (TODO: implement with django-ratelimit)
     """
-    phone = (phone or "").strip().replace(" ", "").replace("-", "")
-    if phone.startswith("+966"):
-        phone = "0" + phone[4:]
-    elif phone.startswith("966"):
-        phone = "0" + phone[3:]
-    elif phone.startswith("5") and len(phone) == 9:
-        phone = "0" + phone
+    phone = normalize_phone(phone)
 
     try:
         user = User.objects.get(phone_number=phone)

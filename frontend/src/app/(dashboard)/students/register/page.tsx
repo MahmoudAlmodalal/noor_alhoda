@@ -121,7 +121,7 @@ function StudentRegistrationInner() {
       password: "nooralhuda2026",
     };
 
-    const result = await mutate(body, { successMessage: "تم تسجيل الطالب بنجاح" });
+    const result = await mutate(body, { successMessage: `تم تسجيل الطالب بنجاح. كلمة المرور الافتراضية: nooralhuda2026` });
     if (result) {
       router.push("/students");
     }

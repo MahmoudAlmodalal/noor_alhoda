@@ -17,13 +17,35 @@ function InstallButton() {
   const [prompt, setPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [installed, setInstalled] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
+  const [waitingWorker, setWaitingWorker] = useState<ServiceWorker | null>(null);
 
   useEffect(() => {
     // Already installed as PWA
     if (window.matchMedia("(display-mode: standalone)").matches) {
       setInstalled(true);
-      return;
     }
+
+    // Detect available update
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.getRegistration().then((reg) => {
+        if (!reg) return;
+        // Already waiting (update downloaded before page load)
+        if (reg.waiting) {
+          setWaitingWorker(reg.waiting);
+        }
+        // New update found while page is open
+        reg.addEventListener("updatefound", () => {
+          const newWorker = reg.installing;
+          if (!newWorker) return;
+          newWorker.addEventListener("statechange", () => {
+            if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
+              setWaitingWorker(newWorker);
+            }
+          });
+        });
+      });
+    }
+
     const handler = (e: Event) => {
       e.preventDefault();
       setPrompt(e as BeforeInstallPromptEvent);
@@ -33,6 +55,25 @@ function InstallButton() {
   }, []);
 
   if (installed) return null;
+
+  // Update available
+  if (waitingWorker) {
+    return (
+      <button
+        type="button"
+        onClick={() => {
+          waitingWorker.postMessage({ type: "SKIP_WAITING" });
+          navigator.serviceWorker.addEventListener("controllerchange", () => {
+            window.location.reload();
+          });
+        }}
+        className="w-full flex items-center justify-center gap-2 border border-dashed border-blue-300 text-blue-600 text-sm font-bold py-3 rounded-xl hover:bg-blue-50 transition-colors"
+      >
+        <Download className="w-4 h-4" />
+        يوجد تحديث — اضغط للتحديث الآن
+      </button>
+    );
+  }
 
   // Browser supports install prompt
   if (prompt) {
