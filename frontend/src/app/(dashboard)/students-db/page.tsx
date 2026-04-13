@@ -145,6 +145,7 @@ export default function StudentsDbPage() {
   const [students, setStudents] = useState<BackendStudent[]>([]);
   const [loading, setLoading] = useState(true);
   const [importing, setImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState<{ current: number; total: number } | null>(null);
   const [xlsxReady, setXlsxReady] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -213,6 +214,7 @@ export default function StudentsDbPage() {
     }
 
     setImporting(true);
+    setImportProgress(null);
     try {
       const buf = await file.arrayBuffer();
       const wb = XLSX.read(buf, { type: "array", cellDates: true });
@@ -281,21 +283,54 @@ export default function StudentsDbPage() {
         return;
       }
 
-      const res = await api.post<BulkResult>("/api/students/bulk-create/", { rows });
-      if (!res.success) {
-        alert(`فشل الاستيراد: ${res.error.message}`);
-        return;
+      // Upload in chunks to avoid timeout
+      const CHUNK_SIZE = 50; // Number of rows per request
+      let totalCreated = 0;
+      let totalErrors: { row: number; national_id: string; message: string }[] = [];
+      let rowOffset = 0;
+
+      for (let i = 0; i < rows.length; i += CHUNK_SIZE) {
+        const chunk = rows.slice(i, i + CHUNK_SIZE);
+        const chunkNumber = Math.floor(i / CHUNK_SIZE) + 1;
+        const totalChunks = Math.ceil(rows.length / CHUNK_SIZE);
+        
+        setImportProgress({ current: chunkNumber, total: totalChunks });
+        
+        try {
+          const res = await api.post<BulkResult>("/api/students/bulk-create/", { rows: chunk });
+          if (!res.success) {
+            alert(`فشل الاستيراد في الدفعة ${chunkNumber}: ${res.error?.message || "خطأ غير معروف"}`);
+            return;
+          }
+
+          const { created_count, error_count, errors } = res.data;
+          totalCreated += created_count;
+          
+          // Adjust error row numbers to match original file
+          const adjustedErrors = errors.map(e => ({
+            ...e,
+            row: e.row + rowOffset
+          }));
+          totalErrors = totalErrors.concat(adjustedErrors);
+          rowOffset += chunk.length;
+
+          // Show progress
+          console.log(`[import] الدفعة ${chunkNumber}/${totalChunks}: تم إنشاء ${created_count} طالب، فشل ${error_count}`);
+        } catch (err) {
+          console.error(`Error in chunk ${chunkNumber}:`, err);
+          alert(`حدث خطأ في الدفعة ${chunkNumber}. يرجى التحقق من الاتصال بالإنترنت والمحاولة مرة أخرى.`);
+          return;
+        }
       }
 
-      const { created_count, error_count, errors } = res.data;
-      let msg = `تم إنشاء ${created_count} طالب.`;
-      if (error_count > 0) {
-        msg += `\nفشل ${error_count} صف:\n`;
-        msg += errors
+      let msg = `تم إنشاء ${totalCreated} طالب بنجاح.`;
+      if (totalErrors.length > 0) {
+        msg += `\nفشل ${totalErrors.length} صف:\n`;
+        msg += totalErrors
           .slice(0, 10)
           .map((e) => `صف ${e.row} (${e.national_id}): ${e.message}`)
           .join("\n");
-        if (errors.length > 10) msg += `\n... و${errors.length - 10} خطأ إضافي.`;
+        if (totalErrors.length > 10) msg += `\n... و${totalErrors.length - 10} خطأ إضافي.`;
       }
       alert(msg);
       await reload();
@@ -304,6 +339,7 @@ export default function StudentsDbPage() {
       alert("تعذر قراءة الملف. تأكد من أنه ملف Excel صالح.");
     } finally {
       setImporting(false);
+      setImportProgress(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
@@ -330,7 +366,7 @@ export default function StudentsDbPage() {
             disabled={!xlsxReady || importing}
             className="bg-amber-600 hover:bg-amber-700 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold px-4 py-2 rounded-lg shadow-sm transition"
           >
-            {importing ? "جاري الاستيراد..." : "استيراد Excel"}
+            {importing ? `جاري الاستيراد... (${importProgress?.current || 0}/${importProgress?.total || 0})` : "استيراد Excel"}
           </button>
           <input
             ref={fileInputRef}
