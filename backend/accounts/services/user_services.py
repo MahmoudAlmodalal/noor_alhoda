@@ -61,7 +61,7 @@ def user_update(*, user: User, actor: User, data: dict) -> User:
     if not is_admin_user(actor) and actor.id != user.id:
         raise PermissionDenied("ليس لديك صلاحية لتعديل هذا المستخدم.")
 
-    allowed_fields = ["first_name", "last_name", "fcm_token", "specialization"]
+    allowed_fields = ["first_name", "last_name", "fcm_token", "specialization", "affiliation"]
     if is_admin_user(actor):
         allowed_fields += ["role", "is_active", "phone_number"]
 
@@ -75,6 +75,9 @@ def user_update(*, user: User, actor: User, data: dict) -> User:
             elif field_name == "specialization" and hasattr(user, "teacher_profile"):
                 user.teacher_profile.specialization = value
                 user.teacher_profile.save()
+            elif field_name == "affiliation" and hasattr(user, "teacher_profile"):
+                user.teacher_profile.affiliation = value
+                user.teacher_profile.save()
             else:
                 setattr(user, field_name, value)
 
@@ -82,6 +85,7 @@ def user_update(*, user: User, actor: User, data: dict) -> User:
         user.set_password(data["password"])
     elif user.phone_number != old_phone and user.role in ("student", "teacher"):
         user.set_password(user.phone_number[-4:])
+        logger.info("Resynced %s user %s password to last 4 digits of new phone.", user.role, user.phone_number)
 
     user.full_clean()
     user.save()
@@ -118,6 +122,7 @@ def teacher_create(*, creator: User, **data) -> Teacher:
         user=user,
         full_name=data.get("full_name", user.get_full_name()),
         specialization=data.get("specialization", ""),
+        affiliation=data.get("affiliation", ""),
         session_days=data.get("session_days", []),
         max_students=data.get("max_students", 25),
     )

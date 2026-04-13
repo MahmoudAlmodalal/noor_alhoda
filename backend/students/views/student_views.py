@@ -15,6 +15,7 @@ from students.services.student_services import (
     student_deactivate,
     student_assign_teacher,
     student_link_parent,
+    student_bulk_create,
 )
 
 
@@ -33,22 +34,22 @@ class StudentInputSerializer(serializers.Serializer):
     national_id = serializers.CharField()
     birthdate = serializers.DateField()
     grade = serializers.CharField()
-    address = serializers.CharField(required=False, default="")
-    whatsapp = serializers.CharField(required=False, default="")
-    mobile = serializers.CharField(required=False, default="")
-    previous_courses = serializers.CharField(required=False, default="")
-    desired_courses = serializers.CharField(required=False, default="")
-    bank_account_number = serializers.CharField(required=False, allow_null=True, default=None)
-    bank_account_name = serializers.CharField(required=False, allow_null=True, default=None)
-    bank_account_type = serializers.CharField(required=False, allow_null=True, default=None)
+    address = serializers.CharField(required=False, allow_blank=True, default="")
+    whatsapp = serializers.CharField(required=False, allow_blank=True, default="")
+    mobile = serializers.CharField(required=False, allow_blank=True, default="")
+    previous_courses = serializers.CharField(required=False, allow_blank=True, default="")
+    desired_courses = serializers.CharField(required=False, allow_blank=True, default="")
+    bank_account_number = serializers.CharField(required=False, allow_blank=True, allow_null=True, default=None)
+    bank_account_name = serializers.CharField(required=False, allow_blank=True, allow_null=True, default=None)
+    bank_account_type = serializers.CharField(required=False, allow_blank=True, allow_null=True, default=None)
     guardian_name = serializers.CharField()
-    guardian_national_id = serializers.CharField(required=False, allow_null=True, default=None)
+    guardian_national_id = serializers.CharField(required=False, allow_blank=True, allow_null=True, default=None)
     guardian_mobile = serializers.CharField()
-    teacher_id = serializers.UUIDField(required=False)
-    health_status = serializers.CharField(required=False, default="normal")
-    health_note = serializers.CharField(required=False, default="")
+    teacher_id = serializers.UUIDField(required=False, allow_null=True)
+    health_status = serializers.CharField(required=False, allow_blank=True, default="normal")
+    health_note = serializers.CharField(required=False, allow_blank=True, default="")
     skills = serializers.JSONField(required=False, default=dict)
-    password = serializers.CharField(required=True)
+    password = serializers.CharField(required=False, allow_blank=True, default="")
 
 
 class StudentOutputSerializer(serializers.Serializer):
@@ -70,8 +71,6 @@ class StudentOutputSerializer(serializers.Serializer):
     guardian_mobile = serializers.CharField()
     teacher_id = serializers.UUIDField(source="teacher.id", default=None)
     teacher_name = serializers.CharField(source="teacher.full_name", default=None)
-    ring_id = serializers.UUIDField(source="ring.id", default=None)
-    ring_name = serializers.CharField(source="ring.name", default=None)
     health_status = serializers.CharField()
     health_note = serializers.CharField()
     skills = serializers.JSONField()
@@ -154,6 +153,32 @@ class StudentCreateApi(APIView):
 
         return Response(
             {"success": True, "data": StudentOutputSerializer(student).data},
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class StudentBulkCreateSerializer(serializers.Serializer):
+    rows = serializers.ListField(
+        child=serializers.DictField(), allow_empty=False
+    )
+
+
+class StudentBulkCreateApi(APIView):
+    """POST /api/students/bulk-create/ — استيراد دفعة طلاب من Excel"""
+
+    permission_classes = [IsAdmin]
+
+    def post(self, request):
+        serializer = StudentBulkCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        result = student_bulk_create(
+            creator=request.user,
+            rows=serializer.validated_data["rows"],
+        )
+
+        return Response(
+            {"success": True, "data": result},
             status=status.HTTP_201_CREATED,
         )
 

@@ -3,8 +3,62 @@ from rest_framework.exceptions import ValidationError, PermissionDenied
 
 from accounts.models import User, Teacher, Parent, ParentStudentLink
 from accounts.services.user_services import user_create
+from accounts.utils import normalize_phone
 from core.permissions import is_admin_user
 from students.models import Student
+
+
+_GRADE_MAP = {
+    "الأول": "1", "الاول": "1", "الثاني": "2", "الثالث": "3", "الرابع": "4",
+    "الخامس": "5", "السادس": "6", "السابع": "7", "الثامن": "8",
+    "التاسع": "9", "العاشر": "10", "الحادي عشر": "11", "الثاني عشر": "12",
+}
+_HEALTH_MAP = {
+    "ابن شهيد": "martyr_son",
+    "مريض": "sick",
+    "جريح": "injured",
+}
+
+
+def _normalize_grade(value) -> str:
+    if value is None:
+        return ""
+    s = str(value).strip()
+    if not s:
+        return ""
+    s = s.replace("الصف ", "").replace("صف ", "").strip()
+    return _GRADE_MAP.get(s, s)
+
+
+def _normalize_health(text) -> tuple[str, str]:
+    if text is None:
+        return "normal", ""
+    t = str(text).strip()
+    if not t:
+        return "normal", ""
+    if t in _HEALTH_MAP:
+        return _HEALTH_MAP[t], ""
+    return "other", t
+
+
+def _parse_date(raw) -> str:
+    if raw is None:
+        return ""
+    s = str(raw).strip()
+    if not s:
+        return ""
+    if "/" in s:
+        parts = s.split("/")
+        if len(parts) == 3:
+            d, m, y = parts
+            return f"{y}-{m.zfill(2)}-{d.zfill(2)}"
+    return s
+
+
+def _synthetic_phone(national_id: str) -> str:
+    digits = "".join(c for c in str(national_id) if c.isdigit())
+    tail = digits[-8:].rjust(8, "0")
+    return "05" + tail
 
 
 @transaction.atomic
@@ -174,3 +228,113 @@ def student_link_parent(*, student_id, parent_id, actor: User) -> ParentStudentL
     link.full_clean()
     link.save()
     return link
+
+
+def student_bulk_create(*, creator: User, rows: list) -> dict:
+    """
+    Bulk-create students from Excel import. Each row is wrapped in its own
+    transaction so partial failures don't block the whole import.
+
+    Strategy for phone_number uniqueness: the student User account always uses
+    a synthetic phone derived from national_id (guaranteed unique per student),
+    while guardian_mobile is used to find-or-create a shared Parent account and
+    link it via ParentStudentLink. Students sharing a guardian phone are thus
+    linked to the same Parent.
+    """
+    if not is_admin_user(creator):
+        raise PermissionDenied("فقط المدير يمكنه استيراد الطلاب.")
+
+    teacher_by_name = {
+        (t.full_name or "").strip(): t.id
+        for t in Teacher.objects.all()
+    }
+
+    created, errors = [], []
+
+    for idx, row in enumerate(rows, start=1):
+        national_id = str(row.get("national_id", "") or "").strip()
+        try:
+            with transaction.atomic():
+                health_status, health_note = _normalize_health(row.get("health_status"))
+                skills_raw = row.get("skills")
+                skills = {"description": str(skills_raw)} if skills_raw else {}
+
+                full_name = str(row.get("full_name", "") or "").strip()
+                guardian_name = str(row.get("guardian_name", "") or "").strip() or full_name or "غير محدد"
+                guardian_mobile = str(row.get("guardian_mobile", "") or "").strip() or _synthetic_phone(national_id)
+
+                data = {
+                    "full_name": full_name,
+                    "national_id": national_id,
+                    "birthdate": _parse_date(row.get("birthdate")),
+                    "grade": _normalize_grade(row.get("grade")),
+                    "address": str(row.get("address", "") or ""),
+                    "whatsapp": str(row.get("whatsapp", "") or ""),
+                    "mobile": str(row.get("mobile", "") or ""),
+                    "previous_courses": str(row.get("previous_courses", "") or ""),
+                    "guardian_name": guardian_name,
+                    "guardian_national_id": str(row.get("guardian_national_id", "") or ""),
+                    "guardian_mobile": guardian_mobile,
+                    "bank_account_number": str(row.get("bank_account_number", "") or "") or None,
+                    "bank_account_name": str(row.get("bank_account_name", "") or "") or None,
+                    "bank_account_type": str(row.get("bank_account_type", "") or "") or None,
+                    "follow_up": str(row.get("follow_up", "") or ""),
+                    "health_status": health_status,
+                    "health_note": health_note,
+                    "skills": skills,
+                    "phone_number": _synthetic_phone(national_id),
+                }
+
+                teacher_name = str(row.get("teacher_name", "") or "").strip()
+                if teacher_name and teacher_name in teacher_by_name:
+                    data["teacher_id"] = str(teacher_by_name[teacher_name])
+
+                student = student_create(creator=creator, **data)
+
+                guardian_mobile = data["guardian_mobile"].strip()
+                guardian_name = data["guardian_name"]
+                if guardian_mobile:
+                    try:
+                        normalized = normalize_phone(guardian_mobile)
+                    except ValidationError:
+                        normalized = None
+
+                    if normalized:
+                        parent_user = User.objects.filter(phone_number=normalized).first()
+                        if parent_user is None:
+                            name_parts = guardian_name.split() if guardian_name else []
+                            parent_user = user_create(
+                                creator=creator,
+                                phone_number=normalized,
+                                first_name=name_parts[0] if name_parts else "",
+                                last_name=" ".join(name_parts[1:]) if len(name_parts) > 1 else "",
+                                role="parent",
+                            )
+                        parent, _ = Parent.objects.get_or_create(
+                            user=parent_user,
+                            defaults={
+                                "full_name": guardian_name or parent_user.get_full_name() or normalized,
+                                "phone_number": normalized,
+                            },
+                        )
+                        ParentStudentLink.objects.get_or_create(parent=parent, student=student)
+
+                created.append(str(student.id))
+        except ValidationError as e:
+            errors.append({
+                "row": idx,
+                "national_id": national_id,
+                "message": str(e.detail) if hasattr(e, "detail") else str(e),
+            })
+        except Exception as e:
+            errors.append({
+                "row": idx,
+                "national_id": national_id,
+                "message": str(e),
+            })
+
+    return {
+        "created_count": len(created),
+        "error_count": len(errors),
+        "errors": errors,
+    }

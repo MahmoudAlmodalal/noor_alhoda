@@ -103,6 +103,7 @@ class StudentCreateTests(StudentTestSetup):
                 "phone_number": "970590199999",
                 "guardian_name": "والد الطالب الجديد",
                 "guardian_mobile": "970590100000",
+                "password": "testpass123",
             },
             format="json",
         )

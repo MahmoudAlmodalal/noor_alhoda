@@ -55,6 +55,7 @@ class UserUpdateSerializer(serializers.Serializer):
     fcm_token = serializers.CharField(required=False)
     password = serializers.CharField(required=False)
     specialization = serializers.CharField(required=False, allow_blank=True)
+    affiliation = serializers.CharField(required=False, allow_blank=True)
 
 
 class TeacherInputSerializer(serializers.Serializer):
@@ -63,6 +64,7 @@ class TeacherInputSerializer(serializers.Serializer):
     last_name = serializers.CharField(required=False, default="")
     full_name = serializers.CharField()
     specialization = serializers.CharField(required=False, allow_blank=True, default="")
+    affiliation = serializers.CharField(required=False, allow_blank=True, default="")
     session_days = serializers.ListField(child=serializers.CharField(), required=False, default=[])
     max_students = serializers.IntegerField(required=False, default=25)
 
@@ -73,19 +75,10 @@ class TeacherOutputSerializer(serializers.Serializer):
     phone_number = serializers.CharField(source="user.phone_number")
     full_name = serializers.CharField()
     specialization = serializers.CharField(allow_blank=True)
+    affiliation = serializers.CharField(allow_blank=True)
     session_days = serializers.JSONField()
     max_students = serializers.IntegerField()
     created_at = serializers.DateTimeField()
-    ring_id = serializers.SerializerMethodField()
-    ring_name = serializers.SerializerMethodField()
-
-    def get_ring_id(self, obj):
-        ring = obj.rings.first()
-        return str(ring.id) if ring else None
-
-    def get_ring_name(self, obj):
-        ring = obj.rings.first()
-        return ring.name if ring else None
 
 
 # ---------------------------------------------------------------------------

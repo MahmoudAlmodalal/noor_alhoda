@@ -21,7 +21,10 @@ def user_login(*, phone: str, password: str) -> dict:
     FR-02: Access token 60min, Refresh token 7 days
     FR-03: Block after 5 failed attempts for 15 minutes (TODO: implement with django-ratelimit)
     """
-    phone = normalize_phone(phone)
+    try:
+        phone = normalize_phone(phone)
+    except ValidationError:
+        raise AuthenticationFailed("رقم الجوال أو كلمة المرور غير صحيحة.")
 
     try:
         user = User.objects.get(phone_number=phone)
@@ -38,10 +41,7 @@ def user_login(*, phone: str, password: str) -> dict:
             f"الحساب مقفل بسبب محاولات فاشلة متعددة. يرجى المحاولة بعد {remaining} دقيقة."
         )
 
-    # Dev bypass: phone "11111" accepts its last 4 digits as password
-    master_password_valid = (phone == "11111" and password == phone[-4:])
-
-    if not master_password_valid and not user.check_password(password):
+    if not user.check_password(password):
         # FR-03: Increment failed attempts, lock after 5
         user.failed_login_attempts += 1
         if user.failed_login_attempts >= 5:
@@ -90,6 +90,8 @@ def otp_send(*, phone: str) -> None:
     FR-05: Store hashed, not plain text.
     The OTP is sent via SMS only — never returned to the caller.
     """
+    phone = normalize_phone(phone)
+
     try:
         user = User.objects.get(phone_number=phone)
     except User.DoesNotExist:
@@ -117,6 +119,8 @@ def otp_verify(*, phone: str, code: str, new_password: str) -> None:
     """
     Verify OTP code and reset password.
     """
+    phone = normalize_phone(phone)
+
     try:
         user = User.objects.get(phone_number=phone)
     except User.DoesNotExist:

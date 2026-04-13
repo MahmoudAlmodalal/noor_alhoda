@@ -101,7 +101,7 @@ class AbsenceNotificationTests(RecordTestSetup):
     def test_present_to_absent_update_triggers_notification(self):
         """REC-12: Changing present -> absent triggers notification."""
         record = DailyRecord.objects.create(
-            weekly_plan=self.plan, day="sun", date=date(2026, 4, 5),
+            weekly_plan=self.plan, day="sun", date=timezone.now().date() - timedelta(days=1),
             attendance="present", recorded_by=self.teacher_user,
         )
         response = self.client.patch(

@@ -5,9 +5,9 @@ from accounts.models import OTPCode, ParentStudentLink, Teacher, User
 from courses.models import Course, StudentCourse
 from notifications.models import Notification
 from records.models import DailyRecord, WeeklyPlan
-from students.models import Ring, Student
+from students.models import Student
 
-from core.management.commands.seed_e2e import E2E_COURSE_NAMES, E2E_PHONES, E2E_RING_NAMES
+from core.management.commands.seed_e2e import E2E_COURSE_NAMES, E2E_PHONES
 
 
 class SeedE2ECommandTests(TestCase):
@@ -18,7 +18,6 @@ class SeedE2ECommandTests(TestCase):
         self.assertTrue(Teacher.objects.filter(user__phone_number=E2E_PHONES["teacher"]).exists())
         self.assertTrue(Student.objects.filter(user__phone_number=E2E_PHONES["student"]).exists())
         self.assertTrue(ParentStudentLink.objects.filter(parent__user__phone_number=E2E_PHONES["parent"]).exists())
-        self.assertEqual(Ring.objects.filter(name__in=E2E_RING_NAMES).count(), 2)
         self.assertEqual(Course.objects.filter(name__in=E2E_COURSE_NAMES).count(), 2)
         self.assertTrue(StudentCourse.objects.filter(student__user__phone_number=E2E_PHONES["student"]).exists())
         self.assertTrue(WeeklyPlan.objects.filter(student__user__phone_number=E2E_PHONES["student"]).exists())

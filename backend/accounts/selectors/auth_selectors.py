@@ -1,7 +1,12 @@
+import logging
+
+from django.core.exceptions import ObjectDoesNotExist
 from django.shortcuts import get_object_or_404
 
 from accounts.models import User
 from core.permissions import is_admin_user
+
+logger = logging.getLogger(__name__)
 
 
 def user_get_by_phone(*, phone: str) -> User:
@@ -60,7 +65,7 @@ def user_get_me(*, user: User) -> dict:
                 "grade": student.grade,
                 "enrollment_date": str(student.enrollment_date),
             }
-        except Exception:
-            pass
+        except ObjectDoesNotExist:
+            logger.warning("Student user %s has no student_profile", user.id)
 
     return data

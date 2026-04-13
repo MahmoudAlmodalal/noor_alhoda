@@ -4,20 +4,19 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
 
-from accounts.models import OTPCode, Parent, ParentStudentLink, Teacher, User
+from accounts.models import OTPCode, Teacher, User
 from courses.models import Course, StudentCourse
 from notifications.models import Notification
 from records.models import DailyRecord, WeeklyPlan
-from students.models import Ring, Student
+from students.models import Student
 
 E2E_PHONES = {
-    "admin": "970599100001",
-    "teacher": "970599100010",
-    "teacher_two": "970599100011",
-    "student": "970599100020",
-    "student_two": "970599100021",
-    "student_unassigned": "970599100022",
-    "parent": "970599100030",
+    "admin": "0599100001",
+    "teacher": "0599100010",
+    "teacher_two": "0599100011",
+    "student": "0599100020",
+    "student_two": "0599100021",
+    "student_unassigned": "0599100022",
 }
 
 E2E_IDS = {
@@ -26,29 +25,19 @@ E2E_IDS = {
     "student": "33333333-3333-4333-8333-333333333333",
     "student_two": "44444444-4444-4444-8444-444444444444",
     "student_unassigned": "55555555-5555-4555-8555-555555555555",
-    "ring": "66666666-6666-4666-8666-666666666666",
-    "ring_two": "77777777-7777-4777-8777-777777777777",
     "course": "88888888-8888-4888-8888-888888888888",
     "course_two": "99999999-9999-4999-8999-999999999999",
 }
 
-E2E_PASSWORDS = {
-    "admin": "AdminPass123!",
-    "teacher": "TeacherPass123!",
-    "student": "StudentPass123!",
-    "parent": "ParentPass123!",
-}
+def _last4(phone):
+    return phone[-4:]
+
+E2E_PASSWORDS = {k: _last4(v) for k, v in E2E_PHONES.items()}
 
 E2E_COURSE_NAMES = [
     "التجويد التأسيسي - E2E",
     "مخارج الحروف - E2E",
 ]
-
-E2E_RING_NAMES = [
-    "حلقة النور - E2E",
-    "حلقة الإتقان - E2E",
-]
-
 
 class Command(BaseCommand):
     help = "Seed deterministic application data for browser and integration tests."
@@ -83,10 +72,12 @@ class Command(BaseCommand):
         self.stdout.write(
             "\n".join(
                 [
-                    f"Admin:   {E2E_PHONES['admin']} / {E2E_PASSWORDS['admin']}",
-                    f"Teacher: {E2E_PHONES['teacher']} / {E2E_PASSWORDS['teacher']}",
-                    f"Student: {E2E_PHONES['student']} / {E2E_PASSWORDS['student']}",
-                    f"Parent:  {E2E_PHONES['parent']} / {E2E_PASSWORDS['parent']}",
+                    f"Admin:        {E2E_PHONES['admin']} / {E2E_PASSWORDS['admin']}",
+                    f"Teacher One:  {E2E_PHONES['teacher']} / {E2E_PASSWORDS['teacher']}",
+                    f"Teacher Two:  {E2E_PHONES['teacher_two']} / {E2E_PASSWORDS['teacher_two']}",
+                    f"Student One:  {E2E_PHONES['student']} / {E2E_PASSWORDS['student']}",
+                    f"Student Two:  {E2E_PHONES['student_two']} / {E2E_PASSWORDS['student_two']}",
+                    f"Student Three:{E2E_PHONES['student_unassigned']} / {E2E_PASSWORDS['student_unassigned']}",
                 ]
             )
         )
@@ -96,7 +87,6 @@ class Command(BaseCommand):
     def _clear_fixture_data(self):
         User.objects.filter(phone_number__in=E2E_PHONES.values()).delete()
         Course.objects.filter(name__in=E2E_COURSE_NAMES).delete()
-        Ring.objects.filter(name__in=E2E_RING_NAMES).delete()
 
     def _seed_fixture_data(self):
         today = timezone.localdate()
@@ -133,7 +123,7 @@ class Command(BaseCommand):
 
         teacher_two_user = User.objects.create_user(
             phone_number=E2E_PHONES["teacher_two"],
-            password=E2E_PASSWORDS["teacher"],
+            password=E2E_PASSWORDS["teacher_two"],
             first_name="Teacher",
             last_name="Two",
             role="teacher",
@@ -146,21 +136,6 @@ class Command(BaseCommand):
             specialization="تحفيظ",
             session_days=["sat", "sun", "mon", "tue", "wed", "thu"],
             max_students=25,
-        )
-
-        ring = Ring.objects.create(
-            id=E2E_IDS["ring"],
-            name=E2E_RING_NAMES[0],
-            teacher=teacher,
-            status=Ring.Status.ACTIVE,
-            level="متوسط",
-        )
-        ring_two = Ring.objects.create(
-            id=E2E_IDS["ring_two"],
-            name=E2E_RING_NAMES[1],
-            teacher=teacher_two,
-            status=Ring.Status.ACTIVE,
-            level="متقدم",
         )
 
         student_user = User.objects.create_user(
@@ -180,9 +155,8 @@ class Command(BaseCommand):
             grade="Grade 7",
             mobile=E2E_PHONES["student"],
             guardian_name="Guardian One",
-            guardian_mobile=E2E_PHONES["parent"],
+            guardian_mobile="0599100030",
             teacher=teacher,
-            ring=ring,
             skills={"quran": True, "nasheed": False, "poetry": True, "other": False},
         )
 
@@ -203,9 +177,8 @@ class Command(BaseCommand):
             grade="Grade 8",
             mobile=E2E_PHONES["student_two"],
             guardian_name="Guardian Two",
-            guardian_mobile="970599100031",
+            guardian_mobile="0599100031",
             teacher=teacher_two,
-            ring=ring_two,
             skills={"quran": True, "nasheed": True, "poetry": False, "other": False},
         )
 
@@ -226,26 +199,10 @@ class Command(BaseCommand):
             grade="Grade 6",
             mobile=E2E_PHONES["student_unassigned"],
             guardian_name="Guardian Three",
-            guardian_mobile="970599100032",
+            guardian_mobile="0599100032",
             teacher=None,
-            ring=None,
             skills={"quran": False, "nasheed": True, "poetry": False, "other": False},
         )
-
-        parent_user = User.objects.create_user(
-            phone_number=E2E_PHONES["parent"],
-            password=E2E_PASSWORDS["parent"],
-            first_name="Parent",
-            last_name="One",
-            role="parent",
-            is_active=True,
-        )
-        parent = Parent.objects.create(
-            user=parent_user,
-            full_name="Parent One",
-            phone_number=E2E_PHONES["parent"],
-        )
-        ParentStudentLink.objects.create(parent=parent, student=student)
 
         tajweed = Course.objects.create(
             id=E2E_IDS["course"],
@@ -343,7 +300,6 @@ class Command(BaseCommand):
             "student_user": student_user,
             "student_two": student_two,
             "student_unassigned": student_unassigned,
-            "parent": parent,
         }
 
     def _create_week_records(self, *, plan, recorder, start_date, entries):

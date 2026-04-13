@@ -141,10 +141,11 @@ def daily_record_update(*, record_id, teacher: User, data: dict) -> DailyRecord:
 
 
 @transaction.atomic
-def bulk_attendance_create(*, teacher: User, date, attendance_data: list) -> list:
+def bulk_attendance_create(*, teacher: User, date, attendance_data: list) -> dict:
     """
     FR-12: Bulk attendance registration for all students in a halaqah.
     attendance_data: [{"student_id": "...", "attendance": "present/absent/late/excused"}, ...]
+    Returns {"records": [...], "skipped": [{"student_id": ..., "reason": ...}, ...]}.
     """
     if not (is_admin_user(teacher) or teacher.role == "teacher"):
         raise PermissionDenied("ليس لديك صلاحية لتسجيل الحضور.")
@@ -153,6 +154,7 @@ def bulk_attendance_create(*, teacher: User, date, attendance_data: list) -> lis
         raise ValidationError({"date": "لا يمكن تسجيل الحضور ليوم الجمعة."})
 
     created_records = []
+    skipped = []
 
     for entry in attendance_data:
         student_id = entry.get("student_id")
@@ -161,11 +163,13 @@ def bulk_attendance_create(*, teacher: User, date, attendance_data: list) -> lis
         try:
             student = Student.objects.get(id=student_id, is_active=True)
         except Student.DoesNotExist:
-            continue  # Skip invalid students
+            skipped.append({"student_id": str(student_id), "reason": "not_found"})
+            continue
 
         # Check ownership
         if teacher.role == "teacher":
             if not hasattr(teacher, "teacher_profile") or student.teacher_id != teacher.teacher_profile.id:
+                skipped.append({"student_id": str(student_id), "reason": "not_owned"})
                 continue
 
         # Find or create weekly plan for the current week
@@ -208,4 +212,4 @@ def bulk_attendance_create(*, teacher: User, date, attendance_data: list) -> lis
 
         created_records.append(record)
 
-    return created_records
+    return {"records": created_records, "skipped": skipped}

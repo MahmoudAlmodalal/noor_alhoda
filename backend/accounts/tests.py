@@ -97,6 +97,69 @@ class LoginApiTests(TestSetupMixin, APITestCase):
         self.assertEqual(response.status_code, 401)
 
 
+class DefaultPasswordLoginTests(TestSetupMixin, APITestCase):
+    """AUTH-14: admin, teacher, and student can log in with default passwords.
+
+    Admin uses an explicit bootstrap password; teacher/student accounts
+    created by admin get a default password = last 4 digits of phone.
+    """
+
+    def test_admin_teacher_student_login_with_default_password(self):
+        from datetime import date
+        from accounts.services.user_services import user_create
+        from students.services.student_services import student_create
+
+        admin = User.objects.create_user(
+            phone_number="0590000000",
+            password="adminpass123",
+            role="admin",
+            first_name="Admin",
+            last_name="User",
+        )
+        response = self.client.post(
+            "/api/auth/login/",
+            {"phone_number": "0590000000", "password": "adminpass123"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["data"]["user"]["role"], "admin")
+
+        teacher_phone = "0591234567"
+        user_create(
+            creator=admin,
+            phone_number=teacher_phone,
+            first_name="T",
+            last_name="One",
+            role="teacher",
+        )
+        response = self.client.post(
+            "/api/auth/login/",
+            {"phone_number": teacher_phone, "password": teacher_phone[-4:]},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["data"]["user"]["role"], "teacher")
+
+        student_phone = "0597654321"
+        student_create(
+            creator=admin,
+            full_name="Student One",
+            national_id="1234567890",
+            birthdate=date(2010, 1, 1),
+            grade="5",
+            phone_number=student_phone,
+            guardian_name="Guardian",
+            guardian_mobile="0590000111",
+        )
+        response = self.client.post(
+            "/api/auth/login/",
+            {"phone_number": student_phone, "password": student_phone[-4:]},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["data"]["user"]["role"], "student")
+
+
 class OTPSendApiTests(TestSetupMixin, APITestCase):
     def setUp(self):
         cache.clear()
@@ -294,9 +357,9 @@ class UserManagementTests(TestSetupMixin, APITestCase):
             "/api/users/create/",
             {
                 "phone_number": "970590099999",
-                "role": "student",
+                "role": "parent",
                 "first_name": "New",
-                "last_name": "Student",
+                "last_name": "Parent",
             },
             format="json",
         )

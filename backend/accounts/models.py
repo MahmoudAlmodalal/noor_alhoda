@@ -97,6 +97,10 @@ class User(AbstractUser):
 class Teacher(models.Model):
     """Teacher profile linked to a User with role=teacher."""
 
+    class Affiliation(models.TextChoices):
+        DAR_QURAN = "dar_quran", "دار القرآن"
+        AWQAF = "awqaf", "أوقاف"
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.OneToOneField(
         User,
@@ -120,6 +124,13 @@ class Teacher(models.Model):
     max_students = models.PositiveIntegerField(
         default=25,
         verbose_name="أقصى عدد طلاب",
+    )
+    affiliation = models.CharField(
+        max_length=20,
+        choices=Affiliation.choices,
+        blank=True,
+        default="",
+        verbose_name="التباعية",
     )
     created_at = models.DateTimeField(auto_now_add=True)
 

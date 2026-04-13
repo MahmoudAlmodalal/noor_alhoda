@@ -165,7 +165,7 @@ class BulkAttendanceApi(APIView):
         serializer = BulkAttendanceInputSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        records = bulk_attendance_create(
+        result = bulk_attendance_create(
             teacher=request.user,
             date=serializer.validated_data["date"],
             attendance_data=serializer.validated_data["records"],
@@ -177,8 +177,9 @@ class BulkAttendanceApi(APIView):
                 "data": {
                     "records": [
                         {"student_id": str(r.weekly_plan.student_id), "id": str(r.id)}
-                        for r in records
+                        for r in result["records"]
                     ],
+                    "skipped": result["skipped"],
                 },
             },
             status=status.HTTP_201_CREATED,
