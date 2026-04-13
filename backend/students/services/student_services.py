@@ -47,10 +47,17 @@ def _parse_date(raw) -> str:
     s = str(raw).strip()
     if not s:
         return ""
-    if "/" in s:
+    # Handle both forward slashes (/) and backslashes (\\)
+    # Also handle cases like 12\\12\\2011 from Excel
+    if "/" in s or "\\" in s:
+        # Replace backslashes with forward slashes for uniform handling
+        s = s.replace("\\", "/")
         parts = s.split("/")
         if len(parts) == 3:
             d, m, y = parts
+            # Ensure year is 4 digits
+            if len(y) == 2:
+                y = "20" + y if int(y) < 50 else "19" + y
             return f"{y}-{m.zfill(2)}-{d.zfill(2)}"
     return s
 
