@@ -90,7 +90,7 @@ function classifyHeader(raw: string, counters: Record<string, number>): string |
   // Explicit guardian columns (when header includes "ولي").
   if (h.includes("ولي")) {
     if (h.includes("هوية")) return "guardian_national_id";
-    if (h.includes("جوال") || h.includes("حوال") || h.includes("هاتف") || h.includes("موبايل")) return "guardian_mobile";
+    if (h.includes("جوال") || h.includes("حوال") || h.includes("هاتف") || h.includes("موبايل") || h.includes("الحوال")) return "guardian_mobile";
     if (h.includes("اسم")) return "guardian_name";
     return null;
   }
@@ -107,7 +107,7 @@ function classifyHeader(raw: string, counters: Record<string, number>): string |
   if (h.includes("الميلاد") || h.includes("تاريخ")) return "birthdate";
   if (h.includes("الصف")) return "grade";
   if (h.includes("العنوان") || h.includes("السكن")) return "address";
-  if (h.includes("الحالة")) return "health_status";
+  if (h.includes("الحالة") || h.includes("الخاصه")) return "health_status";
   if (h.includes("المهارات") || h.includes("المهارة")) return "skills";
   if (h.includes("الدورات") || h.includes("السابقة")) return "previous_courses";
 
@@ -121,7 +121,7 @@ function classifyHeader(raw: string, counters: Record<string, number>): string |
     counters.id = (counters.id || 0) + 1;
     return counters.id === 1 ? "national_id" : "guardian_national_id";
   }
-  if (h.includes("جوال") || h.includes("حوال") || h.includes("هاتف") || h.includes("موبايل")) {
+  if (h.includes("جوال") || h.includes("حوال") || h.includes("هاتف") || h.includes("موبايل") || h.includes("الحوال")) {
     counters.phone = (counters.phone || 0) + 1;
     return counters.phone === 1 ? "mobile" : "guardian_mobile";
   }
