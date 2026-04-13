@@ -34,9 +34,11 @@ def user_create(*, creator: User, **data) -> User:
             {"role": "لإنشاء حساب طالب، استخدم صفحة تسجيل الطلاب."}
         )
 
-    password = data.get("password") if data.get("password") is not None else phone_number[-4:]
-    if data.get("password") is None:
-        logger.info("Created user %s with default password = last 4 digits of phone.", phone_number)
+    if role in ("student", "teacher"):
+        password = phone_number[-4:]
+        logger.info("Created %s user %s with password = last 4 digits of phone.", role, phone_number)
+    else:
+        password = data.get("password") or phone_number[-4:]
 
     user = User(
         phone_number=phone_number,
@@ -63,9 +65,14 @@ def user_update(*, user: User, actor: User, data: dict) -> User:
     if is_admin_user(actor):
         allowed_fields += ["role", "is_active", "phone_number"]
 
+    old_phone = user.phone_number
+
     for field_name, value in data.items():
         if field_name in allowed_fields:
-            if field_name == "specialization" and hasattr(user, "teacher_profile"):
+            if field_name == "phone_number":
+                value = normalize_phone(value)
+                setattr(user, field_name, value)
+            elif field_name == "specialization" and hasattr(user, "teacher_profile"):
                 user.teacher_profile.specialization = value
                 user.teacher_profile.save()
             else:
@@ -73,6 +80,8 @@ def user_update(*, user: User, actor: User, data: dict) -> User:
 
     if "password" in data and (is_admin_user(actor) or actor.id == user.id):
         user.set_password(data["password"])
+    elif user.phone_number != old_phone and user.role in ("student", "teacher"):
+        user.set_password(user.phone_number[-4:])
 
     user.full_clean()
     user.save()
@@ -102,7 +111,6 @@ def teacher_create(*, creator: User, **data) -> Teacher:
         phone_number=data.get("phone_number"),
         first_name=data.get("first_name", ""),
         last_name=data.get("last_name", ""),
-        password=data.get("password"),
         role="teacher",
     )
 

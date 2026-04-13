@@ -32,7 +32,6 @@ def student_create(*, creator: User, **data) -> Student:
         phone_number=data["phone_number"],
         first_name=data.get("first_name", data["full_name"].split()[0] if data["full_name"] else ""),
         last_name=data.get("last_name", " ".join(data["full_name"].split()[1:]) if data["full_name"] else ""),
-        password=data.get("password"),
         role="student",
         _internal_student_create=True,
     )
