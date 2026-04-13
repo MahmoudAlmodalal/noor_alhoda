@@ -87,7 +87,6 @@ function classifyHeader(raw: string, counters: Record<string, number>): string |
   if (h === "م" || h === "#") return null;
   if (h === "العمر") return null;
 
-  // Explicit guardian columns (when header includes "ولي").
   if (h.includes("ولي")) {
     if (h.includes("هوية")) return "guardian_national_id";
     if (h.includes("جوال") || h.includes("حوال") || h.includes("هاتف") || h.includes("موبايل") || h.includes("الحوال")) return "guardian_mobile";
@@ -95,7 +94,6 @@ function classifyHeader(raw: string, counters: Record<string, number>): string |
     return null;
   }
 
-  // Compound headers — specific before generic.
   if (h.includes("الشيخ") || h.includes("المحفظ")) return "teacher_name";
   if (h.includes("الحساب")) {
     if (h.includes("رقم")) return "bank_account_number";
@@ -111,8 +109,6 @@ function classifyHeader(raw: string, counters: Record<string, number>): string |
   if (h.includes("المهارات") || h.includes("المهارة")) return "skills";
   if (h.includes("الدورات") || h.includes("السابقة")) return "previous_courses";
 
-  // Ambiguous headers that appear twice (student then guardian).
-  // Match with or without the "ال" prefix.
   if (h.includes("اسم")) {
     counters.name = (counters.name || 0) + 1;
     return counters.name === 1 ? "full_name" : "guardian_name";
@@ -129,7 +125,6 @@ function classifyHeader(raw: string, counters: Record<string, number>): string |
   return null;
 }
 
-// Convert Excel cell values to string, handling Excel date serials.
 function cellToString(cell: unknown): string {
   if (cell === null || cell === undefined) return "";
   if (cell instanceof Date) {
@@ -139,6 +134,34 @@ function cellToString(cell: unknown): string {
     return `${y}-${m}-${d}`;
   }
   return String(cell).trim();
+}
+
+async function uploadChunkWithRetry(
+  chunkData: Record<string, string>[],
+  maxRetries: number = 3,
+  initialDelay: number = 1000
+): Promise<BulkResult> {
+  let lastError: Error | null = null;
+  
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const res = await api.post<BulkResult>("/api/students/bulk-create/", { rows: chunkData });
+      if (!res.success) {
+        throw new Error(res.error?.message || "خطأ غير معروف من الخادم");
+      }
+      return res.data;
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+      
+      if (attempt < maxRetries - 1) {
+        const delay = initialDelay * Math.pow(2, attempt);
+        console.log(`[retry] محاولة ${attempt + 1} فشلت، إعادة المحاولة بعد ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+  
+  throw lastError || new Error("فشل الرفع بعد عدة محاولات");
 }
 
 export default function StudentsDbPage() {
@@ -219,8 +242,6 @@ export default function StudentsDbPage() {
       const buf = await file.arrayBuffer();
       const wb = XLSX.read(buf, { type: "array", cellDates: true });
 
-      // Pick the sheet with the most rows (some files have an empty first sheet
-      // or a summary sheet before the real data sheet).
       let aoa: unknown[][] = [];
       for (const name of wb.SheetNames) {
         const sheet = wb.Sheets[name];
@@ -236,8 +257,6 @@ export default function StudentsDbPage() {
         return;
       }
 
-      // Find the header row: scan the first few rows and pick the one that
-      // classifies to the most known fields (handles title/merged rows above).
       let headerRowIdx = -1;
       let bestMap: (string | null)[] = [];
       for (let r = 0; r < Math.min(aoa.length, 5); r++) {
@@ -263,7 +282,6 @@ export default function StudentsDbPage() {
       const fullNameIdx = columnMap.indexOf("full_name");
       const nationalIdIdx = columnMap.indexOf("national_id");
       const dataRows = aoa.slice(headerRowIdx + 1).filter((row) => {
-        // Keep rows that have at least a name or national_id — skip blanks and totals.
         const name = cellToString(row[fullNameIdx]);
         const nid = cellToString(row[nationalIdIdx]);
         return name !== "" || nid !== "";
@@ -283,8 +301,7 @@ export default function StudentsDbPage() {
         return;
       }
 
-      // Upload in chunks to avoid timeout
-      const CHUNK_SIZE = 50; // Number of rows per request
+      const CHUNK_SIZE = 10;
       let totalCreated = 0;
       let totalErrors: { row: number; national_id: string; message: string }[] = [];
       let rowOffset = 0;
@@ -297,16 +314,12 @@ export default function StudentsDbPage() {
         setImportProgress({ current: chunkNumber, total: totalChunks });
         
         try {
-          const res = await api.post<BulkResult>("/api/students/bulk-create/", { rows: chunk });
-          if (!res.success) {
-            alert(`فشل الاستيراد في الدفعة ${chunkNumber}: ${res.error?.message || "خطأ غير معروف"}`);
-            return;
-          }
-
-          const { created_count, error_count, errors } = res.data;
+          console.log(`[import] رفع الدفعة ${chunkNumber}/${totalChunks} (${chunk.length} طالب)...`);
+          const result = await uploadChunkWithRetry(chunk, 3, 1000);
+          
+          const { created_count, error_count, errors } = result;
           totalCreated += created_count;
           
-          // Adjust error row numbers to match original file
           const adjustedErrors = errors.map(e => ({
             ...e,
             row: e.row + rowOffset
@@ -314,11 +327,11 @@ export default function StudentsDbPage() {
           totalErrors = totalErrors.concat(adjustedErrors);
           rowOffset += chunk.length;
 
-          // Show progress
           console.log(`[import] الدفعة ${chunkNumber}/${totalChunks}: تم إنشاء ${created_count} طالب، فشل ${error_count}`);
         } catch (err) {
+          const errorMsg = err instanceof Error ? err.message : String(err);
           console.error(`Error in chunk ${chunkNumber}:`, err);
-          alert(`حدث خطأ في الدفعة ${chunkNumber}. يرجى التحقق من الاتصال بالإنترنت والمحاولة مرة أخرى.`);
+          alert(`حدث خطأ في الدفعة ${chunkNumber}: ${errorMsg}\n\nتم إنشاء ${totalCreated} طالب قبل الخطأ.\nيرجى المحاولة مرة أخرى أو التحقق من الاتصال بالإنترنت.`);
           return;
         }
       }
