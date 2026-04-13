@@ -209,7 +209,7 @@ export function EditStudentModal({
         <div className="space-y-2 pt-2">
           <label className="block text-sm font-bold text-slate-800">الحالة الصحية</label>
           <div className="grid grid-cols-2 gap-3">
-            {([["martyr_son", "ابن شهيد"], ["sick", "مريض"], ["injured", "ابن أسير"], ["other", "أخرى"]] as const).map(([key, label]) => (
+            {([["martyr_son", "ابن شهيد"], ["sick", "مريض"], ["injured", "جريح"], ["other", "أخرى"]] as const).map(([key, label]) => (
               <label key={key} className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={health[key]} onChange={() => setHealth({ martyr_son: false, sick: false, injured: false, other: false, [key]: !health[key] })} className="w-4 h-4 rounded accent-[#eabd5b]" />
                 <span className="text-sm text-slate-700">{label}</span>

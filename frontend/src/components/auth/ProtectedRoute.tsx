@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -8,15 +8,13 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
 
-  // تحقق إذا في توكنات محفوظة — إذا في، ربما السيرفر كان نايم وسيصحى
-  const hasTokens = useMemo(
-    () => typeof window !== "undefined" && !!localStorage.getItem("access_token"),
-    []
-  );
+  // Read the token live on every render — AuthContext may clear it after
+  // a failed bootstrap, and we want the redirect to fire when it does.
+  const hasTokens =
+    typeof window !== "undefined" && !!localStorage.getItem("access_token");
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated && !hasTokens) {
-      // لا يوجد توكنات أصلاً → المستخدم غير مسجّل دخول حقاً
       router.replace("/login");
     }
   }, [isLoading, isAuthenticated, hasTokens, router]);

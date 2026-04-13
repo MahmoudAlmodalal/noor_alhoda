@@ -6,6 +6,7 @@ import { Printer, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { useMutation } from "@/hooks/useMutation";
+import { useApi } from "@/hooks/useApi";
 import type { CreateStudentRequest } from "@/types/api";
 import { RoleGate } from "@/components/auth/RoleGate";
 
@@ -29,8 +30,8 @@ function SectionBand({ title }: { title: string }) {
   );
 }
 
-function FormGroup({ label, name, type = "text", value, onChange, error }: {
-  label: string; name: string; type?: string; value: string; onChange: (name: string, value: string) => void; error?: string;
+function FormGroup({ label, name, type = "text", value, onChange, error, placeholder }: {
+  label: string; name: string; type?: string; value: string; onChange: (name: string, value: string) => void; error?: string; placeholder?: string;
 }) {
   return (
     <div className="space-y-1.5 mb-4">
@@ -40,10 +41,73 @@ function FormGroup({ label, name, type = "text", value, onChange, error }: {
         value={value}
         onChange={(e) => onChange(name, e.target.value)}
         aria-label={label}
+        placeholder={placeholder}
         className="border-[#e6e6e6]"
         dir={type === "tel" || type === "number" ? "ltr" : undefined}
       />
       {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
+    </div>
+  );
+}
+
+const GRADES = [
+  "الصف الأول", "الصف الثاني", "الصف الثالث", "الصف الرابع",
+  "الصف الخامس", "الصف السادس", "الصف السابع", "الصف الثامن",
+  "الصف التاسع", "الصف العاشر", "الصف الحادي عشر", "الصف الثاني عشر",
+];
+
+function GradeSelect({ value, onChange, error }: { value: string; onChange: (name: string, value: string) => void; error?: string }) {
+  return (
+    <div className="space-y-1.5 mb-4">
+      <label className="block text-base font-medium text-[#575757]">الصف الدراسي:</label>
+      <select
+        value={value}
+        onChange={(e) => onChange("grade", e.target.value)}
+        className="w-full border border-[#e6e6e6] rounded-md px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/20"
+      >
+        <option value="">اختر الصف...</option>
+        {GRADES.map((g, i) => (
+          <option key={i + 1} value={String(i + 1)}>{g}</option>
+        ))}
+      </select>
+      {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
+    </div>
+  );
+}
+
+function TeacherSelect({ value, onChange, teachers }: {
+  value: string;
+  onChange: (name: string, value: string) => void;
+  teachers: { id: string; full_name: string }[];
+}) {
+  return (
+    <div className="space-y-1.5 mb-4">
+      <label className="block text-base font-medium text-[#575757]">اسم الشيخ:</label>
+      <select
+        value={value}
+        onChange={(e) => onChange("teacher_id", e.target.value)}
+        className="w-full border border-[#e6e6e6] rounded-md px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/20"
+      >
+        <option value="">اختر الشيخ...</option>
+        {teachers.map((t) => (
+          <option key={t.id} value={t.id}>{t.full_name}</option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+function AgeDisplay({ birthdate }: { birthdate: string }) {
+  if (!birthdate) return null;
+  const birth = new Date(birthdate);
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+  const m = today.getMonth() - birth.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+  if (isNaN(age) || age < 0 || age > 120) return null;
+  return (
+    <div className="mb-4 -mt-2 text-sm text-[#575757]">
+      العمر: <span className="font-semibold text-secondary">{age} سنة</span>
     </div>
   );
 }
@@ -72,10 +136,14 @@ function StudentRegistrationInner() {
     birthdate: "",
     grade: "",
     phone_number: "",
+    whatsapp: "",
     address: "",
+    teacher_id: "",
     guardian_name: "",
     guardian_national_id: "",
     guardian_mobile: "",
+    bank_account_number: "",
+    bank_account_name: "",
   });
 
   const [health, setHealth] = useState({
@@ -92,6 +160,14 @@ function StudentRegistrationInner() {
     other: false,
   });
 
+  const [healthOtherText, setHealthOtherText] = useState("");
+  const [skillsOtherText, setSkillsOtherText] = useState("");
+  const [selectedCourses, setSelectedCourses] = useState<string[]>([]);
+  const [bankAccountType, setBankAccountType] = useState("");
+
+  const { data: teachers } = useApi<{ id: string; full_name: string }[]>("/api/users/teachers/");
+  const { data: courses } = useApi<{ id: string; name: string }[]>("/api/courses/");
+
   const handleChange = (name: string, value: string) => {
     setForm((prev) => ({ ...prev, [name]: value }));
   };
@@ -107,7 +183,6 @@ function StudentRegistrationInner() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Determine health status
     let health_status = "normal";
     if (health.martyr_son) health_status = "martyr_son";
     else if (health.sick) health_status = "sick";
@@ -116,12 +191,16 @@ function StudentRegistrationInner() {
 
     const body: CreateStudentRequest = {
       ...form,
+      teacher_id: form.teacher_id || undefined,
+      bank_account_type: bankAccountType || undefined,
+      previous_courses: selectedCourses.join("، "),
       health_status,
-      skills,
-      password: "nooralhuda2026",
+      health_note: health.other ? healthOtherText : "",
+      skills: { ...skills, ...(skills.other && skillsOtherText ? { other_text: skillsOtherText } : {}) } as unknown as Record<string, boolean>,
     };
 
-    const result = await mutate(body, { successMessage: `تم تسجيل الطالب بنجاح. كلمة المرور الافتراضية: nooralhuda2026` });
+    const defaultPassword = form.phone_number.slice(-4);
+    const result = await mutate(body, { successMessage: `تم تسجيل الطالب بنجاح. كلمة المرور الافتراضية: ${defaultPassword}` });
     if (result) {
       router.push("/students");
     }
@@ -149,22 +228,80 @@ function StudentRegistrationInner() {
         <FormGroup label="رقم الهوية:" name="national_id" type="number" value={form.national_id} onChange={handleChange} error={getFieldError("national_id")} />
         <FormGroup label="الاسم رباعي:" name="full_name" value={form.full_name} onChange={handleChange} error={getFieldError("full_name")} />
         <FormGroup label="تاريخ الميلاد:" name="birthdate" type="date" value={form.birthdate} onChange={handleChange} error={getFieldError("birthdate")} />
-        <FormGroup label="الصف الدراسي:" name="grade" value={form.grade} onChange={handleChange} error={getFieldError("grade")} />
-        <FormGroup label="رقم الجوال:" name="phone_number" type="tel" value={form.phone_number} onChange={handleChange} error={getFieldError("phone_number")} />
+        <AgeDisplay birthdate={form.birthdate} />
+        <GradeSelect value={form.grade} onChange={handleChange} error={getFieldError("grade")} />
+        <FormGroup label="رقم الجوال:" name="phone_number" type="tel" value={form.phone_number} onChange={handleChange} error={getFieldError("phone_number")} placeholder="05XXXXXXXX" />
+        <FormGroup label="رقم الواتساب:" name="whatsapp" type="tel" value={form.whatsapp} onChange={handleChange} error={getFieldError("whatsapp")} />
         <FormGroup label="عنوان السكن:" name="address" value={form.address} onChange={handleChange} error={getFieldError("address")} />
 
+        <div className="space-y-1.5 mb-4">
+          <label className="block text-base font-medium text-[#575757]">الدورات السابقة:</label>
+          <div className="border border-[#e6e6e6] rounded-md p-3 max-h-48 overflow-y-auto bg-white space-y-2">
+            {(courses ?? []).length === 0 && (
+              <p className="text-sm text-slate-400">لا توجد دورات متاحة</p>
+            )}
+            {(courses ?? []).map((c) => (
+              <label key={c.id} className="flex items-center justify-end flex-row-reverse gap-3 cursor-pointer">
+                <span className="text-sm text-slate-700">{c.name}</span>
+                <input
+                  type="checkbox"
+                  checked={selectedCourses.includes(c.name)}
+                  onChange={() => {
+                    setSelectedCourses((prev) =>
+                      prev.includes(c.name) ? prev.filter((n) => n !== c.name) : [...prev, c.name]
+                    );
+                  }}
+                  className="w-5 h-5 rounded border-slate-300 accent-[#eabd5b] bg-slate-50"
+                />
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <TeacherSelect value={form.teacher_id} onChange={handleChange} teachers={teachers ?? []} />
+
         <SectionTitle number={2} title="بيانات ولي الأمر" />
-        <FormGroup label="اسم ولي الأمر:" name="guardian_name" value={form.guardian_name} onChange={handleChange} error={getFieldError("guardian_name")} />
+        <FormGroup label="الاسم رباعي:" name="guardian_name" value={form.guardian_name} onChange={handleChange} error={getFieldError("guardian_name")} />
         <FormGroup label="رقم الهوية:" name="guardian_national_id" type="number" value={form.guardian_national_id} onChange={handleChange} error={getFieldError("guardian_national_id")} />
-        <FormGroup label="رقم الجوال:" name="guardian_mobile" type="tel" value={form.guardian_mobile} onChange={handleChange} error={getFieldError("guardian_mobile")} />
+        <FormGroup label="رقم الجوال:" name="guardian_mobile" type="tel" value={form.guardian_mobile} onChange={handleChange} error={getFieldError("guardian_mobile")} placeholder="05XXXXXXXX" />
+
+        <SectionTitle number={3} title="البيانات المصرفية" />
+        <FormGroup label="رقم الحساب:" name="bank_account_number" value={form.bank_account_number} onChange={handleChange} error={getFieldError("bank_account_number")} />
+        <FormGroup label="اسم الحساب:" name="bank_account_name" value={form.bank_account_name} onChange={handleChange} error={getFieldError("bank_account_name")} />
+        <div className="space-y-1.5 mb-4">
+          <label className="block text-base font-medium text-[#575757]">نوع الحساب:</label>
+          <select
+            value={bankAccountType}
+            onChange={(e) => setBankAccountType(e.target.value)}
+            className="w-full border border-[#e6e6e6] rounded-md px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/20"
+          >
+            <option value="">اختر نوع الحساب...</option>
+            <option value="محفظة">محفظة</option>
+            <option value="بنك فلسطين">بنك فلسطين</option>
+            <option value="بنك الإسلامي الفلسطيني">بنك الإسلامي الفلسطيني</option>
+          </select>
+          {getFieldError("bank_account_type") && <p className="text-xs text-red-500 mt-1">{getFieldError("bank_account_type")}</p>}
+        </div>
 
         <SectionBand title="الحالة الصحية" />
         <div className="grid grid-cols-2 gap-y-5 gap-x-4 mb-4">
           <CheckboxItem label="ابن شهيد" checked={health.martyr_son} onChange={() => setHealth({ ...health, martyr_son: !health.martyr_son })} />
           <CheckboxItem label="مريض" checked={health.sick} onChange={() => setHealth({ ...health, sick: !health.sick })} />
-          <CheckboxItem label="ابن أسير" checked={health.injured} onChange={() => setHealth({ ...health, injured: !health.injured })} />
+          <CheckboxItem label="جريح" checked={health.injured} onChange={() => setHealth({ ...health, injured: !health.injured })} />
           <CheckboxItem label="أخرى" checked={health.other} onChange={() => setHealth({ ...health, other: !health.other })} />
         </div>
+        {health.other && (
+          <div className="mb-4">
+            <Input
+              type="text"
+              value={healthOtherText}
+              onChange={(e) => setHealthOtherText(e.target.value)}
+              placeholder="اكتب التفاصيل..."
+              aria-label="تفاصيل الحالة الصحية"
+              className="border-[#e6e6e6]"
+            />
+          </div>
+        )}
 
         <SectionBand title="المهارات والاهتمامات" />
         <div className="grid grid-cols-2 gap-y-5 gap-x-4 mb-10">
@@ -173,6 +310,18 @@ function StudentRegistrationInner() {
           <CheckboxItem label="شعر" checked={skills.poetry} onChange={() => setSkills({ ...skills, poetry: !skills.poetry })} />
           <CheckboxItem label="أخرى" checked={skills.other} onChange={() => setSkills({ ...skills, other: !skills.other })} />
         </div>
+        {skills.other && (
+          <div className="mb-6">
+            <Input
+              type="text"
+              value={skillsOtherText}
+              onChange={(e) => setSkillsOtherText(e.target.value)}
+              placeholder="اكتب التفاصيل..."
+              aria-label="تفاصيل المهارات الأخرى"
+              className="border-[#e6e6e6]"
+            />
+          </div>
+        )}
 
         {/* Action Buttons */}
         <div className="space-y-3 mt-8">

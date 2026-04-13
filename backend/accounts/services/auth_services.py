@@ -19,7 +19,6 @@ def user_login(*, phone: str, password: str) -> dict:
     Authenticate user by phone + password. Returns JWT tokens.
     FR-01: Login by phone + password
     FR-02: Access token 60min, Refresh token 7 days
-    FR-03: Block after 5 failed attempts for 15 minutes (TODO: implement with django-ratelimit)
     """
     try:
         phone = normalize_phone(phone)
@@ -34,27 +33,8 @@ def user_login(*, phone: str, password: str) -> dict:
     if not user.is_active:
         raise AuthenticationFailed("هذا الحساب معطّل.")
 
-    # FR-03: Check if account is locked
-    if user.locked_until and user.locked_until > timezone.now():
-        remaining = (user.locked_until - timezone.now()).seconds // 60 + 1
-        raise AuthenticationFailed(
-            f"الحساب مقفل بسبب محاولات فاشلة متعددة. يرجى المحاولة بعد {remaining} دقيقة."
-        )
-
     if not user.check_password(password):
-        # FR-03: Increment failed attempts, lock after 5
-        user.failed_login_attempts += 1
-        if user.failed_login_attempts >= 5:
-            user.locked_until = timezone.now() + timedelta(minutes=15)
-            user.failed_login_attempts = 0
-        user.save(update_fields=["failed_login_attempts", "locked_until"])
         raise AuthenticationFailed("رقم الجوال أو كلمة المرور غير صحيحة.")
-
-    # Reset failed attempts on successful login
-    if user.failed_login_attempts > 0 or user.locked_until:
-        user.failed_login_attempts = 0
-        user.locked_until = None
-        user.save(update_fields=["failed_login_attempts", "locked_until"])
 
     refresh = RefreshToken.for_user(user)
 

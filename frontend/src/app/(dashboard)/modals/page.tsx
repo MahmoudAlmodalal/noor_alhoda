@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import {
-    AssignRingModal,
     AddTeacherModal,
     ConfirmDeleteModal,
     EditTeacherModal
@@ -21,9 +20,6 @@ export default function ModalsPlayground() {
             </div>
 
             <div className="flex flex-col gap-3">
-                <Button onClick={() => setActiveModal("assignRing")} className="h-14 rounded-xl text-lg shadow-sm">
-                    تعيين حلقة للمحفظ
-                </Button>
                 <Button onClick={() => setActiveModal("addTeacher")} className="h-14 rounded-xl text-lg shadow-sm" variant="secondary">
                     إضافة محفظ جديد
                 </Button>
@@ -39,13 +35,6 @@ export default function ModalsPlayground() {
             </div>
 
             {/* Render Modals */}
-            <AssignRingModal
-                isOpen={activeModal === "assignRing"}
-                onClose={() => setActiveModal(null)}
-                teacherId="demo"
-                teacherName="الشيخ محمد عبدالله"
-            />
-
             <AddTeacherModal
                 isOpen={activeModal === "addTeacher"}
                 onClose={() => setActiveModal(null)}
@@ -61,6 +50,7 @@ export default function ModalsPlayground() {
                 isOpen={activeModal === "editTeacher"}
                 onClose={() => setActiveModal(null)}
                 teacher={{ id: "demo", user_id: "demo", phone_number: "0500000000", full_name: "الشيخ محمد عبدالله", specialization: "حفص عن عاصم", session_days: [], max_students: 25, created_at: "" }}
+
             />
 
             <AssignStudentModal

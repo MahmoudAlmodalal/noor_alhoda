@@ -15,16 +15,13 @@ interface BeforeInstallPromptEvent extends Event {
 
 function InstallButton() {
   const [prompt, setPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-  const [installed, setInstalled] = useState(false);
+  const [installed, setInstalled] = useState<boolean>(
+    () => typeof window !== "undefined" && window.matchMedia("(display-mode: standalone)").matches
+  );
   const [showGuide, setShowGuide] = useState(false);
   const [waitingWorker, setWaitingWorker] = useState<ServiceWorker | null>(null);
 
   useEffect(() => {
-    // Already installed as PWA
-    if (window.matchMedia("(display-mode: standalone)").matches) {
-      setInstalled(true);
-    }
-
     // Detect available update
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.getRegistration().then((reg) => {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Search, UserPlus, CheckCircle2, Edit, Trash2, UserCog } from "lucide-react";
+import { Search, UserPlus, Edit, Trash2, UserCog } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
@@ -12,7 +12,6 @@ import {
   AddTeacherModal,
   EditTeacherModal,
   ConfirmDeleteModal,
-  AssignRingModal,
 } from "@/components/modals/TeacherModals";
 import type { Teacher } from "@/types/api";
 import { RoleGate } from "@/components/auth/RoleGate";
@@ -30,7 +29,6 @@ function TeachersPageInner() {
   const [showAdd, setShowAdd] = useState(false);
   const [editTeacher, setEditTeacher] = useState<Teacher | null>(null);
   const [deleteTeacher, setDeleteTeacher] = useState<Teacher | null>(null);
-  const [assignRing, setAssignRing] = useState<Teacher | null>(null);
 
   if (isLoading && !teachers) return <PageLoading />;
 
@@ -93,23 +91,10 @@ function TeachersPageInner() {
                     </span>
                   </div>
 
-                  <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-lg px-4">
-                    <span className="text-sm text-slate-500 font-medium">اسم الحلقة:</span>
-                    <span className="text-sm font-semibold text-slate-700">{teacher.ring_name || "غير معين"}</span>
-                  </div>
                 </div>
 
                 {/* Actions Footer */}
                 <div className="flex items-center gap-2 pt-4 border-t border-slate-100">
-                  <Button
-                    variant="ghost"
-                    className="flex-1 text-[#2f944d] hover:bg-[#eefbee] gap-1.5 font-bold h-11 hover:text-[#2f944d]"
-                    onClick={() => setAssignRing(teacher)}
-                  >
-                    <CheckCircle2 className="w-4 h-4" />
-                    تعيين حلقة
-                  </Button>
-                  <div className="w-px h-6 bg-slate-100" />
                   <Button
                     variant="ghost" size="icon"
                     className="text-slate-400 hover:text-primary hover:bg-slate-50"
@@ -160,15 +145,6 @@ function TeachersPageInner() {
         />
       )}
 
-      {assignRing && (
-        <AssignRingModal
-          isOpen={!!assignRing}
-          onClose={() => setAssignRing(null)}
-          teacherId={assignRing.id}
-          teacherName={assignRing.full_name}
-          onSuccess={() => { setAssignRing(null); refetch(); }}
-        />
-      )}
     </div>
   );
 }

@@ -71,24 +71,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      const MAX_RETRIES = 4;
-      const RETRY_DELAY_MS = 3000;
+      const MAX_RETRIES = 2;
+      const RETRY_DELAY_MS = 1500;
+      let authed = false;
 
       for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
         try {
-          const success = await fetchMe();
-          if (success) break;
-
+          if (await fetchMe()) {
+            authed = true;
+            break;
+          }
           if (!localStorage.getItem("access_token")) break;
-
-          if (attempt < MAX_RETRIES - 1) {
-            await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
-          }
         } catch {
-          if (attempt < MAX_RETRIES - 1) {
-            await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
-          }
+          // network error — fall through to retry
         }
+        if (attempt < MAX_RETRIES - 1) {
+          await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
+        }
+      }
+
+      // If bootstrap failed entirely (e.g. network down, stale token),
+      // clear the token so ProtectedRoute redirects to /login instead of
+      // hanging on the "connecting to server" screen.
+      if (!authed && localStorage.getItem("access_token")) {
+        localStorage.removeItem("access_token");
+        localStorage.removeItem("refresh_token");
       }
 
       if (isMounted) {

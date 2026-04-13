@@ -6,77 +6,17 @@ import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useMutation } from "@/hooks/useMutation";
-import { useApi } from "@/hooks/useApi";
-import type { Teacher, Ring } from "@/types/api";
+import type { Teacher } from "@/types/api";
 
 /**
- * 1. Assign Ring Modal — تعيين حلقة للمحفظ
- * TODO: Wire to rings API when backend endpoint is available
- */
-export function AssignRingModal({ 
-  isOpen, onClose, teacherId, teacherName, onSuccess 
-}: { 
-  isOpen: boolean; onClose: () => void; teacherId: string; teacherName: string; onSuccess?: () => void 
-}) {
-  const [ringId, setRingId] = useState("");
-  const { data: rings } = useApi<Ring[]>(isOpen ? "/api/students/rings/" : null);
-  const { mutate, isSubmitting, error } = useMutation("patch");
-
-  const handleSubmit = async () => {
-    if (!ringId) return;
-    const result = await mutate(
-      { ring_id: ringId },
-      { endpoint: `/api/students/teachers/${teacherId}/assign-ring/`, successMessage: "تم تعيين الحلقة بنجاح" }
-    );
-    if (result) {
-      onSuccess?.();
-    }
-  };
-
-  return (
-    <Modal isOpen={isOpen} onClose={onClose}>
-      <h2 className="text-xl font-bold text-primary mb-2">تعيين حلقة للمحفظ</h2>
-      <p className="text-sm text-slate-500 font-medium mb-6">
-        تعيين حلقة للشيخ: <span className="font-bold text-slate-800">{teacherName}</span>
-      </p>
-      <div className="space-y-1.5 mb-8">
-        <label className="block text-sm font-bold text-slate-800">اختر الحلقة</label>
-        <select
-          value={ringId}
-          onChange={(e) => setRingId(e.target.value)}
-          aria-label="اختر الحلقة"
-          className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-        >
-          <option value="">— اختر الحلقة —</option>
-          {(rings ?? []).map((r) => (
-            <option key={r.id} value={r.id}>{r.name}</option>
-          ))}
-        </select>
-      </div>
-      {error && (
-        <p className="text-sm text-red-500 mb-4">{error}</p>
-      )}
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" onClick={onClose} className="flex-1 bg-slate-100/80 text-slate-700 hover:bg-slate-200 h-12 rounded-xl font-bold">
-          إلغاء
-        </Button>
-        <Button onClick={handleSubmit} disabled={isSubmitting || !ringId} className="flex-1 h-12 rounded-xl font-bold gap-2">
-          {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-          حفظ التعيين
-        </Button>
-      </div>
-    </Modal>
-  );
-}
-
-/**
- * 2. Add New Teacher Modal — إضافة محفظ جديد
+ * Add New Teacher Modal — إضافة محفظ جديد
  */
 export function AddTeacherModal({ isOpen, onClose, onSuccess }: { isOpen: boolean; onClose: () => void; onSuccess?: () => void }) {
   const [form, setForm] = useState({
     full_name: "",
     phone_number: "",
     specialization: "",
+    affiliation: "",
   });
 
   const { mutate, isSubmitting, fieldErrors, reset, error } = useMutation("post", "/api/users/teachers/create/");
@@ -89,10 +29,11 @@ export function AddTeacherModal({ isOpen, onClose, onSuccess }: { isOpen: boolea
       last_name: nameParts.slice(1).join(" ") || "",
       full_name: form.full_name,
       specialization: form.specialization,
+      affiliation: form.affiliation,
     }, { successMessage: "تم إضافة المحفظ بنجاح" });
 
     if (result) {
-      setForm({ full_name: "", phone_number: "", specialization: "" });
+      setForm({ full_name: "", phone_number: "", specialization: "", affiliation: "" });
       reset();
       onSuccess?.();
     }
@@ -116,6 +57,20 @@ export function AddTeacherModal({ isOpen, onClose, onSuccess }: { isOpen: boolea
         <div className="space-y-1.5">
           <label className="block text-sm font-bold text-slate-800">التخصص (اختياري)</label>
           <Input value={form.specialization} onChange={(e) => setForm({ ...form, specialization: e.target.value })} aria-label="التخصص" className="h-12 rounded-xl border-slate-200" />
+        </div>
+        <div className="space-y-1.5">
+          <label className="block text-sm font-bold text-slate-800">التباعية</label>
+          <select
+            value={form.affiliation}
+            onChange={(e) => setForm({ ...form, affiliation: e.target.value })}
+            aria-label="التباعية"
+            className="w-full h-12 rounded-xl border border-slate-200 px-3 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+          >
+            <option value="">اختر التباعية...</option>
+            <option value="dar_quran">دار القرآن</option>
+            <option value="awqaf">أوقاف</option>
+          </select>
+          {fieldErrors?.affiliation && <p className="text-xs text-red-500">{fieldErrors.affiliation}</p>}
         </div>
       </div>
 
@@ -196,6 +151,7 @@ export function EditTeacherModal({
     full_name: teacher.full_name,
     phone_number: teacher.phone_number || "",
     specialization: teacher.specialization || "",
+    affiliation: teacher.affiliation || "",
   });
 
   const { mutate, isSubmitting, fieldErrors, error } = useMutation("patch");
@@ -207,6 +163,7 @@ export function EditTeacherModal({
       last_name: nameParts.slice(1).join(" ") || "",
       phone_number: form.phone_number,
       specialization: form.specialization,
+      affiliation: form.affiliation,
     };
     const result = await mutate(payload, {
       endpoint: `/api/users/${teacher.user_id}/`,
@@ -235,6 +192,20 @@ export function EditTeacherModal({
         <div className="space-y-1.5">
           <label className="block text-sm font-bold text-slate-800">التخصص</label>
           <Input value={form.specialization} onChange={(e) => setForm({ ...form, specialization: e.target.value })} aria-label="التخصص" className="h-12 rounded-xl border-slate-200 font-medium" />
+        </div>
+        <div className="space-y-1.5">
+          <label className="block text-sm font-bold text-slate-800">التباعية</label>
+          <select
+            value={form.affiliation}
+            onChange={(e) => setForm({ ...form, affiliation: e.target.value })}
+            aria-label="التباعية"
+            className="w-full h-12 rounded-xl border border-slate-200 px-3 bg-white text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/20"
+          >
+            <option value="">اختر التباعية...</option>
+            <option value="dar_quran">دار القرآن</option>
+            <option value="awqaf">أوقاف</option>
+          </select>
+          {fieldErrors?.affiliation && <p className="text-xs text-red-500">{fieldErrors.affiliation}</p>}
         </div>
       </div>
 

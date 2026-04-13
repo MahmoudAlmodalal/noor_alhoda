@@ -21,7 +21,6 @@ import type {
   Student,
   DailyRecord,
   ScheduleItem,
-  Ring,
 } from "@/types/api";
 import { WeeklyPlanModal } from "@/components/plans/WeeklyPlanModal";
 import { AnnounceModal } from "@/components/notifications/AnnounceModal";
@@ -79,8 +78,6 @@ export default function Dashboard() {
     isTeacher ? "/api/records/" : null,
     isTeacher ? { date: todayKey() } : undefined
   );
-  const { data: ringsData } = useApi<Ring[]>(isTeacher ? "/api/students/rings/" : null);
-  const teacherRing = ringsData?.find((r) => r.teacher_id === teacherProfileId);
 
   // Roster table — admin sees all, teacher sees own
   const rosterParams = useMemo(() => {
@@ -106,7 +103,7 @@ export default function Dashboard() {
       return {
         totalStudents: dashStats.total_students,
         attendanceToday: dashStats.today.present,
-        ringsCount: dashStats.rings_count,
+        ringsCount: dashStats.total_teachers,
         outstanding: dashStats.outstanding_count,
       };
     }
@@ -173,10 +170,10 @@ export default function Dashboard() {
             : "نسأل الله لك التوفيق في إدارة هذه المؤسسة المباركة"}
         </p>
         {isTeacher ? (
-          teacherRing && (
+          user?.teacher_profile?.specialization && (
             <div className="inline-flex items-center gap-2 border border-secondary/50 bg-[rgba(251,242,222,0.6)] px-4 py-2 rounded-[10px]">
               <Star className="w-4 h-4 text-secondary fill-secondary" />
-              <span className="text-sm font-bold text-primary">{teacherRing.name}</span>
+              <span className="text-sm font-bold text-primary">{user.teacher_profile.specialization}</span>
             </div>
           )
         ) : (

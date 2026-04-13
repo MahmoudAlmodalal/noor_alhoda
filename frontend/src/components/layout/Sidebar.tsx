@@ -16,6 +16,7 @@ import {
     ClipboardCheck,
     Trophy,
     BarChart3,
+    Database,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNotifications } from "@/contexts/NotificationsContext";
@@ -39,7 +40,7 @@ export const menuItems: NavItem[] = [
     { name: "تسجيل طالب", href: "/students/register", icon: UserPlus, roles: ["admin"] },
     { name: "إدارة المحفظين", href: "/teachers", icon: UserCheck, roles: ["admin"] },
     { name: "سجل الطلاب", href: "/students", icon: Users, roles: ["admin"] },
-    { name: "إدارة الحلقات", href: "/rings", icon: BookOpen, roles: ["admin"] },
+    { name: "قاعدة بيانات الطلاب", href: "/students-db", icon: Database, roles: ["admin"] },
     { name: "إدارة الدورات", href: "/courses", icon: BookMarked, roles: ["admin"] },
     { name: "تسجيل الحضور", href: "/attendance", icon: ClipboardCheck, roles: ["admin"] },
     { name: "لوحة الشرف", href: "/leaderboard", icon: Trophy, roles: ["admin"] },
@@ -47,7 +48,6 @@ export const menuItems: NavItem[] = [
     { name: "الإشعارات", href: "/notifications", icon: Bell, roles: ["admin", "parent"] },
 
     // المحفظ فقط
-    { name: "حلقاتي", href: "/students", icon: Users, roles: ["teacher"] },
     { name: "الحضور والتقييم", href: "/attendance", icon: ClipboardCheck, roles: ["teacher"] },
     { name: "خطط التسميع", href: "/plans", icon: BookOpen, roles: ["teacher"] },
     { name: "تقارير الحضور", href: "/reports/attendance", icon: BarChart3, roles: ["teacher"] },

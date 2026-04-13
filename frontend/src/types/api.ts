@@ -51,28 +51,16 @@ export interface OtpVerifyRequest {
 
 // ─── Teachers ────────────────────────────────────────────────────────────────
 
-export interface Ring {
-  id: string;
-  name: string;
-  status: "active" | "inactive";
-  level: string;
-  teacher_id: string | null;
-  teacher_name: string | null;
-  students_count: number;
-  created_at: string;
-}
-
 export interface Teacher {
   id: string;
   user_id: string;
   phone_number: string;
   full_name: string;
   specialization: string;
+  affiliation?: string;
   session_days: string[];
   max_students: number;
   created_at: string;
-  ring_id?: string | null;
-  ring_name?: string | null;
 }
 
 export interface TeacherWithUser {
@@ -118,8 +106,6 @@ export interface Student {
   guardian_mobile: string;
   teacher_id: string | null;
   teacher_name: string | null;
-  ring_id: string | null;
-  ring_name: string | null;
   health_status: string;
   health_note: string;
   skills: Record<string, boolean>;
@@ -136,6 +122,10 @@ export interface CreateStudentRequest {
   address?: string;
   whatsapp?: string;
   mobile?: string;
+  previous_courses?: string;
+  bank_account_number?: string;
+  bank_account_name?: string;
+  bank_account_type?: string;
   guardian_name: string;
   guardian_mobile: string;
   guardian_national_id?: string;
@@ -163,7 +153,6 @@ export interface DashboardStats {
   this_week: {
     avg_completion_rate: number;
   };
-  rings_count: number;
   outstanding_count: number;
   outstanding?: number;
   late?: number;
@@ -302,7 +291,6 @@ export interface LeaderboardEntry {
   rank: number;
   student_id: string;
   student_name: string;
-  ring_name?: string;
   total_achieved: number;
   total_required: number;
   present_days: number;
