@@ -244,15 +244,34 @@ def student_bulk_create(*, creator: User, rows: list) -> dict:
     if not is_admin_user(creator):
         raise PermissionDenied("فقط المدير يمكنه استيراد الطلاب.")
 
+    # Pre-fetch teachers
     teacher_by_name = {
-        (t.full_name or "").strip(): t.id
+        (t.full_name or "").strip(): t
         for t in Teacher.objects.all()
+    }
+    
+    # Pre-fetch existing students to avoid duplicates
+    existing_national_ids = set(Student.objects.values_list('national_id', flat=True))
+    
+    # Pre-fetch existing parents by phone number
+    existing_parents_by_phone = {
+        p.phone_number: p
+        for p in Parent.objects.select_related('user').all()
     }
 
     created, errors = [], []
 
     for idx, row in enumerate(rows, start=1):
         national_id = str(row.get("national_id", "") or "").strip()
+        
+        if national_id in existing_national_ids:
+            errors.append({
+                "row": idx,
+                "national_id": national_id,
+                "message": "رقم الهوية مسجل مسبقاً.",
+            })
+            continue
+
         try:
             with transaction.atomic():
                 health_status, health_note = _normalize_health(row.get("health_status"))
@@ -287,7 +306,7 @@ def student_bulk_create(*, creator: User, rows: list) -> dict:
 
                 teacher_name = str(row.get("teacher_name", "") or "").strip()
                 if teacher_name and teacher_name in teacher_by_name:
-                    data["teacher_id"] = str(teacher_by_name[teacher_name])
+                    data["teacher_id"] = str(teacher_by_name[teacher_name].id)
 
                 student = student_create(creator=creator, **data)
 
@@ -300,26 +319,31 @@ def student_bulk_create(*, creator: User, rows: list) -> dict:
                         normalized = None
 
                     if normalized:
-                        parent_user = User.objects.filter(phone_number=normalized).first()
-                        if parent_user is None:
-                            name_parts = guardian_name.split() if guardian_name else []
-                            parent_user = user_create(
-                                creator=creator,
-                                phone_number=normalized,
-                                first_name=name_parts[0] if name_parts else "",
-                                last_name=" ".join(name_parts[1:]) if len(name_parts) > 1 else "",
-                                role="parent",
+                        parent = existing_parents_by_phone.get(normalized)
+                        if parent is None:
+                            parent_user = User.objects.filter(phone_number=normalized).first()
+                            if parent_user is None:
+                                name_parts = guardian_name.split() if guardian_name else []
+                                parent_user = user_create(
+                                    creator=creator,
+                                    phone_number=normalized,
+                                    first_name=name_parts[0] if name_parts else "",
+                                    last_name=" ".join(name_parts[1:]) if len(name_parts) > 1 else "",
+                                    role="parent",
+                                )
+                            parent, _ = Parent.objects.get_or_create(
+                                user=parent_user,
+                                defaults={
+                                    "full_name": guardian_name or parent_user.get_full_name() or normalized,
+                                    "phone_number": normalized,
+                                },
                             )
-                        parent, _ = Parent.objects.get_or_create(
-                            user=parent_user,
-                            defaults={
-                                "full_name": guardian_name or parent_user.get_full_name() or normalized,
-                                "phone_number": normalized,
-                            },
-                        )
+                            existing_parents_by_phone[normalized] = parent
+                        
                         ParentStudentLink.objects.get_or_create(parent=parent, student=student)
 
                 created.append(str(student.id))
+                existing_national_ids.add(national_id)
         except ValidationError as e:
             errors.append({
                 "row": idx,

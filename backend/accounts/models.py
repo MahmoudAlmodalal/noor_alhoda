@@ -69,6 +69,9 @@ class User(AbstractUser):
         verbose_name="رمز FCM",
         help_text="رمز الجهاز لإشعارات Firebase",
     )
+    failed_login_attempts = models.PositiveIntegerField(default=0)
+    lockout_until = models.DateTimeField(null=True, blank=True)
+    last_login_attempt = models.DateTimeField(null=True, blank=True)
     # Use phone_number as the login field
     username = None
     USERNAME_FIELD = "phone_number"
@@ -79,6 +82,10 @@ class User(AbstractUser):
         verbose_name = "مستخدم"
         verbose_name_plural = "المستخدمون"
         ordering = ["-date_joined"]
+        indexes = [
+            models.Index(fields=["role"]),
+            models.Index(fields=["is_active"]),
+        ]
 
     def __str__(self):
         return f"{self.get_full_name()} ({self.get_role_display()})"
@@ -128,6 +135,10 @@ class Teacher(models.Model):
         verbose_name = "محفظ"
         verbose_name_plural = "المحفظون"
         ordering = ["full_name"]
+        indexes = [
+            models.Index(fields=["full_name"]),
+            models.Index(fields=["affiliation"]),
+        ]
 
     def __str__(self):
         return self.full_name
@@ -155,6 +166,10 @@ class Parent(models.Model):
         verbose_name = "ولي أمر"
         verbose_name_plural = "أولياء الأمور"
         ordering = ["full_name"]
+        indexes = [
+            models.Index(fields=["full_name"]),
+            models.Index(fields=["phone_number"]),
+        ]
 
     def __str__(self):
         return self.full_name

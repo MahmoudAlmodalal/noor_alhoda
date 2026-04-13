@@ -4,7 +4,8 @@ from datetime import timedelta
 
 from django.utils import timezone
 from django.db import transaction
-from rest_framework.exceptions import ValidationError, AuthenticationFailed
+from rest_framework.exceptions import AuthenticationFailed
+from core.exceptions import BusinessLogicError
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.token_blacklist.models import OutstandingToken, BlacklistedToken
@@ -33,8 +34,24 @@ def user_login(*, phone: str, password: str) -> dict:
     if not user.is_active:
         raise AuthenticationFailed("هذا الحساب معطّل.")
 
+    # Account Lockout Logic
+    if user.lockout_until and user.lockout_until > timezone.now():
+        raise AuthenticationFailed("تم قفل الحساب مؤقتًا بسبب محاولات تسجيل الدخول الفاشلة المتكررة. يرجى المحاولة مرة أخرى لاحقًا.")
+
     if not user.check_password(password):
+        user.failed_login_attempts += 1
+        user.last_login_attempt = timezone.now()
+        if user.failed_login_attempts >= 5:  # Lockout after 5 failed attempts
+            user.lockout_until = timezone.now() + timedelta(minutes=30)  # Lockout for 30 minutes
+        user.save()
         raise AuthenticationFailed("رقم الجوال أو كلمة المرور غير صحيحة.")
+
+    # Reset failed login attempts on successful login
+    if user.failed_login_attempts > 0:
+        user.failed_login_attempts = 0
+        user.lockout_until = None
+        user.last_login_attempt = None
+        user.save()
 
     refresh = RefreshToken.for_user(user)
 
@@ -59,7 +76,7 @@ def user_logout(*, refresh_token: str) -> None:
         token = RefreshToken(refresh_token)
         token.blacklist()
     except TokenError:
-        raise ValidationError("رمز التحديث غير صالح أو منتهي الصلاحية.")
+        raise BusinessLogicError("رمز التحديث غير صالح أو منتهي الصلاحية.")
 
 
 @transaction.atomic
@@ -75,7 +92,7 @@ def otp_send(*, phone: str) -> None:
     try:
         user = User.objects.get(phone_number=phone)
     except User.DoesNotExist:
-        raise ValidationError("رقم الجوال غير مسجل في النظام.")
+        raise BusinessLogicError("رقم الجوال غير مسجل في النظام.")
 
     # Invalidate old OTPs
     OTPCode.objects.filter(user=user, is_used=False).update(is_used=True)
@@ -91,6 +108,8 @@ def otp_send(*, phone: str) -> None:
     )
 
     # TODO: Integrate SMS gateway (e.g. Twilio) to send `code` to the user's phone.
+    # For now, raise an error to indicate that SMS integration is missing.
+    raise BusinessLogicError("SMS gateway not configured. Cannot send OTP.")
     # SECURITY: Never return or log the plain OTP code.
 
 
@@ -104,7 +123,7 @@ def otp_verify(*, phone: str, code: str, new_password: str) -> None:
     try:
         user = User.objects.get(phone_number=phone)
     except User.DoesNotExist:
-        raise ValidationError("رقم الجوال غير مسجل في النظام.")
+        raise BusinessLogicError("رقم الجوال غير مسجل في النظام.")
 
     code_hash = OTPCode.hash_code(code)
     otp = OTPCode.objects.filter(
@@ -115,7 +134,7 @@ def otp_verify(*, phone: str, code: str, new_password: str) -> None:
     ).first()
 
     if not otp:
-        raise ValidationError("رمز OTP غير صالح أو منتهي الصلاحية.")
+        raise BusinessLogicError("رمز OTP غير صالح أو منتهي الصلاحية.")
 
     # Mark as used
     otp.is_used = True

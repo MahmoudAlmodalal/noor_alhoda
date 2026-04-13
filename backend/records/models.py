@@ -30,6 +30,10 @@ class WeeklyPlan(models.Model):
         verbose_name_plural = "الخطط الأسبوعية"
         ordering = ["-week_start"]
         unique_together = ("student", "week_start")
+        indexes = [
+            models.Index(fields=["week_start"]),
+            models.Index(fields=["week_number"]),
+        ]
 
     def __str__(self):
         return f"{self.student.full_name} - الأسبوع {self.week_number}"
@@ -128,6 +132,12 @@ class DailyRecord(models.Model):
         verbose_name_plural = "السجلات اليومية"
         unique_together = ("weekly_plan", "day")
         ordering = ["date"]
+        indexes = [
+            models.Index(fields=["date"]),
+            models.Index(fields=["attendance"]),
+            models.Index(fields=["quality"]),
+            models.Index(fields=["result"]),
+        ]
 
     def __str__(self):
         return f"{self.weekly_plan.student.full_name} - {self.get_day_display()} ({self.date})"
