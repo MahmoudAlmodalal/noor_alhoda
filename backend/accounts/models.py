@@ -69,6 +69,9 @@ class User(AbstractUser):
         verbose_name="رمز FCM",
         help_text="رمز الجهاز لإشعارات Firebase",
     )
+    failed_login_attempts = models.PositiveIntegerField(default=0)
+    lockout_until = models.DateTimeField(null=True, blank=True)
+    last_login_attempt = models.DateTimeField(null=True, blank=True)
     # Use phone_number as the login field
     username = None
     USERNAME_FIELD = "phone_number"

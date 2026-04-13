@@ -224,7 +224,10 @@ async function apiFetch<T>(
         message: data.detail || data.message || "حدث خطأ غير متوقع.",
       },
     };
-  } catch {
+  } catch (err: any) {
+    if (err.name === 'AbortError') {
+      throw err;
+    }
     return {
       success: false,
       error: {
@@ -247,26 +250,28 @@ function buildQueryString(params?: Record<string, string | undefined>): string {
 }
 
 export const api = {
-  get<T>(endpoint: string, params?: Record<string, string | undefined>) {
-    return apiFetch<T>(endpoint + buildQueryString(params), { method: "GET" });
+  get<T>(endpoint: string, params?: Record<string, string | undefined>, signal?: AbortSignal) {
+    return apiFetch<T>(endpoint + buildQueryString(params), { method: "GET", signal });
   },
 
-  post<T>(endpoint: string, body?: unknown) {
+  post<T>(endpoint: string, body?: unknown, signal?: AbortSignal) {
     return apiFetch<T>(endpoint, {
       method: "POST",
       body: body ? JSON.stringify(body) : undefined,
+      signal,
     });
   },
 
-  patch<T>(endpoint: string, body?: unknown) {
+  patch<T>(endpoint: string, body?: unknown, signal?: AbortSignal) {
     return apiFetch<T>(endpoint, {
       method: "PATCH",
       body: body ? JSON.stringify(body) : undefined,
+      signal,
     });
   },
 
-  delete<T>(endpoint: string) {
-    return apiFetch<T>(endpoint, { method: "DELETE" });
+  delete<T>(endpoint: string, signal?: AbortSignal) {
+    return apiFetch<T>(endpoint, { method: "DELETE", signal });
   },
 
   async downloadBlob(endpoint: string): Promise<Blob | null> {

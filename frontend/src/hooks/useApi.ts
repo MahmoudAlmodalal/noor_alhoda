@@ -16,7 +16,7 @@ export function useApi<T>(
     paramsRef.current = params;
   }, [params]);
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (signal?: AbortSignal) => {
     if (!endpoint) {
       setIsLoading(false);
       return;
@@ -25,23 +25,32 @@ export function useApi<T>(
     setIsLoading(true);
     setError(null);
 
-    const res = await api.get<T>(endpoint, paramsRef.current);
+    try {
+      const res = await api.get<T>(endpoint, paramsRef.current, signal);
 
-    if (res.success) {
-      setData(res.data);
-    } else {
-      setError(res.error.message);
+      if (res.success) {
+        setData(res.data);
+      } else {
+        setError(res.error.message);
+      }
+    } catch (err: any) {
+      if (err.name === 'AbortError') return;
+      setError("حدث خطأ غير متوقع.");
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   }, [endpoint]);
 
   useEffect(() => {
+    const controller = new AbortController();
+    
     const timeoutId = window.setTimeout(() => {
-      void fetchData();
+      void fetchData(controller.signal);
     }, 0);
 
     return () => {
       window.clearTimeout(timeoutId);
+      controller.abort();
     };
   }, [fetchData]);
 
