@@ -129,6 +129,11 @@ class Student(models.Model):
         verbose_name = "طالب"
         verbose_name_plural = "الطلاب"
         ordering = ["full_name"]
+        indexes = [
+            models.Index(fields=["full_name"]),
+            models.Index(fields=["is_active"]),
+            models.Index(fields=["enrollment_date"]),
+        ]
 
     def __str__(self):
         return self.full_name
