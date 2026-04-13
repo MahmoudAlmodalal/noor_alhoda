@@ -294,6 +294,7 @@ export interface LeaderboardEntry {
   total_achieved: number;
   total_required: number;
   present_days: number;
+  ring_name?: string;
 }
 
 export interface AttendanceReportRow {
