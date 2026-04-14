@@ -18,6 +18,12 @@ _HEALTH_MAP = {
     "مريض": "sick",
     "جريح": "injured",
 }
+_AFFILIATION_MAP = {
+    "أوقاف": "awqaf",
+    "دار القرآن": "dar_quran",
+    "awqaf": "awqaf",
+    "dar_quran": "dar_quran",
+}
 
 
 def _normalize_grade(value) -> str:
@@ -316,7 +322,7 @@ def student_bulk_create(*, creator: User, rows: list) -> dict:
                         desired_courses=str(row.get("desired_courses", "") or "").strip() or "غ. م",
                         health_status=_normalize_health(row.get("health_status"))[0],
                         health_note=_normalize_health(row.get("health_status"))[1],
-                        affiliation=str(row.get("affiliation", "") or "").strip() or "غ. م",
+                        affiliation=_AFFILIATION_MAP.get(str(row.get("affiliation", "") or "").strip(), str(row.get("affiliation", "") or "").strip()) or "غ. م",
                     )
                     created_count += 1
                 else:
