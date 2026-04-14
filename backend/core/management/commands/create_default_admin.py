@@ -3,15 +3,15 @@ from django.contrib.auth import get_user_model
 
 User = get_user_model()
 
-PHONE = "0590000000"
+NATIONAL_ID = "0590000000"
 PASSWORD = "0000"
 
 
 class Command(BaseCommand):
-    help = "Create a default admin user (phone: 0590000000) if none exists."
+    help = "Create a default admin user (national_id: 0590000000) if none exists."
 
     def handle(self, *args, **options):
-        user = User.objects.filter(phone_number=PHONE).first()
+        user = User.objects.filter(national_id=NATIONAL_ID).first()
 
         if user:
             # Ensure admin privileges are set
@@ -27,17 +27,17 @@ class Command(BaseCommand):
                 changed.append("role")
             if changed:
                 user.save(update_fields=changed)
-                self.stdout.write(self.style.SUCCESS(f"Default admin updated: {PHONE}"))
+                self.stdout.write(self.style.SUCCESS(f"Default admin updated: {NATIONAL_ID}"))
             else:
-                self.stdout.write(self.style.WARNING(f"Default admin already exists: {PHONE}"))
+                self.stdout.write(self.style.WARNING(f"Default admin already exists: {NATIONAL_ID}"))
             return
 
         user = User.objects.create_superuser(
-            phone_number=PHONE,
+            national_id=NATIONAL_ID,
             password=PASSWORD,
             first_name="Admin",
-            last_name="",
+            last_name="System",
             role="admin",
             is_active=True,
         )
-        self.stdout.write(self.style.SUCCESS(f"Default admin created: {PHONE} / {PASSWORD}"))
+        self.stdout.write(self.style.SUCCESS(f"Default admin created: {NATIONAL_ID} / {PASSWORD}"))
