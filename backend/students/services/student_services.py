@@ -77,11 +77,21 @@ def student_create(*, creator: User, **data) -> Student:
     if not is_admin_user(creator):
         raise PermissionDenied("فقط المدير يمكنه تسجيل طلاب جدد.")
 
-    # Required fields
-    required_fields = ["full_name", "national_id", "birthdate", "grade", "phone_number", "guardian_name", "guardian_mobile"]
+    # Required fields for manual creation
+    # During bulk import, we allow missing fields by filling them with "غ. م" in the caller
+    # but national_id and full_name are still conceptually required.
+    required_fields = ["full_name", "national_id", "phone_number", "guardian_name", "guardian_mobile"]
     missing = [f for f in required_fields if not data.get(f)]
     if missing:
         raise ValidationError({f: "هذا الحقل مطلوب." for f in missing})
+    
+    # Handle birthdate separately if missing (Django DateField cannot be empty string)
+    birthdate = data.get("birthdate")
+    if not birthdate:
+        # For bulk import where birthdate might be missing, we use a placeholder 
+        # but the user sees "غ. م" if we could store it in a char field.
+        # Since it's a DateField, we'll use a very old date as a technical placeholder.
+        birthdate = "1900-01-01"
 
     # Check for duplicate national_id
     if Student.objects.filter(national_id=data["national_id"]).exists():
@@ -110,7 +120,7 @@ def student_create(*, creator: User, **data) -> Student:
         user=user,
         full_name=data["full_name"],
         national_id=data["national_id"],
-        birthdate=data["birthdate"],
+        birthdate=birthdate,
         grade=data["grade"],
         address=data.get("address", ""),
         whatsapp=data.get("whatsapp", ""),
@@ -281,21 +291,21 @@ def student_bulk_create(*, creator: User, rows: list) -> dict:
                     guardian_mobile = normalize_phone(str(row.get("guardian_mobile", "") or "").strip())
                     
                     # Create student using student_create logic
-                    # Ensure mandatory fields have values to avoid ValidationError
+                    # Use "غ. م" (غير معروف) for missing textual fields
                     student = student_create(
                         creator=creator,
-                        full_name=full_name or f"طالب {national_id}",
+                        full_name=full_name or "غ. م",
                         national_id=national_id,
-                        birthdate=birthdate or "2000-01-01",
-                        grade=grade or "غير محدد",
+                        birthdate=birthdate or None,  # Will handle null in student_create if needed
+                        grade=grade or "غ. م",
                         phone_number=normalize_phone(str(row.get("mobile", "") or "").strip()) if row.get("mobile") else _synthetic_phone(national_id),
-                        guardian_name=str(row.get("guardian_name", "") or "").strip() or "غير محدد",
+                        guardian_name=str(row.get("guardian_name", "") or "").strip() or "غ. م",
                         guardian_mobile=guardian_mobile or _synthetic_phone(national_id),
-                        address=str(row.get("address", "") or "").strip(),
-                        whatsapp=str(row.get("whatsapp", "") or "").strip(),
-                        mobile=str(row.get("mobile", "") or "").strip(),
-                        previous_courses=str(row.get("previous_courses", "") or "").strip(),
-                        desired_courses=str(row.get("desired_courses", "") or "").strip(),
+                        address=str(row.get("address", "") or "").strip() or "غ. م",
+                        whatsapp=str(row.get("whatsapp", "") or "").strip() or "غ. م",
+                        mobile=str(row.get("mobile", "") or "").strip() or "غ. م",
+                        previous_courses=str(row.get("previous_courses", "") or "").strip() or "غ. م",
+                        desired_courses=str(row.get("desired_courses", "") or "").strip() or "غ. م",
                         health_status=_normalize_health(row.get("health_status"))[0],
                         health_note=_normalize_health(row.get("health_status"))[1],
                     )
