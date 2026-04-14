@@ -281,13 +281,14 @@ def student_bulk_create(*, creator: User, rows: list) -> dict:
                     guardian_mobile = normalize_phone(str(row.get("guardian_mobile", "") or "").strip())
                     
                     # Create student using student_create logic
+                    # Ensure mandatory fields have values to avoid ValidationError
                     student = student_create(
                         creator=creator,
-                        full_name=full_name,
+                        full_name=full_name or f"طالب {national_id}",
                         national_id=national_id,
-                        birthdate=birthdate,
-                        grade=grade,
-                        phone_number=_synthetic_phone(national_id),
+                        birthdate=birthdate or "2000-01-01",
+                        grade=grade or "غير محدد",
+                        phone_number=normalize_phone(str(row.get("mobile", "") or "").strip()) if row.get("mobile") else _synthetic_phone(national_id),
                         guardian_name=str(row.get("guardian_name", "") or "").strip() or "غير محدد",
                         guardian_mobile=guardian_mobile or _synthetic_phone(national_id),
                         address=str(row.get("address", "") or "").strip(),
