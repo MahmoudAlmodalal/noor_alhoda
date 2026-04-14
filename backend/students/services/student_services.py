@@ -136,6 +136,7 @@ def student_create(*, creator: User, **data) -> Student:
         teacher=teacher,
         health_status=data.get("health_status", "normal"),
         health_note=data.get("health_note", ""),
+        affiliation=data.get("affiliation", ""),
         skills=data.get("skills", {}),
     )
     student.full_clean()
@@ -163,7 +164,7 @@ def student_update(*, student: Student, actor: User, data: dict) -> Student:
             # Guardian Information
             "guardian_name", "guardian_national_id", "guardian_mobile",
             # Health and Skills
-            "health_status", "health_note", "skills",
+            "health_status", "health_note", "skills", "affiliation",
         ]
     elif actor.role == "teacher":
         # Teachers can only update health and skills notes
@@ -301,13 +302,18 @@ def student_bulk_create(*, creator: User, rows: list) -> dict:
                         phone_number=normalize_phone(str(row.get("mobile", "") or "").strip()) if row.get("mobile") else _synthetic_phone(national_id),
                         guardian_name=str(row.get("guardian_name", "") or "").strip() or "غ. م",
                         guardian_mobile=guardian_mobile or _synthetic_phone(national_id),
+                        guardian_national_id=str(row.get("guardian_national_id", "") or "").strip() or "غ. م",
                         address=str(row.get("address", "") or "").strip() or "غ. م",
                         whatsapp=str(row.get("whatsapp", "") or "").strip() or "غ. م",
                         mobile=str(row.get("mobile", "") or "").strip() or "غ. م",
+                        bank_account_number=str(row.get("bank_account_number", "") or "").strip() or "غ. م",
+                        bank_account_name=str(row.get("bank_account_name", "") or "").strip() or "غ. م",
+                        bank_account_type=str(row.get("bank_account_type", "") or "").strip() or "غ. م",
                         previous_courses=str(row.get("previous_courses", "") or "").strip() or "غ. م",
                         desired_courses=str(row.get("desired_courses", "") or "").strip() or "غ. م",
                         health_status=_normalize_health(row.get("health_status"))[0],
                         health_note=_normalize_health(row.get("health_status"))[1],
+                        affiliation=str(row.get("affiliation", "") or "").strip() or "غ. م",
                     )
                     created_count += 1
                 else:

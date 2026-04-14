@@ -48,6 +48,7 @@ class StudentInputSerializer(serializers.Serializer):
     teacher_id = serializers.UUIDField(required=False, allow_null=True)
     health_status = serializers.CharField(required=False, allow_blank=True, default="normal")
     health_note = serializers.CharField(required=False, allow_blank=True, default="")
+    affiliation = serializers.CharField(required=False, allow_blank=True, default="")
     skills = serializers.JSONField(required=False, default=dict)
     password = serializers.CharField(required=False, allow_blank=True, default="")
 
@@ -73,6 +74,7 @@ class StudentOutputSerializer(serializers.Serializer):
     teacher_name = serializers.CharField(source="teacher.full_name", default=None)
     health_status = serializers.CharField()
     health_note = serializers.CharField()
+    affiliation = serializers.CharField()
     skills = serializers.JSONField()
 
     enrollment_date = serializers.DateField()
@@ -109,6 +111,7 @@ class StudentUpdateSerializer(serializers.Serializer):
     # Health and Skills
     health_status = serializers.CharField(required=False, allow_blank=True)
     health_note = serializers.CharField(required=False, allow_blank=True)
+    affiliation = serializers.CharField(required=False, allow_blank=True)
     skills = serializers.JSONField(required=False, allow_null=True)
 
 

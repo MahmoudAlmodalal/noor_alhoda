@@ -108,6 +108,13 @@ class Student(models.Model):
         blank=True,
         verbose_name="تفاصيل الحالة الصحية",
     )
+    affiliation = models.CharField(
+        max_length=20,
+        choices=Teacher.Affiliation.choices,
+        blank=True,
+        default="",
+        verbose_name="التباعية",
+    )
     skills = models.JSONField(
         default=dict,
         blank=True,

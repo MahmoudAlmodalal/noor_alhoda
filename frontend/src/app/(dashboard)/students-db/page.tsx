@@ -24,7 +24,7 @@ type BackendStudent = {
   health_status: string;
   health_note: string;
   skills: Record<string, unknown> | null;
-  follow_up: string;
+  affiliation: string;
 };
 
 type BulkResult = {
@@ -67,7 +67,7 @@ const COLUMNS: { label: string; get: (s: BackendStudent, i: number) => string }[
   { label: "اسم الحساب", get: (s) => s.bank_account_name || "" },
   { label: "نوع الحساب", get: (s) => s.bank_account_type || "" },
   { label: "اسم الشيخ", get: (s) => s.teacher_name || "" },
-  { label: "التباعية", get: (s) => s.follow_up },
+  { label: "التباعية", get: (s) => s.affiliation },
 ];
 
 function computeAge(birthdate: string): string {
@@ -100,7 +100,7 @@ function classifyHeader(raw: string, counters: Record<string, number>): string |
     if (h.includes("اسم")) return "bank_account_name";
     if (h.includes("نوع")) return "bank_account_type";
   }
-  if (h.includes("التباع") || h.includes("التبع")) return "follow_up";
+  if (h.includes("التباع") || h.includes("التبع")) return "affiliation";
   if (h.includes("الواتس")) return "whatsapp";
   if (h.includes("الميلاد") || h.includes("تاريخ")) return "birthdate";
   if (h.includes("الصف")) return "grade";
