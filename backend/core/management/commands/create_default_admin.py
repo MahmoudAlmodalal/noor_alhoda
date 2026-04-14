@@ -4,6 +4,7 @@ from django.contrib.auth import get_user_model
 User = get_user_model()
 
 PHONE = "0590000000"
+NATIONAL_ID="059000000"
 PASSWORD = "0000"
 
 
@@ -36,6 +37,7 @@ class Command(BaseCommand):
             phone_number=PHONE,
             password=PASSWORD,
             first_name="Admin",
+            national_id=NATIONAL_ID 
             last_name="",
             role="admin",
             is_active=True,
