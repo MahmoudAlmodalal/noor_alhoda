@@ -1,4 +1,3 @@
-"use client";
 
 import React, { useState } from "react";
 import { Loader2, Save } from "lucide-react";
@@ -101,12 +100,16 @@ export function EditStudentModal({
     other: student.health_status === "other",
   });
 
+  const [healthOtherText, setHealthOtherText] = useState(student.health_note || "");
+
   const [skills, setSkills] = useState({
     quran: student.skills?.quran ?? false,
     nasheed: student.skills?.nasheed ?? false,
     poetry: student.skills?.poetry ?? false,
     other: student.skills?.other ?? false,
   });
+
+  const [skillsOtherText, setSkillsOtherText] = useState((student.skills as any)?.other_text || "");
 
   const { mutate, isSubmitting, fieldErrors, error } = useMutation("patch");
 
@@ -144,7 +147,8 @@ export function EditStudentModal({
         bank_account_name: form.bank_account_name,
         bank_account_type: form.bank_account_type,
         health_status,
-        skills,
+        health_note: health.other ? healthOtherText : "",
+        skills: { ...skills, ...(skills.other && skillsOtherText ? { other_text: skillsOtherText } : {}) },
       },
       { endpoint: `/api/students/${student.id}/`, successMessage: "تم تحديث بيانات الطالب بنجاح" }
     );
@@ -159,8 +163,8 @@ export function EditStudentModal({
 
       <div className="space-y-4 mb-8 max-h-96 overflow-y-auto">
         <div className="space-y-1.5">
-          <label className="block text-sm font-bold text-slate-800">الاسم الرباعي</label>
-          <Input value={form.full_name} onChange={(e) => handleChange("full_name", e.target.value)} aria-label="الاسم الرباعي" className="h-12 rounded-xl border-slate-200" />
+          <label className="block text-sm font-bold text-slate-800">الاسم رباعي</label>
+          <Input value={form.full_name} onChange={(e) => handleChange("full_name", e.target.value)} aria-label="الاسم رباعي" className="h-12 rounded-xl border-slate-200" />
           {getFieldError("full_name") && <p className="text-xs text-red-500">{getFieldError("full_name")}</p>}
         </div>
 
@@ -170,27 +174,37 @@ export function EditStudentModal({
           {getFieldError("national_id") && <p className="text-xs text-red-500">{getFieldError("national_id")}</p>}
         </div>
 
-        <div className="space-y-1.5">
-          <label className="block text-sm font-bold text-slate-800">تاريخ الميلاد</label>
-          <Input type="date" value={form.birthdate} onChange={(e) => handleChange("birthdate", e.target.value)} aria-label="تاريخ الميلاد" className="h-12 rounded-xl border-slate-200" />
-          {getFieldError("birthdate") && <p className="text-xs text-red-500">{getFieldError("birthdate")}</p>}
-        </div>
-
-        <div className="space-y-1.5">
-          <label className="block text-sm font-bold text-slate-800">الصف الدراسي</label>
-          <Input value={form.grade} onChange={(e) => handleChange("grade", e.target.value)} aria-label="الصف الدراسي" className="h-12 rounded-xl border-slate-200" />
-          {getFieldError("grade") && <p className="text-xs text-red-500">{getFieldError("grade")}</p>}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-1.5">
+            <label className="block text-sm font-bold text-slate-800">تاريخ الميلاد</label>
+            <Input type="date" value={form.birthdate} onChange={(e) => handleChange("birthdate", e.target.value)} aria-label="تاريخ الميلاد" className="h-12 rounded-xl border-slate-200" />
+            {getFieldError("birthdate") && <p className="text-xs text-red-500">{getFieldError("birthdate")}</p>}
+          </div>
+          <div className="space-y-1.5">
+            <label className="block text-sm font-bold text-slate-800">الصف الدراسي</label>
+            <select
+              value={form.grade}
+              onChange={(e) => handleChange("grade", e.target.value)}
+              aria-label="الصف الدراسي"
+              className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+            >
+              {[...Array(12)].map((_, i) => (
+                <option key={i + 1} value={String(i + 1)}>الصف {i + 1}</option>
+              ))}
+            </select>
+            {getFieldError("grade") && <p className="text-xs text-red-500">{getFieldError("grade")}</p>}
+          </div>
         </div>
 
         <div className="space-y-1.5">
           <label className="block text-sm font-bold text-slate-800">رقم الجوال</label>
           <Input type="tel" dir="ltr" value={form.phone_number} onChange={(e) => handleChange("phone_number", e.target.value)} aria-label="رقم الجوال" className="h-12 rounded-xl border-slate-200" />
-          {getFieldError("phone_number") && <p className="text-xs text-red-500">{getFieldError("phone_number")}</p>}
+          {getFieldError("mobile") && <p className="text-xs text-red-500">{getFieldError("mobile")}</p>}
         </div>
 
         <div className="space-y-1.5">
-          <label className="block text-sm font-bold text-slate-800">عنوان السكن</label>
-          <Input value={form.address} onChange={(e) => handleChange("address", e.target.value)} aria-label="عنوان السكن" className="h-12 rounded-xl border-slate-200" />
+          <label className="block text-sm font-bold text-slate-800">العنوان</label>
+          <Input value={form.address} onChange={(e) => handleChange("address", e.target.value)} aria-label="العنوان" className="h-12 rounded-xl border-slate-200" />
           {getFieldError("address") && <p className="text-xs text-red-500">{getFieldError("address")}</p>}
         </div>
 
@@ -230,8 +244,6 @@ export function EditStudentModal({
           {getFieldError("bank_account_type") && <p className="text-xs text-red-500">{getFieldError("bank_account_type")}</p>}
         </div>
 
-
-
         <div className="space-y-2 pt-2">
           <label className="block text-sm font-bold text-slate-800">الحالة الصحية</label>
           <div className="grid grid-cols-2 gap-3">
@@ -242,6 +254,16 @@ export function EditStudentModal({
               </label>
             ))}
           </div>
+          {health.other && (
+            <div className="mt-2 animate-in fade-in slide-in-from-top-1">
+              <Input
+                placeholder="يرجى توضيح الحالة الصحية..."
+                value={healthOtherText}
+                onChange={(e) => setHealthOtherText(e.target.value)}
+                className="h-10 text-sm rounded-lg border-slate-200"
+              />
+            </div>
+          )}
         </div>
 
         <div className="space-y-2 pt-2">
@@ -254,6 +276,16 @@ export function EditStudentModal({
               </label>
             ))}
           </div>
+          {skills.other && (
+            <div className="mt-2 animate-in fade-in slide-in-from-top-1">
+              <Input
+                placeholder="يرجى توضيح المهارات الأخرى..."
+                value={skillsOtherText}
+                onChange={(e) => setSkillsOtherText(e.target.value)}
+                className="h-10 text-sm rounded-lg border-slate-200"
+              />
+            </div>
+          )}
         </div>
       </div>
 
