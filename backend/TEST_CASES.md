@@ -19,7 +19,7 @@ This checklist is derived from `noor_alhuda_prd_srs.pdf` and focuses on the MVP 
 | STU-01 | Feature 2.1 create student | Admin user authenticated | Call `POST /api/students/create/` with required fields | Student and linked user are created successfully |
 | STU-02 | FR-08 teacher row-level access | Teacher A and Teacher B each have students | Teacher A requests Teacher B student detail | Response is `403` |
 | STU-03 | FR-10 parent child access | Parent linked to one student | Parent requests linked student stats | Response is `200` and returns linked child data only |
-| STU-04 | Feature 2.5 soft delete | Admin authenticated, active student exists | Call `DELETE /api/students/<id>/delete/` | Student `is_active=False` and linked user `is_active=False` |
+| STU-04 | Feature 2.5 hard delete | Admin authenticated, active student exists | Call `DELETE /api/students/<id>/delete/` | Student and linked user accounts are permanently removed |
 
 ## Daily Records and Weekly Plans
 
