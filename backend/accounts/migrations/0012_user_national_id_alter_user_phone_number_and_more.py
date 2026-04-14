@@ -14,7 +14,14 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='user',
             name='national_id',
-            field=models.CharField(default='', help_text='يُستخدم لتسجيل الدخول', max_length=20, unique=True, verbose_name='رقم الهوية'),
+            field=models.CharField(
+                blank=True,
+                null=True,
+                max_length=20,
+                unique=True,
+                verbose_name='رقم الهوية',
+                help_text='يُستخدم لتسجيل الدخول',
+            ),
         ),
         migrations.AlterField(
             model_name='user',
