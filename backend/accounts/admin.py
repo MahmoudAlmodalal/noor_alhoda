@@ -6,8 +6,8 @@ from .models import User, Teacher, Parent, ParentStudentLink, OTPCode
 
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
-    list_display = ("phone_number", "first_name", "last_name", "role", "is_active")
-    list_filter = ("role", "is_active")
+    list_display = ("phone_number", "first_name", "last_name", "role")
+    list_filter = ("role",)
     search_fields = ("phone_number", "first_name", "last_name")
     ordering = ("-date_joined",)
     fieldsets = (
@@ -18,7 +18,6 @@ class UserAdmin(BaseUserAdmin):
             {
                 "fields": (
                     "role",
-                    "is_active",
                     "is_staff",
                     "is_superuser",
                     "groups",
@@ -41,7 +40,6 @@ class UserAdmin(BaseUserAdmin):
                     "role",
                     "password1",
                     "password2",
-                    "is_active",
                     "is_staff",
                     "is_superuser",
                 ),

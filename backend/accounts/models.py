@@ -23,6 +23,7 @@ class UserManager(BaseUserManager):
     def create_user(self, phone_number, password=None, **extra_fields):
         extra_fields.setdefault("is_staff", False)
         extra_fields.setdefault("is_superuser", False)
+        extra_fields.pop("is_active", None)
         return self._create_user(phone_number, password, **extra_fields)
 
     def create_superuser(self, phone_number, password=None, **extra_fields):
@@ -72,6 +73,10 @@ class User(AbstractUser):
     failed_login_attempts = models.PositiveIntegerField(default=0)
     lockout_until = models.DateTimeField(null=True, blank=True)
     last_login_attempt = models.DateTimeField(null=True, blank=True)
+
+    # Hard delete: remove is_active from the model by overriding it
+    is_active = None
+
     # Use phone_number as the login field
     username = None
     USERNAME_FIELD = "phone_number"
