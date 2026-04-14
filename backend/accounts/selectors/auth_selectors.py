@@ -39,6 +39,8 @@ def user_get_me(*, user: User) -> dict:
             "specialization": teacher.specialization,
             "session_days": teacher.session_days,
             "max_students": teacher.max_students,
+            "affiliation": teacher.affiliation,
+            "sheikh_type": teacher.sheikh_type,
         }
 
     elif role == "parent" and hasattr(user, "parent_profile"):

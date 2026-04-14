@@ -108,6 +108,7 @@ class Teacher(models.Model):
     class Affiliation(models.TextChoices):
         DAR_QURAN = "dar_quran", "دار القرآن"
         AWQAF = "awqaf", "أوقاف"
+        SHEIKH_TABAEA = "sheikh_tabaea", "شيخ التباعية"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.OneToOneField(
@@ -139,6 +140,13 @@ class Teacher(models.Model):
         blank=True,
         default="",
         verbose_name="التباعية",
+    )
+    sheikh_type = models.CharField(
+        max_length=50,
+        blank=True,
+        default="",
+        verbose_name="نوع الشيخ",
+        help_text="مثال: شيخ التباعية",
     )
     created_at = models.DateTimeField(auto_now_add=True)
 

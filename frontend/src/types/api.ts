@@ -23,6 +23,8 @@ export interface UserProfile {
     specialization: string;
     session_days: string[];
     max_students: number;
+    affiliation: string;
+    sheikh_type: string;
   };
   parent_profile?: {
     id: string;
@@ -59,6 +61,7 @@ export interface Teacher {
   full_name: string;
   specialization: string;
   affiliation?: string;
+  sheikh_type?: string;
   session_days: string[];
   max_students: number;
   created_at: string;
@@ -82,6 +85,8 @@ export interface CreateTeacherRequest {
   password: string;
   full_name: string;
   specialization?: string;
+  affiliation?: string;
+  sheikh_type?: string;
   session_days?: string[];
   max_students?: number;
 }

@@ -28,10 +28,14 @@ def normalize_phone(raw: str) -> str:
     elif phone.startswith("5") and len(phone) == 9:
         phone = "0" + phone
 
-    # Allow numeric strings (like national IDs) as valid usernames
-    # Palestinian/Gaza IDs are 9 digits, Saudi IDs are 10 digits, etc.
-    # We allow 7-15 digits to be safe for various ID and phone formats.
+    # More flexible validation for various ID and phone formats
+    # Allow 7-15 digits as valid numeric strings
     if 7 <= len(phone) <= 15 and phone.isascii() and phone.isdigit():
         return phone
+    
+    # If it's a non-numeric string but not empty, and we are in bulk import context,
+    # we might want to allow it, but for now let's just be more lenient with digits.
+    if not phone:
+        return ""
 
-    raise ValidationError({"phone_number": "رقم الجوال أو الهوية غير صالح."})
+    return phone  # Return as is if it doesn't meet the strict digit criteria but isn't empty

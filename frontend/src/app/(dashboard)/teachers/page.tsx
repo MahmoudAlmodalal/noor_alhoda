@@ -84,14 +84,29 @@ function TeachersPageInner() {
                     <span className="text-sm font-semibold text-slate-700">{teacher.specialization || "—"}</span>
                   </div>
 
-                  <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-lg px-4">
-                    <span className="text-sm text-slate-500 font-medium">أيام الحلقة:</span>
-                    <span className="text-sm font-semibold text-slate-700">
-                      {teacher.session_days?.length ? teacher.session_days.join(", ") : "غير محدد"}
-                    </span>
-                  </div>
-
-                </div>
+	                  <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-lg px-4">
+	                    <span className="text-sm text-slate-500 font-medium">التباعية:</span>
+	                    <span className="text-sm font-semibold text-slate-700">
+	                      {teacher.affiliation === "dar_quran" ? "دار القرآن" : 
+	                       teacher.affiliation === "awqaf" ? "أوقاف" : 
+	                       teacher.affiliation === "sheikh_tabaea" ? "شيخ التباعية" : 
+	                       teacher.affiliation || "—"}
+	                    </span>
+	                  </div>
+	
+	                  <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-lg px-4">
+	                    <span className="text-sm text-slate-500 font-medium">نوع الشيخ:</span>
+	                    <span className="text-sm font-semibold text-slate-700">{teacher.sheikh_type || "—"}</span>
+	                  </div>
+	
+	                  <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-lg px-4">
+	                    <span className="text-sm text-slate-500 font-medium">أيام الحلقة:</span>
+	                    <span className="text-sm font-semibold text-slate-700">
+	                      {teacher.session_days?.length ? teacher.session_days.join(", ") : "غير محدد"}
+	                    </span>
+	                  </div>
+	
+	                </div>
 
                 {/* Actions Footer */}
                 <div className="flex items-center gap-2 pt-4 border-t border-slate-100">

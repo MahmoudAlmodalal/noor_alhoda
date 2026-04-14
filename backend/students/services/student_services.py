@@ -21,8 +21,10 @@ _HEALTH_MAP = {
 _AFFILIATION_MAP = {
     "أوقاف": "awqaf",
     "دار القرآن": "dar_quran",
+    "شيخ التباعية": "sheikh_tabaea",
     "awqaf": "awqaf",
     "dar_quran": "dar_quran",
+    "sheikh_tabaea": "sheikh_tabaea",
 }
 
 
@@ -87,9 +89,13 @@ def student_create(*, creator: User, **data) -> Student:
     # During bulk import, we allow missing fields by filling them with "غ. م" in the caller
     # but national_id and full_name are still conceptually required.
     required_fields = ["full_name", "national_id", "phone_number", "guardian_name", "guardian_mobile"]
-    missing = [f for f in required_fields if not data.get(f)]
-    if missing:
-        raise ValidationError({f: "هذا الحقل مطلوب." for f in missing})
+    
+    # If this is an internal student creation (like from bulk import), we don't enforce these strictly
+    # as the caller (bulk_create) already provides defaults like "غ. م"
+    if not data.get("_internal_student_create"):
+        missing = [f for f in required_fields if not data.get(f)]
+        if missing:
+            raise ValidationError({f: "هذا الحقل مطلوب." for f in missing})
     
     # Handle birthdate separately if missing (Django DateField cannot be empty string)
     birthdate = data.get("birthdate")
@@ -325,7 +331,8 @@ def student_bulk_create(*, creator: User, rows: list) -> dict:
                         desired_courses=str(row.get("desired_courses", "") or "").strip() or "غ. م",
                         health_status=_normalize_health(row.get("health_status"))[0],
                         health_note=_normalize_health(row.get("health_status"))[1],
-                        affiliation=_AFFILIATION_MAP.get(str(row.get("affiliation", "") or "").strip(), str(row.get("affiliation", "") or "").strip()) or "غ. م",
+                        affiliation=_AFFILIATION_MAP.get(str(row.get("affiliation", "") or "").strip(), str(row.get("affiliation", "") or "").strip()) or "",
+                        _internal_student_create=True,
                     )
                     created_count += 1
                 else:
