@@ -10,7 +10,7 @@ import type { OtpVerifyRequest } from "@/types/api";
 
 export default function ResetPasswordPage() {
     const router = useRouter();
-    const [phone, setPhone] = useState<string>("");
+    const [nationalId, setNationalId] = useState<string>("");
     const [code, setCode] = useState<string>("");
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
@@ -31,16 +31,16 @@ export default function ResetPasswordPage() {
         }
         try {
             const parsed = JSON.parse(stored) as {
-                phone_number?: string;
+                national_id?: string;
                 code?: string;
             };
-            if (!parsed.phone_number || !parsed.code) {
+            if (!parsed.national_id || !parsed.code) {
                 router.replace("/login/forgot-password");
                 timeoutId = window.setTimeout(() => setIsResolved(true), 0);
                 return;
             }
             timeoutId = window.setTimeout(() => {
-                setPhone(parsed.phone_number ?? "");
+                setNationalId(parsed.national_id ?? "");
                 setCode(parsed.code ?? "");
                 setIsResolved(true);
             }, 0);
@@ -74,7 +74,7 @@ export default function ResetPasswordPage() {
         }
 
         const payload: OtpVerifyRequest = {
-            phone_number: phone,
+            national_id: nationalId,
             code,
             new_password: password,
         };
@@ -101,7 +101,7 @@ export default function ResetPasswordPage() {
                 : fieldErrors.new_password
             : null);
 
-    if (!isResolved || !phone || !code) {
+    if (!isResolved || !nationalId || !code) {
         return <div className="text-center py-10">جاري التحميل...</div>;
     }
 
