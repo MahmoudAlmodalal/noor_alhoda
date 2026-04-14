@@ -19,11 +19,11 @@ def announcement_send(*, sender: User, title: str, body: str, target_roles: list
         raise PermissionDenied("فقط المدير يمكنه إرسال الإعلانات.")
 
     if target_user_ids:
-        recipients = User.objects.filter(id__in=target_user_ids, is_active=True)
+        recipients = User.objects.filter(id__in=target_user_ids)
     elif target_roles:
-        recipients = User.objects.filter(role__in=target_roles, is_active=True)
+        recipients = User.objects.filter(role__in=target_roles)
     else:
-        recipients = User.objects.filter(is_active=True).exclude(id=sender.id)
+        recipients = User.objects.all().exclude(id=sender.id)
 
     notifications = [
         Notification(recipient=user, type="announcement", title=title, body=body)

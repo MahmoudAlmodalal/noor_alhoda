@@ -16,7 +16,7 @@ class Command(BaseCommand):
         days_since_saturday = (today.weekday() + 2) % 7
         week_start = today - timedelta(days=days_since_saturday)
 
-        students = Student.objects.filter(user__is_active=True)
+        students = Student.objects.all()
         day_offsets = [
             (0, "sat"), (1, "sun"), (2, "mon"),
             (3, "tue"), (4, "wed"), (5, "thu"),

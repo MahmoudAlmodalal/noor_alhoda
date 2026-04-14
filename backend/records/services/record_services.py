@@ -25,7 +25,7 @@ def weekly_plan_create(
         raise PermissionDenied("ليس لديك صلاحية لإنشاء خطة أسبوعية.")
 
     try:
-        student = Student.objects.get(id=student_id, is_active=True)
+        student = Student.objects.get(id=student_id)
     except Student.DoesNotExist:
         raise ValidationError({"student_id": "الطالب غير موجود."})
 
@@ -161,7 +161,7 @@ def bulk_attendance_create(*, teacher: User, date, attendance_data: list) -> dic
         attendance = entry.get("attendance", "present")
 
         try:
-            student = Student.objects.get(id=student_id, is_active=True)
+            student = Student.objects.get(id=student_id)
         except Student.DoesNotExist:
             skipped.append({"student_id": str(student_id), "reason": "not_found"})
             continue

@@ -31,9 +31,6 @@ def user_login(*, phone: str, password: str) -> dict:
     except User.DoesNotExist:
         raise AuthenticationFailed("رقم الجوال أو كلمة المرور غير صحيحة.")
 
-    if not user.is_active:
-        raise AuthenticationFailed("هذا الحساب معطّل.")
-
     # Account Lockout Logic
     if user.lockout_until and user.lockout_until > timezone.now():
         raise AuthenticationFailed("تم قفل الحساب مؤقتًا بسبب محاولات تسجيل الدخول الفاشلة المتكررة. يرجى المحاولة مرة أخرى لاحقًا.")

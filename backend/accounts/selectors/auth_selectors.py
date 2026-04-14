@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 def user_get_by_phone(*, phone: str) -> User:
     """Get a user by phone number. Raises 404 if not found."""
-    return get_object_or_404(User, phone_number=phone, is_active=True)
+    return get_object_or_404(User, phone_number=phone)
 
 
 def user_get_me(*, user: User) -> dict:
@@ -27,7 +27,6 @@ def user_get_me(*, user: User) -> dict:
         "first_name": user.first_name,
         "last_name": user.last_name,
         "role": role,
-        "is_active": user.is_active,
         "date_joined": user.date_joined.isoformat(),
     }
 
