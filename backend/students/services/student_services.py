@@ -232,6 +232,9 @@ def student_assign_teacher(*, student_id, teacher_id, actor: User) -> Student:
         )
 
     student.teacher = teacher
+    # Sync affiliation from teacher to student
+    if teacher.affiliation:
+        student.affiliation = teacher.affiliation
     student.save()
     return student
 

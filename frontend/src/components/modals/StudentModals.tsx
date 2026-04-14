@@ -92,7 +92,6 @@ export function EditStudentModal({
     bank_account_number: student.bank_account_number || "",
     bank_account_name: student.bank_account_name || "",
     bank_account_type: student.bank_account_type || "",
-    affiliation: student.affiliation || "",
   });
 
   const [health, setHealth] = useState({
@@ -144,7 +143,6 @@ export function EditStudentModal({
         bank_account_number: form.bank_account_number,
         bank_account_name: form.bank_account_name,
         bank_account_type: form.bank_account_type,
-        affiliation: form.affiliation,
         health_status,
         skills,
       },
@@ -232,20 +230,7 @@ export function EditStudentModal({
           {getFieldError("bank_account_type") && <p className="text-xs text-red-500">{getFieldError("bank_account_type")}</p>}
         </div>
 
-        <div className="space-y-1.5">
-          <label className="block text-sm font-bold text-slate-800">التباعية</label>
-          <select
-            value={form.affiliation}
-            onChange={(e) => handleChange("affiliation", e.target.value)}
-            aria-label="التباعية"
-            className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-          >
-            <option value="">— اختر التباعية —</option>
-            <option value="dar_quran">دار القرآن</option>
-            <option value="awqaf">أوقاف</option>
-          </select>
-          {getFieldError("affiliation") && <p className="text-xs text-red-500">{getFieldError("affiliation")}</p>}
-        </div>
+
 
         <div className="space-y-2 pt-2">
           <label className="block text-sm font-bold text-slate-800">الحالة الصحية</label>
