@@ -63,7 +63,7 @@ def user_update(*, user: User, actor: User, data: dict) -> User:
 
     allowed_fields = ["first_name", "last_name", "fcm_token", "specialization", "affiliation"]
     if is_admin_user(actor):
-        allowed_fields += ["role", "is_active", "phone_number"]
+        allowed_fields += ["role", "phone_number"]
 
     old_phone = user.phone_number
 

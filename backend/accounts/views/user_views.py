@@ -21,7 +21,7 @@ class UserFilterSerializer(serializers.Serializer):
         choices=["admin", "teacher", "student", "parent"],
         required=False,
     )
-    is_active = serializers.BooleanField(required=False)
+
     search = serializers.CharField(required=False)
 
 
@@ -42,7 +42,7 @@ class UserOutputSerializer(serializers.Serializer):
     first_name = serializers.CharField()
     last_name = serializers.CharField()
     role = serializers.CharField()
-    is_active = serializers.BooleanField()
+
     date_joined = serializers.DateTimeField()
 
 
@@ -51,7 +51,7 @@ class UserUpdateSerializer(serializers.Serializer):
     last_name = serializers.CharField(required=False)
     phone_number = serializers.CharField(required=False)
     role = serializers.CharField(required=False)
-    is_active = serializers.BooleanField(required=False)
+
     fcm_token = serializers.CharField(required=False)
     password = serializers.CharField(required=False)
     specialization = serializers.CharField(required=False, allow_blank=True)
@@ -122,7 +122,7 @@ class UserDetailApi(APIView):
     """
     GET /api/users/<id>/ — تفاصيل مستخدم
     PATCH /api/users/<id>/ — تعديل مستخدم
-    DELETE /api/users/<id>/ — تعطيل مستخدم (soft delete)
+    DELETE /api/users/<id>/ — حذف مستخدم نهائياً
     """
 
     permission_classes = [IsAuthenticated]

@@ -120,7 +120,7 @@ class Student(models.Model):
         null=True,
         verbose_name="صورة الطالب",
     )
-    is_active = models.BooleanField(default=True, verbose_name="نشط")
+
     enrollment_date = models.DateField(auto_now_add=True, verbose_name="تاريخ الالتحاق")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -131,7 +131,7 @@ class Student(models.Model):
         ordering = ["full_name"]
         indexes = [
             models.Index(fields=["full_name"]),
-            models.Index(fields=["is_active"]),
+
             models.Index(fields=["enrollment_date"]),
         ]
 

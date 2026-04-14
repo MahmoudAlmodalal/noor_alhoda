@@ -12,7 +12,7 @@ from students.selectors.student_selectors import (
 from students.services.student_services import (
     student_create,
     student_update,
-    student_deactivate,
+    student_delete,
     student_assign_teacher,
     student_link_parent,
     student_bulk_create,
@@ -74,7 +74,7 @@ class StudentOutputSerializer(serializers.Serializer):
     health_status = serializers.CharField()
     health_note = serializers.CharField()
     skills = serializers.JSONField()
-    is_active = serializers.BooleanField()
+
     enrollment_date = serializers.DateField()
 
 
@@ -200,7 +200,7 @@ class StudentDetailApi(APIView):
     """
     GET /api/students/<id>/ — بيانات طالب واحد
     PATCH /api/students/<id>/ — تعديل بيانات الطالب
-    DELETE /api/students/<id>/ — إيقاف تسجيل الطالب (للمشرفين فقط)
+    DELETE /api/students/<id>/ — حذف الطالب نهائياً (للمشرفين فقط)
     """
 
     def get_permissions(self):
@@ -232,10 +232,10 @@ class StudentDetailApi(APIView):
         )
 
     def delete(self, request, student_id):
-        """DELETE /api/students/<id>/ — إلغاء تسجيل (soft delete)"""
-        student_deactivate(student_id=student_id, actor=request.user)
+        """DELETE /api/students/<id>/ — حذف نهائي"""
+        student_delete(student_id=student_id, actor=request.user)
         return Response(
-            {"success": True, "message": "تم إيقاف تسجيل الطالب بنجاح."},
+            {"success": True, "message": "تم حذف الطالب نهائياً بنجاح."},
             status=status.HTTP_200_OK,
         )
 

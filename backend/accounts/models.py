@@ -84,7 +84,7 @@ class User(AbstractUser):
         ordering = ["-date_joined"]
         indexes = [
             models.Index(fields=["role"]),
-            models.Index(fields=["is_active"]),
+
         ]
 
     def __str__(self):

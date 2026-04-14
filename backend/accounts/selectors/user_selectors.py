@@ -19,9 +19,7 @@ def user_list(*, filters: dict, actor: User) -> QuerySet[User]:
     if role:
         qs = qs.filter(role=role)
 
-    is_active = filters.get("is_active")
-    if is_active is not None:
-        qs = qs.filter(is_active=is_active)
+
 
     search = filters.get("search")
     if search:

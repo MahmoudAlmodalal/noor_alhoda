@@ -183,9 +183,9 @@ def student_update(*, student: Student, actor: User, data: dict) -> Student:
 
 
 @transaction.atomic
-def student_deactivate(*, student_id, actor: User):
+def student_delete(*, student_id, actor: User):
     """
-    Hard-delete a student. Admin only.
+    Hard-delete a student and their user account. Admin only.
     """
     if not is_admin_user(actor):
         raise PermissionDenied("فقط المدير يمكنه حذف الطلاب.")
@@ -193,9 +193,10 @@ def student_deactivate(*, student_id, actor: User):
     from students.selectors.student_selectors import student_get
 
     student = student_get(student_id=student_id, actor=actor)
+    user = student.user
     
     # Deleting the user will cascade to the student profile
-    student.user.delete()
+    user.delete()
 
 
 @transaction.atomic
