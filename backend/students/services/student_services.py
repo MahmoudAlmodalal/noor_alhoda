@@ -150,7 +150,6 @@ def student_create(*, creator: User, **data) -> Student:
         teacher=teacher,
         health_status=data.get("health_status", "normal"),
         health_note=data.get("health_note", ""),
-        affiliation=data.get("affiliation", ""),
         skills=data.get("skills", {}),
     )
     student.full_clean()
@@ -178,7 +177,7 @@ def student_update(*, student: Student, actor: User, data: dict) -> Student:
             # Guardian Information
             "guardian_name", "guardian_national_id", "guardian_mobile",
             # Health and Skills
-            "health_status", "health_note", "skills", "affiliation",
+            "health_status", "health_note", "skills",
         ]
     elif actor.role == "teacher":
         # Teachers can only update health and skills notes
@@ -238,9 +237,6 @@ def student_assign_teacher(*, student_id, teacher_id, actor: User) -> Student:
         )
 
     student.teacher = teacher
-    # Sync affiliation from teacher to student
-    if teacher.affiliation:
-        student.affiliation = teacher.affiliation
     student.save()
     return student
 
@@ -331,7 +327,6 @@ def student_bulk_create(*, creator: User, rows: list) -> dict:
                         desired_courses=str(row.get("desired_courses", "") or "").strip() or "غ. م",
                         health_status=_normalize_health(row.get("health_status"))[0],
                         health_note=_normalize_health(row.get("health_status"))[1],
-                        affiliation=_AFFILIATION_MAP.get(str(row.get("affiliation", "") or "").strip(), str(row.get("affiliation", "") or "").strip()) or "",
                         _internal_student_create=True,
                     )
                     created_count += 1
@@ -401,9 +396,6 @@ def student_bulk_create(*, creator: User, rows: list) -> dict:
                     
                     if teacher:
                         student.teacher = teacher
-                        # Sync affiliation if not already set on student
-                        if not student.affiliation and teacher.affiliation:
-                            student.affiliation = teacher.affiliation
                         student.save()
 
         except Exception as e:

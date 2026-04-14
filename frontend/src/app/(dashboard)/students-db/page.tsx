@@ -67,7 +67,7 @@ const COLUMNS: { label: string; get: (s: BackendStudent, i: number) => string }[
   { label: "اسم الحساب", get: (s) => s.bank_account_name || "" },
   { label: "نوع الحساب", get: (s) => s.bank_account_type || "" },
   { label: "اسم الشيخ", get: (s) => s.teacher_name || "" },
-  { label: "التباعية", get: (s) => s.affiliation },
+  { label: "التباعية", get: (s) => s.affiliation || "" },
 ];
 
 function computeAge(birthdate: string): string {
