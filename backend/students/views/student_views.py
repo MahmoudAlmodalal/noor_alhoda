@@ -79,24 +79,37 @@ class StudentOutputSerializer(serializers.Serializer):
 
 
 class StudentUpdateSerializer(serializers.Serializer):
-    full_name = serializers.CharField(required=False)
-    national_id = serializers.CharField(required=False)
-    birthdate = serializers.DateField(required=False)
-    grade = serializers.CharField(required=False)
-    address = serializers.CharField(required=False)
-    whatsapp = serializers.CharField(required=False)
-    mobile = serializers.CharField(required=False)
-    previous_courses = serializers.CharField(required=False)
-    desired_courses = serializers.CharField(required=False)
-    bank_account_number = serializers.CharField(required=False, allow_null=True)
-    bank_account_name = serializers.CharField(required=False, allow_null=True)
-    bank_account_type = serializers.CharField(required=False, allow_null=True)
-    guardian_name = serializers.CharField(required=False)
-    guardian_national_id = serializers.CharField(required=False, allow_null=True)
-    guardian_mobile = serializers.CharField(required=False)
-    health_status = serializers.CharField(required=False)
-    health_note = serializers.CharField(required=False)
-    skills = serializers.JSONField(required=False)
+    """Serializer for updating student data with all editable fields."""
+    # Personal Information
+    full_name = serializers.CharField(required=False, allow_blank=True)
+    national_id = serializers.CharField(required=False, allow_blank=True)
+    birthdate = serializers.DateField(required=False, allow_null=True)
+    grade = serializers.CharField(required=False, allow_blank=True)
+    
+    # Contact Information
+    address = serializers.CharField(required=False, allow_blank=True)
+    whatsapp = serializers.CharField(required=False, allow_blank=True)
+    mobile = serializers.CharField(required=False, allow_blank=True)
+    phone_number = serializers.CharField(required=False, allow_blank=True)
+    
+    # Academic Information
+    previous_courses = serializers.CharField(required=False, allow_blank=True)
+    desired_courses = serializers.CharField(required=False, allow_blank=True)
+    
+    # Bank Account Information
+    bank_account_number = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    bank_account_name = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    bank_account_type = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    
+    # Guardian Information
+    guardian_name = serializers.CharField(required=False, allow_blank=True)
+    guardian_national_id = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    guardian_mobile = serializers.CharField(required=False, allow_blank=True)
+    
+    # Health and Skills
+    health_status = serializers.CharField(required=False, allow_blank=True)
+    health_note = serializers.CharField(required=False, allow_blank=True)
+    skills = serializers.JSONField(required=False, allow_null=True)
 
 
 class AssignTeacherSerializer(serializers.Serializer):

@@ -138,20 +138,41 @@ def student_create(*, creator: User, **data) -> Student:
 def student_update(*, student: Student, actor: User, data: dict) -> Student:
     """
     Update student data. Admin can update all fields. Teacher limited fields.
+    
+    Admin can update:
+    - Personal: full_name, national_id, birthdate, grade
+    - Contact: address, whatsapp, mobile, phone_number
+    - Academic: previous_courses, desired_courses
+    - Bank: bank_account_number, bank_account_name, bank_account_type
+    - Guardian: guardian_name, guardian_national_id, guardian_mobile
+    - Health: health_status, health_note, skills
+    
+    Teacher can update:
+    - health_note, skills
     """
     if is_admin_user(actor):
+        # Admin can update all fields
         allowed = [
+            # Personal Information
             "full_name", "national_id", "birthdate", "grade",
-            "address", "whatsapp", "health_status", "health_note", "skills",
-            "mobile", "previous_courses", "desired_courses",
+            # Contact Information
+            "address", "whatsapp", "mobile", "phone_number",
+            # Academic Information
+            "previous_courses", "desired_courses",
+            # Bank Account Information
             "bank_account_number", "bank_account_name", "bank_account_type",
+            # Guardian Information
             "guardian_name", "guardian_national_id", "guardian_mobile",
+            # Health and Skills
+            "health_status", "health_note", "skills",
         ]
     elif actor.role == "teacher":
+        # Teachers can only update health and skills notes
         allowed = ["health_note", "skills"]
     else:
         raise PermissionDenied("ليس لديك صلاحية لتعديل بيانات الطالب.")
 
+    # Update allowed fields
     for field, value in data.items():
         if field in allowed:
             setattr(student, field, value)
@@ -299,25 +320,31 @@ def student_bulk_create(*, creator: User, rows: list) -> dict:
                 guardian_mobile = str(row.get("guardian_mobile", "") or "").strip() or _synthetic_phone(national_id)
 
                 data = {
+                    # Personal Information
                     "full_name": full_name,
                     "national_id": national_id,
                     "birthdate": _parse_date(row.get("birthdate")),
                     "grade": _normalize_grade(row.get("grade")),
-                    "address": str(row.get("address", "") or ""),
-                    "whatsapp": str(row.get("whatsapp", "") or ""),
-                    "mobile": str(row.get("mobile", "") or ""),
-                    "previous_courses": str(row.get("previous_courses", "") or ""),
+                    # Contact Information
+                    "address": str(row.get("address", "") or "").strip(),
+                    "whatsapp": str(row.get("whatsapp", "") or "").strip(),
+                    "mobile": str(row.get("mobile", "") or "").strip(),
+                    "phone_number": _synthetic_phone(national_id),
+                    # Academic Information
+                    "previous_courses": str(row.get("previous_courses", "") or "").strip(),
+                    "desired_courses": str(row.get("desired_courses", "") or "").strip(),
+                    # Bank Account Information
+                    "bank_account_number": str(row.get("bank_account_number", "") or "").strip() or None,
+                    "bank_account_name": str(row.get("bank_account_name", "") or "").strip() or None,
+                    "bank_account_type": str(row.get("bank_account_type", "") or "").strip() or None,
+                    # Guardian Information
                     "guardian_name": guardian_name,
-                    "guardian_national_id": str(row.get("guardian_national_id", "") or ""),
+                    "guardian_national_id": str(row.get("guardian_national_id", "") or "").strip() or None,
                     "guardian_mobile": guardian_mobile,
-                    "bank_account_number": str(row.get("bank_account_number", "") or "") or None,
-                    "bank_account_name": str(row.get("bank_account_name", "") or "") or None,
-                    "bank_account_type": str(row.get("bank_account_type", "") or "") or None,
-                    "follow_up": str(row.get("follow_up", "") or ""),
+                    # Health and Skills
                     "health_status": health_status,
                     "health_note": health_note,
                     "skills": skills,
-                    "phone_number": _synthetic_phone(national_id),
                 }
 
                 # Handle teacher: auto-create if not exists
