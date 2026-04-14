@@ -108,6 +108,7 @@ export interface Student {
   teacher_name: string | null;
   health_status: string;
   health_note: string;
+  affiliation: string;
   skills: Record<string, boolean>;
   is_active: boolean;
   enrollment_date: string;

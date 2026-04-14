@@ -89,6 +89,10 @@ export function EditStudentModal({
     guardian_name: student.guardian_name,
     guardian_national_id: student.guardian_national_id || "",
     guardian_mobile: student.guardian_mobile,
+    bank_account_number: student.bank_account_number || "",
+    bank_account_name: student.bank_account_name || "",
+    bank_account_type: student.bank_account_type || "",
+    affiliation: student.affiliation || "",
   });
 
   const [health, setHealth] = useState({
@@ -137,6 +141,10 @@ export function EditStudentModal({
         guardian_name: form.guardian_name,
         guardian_national_id: form.guardian_national_id,
         guardian_mobile: form.guardian_mobile,
+        bank_account_number: form.bank_account_number,
+        bank_account_name: form.bank_account_name,
+        bank_account_type: form.bank_account_type,
+        affiliation: form.affiliation,
         health_status,
         skills,
       },
@@ -204,6 +212,39 @@ export function EditStudentModal({
           <label className="block text-sm font-bold text-slate-800">جوال ولي الأمر</label>
           <Input type="tel" dir="ltr" value={form.guardian_mobile} onChange={(e) => handleChange("guardian_mobile", e.target.value)} aria-label="جوال ولي الأمر" className="h-12 rounded-xl border-slate-200" />
           {getFieldError("guardian_mobile") && <p className="text-xs text-red-500">{getFieldError("guardian_mobile")}</p>}
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="block text-sm font-bold text-slate-800">رقم الحساب</label>
+          <Input value={form.bank_account_number} onChange={(e) => handleChange("bank_account_number", e.target.value)} aria-label="رقم الحساب" className="h-12 rounded-xl border-slate-200" />
+          {getFieldError("bank_account_number") && <p className="text-xs text-red-500">{getFieldError("bank_account_number")}</p>}
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="block text-sm font-bold text-slate-800">اسم الحساب</label>
+          <Input value={form.bank_account_name} onChange={(e) => handleChange("bank_account_name", e.target.value)} aria-label="اسم الحساب" className="h-12 rounded-xl border-slate-200" />
+          {getFieldError("bank_account_name") && <p className="text-xs text-red-500">{getFieldError("bank_account_name")}</p>}
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="block text-sm font-bold text-slate-800">نوع الحساب</label>
+          <Input value={form.bank_account_type} onChange={(e) => handleChange("bank_account_type", e.target.value)} aria-label="نوع الحساب" className="h-12 rounded-xl border-slate-200" />
+          {getFieldError("bank_account_type") && <p className="text-xs text-red-500">{getFieldError("bank_account_type")}</p>}
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="block text-sm font-bold text-slate-800">التباعية</label>
+          <select
+            value={form.affiliation}
+            onChange={(e) => handleChange("affiliation", e.target.value)}
+            aria-label="التباعية"
+            className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+          >
+            <option value="">— اختر التباعية —</option>
+            <option value="dar_quran">دار القرآن</option>
+            <option value="awqaf">أوقاف</option>
+          </select>
+          {getFieldError("affiliation") && <p className="text-xs text-red-500">{getFieldError("affiliation")}</p>}
         </div>
 
         <div className="space-y-2 pt-2">
