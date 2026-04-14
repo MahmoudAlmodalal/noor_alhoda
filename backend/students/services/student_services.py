@@ -247,14 +247,23 @@ def student_bulk_create(*, creator: User, rows: list) -> dict:
     while guardian_mobile is used to find-or-create a shared Parent account and
     link it via ParentStudentLink. Students sharing a guardian phone are thus
     linked to the same Parent.
+    
+    Auto-creates teachers and courses if they don't exist.
     """
     if not is_admin_user(creator):
         raise PermissionDenied("فقط المدير يمكنه استيراد الطلاب.")
 
-    # Pre-fetch teachers
+    # Pre-fetch teachers (and allow auto-creation)
     teacher_by_name = {
         (t.full_name or "").strip(): t
         for t in Teacher.objects.all()
+    }
+    
+    # Pre-fetch courses (and allow auto-creation)
+    from courses.models import Course, StudentCourse
+    course_by_name = {
+        (c.name or "").strip(): c
+        for c in Course.objects.all()
     }
     
     # Pre-fetch existing students to avoid duplicates
@@ -311,9 +320,30 @@ def student_bulk_create(*, creator: User, rows: list) -> dict:
                     "phone_number": _synthetic_phone(national_id),
                 }
 
+                # Handle teacher: auto-create if not exists
                 teacher_name = str(row.get("teacher_name", "") or "").strip()
-                if teacher_name and teacher_name in teacher_by_name:
-                    data["teacher_id"] = str(teacher_by_name[teacher_name].id)
+                if teacher_name:
+                    if teacher_name not in teacher_by_name:
+                        # Auto-create teacher if not exists
+                        try:
+                            teacher_user = user_create(
+                                creator=creator,
+                                phone_number=_synthetic_phone(national_id + teacher_name),
+                                first_name=teacher_name.split()[0] if teacher_name else "",
+                                last_name=" ".join(teacher_name.split()[1:]) if len(teacher_name.split()) > 1 else "",
+                                role="teacher",
+                            )
+                            teacher_obj = Teacher.objects.create(
+                                user=teacher_user,
+                                full_name=teacher_name,
+                            )
+                            teacher_by_name[teacher_name] = teacher_obj
+                        except Exception as e:
+                            # If teacher creation fails, skip assigning teacher
+                            pass
+                    
+                    if teacher_name in teacher_by_name:
+                        data["teacher_id"] = str(teacher_by_name[teacher_name].id)
 
                 student = student_create(creator=creator, **data)
 
@@ -348,6 +378,29 @@ def student_bulk_create(*, creator: User, rows: list) -> dict:
                             existing_parents_by_phone[normalized] = parent
                         
                         ParentStudentLink.objects.get_or_create(parent=parent, student=student)
+
+                # Handle courses: auto-create if not exists and enroll student
+                courses_raw = row.get("desired_courses", "")
+                if courses_raw:
+                    course_names = [c.strip() for c in str(courses_raw).split(",") if c.strip()]
+                    for course_name in course_names:
+                        if course_name not in course_by_name:
+                            # Auto-create course if not exists
+                            try:
+                                course_obj = Course.objects.create(
+                                    name=course_name,
+                                    description="",
+                                )
+                                course_by_name[course_name] = course_obj
+                            except Exception as e:
+                                # If course creation fails, skip this course
+                                pass
+                        
+                        if course_name in course_by_name:
+                            StudentCourse.objects.get_or_create(
+                                student=student,
+                                course=course_by_name[course_name],
+                            )
 
                 created.append(str(student.id))
                 existing_national_ids.add(national_id)
