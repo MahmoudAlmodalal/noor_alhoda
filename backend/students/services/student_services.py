@@ -47,8 +47,8 @@ def _parse_date(raw) -> str:
     s = str(raw).strip()
     if not s:
         return ""
-    # Handle both forward slashes (/) and backslashes (\\)
-    # Also handle cases like 12\\12\\2011 from Excel
+    # Handle both forward slashes (/) and backslashes (\)
+    # Also handle cases like 12\12\2011 from Excel
     if "/" in s or "\\" in s:
         # Replace backslashes with forward slashes for uniform handling
         s = s.replace("\\", "/")
@@ -138,17 +138,6 @@ def student_create(*, creator: User, **data) -> Student:
 def student_update(*, student: Student, actor: User, data: dict) -> Student:
     """
     Update student data. Admin can update all fields. Teacher limited fields.
-    
-    Admin can update:
-    - Personal: full_name, national_id, birthdate, grade
-    - Contact: address, whatsapp, mobile, phone_number
-    - Academic: previous_courses, desired_courses
-    - Bank: bank_account_number, bank_account_name, bank_account_type
-    - Guardian: guardian_name, guardian_national_id, guardian_mobile
-    - Health: health_status, health_note, skills
-    
-    Teacher can update:
-    - health_note, skills
     """
     if is_admin_user(actor):
         # Admin can update all fields
@@ -217,7 +206,7 @@ def student_assign_teacher(*, student_id, teacher_id, actor: User) -> Student:
         raise ValidationError({"teacher_id": "المحفظ غير موجود."})
 
     # Check max students
-    current_count = Student.objects.filter(teacher=teacher, is_active=True).count()
+    current_count = Student.objects.filter(teacher=teacher).count()
     if current_count >= teacher.max_students:
         raise ValidationError(
             {"teacher_id": f"المحفظ وصل للحد الأقصى ({teacher.max_students} طالب)."}
@@ -256,59 +245,113 @@ def student_link_parent(*, student_id, parent_id, actor: User) -> ParentStudentL
 
 def student_bulk_create(*, creator: User, rows: list) -> dict:
     """
-    Bulk-create students from Excel import. Each row is wrapped in its own
-    transaction so partial failures don't block the whole import.
-
-    Strategy for phone_number uniqueness: the student User account always uses
-    a synthetic phone derived from national_id (guaranteed unique per student),
-    while guardian_mobile is used to find-or-create a shared Parent account and
-    link it via ParentStudentLink. Students sharing a guardian phone are thus
-    linked to the same Parent.
+    Bulk-create or update students from Excel import.
     
-    Auto-creates teachers and courses if they don't exist.
+    Rules:
+    1. Student Check: If national_id exists, skip creation but proceed to link guardian/courses.
+    2. Guardian Linking: Find or create Parent by guardian_mobile and link to student.
+    3. Course Enrollment: Find or create Course by name and enroll student.
+    4. Teacher Assignment: Resolve Teacher by name and assign to student.
     """
     if not is_admin_user(creator):
         raise PermissionDenied("فقط المدير يمكنه استيراد الطلاب.")
 
-    # Pre-fetch teachers (and allow auto-creation)
-    teacher_by_name = {
-        (t.full_name or "").strip(): t
-        for t in Teacher.objects.all()
-    }
-    
-    # Pre-fetch courses (and allow auto-creation)
     from courses.models import Course, StudentCourse
-    course_by_name = {
-        (c.name or "").strip(): c
-        for c in Course.objects.all()
-    }
     
-    # Pre-fetch existing students to avoid duplicates
-    existing_national_ids = set(Student.objects.values_list('national_id', flat=True))
-    
-    # Pre-fetch existing parents by phone number
-    existing_parents_by_phone = {
-        p.phone_number: p
-        for p in Parent.objects.select_related('user').all()
-    }
-
-    created, errors = [], []
+    created_count = 0
+    updated_count = 0
+    errors = []
 
     for idx, row in enumerate(rows, start=1):
-        national_id = str(row.get("national_id", "") or "").strip()
-        
-        if national_id in existing_national_ids:
-            errors.append({
-                "row": idx,
-                "national_id": national_id,
-                "message": "رقم الهوية مسجل مسبقاً.",
-            })
-            continue
-
         try:
             with transaction.atomic():
-                health_status, health_note = _normalize_health(row.get("health_status"))
-                # ... rest of the implementation (truncated in previous read)
-                # Note: I'm only fixing the deactivate part, but I should keep the rest of the file intact.
-                # Since I don't have the full file, I'll use `edit` to replace only the relevant function.
-                pass
+                national_id = str(row.get("national_id", "") or "").strip()
+                if not national_id:
+                    raise ValidationError("رقم الهوية مطلوب.")
+
+                # 1. Student Check (Duplicate Prevention)
+                student = Student.objects.filter(national_id=national_id).first()
+                is_new = False
+                
+                if not student:
+                    is_new = True
+                    full_name = str(row.get("full_name", "") or "").strip()
+                    birthdate = _parse_date(row.get("birthdate"))
+                    grade = _normalize_grade(row.get("grade"))
+                    guardian_mobile = normalize_phone(str(row.get("guardian_mobile", "") or "").strip())
+                    
+                    # Create student using student_create logic
+                    student = student_create(
+                        creator=creator,
+                        full_name=full_name,
+                        national_id=national_id,
+                        birthdate=birthdate,
+                        grade=grade,
+                        phone_number=_synthetic_phone(national_id),
+                        guardian_name=str(row.get("guardian_name", "") or "").strip() or "غير محدد",
+                        guardian_mobile=guardian_mobile or _synthetic_phone(national_id),
+                        address=str(row.get("address", "") or "").strip(),
+                        whatsapp=str(row.get("whatsapp", "") or "").strip(),
+                        mobile=str(row.get("mobile", "") or "").strip(),
+                        previous_courses=str(row.get("previous_courses", "") or "").strip(),
+                        desired_courses=str(row.get("desired_courses", "") or "").strip(),
+                        health_status=_normalize_health(row.get("health_status"))[0],
+                        health_note=_normalize_health(row.get("health_status"))[1],
+                    )
+                    created_count += 1
+                else:
+                    updated_count += 1
+
+                # 2. Guardian/Parent Linking (Find or Create)
+                guardian_mobile = normalize_phone(str(row.get("guardian_mobile", "") or "").strip())
+                if guardian_mobile:
+                    parent_user = User.objects.filter(phone_number=guardian_mobile, role="parent").first()
+                    if not parent_user:
+                        # Create new Parent User and Profile
+                        parent_user = user_create(
+                            creator=creator,
+                            phone_number=guardian_mobile,
+                            first_name=str(row.get("guardian_name", "") or "ولي").strip(),
+                            last_name="أمر",
+                            role="parent"
+                        )
+                        parent = Parent.objects.create(
+                            user=parent_user,
+                            full_name=str(row.get("guardian_name", "") or "ولي أمر").strip(),
+                            phone_number=guardian_mobile
+                        )
+                    else:
+                        parent = parent_user.parent_profile
+                    
+                    # Link student to parent
+                    ParentStudentLink.objects.get_or_create(parent=parent, student=student)
+
+                # 3. Course Enrollment (Assign to Existing)
+                courses_raw = row.get("desired_courses") or row.get("previous_courses")
+                if courses_raw:
+                    course_names = [c.strip() for c in str(courses_raw).split(",") if c.strip()]
+                    for name in course_names:
+                        course, _ = Course.objects.get_or_create(name=name)
+                        StudentCourse.objects.get_or_create(student=student, course=course)
+
+                # 4. Teacher Assignment
+                teacher_name = str(row.get("teacher_name", "") or "").strip()
+                if teacher_name:
+                    teacher = Teacher.objects.filter(full_name__icontains=teacher_name).first()
+                    if teacher:
+                        student.teacher = teacher
+                        student.save()
+
+        except Exception as e:
+            errors.append({
+                "row": idx,
+                "national_id": row.get("national_id"),
+                "message": str(e)
+            })
+
+    return {
+        "created_count": created_count,
+        "updated_count": updated_count,
+        "error_count": len(errors),
+        "errors": errors,
+    }
