@@ -370,12 +370,40 @@ def student_bulk_create(*, creator: User, rows: list) -> dict:
                         course, _ = Course.objects.get_or_create(name=name)
                         StudentCourse.objects.get_or_create(student=student, course=course)
 
-                # 4. Teacher Assignment
+                # 4. Teacher Assignment (Find or Create)
                 teacher_name = str(row.get("teacher_name", "") or "").strip()
                 if teacher_name:
                     teacher = Teacher.objects.filter(full_name__icontains=teacher_name).first()
+                    if not teacher:
+                        # If teacher not found, create a new one
+                        # We need a unique national_id for the teacher user. 
+                        # Using a hash of the name or a synthetic ID.
+                        import hashlib
+                        teacher_id_hash = hashlib.md5(teacher_name.encode()).hexdigest()[:10]
+                        synthetic_national_id = f"T-{teacher_id_hash}"
+                        
+                        from accounts.services.user_services import teacher_create
+                        affiliation_raw = str(row.get("affiliation", "") or "").strip()
+                        affiliation = _AFFILIATION_MAP.get(affiliation_raw, affiliation_raw)
+                        
+                        try:
+                            teacher = teacher_create(
+                                creator=creator,
+                                national_id=synthetic_national_id,
+                                full_name=teacher_name,
+                                first_name=teacher_name.split()[0],
+                                last_name=" ".join(teacher_name.split()[1:]) if len(teacher_name.split()) > 1 else "محفظ",
+                                affiliation=affiliation,
+                            )
+                        except Exception:
+                            # If creation fails (e.g. duplicate synthetic ID), skip teacher assignment
+                            teacher = None
+                    
                     if teacher:
                         student.teacher = teacher
+                        # Sync affiliation if not already set on student
+                        if not student.affiliation and teacher.affiliation:
+                            student.affiliation = teacher.affiliation
                         student.save()
 
         except Exception as e:
