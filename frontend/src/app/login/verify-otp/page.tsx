@@ -11,7 +11,7 @@ const OTP_LENGTH = 6;
 
 export default function VerifyOTPPage() {
     const router = useRouter();
-    const [phone, setPhone] = useState<string>("");
+    const [nationalId, setNationalId] = useState<string>("");
     const [otp, setOtp] = useState("");
     const [error, setError] = useState<string | null>(null);
     const [isResolved, setIsResolved] = useState(false);
@@ -29,14 +29,14 @@ export default function VerifyOTPPage() {
             return;
         }
         try {
-            const parsed = JSON.parse(stored) as { phone_number?: string };
-            if (!parsed.phone_number) {
+            const parsed = JSON.parse(stored) as { national_id?: string };
+            if (!parsed.national_id) {
                 router.replace("/login/forgot-password");
                 timeoutId = window.setTimeout(() => setIsResolved(true), 0);
                 return;
             }
             timeoutId = window.setTimeout(() => {
-                setPhone(parsed.phone_number ?? "");
+                setNationalId(parsed.national_id ?? "");
                 setIsResolved(true);
             }, 0);
         } catch {
@@ -62,18 +62,18 @@ export default function VerifyOTPPage() {
 
         sessionStorage.setItem(
             "pw_reset",
-            JSON.stringify({ phone_number: phone, code: otp })
+            JSON.stringify({ national_id: nationalId, code: otp })
         );
         router.push("/login/reset-password");
     };
 
     const handleResend = async () => {
-        if (!phone) return;
-        const payload: OtpSendRequest = { phone_number: phone };
+        if (!nationalId) return;
+        const payload: OtpSendRequest = { national_id: nationalId };
         await resend(payload, { successMessage: "تم إرسال رمز جديد" });
     };
 
-    if (!isResolved || !phone) {
+    if (!isResolved || !nationalId) {
         return <div className="text-center py-10">جاري التحميل...</div>;
     }
 
@@ -84,7 +84,7 @@ export default function VerifyOTPPage() {
                 <p className="text-sm text-[#6a7282] leading-5">
                     الخطوة 2 من 3: تم إرسال رمز {OTP_LENGTH} أرقام إلى
                     <br />
-                    <span className="font-bold text-[#364153]" dir="ltr">{phone}</span>
+                    <span className="font-bold text-[#364153]" dir="ltr">{nationalId}</span>
                 </p>
             </div>
 

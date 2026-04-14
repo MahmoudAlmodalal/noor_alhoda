@@ -91,45 +91,55 @@ def _synthetic_phone(national_id: str) -> str:
 
 def _get_or_create_teacher(teacher_name: str, creator: User, teacher_cache: dict) -> Teacher:
     """
-    Get existing teacher or create new one if not exists.
+    Get existing teacher by exact name, or create a new one if not found.
     """
     if not teacher_name or not teacher_name.strip():
         return None
-    
+
     teacher_name = teacher_name.strip()
-    
+
     # Check cache first
     if teacher_name in teacher_cache:
         return teacher_cache[teacher_name]
-    
-    # Check database
+
+    # Check database with exact match (icontains could match the wrong teacher)
     existing = Teacher.objects.filter(full_name__iexact=teacher_name).first()
     if existing:
         teacher_cache[teacher_name] = existing
         return existing
-    
+
     # Auto-create teacher
     try:
+        import hashlib
+        name_hash = hashlib.md5(teacher_name.encode()).hexdigest()[:10]
+        # national_id must not contain "-" (fails Django char validation on some setups)
+        synthetic_national_id = f"T{name_hash}"
+        phone = _synthetic_phone(name_hash)
+
         name_parts = teacher_name.split()
-        phone = _synthetic_phone(teacher_name)
-        
         teacher_user = user_create(
             creator=creator,
+            national_id=synthetic_national_id,
             phone_number=phone,
-            first_name=name_parts[0] if name_parts else "",
-            last_name=" ".join(name_parts[1:]) if len(name_parts) > 1 else "",
+            first_name=name_parts[0] if name_parts else teacher_name,
+            last_name=" ".join(name_parts[1:]) if len(name_parts) > 1 else "محفظ",
             role="teacher",
         )
-        
+
         teacher = Teacher.objects.create(
             user=teacher_user,
             full_name=teacher_name,
         )
-        
+
         teacher_cache[teacher_name] = teacher
         return teacher
     except Exception as e:
-        print(f"Failed to create teacher '{teacher_name}': {str(e)}")
+        # Might be a race condition duplicate — try one final fetch
+        existing = Teacher.objects.filter(full_name__iexact=teacher_name).first()
+        if existing:
+            teacher_cache[teacher_name] = existing
+            return existing
+        print(f"Failed to create teacher '{teacher_name}': {e}")
         return None
 
 

@@ -110,10 +110,19 @@ def student_create(*, creator: User, **data) -> Student:
         raise ValidationError({"national_id": "رقم الهوية مسجل مسبقاً."})
 
     # Create user account
-    # Use national_id as phone_number (username) and pass national_id for password logic
+    # Use the student's actual mobile as phone_number; fall back to a synthetic
+    # 05XXXXXXXX number derived from national_id when no real mobile is provided.
+    raw_mobile = data.get("mobile") or data.get("phone_number") or ""
+    try:
+        student_phone = normalize_phone(str(raw_mobile).strip()) if str(raw_mobile).strip() else ""
+    except Exception:
+        student_phone = ""
+    if not student_phone:
+        student_phone = _synthetic_phone(data["national_id"])
+
     user = user_create(
         creator=creator,
-        phone_number=data["national_id"],
+        phone_number=student_phone,
         national_id=data["national_id"],
         first_name=data.get("first_name", data["full_name"].split()[0] if data["full_name"] else ""),
         last_name=data.get("last_name", " ".join(data["full_name"].split()[1:]) if data["full_name"] else ""),
@@ -302,43 +311,42 @@ def student_bulk_create(*, creator: User, rows: list) -> dict:
                     full_name = str(row.get("full_name", "") or "").strip()
                     birthdate = _parse_date(row.get("birthdate"))
                     grade = _normalize_grade(row.get("grade"))
-                    
-                    # More robust phone normalization for bulk import
+
+                    # Normalize mobile/whatsapp — fall back to synthetic phone derived
+                    # from national_id so we never pass national_id as phone_number.
                     def get_safe_phone(key, fallback):
                         val = str(row.get(key, "") or "").strip()
-                        if not val: return fallback
+                        if not val:
+                            return fallback
                         try:
                             return normalize_phone(val)
                         except Exception:
-                            # If normalization fails, return digits only or fallback
                             digits = "".join(c for c in val if c.isdigit())
                             return digits[:15] if digits else fallback
 
-                    guardian_mobile = get_safe_phone("guardian_mobile", _synthetic_phone(national_id))
-                    whatsapp = get_safe_phone("whatsapp", "0000000000")
-                    mobile = get_safe_phone("mobile", "0000000000")
-                    
-                    # Create student using student_create logic
-                    # Use "غ. م" (غير معروف) for missing textual fields
-                    # Use national_id as phone_number (username)
+                    synthetic = _synthetic_phone(national_id)
+                    guardian_mobile = get_safe_phone("guardian_mobile", synthetic)
+                    whatsapp = get_safe_phone("whatsapp", "")
+                    mobile = get_safe_phone("mobile", "")
+
+                    # student_create will derive phone_number from mobile internally
                     student = student_create(
                         creator=creator,
                         full_name=full_name or "غ. م",
                         national_id=national_id,
                         birthdate=birthdate or "1900-01-01",
                         grade=grade or "غ. م",
-                        phone_number=national_id,
+                        mobile=mobile,
                         guardian_name=str(row.get("guardian_name", "") or "").strip() or "غ. م",
                         guardian_mobile=guardian_mobile,
                         guardian_national_id=str(row.get("guardian_national_id", "") or "").strip() or "غ. م",
                         address=str(row.get("address", "") or "").strip() or "غ. م",
                         whatsapp=whatsapp,
-                        mobile=mobile,
-                        bank_account_number=str(row.get("bank_account_number", "") or "").strip() or "غ. م",
-                        bank_account_name=str(row.get("bank_account_name", "") or "").strip() or "غ. م",
-                        bank_account_type=str(row.get("bank_account_type", "") or "").strip() or "غ. م",
-                        previous_courses=str(row.get("previous_courses", "") or "").strip() or "غ. م",
-                        desired_courses=str(row.get("desired_courses", "") or "").strip() or "غ. م",
+                        bank_account_number=str(row.get("bank_account_number", "") or "").strip() or None,
+                        bank_account_name=str(row.get("bank_account_name", "") or "").strip() or None,
+                        bank_account_type=str(row.get("bank_account_type", "") or "").strip() or None,
+                        previous_courses=str(row.get("previous_courses", "") or "").strip() or "",
+                        desired_courses=str(row.get("desired_courses", "") or "").strip() or "",
                         health_status=_normalize_health(row.get("health_status"))[0],
                         health_note=_normalize_health(row.get("health_status"))[1],
                         _internal_student_create=True,
@@ -393,35 +401,38 @@ def student_bulk_create(*, creator: User, rows: list) -> dict:
                 # 4. Teacher Assignment (Find or Create)
                 teacher_name = str(row.get("teacher_name", "") or "").strip()
                 if teacher_name:
-                    teacher = Teacher.objects.filter(full_name__icontains=teacher_name).first()
+                    # Use iexact for exact name matching (icontains could match wrong teacher)
+                    teacher = Teacher.objects.filter(full_name__iexact=teacher_name).first()
                     if not teacher:
-                        # If teacher not found, create a new one
-                        # We need a unique national_id for the teacher user. 
-                        # Using a hash of the name or a synthetic ID.
                         import hashlib
                         teacher_id_hash = hashlib.md5(teacher_name.encode()).hexdigest()[:10]
-                        synthetic_national_id = f"T-{teacher_id_hash}"
-                        
+                        synthetic_national_id = f"T{teacher_id_hash}"
+
                         from accounts.services.user_services import teacher_create
                         affiliation_raw = str(row.get("affiliation", "") or "").strip()
-                        affiliation = _AFFILIATION_MAP.get(affiliation_raw, affiliation_raw)
-                        
+                        # Only use affiliation if it maps to a valid choice; otherwise leave blank
+                        affiliation = _AFFILIATION_MAP.get(affiliation_raw, "")
+
+                        name_parts = teacher_name.split()
+                        teacher_phone = _synthetic_phone(teacher_id_hash)
+
                         try:
                             teacher = teacher_create(
                                 creator=creator,
                                 national_id=synthetic_national_id,
+                                phone_number=teacher_phone,
                                 full_name=teacher_name,
-                                first_name=teacher_name.split()[0],
-                                last_name=" ".join(teacher_name.split()[1:]) if len(teacher_name.split()) > 1 else "محفظ",
+                                first_name=name_parts[0] if name_parts else teacher_name,
+                                last_name=" ".join(name_parts[1:]) if len(name_parts) > 1 else "محفظ",
                                 affiliation=affiliation,
                             )
                         except Exception:
-                            # If creation fails (e.g. duplicate synthetic ID), skip teacher assignment
-                            teacher = None
-                    
+                            # Duplicate synthetic ID or other DB error — try to fetch again
+                            teacher = Teacher.objects.filter(full_name__iexact=teacher_name).first()
+
                     if teacher:
                         student.teacher = teacher
-                        student.save()
+                        student.save(update_fields=["teacher"])
 
         except Exception as e:
             errors.append({
