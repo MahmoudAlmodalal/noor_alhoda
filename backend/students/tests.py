@@ -198,15 +198,15 @@ class StudentRBACTests(StudentTestSetup):
 
 
 class StudentOperationsTests(StudentTestSetup):
-    def test_admin_soft_deletes_student(self):
-        """STU-11 / Feature 2.5: Soft-delete deactivates student and user."""
+    def test_admin_hard_deletes_student(self):
+        """STU-11 / Feature 2.5: Hard-delete removes student and user."""
         self.client.force_authenticate(self.admin)
-        response = self.client.delete(f"/api/students/{self.student_a.id}/")
+        student_id = self.student_a.id
+        user_id = self.student_a.user.id
+        response = self.client.delete(f"/api/students/{student_id}/")
         self.assertEqual(response.status_code, 200)
-        self.student_a.refresh_from_db()
-        self.assertFalse(self.student_a.is_active)
-        self.student_a.user.refresh_from_db()
-        self.assertFalse(self.student_a.user.is_active)
+        self.assertFalse(Student.objects.filter(id=student_id).exists())
+        self.assertFalse(User.objects.filter(id=user_id).exists())
 
     def test_admin_assigns_teacher_respects_max_students(self):
         """STU-12 / Feature 2.4: Assign teacher checks max_students limit."""
