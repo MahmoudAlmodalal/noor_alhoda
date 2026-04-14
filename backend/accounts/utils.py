@@ -28,6 +28,10 @@ def normalize_phone(raw: str) -> str:
     elif phone.startswith("5") and len(phone) == 9:
         phone = "0" + phone
 
+    # Allow 9-digit national IDs (Palestinian/Gaza format) as valid usernames
+    if len(phone) == 9 and phone.isascii() and phone.isdigit():
+        return phone
+
     if not (len(phone) == 10 and phone.startswith("05") and phone.isascii() and phone.isdigit()):
         raise ValidationError({"phone_number": "رقم الجوال غير صالح."})
 

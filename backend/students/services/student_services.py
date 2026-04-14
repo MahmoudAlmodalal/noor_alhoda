@@ -98,9 +98,11 @@ def student_create(*, creator: User, **data) -> Student:
         raise ValidationError({"national_id": "رقم الهوية مسجل مسبقاً."})
 
     # Create user account
+    # Use national_id as phone_number (username) and pass national_id for password logic
     user = user_create(
         creator=creator,
-        phone_number=data["phone_number"],
+        phone_number=data["national_id"],
+        national_id=data["national_id"],
         first_name=data.get("first_name", data["full_name"].split()[0] if data["full_name"] else ""),
         last_name=data.get("last_name", " ".join(data["full_name"].split()[1:]) if data["full_name"] else ""),
         role="student",
@@ -293,13 +295,14 @@ def student_bulk_create(*, creator: User, rows: list) -> dict:
                     
                     # Create student using student_create logic
                     # Use "غ. م" (غير معروف) for missing textual fields
+                    # Use national_id as phone_number (username)
                     student = student_create(
                         creator=creator,
                         full_name=full_name or "غ. م",
                         national_id=national_id,
                         birthdate=birthdate or None,  # Will handle null in student_create if needed
                         grade=grade or "غ. م",
-                        phone_number=normalize_phone(str(row.get("mobile", "") or "").strip()) if row.get("mobile") else _synthetic_phone(national_id),
+                        phone_number=national_id,
                         guardian_name=str(row.get("guardian_name", "") or "").strip() or "غ. م",
                         guardian_mobile=guardian_mobile or _synthetic_phone(national_id),
                         guardian_national_id=str(row.get("guardian_national_id", "") or "").strip() or "غ. م",
