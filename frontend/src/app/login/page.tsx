@@ -140,7 +140,7 @@ function LoginForm() {
     setError(null);
 
     if (!phone.trim() || !password.trim()) {
-      setError("يرجى إدخال رقم الجوال وكلمة المرور.");
+      setError("يرجى إدخال رقم الهوية وكلمة المرور.");
       return;
     }
 
@@ -173,14 +173,14 @@ function LoginForm() {
       <form onSubmit={handleSubmit} className="flex flex-col gap-6">
         <div className="space-y-2">
           <label className="block text-sm font-bold text-[#364153]">
-            رقم الجوال
+            رقم الهوية
           </label>
           <Input
-            type="tel"
-            placeholder="05X XXX XXXX"
+            type="text"
+            placeholder="أدخل رقم الهوية"
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
-            aria-label="رقم الجوال"
+            aria-label="رقم الهوية"
             className="text-start"
             dir="ltr"
           />

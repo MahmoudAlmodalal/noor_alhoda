@@ -34,14 +34,18 @@ def user_create(*, creator: User, **data) -> User:
             {"role": "لإنشاء حساب طالب، استخدم صفحة تسجيل الطلاب."}
         )
 
-    # Default password is the last 4 digits of the national_id if provided, otherwise last 4 digits of phone
-    # This applies to all roles (student, teacher, parent, etc.) during bulk import or if not specified
+    # Default password logic:
+    # 1. If password is provided, use it.
+    # 2. If national_id is provided (common for students), use its last 4 digits.
+    # 3. Fallback to last 4 digits of phone_number.
     national_id = data.get("national_id", "")
-    if national_id:
-        password = data.get("password") or str(national_id)[-4:]
+    if data.get("password"):
+        password = data["password"]
+    elif national_id:
+        password = str(national_id)[-4:]
         logger.info("Created %s user %s with password = last 4 digits of national_id.", role, phone_number)
     else:
-        password = data.get("password") or phone_number[-4:]
+        password = phone_number[-4:]
         logger.info("Created %s user %s with password = last 4 digits of phone.", role, phone_number)
 
     user = User(
