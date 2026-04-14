@@ -44,7 +44,7 @@ def user_get(*, user_id, actor: User) -> User:
 
 def teacher_list(*, filters: dict) -> QuerySet[Teacher]:
     """Return filtered list of teachers."""
-    qs = Teacher.objects.select_related("user").filter(user__is_active=True)
+    qs = Teacher.objects.select_related("user").all()
 
     search = filters.get("search")
     if search:

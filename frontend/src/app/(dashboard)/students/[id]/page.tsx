@@ -80,11 +80,7 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
               <span className="px-2.5 py-0.5 bg-blue-50 text-primary text-xs font-bold rounded-md">
                 {student.grade}
               </span>
-              <span className={`px-2.5 py-0.5 text-xs font-bold rounded-md ${
-                student.is_active ? "bg-green-50 text-green-600" : "bg-red-50 text-red-600"
-              }`}>
-                {student.is_active ? "نشط" : "منقطع"}
-              </span>
+
             </div>
           </div>
         </div>

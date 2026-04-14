@@ -93,15 +93,7 @@ export default function StudentsPage() {
                     <span className="block text-sm font-bold text-slate-800 line-clamp-1">{student.guardian_name || "—"}</span>
                   </div>
 
-                  <div className="bg-slate-50/80 p-3 rounded-xl">
-                    <span className="block text-[11px] text-slate-500 font-medium mb-1">الحالة:</span>
-                    <Badge
-                      variant={student.is_active ? "success" : "destructive"}
-                      className={student.is_active ? "font-normal bg-[#eefbee] text-[#2f944d] rounded-md px-3 py-0.5" : "bg-red-100 text-red-600 rounded-md px-3 py-0.5 font-normal"}
-                    >
-                      {student.is_active ? "نشط" : "منقطع"}
-                    </Badge>
-                  </div>
+
                 </div>
 
                 {/* Actions Footer */}

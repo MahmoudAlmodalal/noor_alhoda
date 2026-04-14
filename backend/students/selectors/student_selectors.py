@@ -36,7 +36,7 @@ def student_list(*, filters: dict, user: User) -> QuerySet[Student]:
     Return filtered student list with role-based access.
     FR-11: Row-Level Security.
     """
-    qs = Student.objects.select_related("user", "teacher").filter(is_active=True)
+    qs = Student.objects.select_related("user", "teacher").all()
 
     # Role-based filtering
     if user.role == "teacher" and hasattr(user, "teacher_profile"):

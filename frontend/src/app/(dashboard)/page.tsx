@@ -142,15 +142,15 @@ export default function Dashboard() {
     ];
   })();
 
-  // ─── Follow-up students (best-effort: inactive or no teacher) ──────────────
+  // ─── Follow-up students (best-effort: no teacher) ──────────────
   const followUpStudents = (rosterData ?? [])
-    .filter((s) => !s.is_active || !s.teacher_name)
+    .filter((s) => !s.teacher_name)
     .slice(0, 3)
     .map((s) => ({
       id: s.id,
       name: s.full_name,
-      subtitle: s.grade || (!s.is_active ? "متوقف" : "بدون محفظ"),
-      badge: s.grade || (!s.is_active ? "إنذار" : "تنبيه"),
+      subtitle: s.grade || "بدون محفظ",
+      badge: s.grade || "تنبيه",
       badgeColor: "text-primary bg-blue-50 border border-primary/20",
       avatar: s.full_name?.[0] ?? "؟",
     }));

@@ -94,12 +94,11 @@ def user_update(*, user: User, actor: User, data: dict) -> User:
 
 @transaction.atomic
 def user_delete(*, user: User, actor: User):
-    """Soft-delete a user account. Admin only."""
+    """Hard-delete a user account. Admin only."""
     if not is_admin_user(actor):
         raise PermissionDenied("فقط المدير يمكنه حذف الحسابات.")
 
-    user.is_active = False
-    user.save(update_fields=["is_active"])
+    user.delete()
 
 
 @transaction.atomic
