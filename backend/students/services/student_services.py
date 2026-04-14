@@ -302,7 +302,10 @@ def student_bulk_create(*, creator: User, rows: list) -> dict:
                     full_name = str(row.get("full_name", "") or "").strip()
                     birthdate = _parse_date(row.get("birthdate"))
                     grade = _normalize_grade(row.get("grade"))
-                    guardian_mobile = normalize_phone(str(row.get("guardian_mobile", "") or "").strip())
+                    try:
+                        guardian_mobile = normalize_phone(str(row.get("guardian_mobile", "") or "").strip())
+                    except Exception:
+                        guardian_mobile = _synthetic_phone(national_id)
                     
                     # Create student using student_create logic
                     # Use "غ. م" (غير معروف) for missing textual fields
@@ -311,7 +314,7 @@ def student_bulk_create(*, creator: User, rows: list) -> dict:
                         creator=creator,
                         full_name=full_name or "غ. م",
                         national_id=national_id,
-                        birthdate=birthdate or None,  # Will handle null in student_create if needed
+                        birthdate=birthdate or "1900-01-01",
                         grade=grade or "غ. م",
                         phone_number=national_id,
                         guardian_name=str(row.get("guardian_name", "") or "").strip() or "غ. م",
@@ -334,7 +337,11 @@ def student_bulk_create(*, creator: User, rows: list) -> dict:
                     updated_count += 1
 
                 # 2. Guardian/Parent Linking (Find or Create)
-                guardian_mobile = normalize_phone(str(row.get("guardian_mobile", "") or "").strip())
+                try:
+                    guardian_mobile = normalize_phone(str(row.get("guardian_mobile", "") or "").strip())
+                except Exception:
+                    guardian_mobile = None
+
                 if guardian_mobile:
                     parent_user = User.objects.filter(phone_number=guardian_mobile, role="parent").first()
                     if not parent_user:

@@ -19,6 +19,7 @@ def normalize_phone(raw: str) -> str:
     for ch in _STRIP_CHARS:
         phone = phone.replace(ch, "")
 
+    # Remove common prefixes but keep the number as is if it doesn't match Saudi format
     if phone.startswith("+966"):
         phone = "0" + phone[4:]
     elif phone.startswith("00966"):
@@ -28,14 +29,15 @@ def normalize_phone(raw: str) -> str:
     elif phone.startswith("5") and len(phone) == 9:
         phone = "0" + phone
 
-    # More flexible validation for various ID and phone formats
-    # Allow 7-15 digits as valid numeric strings
-    if 7 <= len(phone) <= 15 and phone.isascii() and phone.isdigit():
+    # Return the phone if it's numeric and within reasonable length
+    if 7 <= len(phone) <= 15 and phone.isdigit():
         return phone
     
-    # If it's a non-numeric string but not empty, and we are in bulk import context,
-    # we might want to allow it, but for now let's just be more lenient with digits.
+    # If it's empty, return empty
     if not phone:
         return ""
 
-    return phone  # Return as is if it doesn't meet the strict digit criteria but isn't empty
+    # For bulk import and general flexibility, return the cleaned string 
+    # even if it doesn't meet strict criteria, as long as it's not empty.
+    # We limit to 15 chars to match database constraints.
+    return phone[:15]
