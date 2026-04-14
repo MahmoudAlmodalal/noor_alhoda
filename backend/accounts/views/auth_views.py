@@ -18,7 +18,7 @@ from accounts.selectors.auth_selectors import user_get_me
 # Serializers (inline)
 # ---------------------------------------------------------------------------
 class LoginInputSerializer(serializers.Serializer):
-    phone_number = serializers.CharField(help_text="رقم الجوال")
+    phone_number = serializers.CharField(help_text="رقم الجوال أو رقم الهوية")
     password = serializers.CharField(help_text="كلمة المرور")
 
 
@@ -70,7 +70,7 @@ class LoginApi(APIView):
             },
         )},
         summary="تسجيل الدخول",
-        description="تسجيل الدخول باستخدام رقم الجوال وكلمة المرور. يتم قفل الحساب بعد 5 محاولات فاشلة لمدة 15 دقيقة.",
+        description="تسجيل الدخول باستخدام رقم الجوال أو رقم الهوية وكلمة المرور. يتم قفل الحساب بعد 5 محاولات فاشلة لمدة 30 دقيقة.",
     )
     def post(self, request):
         serializer = LoginInputSerializer(data=request.data)

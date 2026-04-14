@@ -140,7 +140,7 @@ function LoginForm() {
     setError(null);
 
     if (!phone.trim() || !password.trim()) {
-      setError("يرجى إدخال رقم الهوية وكلمة المرور.");
+      setError("يرجى إدخال رقم الجوال/الهوية وكلمة المرور.");
       return;
     }
 

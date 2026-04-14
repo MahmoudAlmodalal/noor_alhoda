@@ -24,12 +24,12 @@ def user_login(*, phone: str, password: str) -> dict:
     try:
         phone = normalize_phone(phone)
     except ValidationError:
-        raise AuthenticationFailed("رقم الجوال أو كلمة المرور غير صحيحة.")
+        raise AuthenticationFailed("رقم الجوال/الهوية أو كلمة المرور غير صحيحة.")
 
     try:
         user = User.objects.get(phone_number=phone)
     except User.DoesNotExist:
-        raise AuthenticationFailed("رقم الجوال أو كلمة المرور غير صحيحة.")
+        raise AuthenticationFailed("رقم الجوال/الهوية أو كلمة المرور غير صحيحة.")
 
     # Account Lockout Logic
     if user.lockout_until and user.lockout_until > timezone.now():
@@ -41,7 +41,7 @@ def user_login(*, phone: str, password: str) -> dict:
         if user.failed_login_attempts >= 5:  # Lockout after 5 failed attempts
             user.lockout_until = timezone.now() + timedelta(minutes=30)  # Lockout for 30 minutes
         user.save()
-        raise AuthenticationFailed("رقم الجوال أو كلمة المرور غير صحيحة.")
+        raise AuthenticationFailed("رقم الجوال/الهوية أو كلمة المرور غير صحيحة.")
 
     # Reset failed login attempts on successful login
     if user.failed_login_attempts > 0:
