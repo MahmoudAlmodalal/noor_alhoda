@@ -302,10 +302,21 @@ def student_bulk_create(*, creator: User, rows: list) -> dict:
                     full_name = str(row.get("full_name", "") or "").strip()
                     birthdate = _parse_date(row.get("birthdate"))
                     grade = _normalize_grade(row.get("grade"))
-                    try:
-                        guardian_mobile = normalize_phone(str(row.get("guardian_mobile", "") or "").strip())
-                    except Exception:
-                        guardian_mobile = _synthetic_phone(national_id)
+                    
+                    # More robust phone normalization for bulk import
+                    def get_safe_phone(key, fallback):
+                        val = str(row.get(key, "") or "").strip()
+                        if not val: return fallback
+                        try:
+                            return normalize_phone(val)
+                        except Exception:
+                            # If normalization fails, return digits only or fallback
+                            digits = "".join(c for c in val if c.isdigit())
+                            return digits[:15] if digits else fallback
+
+                    guardian_mobile = get_safe_phone("guardian_mobile", _synthetic_phone(national_id))
+                    whatsapp = get_safe_phone("whatsapp", "0000000000")
+                    mobile = get_safe_phone("mobile", "0000000000")
                     
                     # Create student using student_create logic
                     # Use "غ. م" (غير معروف) for missing textual fields
@@ -318,11 +329,11 @@ def student_bulk_create(*, creator: User, rows: list) -> dict:
                         grade=grade or "غ. م",
                         phone_number=national_id,
                         guardian_name=str(row.get("guardian_name", "") or "").strip() or "غ. م",
-                        guardian_mobile=guardian_mobile or _synthetic_phone(national_id),
+                        guardian_mobile=guardian_mobile,
                         guardian_national_id=str(row.get("guardian_national_id", "") or "").strip() or "غ. م",
                         address=str(row.get("address", "") or "").strip() or "غ. م",
-                        whatsapp=str(row.get("whatsapp", "") or "").strip() or "غ. م",
-                        mobile=str(row.get("mobile", "") or "").strip() or "غ. م",
+                        whatsapp=whatsapp,
+                        mobile=mobile,
                         bank_account_number=str(row.get("bank_account_number", "") or "").strip() or "غ. م",
                         bank_account_name=str(row.get("bank_account_name", "") or "").strip() or "غ. م",
                         bank_account_type=str(row.get("bank_account_type", "") or "").strip() or "غ. م",
@@ -337,10 +348,17 @@ def student_bulk_create(*, creator: User, rows: list) -> dict:
                     updated_count += 1
 
                 # 2. Guardian/Parent Linking (Find or Create)
-                try:
-                    guardian_mobile = normalize_phone(str(row.get("guardian_mobile", "") or "").strip())
-                except Exception:
-                    guardian_mobile = None
+                # Use the same robust logic for guardian_mobile in linking
+                def get_safe_phone_simple(key):
+                    val = str(row.get(key, "") or "").strip()
+                    if not val: return None
+                    try:
+                        return normalize_phone(val)
+                    except Exception:
+                        digits = "".join(c for c in val if c.isdigit())
+                        return digits[:15] if digits else None
+
+                guardian_mobile = get_safe_phone_simple("guardian_mobile")
 
                 if guardian_mobile:
                     parent_user = User.objects.filter(phone_number=guardian_mobile, role="parent").first()
