@@ -7,26 +7,26 @@ from django.db import models
 
 
 class UserManager(BaseUserManager):
-    """User manager that authenticates and creates users by phone number."""
+    """User manager that authenticates and creates users by national ID."""
 
     use_in_migrations = True
 
-    def _create_user(self, phone_number, password, **extra_fields):
-        if not phone_number:
-            raise ValueError("The given phone number must be set")
+    def _create_user(self, national_id, password, **extra_fields):
+        if not national_id:
+            raise ValueError("The given national ID must be set")
 
-        user = self.model(phone_number=phone_number, **extra_fields)
+        user = self.model(national_id=national_id, **extra_fields)
         user.set_password(password)
         user.save(using=self._db)
         return user
 
-    def create_user(self, phone_number, password=None, **extra_fields):
+    def create_user(self, national_id, password=None, **extra_fields):
         extra_fields.setdefault("is_staff", False)
         extra_fields.setdefault("is_superuser", False)
         extra_fields.setdefault("is_active", True)
-        return self._create_user(phone_number, password, **extra_fields)
+        return self._create_user(national_id, password, **extra_fields)
 
-    def create_superuser(self, phone_number, password=None, **extra_fields):
+    def create_superuser(self, national_id, password=None, **extra_fields):
         extra_fields.setdefault("is_staff", True)
         extra_fields.setdefault("is_superuser", True)
         extra_fields.setdefault("role", "admin")
@@ -36,12 +36,12 @@ class UserManager(BaseUserManager):
         if extra_fields.get("is_superuser") is not True:
             raise ValueError("Superuser must have is_superuser=True.")
 
-        return self._create_user(phone_number, password, **extra_fields)
+        return self._create_user(national_id, password, **extra_fields)
 
 
 class User(AbstractUser):
     """
-    Custom user model with UUID PK, phone-based login, and role system.
+    Custom user model with UUID PK, national ID-based login, and role system.
     Roles: admin, teacher, student, parent.
     """
 
@@ -52,11 +52,17 @@ class User(AbstractUser):
         PARENT = "parent", "ولي أمر"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    national_id = models.CharField(
+        max_length=20,
+        unique=True,
+        verbose_name="رقم الهوية",
+        help_text="يُستخدم لتسجيل الدخول",
+    )
     phone_number = models.CharField(
         max_length=15,
-        unique=True,
+        blank=True,
         verbose_name="رقم الجوال",
-        help_text="يُستخدم لتسجيل الدخول والإشعارات",
+        help_text="يُستخدم للتواصل والإشعارات",
     )
     role = models.CharField(
         max_length=20,
@@ -77,9 +83,9 @@ class User(AbstractUser):
     # Standard Django field for active users
     is_active = models.BooleanField(default=True, verbose_name="نشط")
 
-    # Use phone_number as the login field
+    # Use national_id as the login field
     username = None
-    USERNAME_FIELD = "phone_number"
+    USERNAME_FIELD = "national_id"
     REQUIRED_FIELDS = ["first_name", "last_name"]
     objects = UserManager()
 
@@ -89,7 +95,7 @@ class User(AbstractUser):
         ordering = ["-date_joined"]
         indexes = [
             models.Index(fields=["role"]),
-
+            models.Index(fields=["national_id"]),
         ]
 
     def __str__(self):
@@ -231,7 +237,7 @@ class OTPCode(models.Model):
         ordering = ["-created_at"]
 
     def __str__(self):
-        return f"OTP for {self.user.phone_number}"
+        return f"OTP for {self.user.national_id}"
 
     @staticmethod
     def hash_code(code: str) -> str:

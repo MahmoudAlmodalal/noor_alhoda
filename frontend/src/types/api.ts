@@ -1,12 +1,13 @@
 // ─── Auth ────────────────────────────────────────────────────────────────────
 
 export interface LoginRequest {
-  phone_number: string;
+  national_id: string;
   password: string;
 }
 
 export interface UserProfile {
   id: string;
+  national_id: string;
   phone_number: string;
   role: "admin" | "teacher" | "student" | "parent";
   full_name: string;
@@ -40,11 +41,11 @@ export interface LoginResponse {
 }
 
 export interface OtpSendRequest {
-  phone_number: string;
+  national_id: string;
 }
 
 export interface OtpVerifyRequest {
-  phone_number: string;
+  national_id: string;
   code: string;
   new_password: string;
 }

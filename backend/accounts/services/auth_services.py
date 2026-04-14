@@ -15,21 +15,18 @@ from accounts.utils import normalize_phone
 from core.permissions import is_admin_user
 
 
-def user_login(*, phone: str, password: str) -> dict:
+def user_login(*, national_id: str, password: str) -> dict:
     """
-    Authenticate user by phone + password. Returns JWT tokens.
-    FR-01: Login by phone + password
-    FR-02: Access token 60min, Refresh token 7 days
+    Authenticate user by national_id + password. Returns JWT tokens.
     """
-    try:
-        phone = normalize_phone(phone)
-    except ValidationError:
-        raise AuthenticationFailed("رقم الجوال/الهوية أو كلمة المرور غير صحيحة.")
+    national_id = str(national_id).strip()
+    if not national_id:
+        raise AuthenticationFailed("رقم الهوية أو كلمة المرور غير صحيحة.")
 
     try:
-        user = User.objects.get(phone_number=phone)
+        user = User.objects.get(national_id=national_id)
     except User.DoesNotExist:
-        raise AuthenticationFailed("رقم الجوال/الهوية أو كلمة المرور غير صحيحة.")
+        raise AuthenticationFailed("رقم الهوية أو كلمة المرور غير صحيحة.")
 
     # Account Lockout Logic
     if user.lockout_until and user.lockout_until > timezone.now():
@@ -41,7 +38,7 @@ def user_login(*, phone: str, password: str) -> dict:
         if user.failed_login_attempts >= 5:  # Lockout after 5 failed attempts
             user.lockout_until = timezone.now() + timedelta(minutes=30)  # Lockout for 30 minutes
         user.save()
-        raise AuthenticationFailed("رقم الجوال/الهوية أو كلمة المرور غير صحيحة.")
+        raise AuthenticationFailed("رقم الهوية أو كلمة المرور غير صحيحة.")
 
     # Reset failed login attempts on successful login
     if user.failed_login_attempts > 0:
@@ -57,7 +54,7 @@ def user_login(*, phone: str, password: str) -> dict:
         "refresh": str(refresh),
         "user": {
             "id": str(user.id),
-            "phone_number": user.phone_number,
+            "national_id": user.national_id,
             "role": "admin" if is_admin_user(user) else user.role,
             "full_name": user.get_full_name(),
         },
@@ -67,7 +64,6 @@ def user_login(*, phone: str, password: str) -> dict:
 def user_logout(*, refresh_token: str) -> None:
     """
     Blacklist the refresh token on logout.
-    FR-06: Invalidate refresh token on logout.
     """
     try:
         token = RefreshToken(refresh_token)
@@ -77,19 +73,16 @@ def user_logout(*, refresh_token: str) -> None:
 
 
 @transaction.atomic
-def otp_send(*, phone: str) -> None:
+def otp_send(*, national_id: str) -> None:
     """
-    Generate a 6-digit OTP and store its hash.
-    FR-04: 6-digit code, valid for 10 minutes.
-    FR-05: Store hashed, not plain text.
-    The OTP is sent via SMS only — never returned to the caller.
+    Generate a 6-digit OTP and store its hash based on national ID.
     """
-    phone = normalize_phone(phone)
+    national_id = str(national_id).strip()
 
     try:
-        user = User.objects.get(phone_number=phone)
+        user = User.objects.get(national_id=national_id)
     except User.DoesNotExist:
-        raise BusinessLogicError("رقم الجوال غير مسجل في النظام.")
+        raise BusinessLogicError("رقم الهوية غير مسجل في النظام.")
 
     # Invalidate old OTPs
     OTPCode.objects.filter(user=user, is_used=False).update(is_used=True)
@@ -104,23 +97,21 @@ def otp_send(*, phone: str) -> None:
         expires_at=timezone.now() + timedelta(minutes=10),
     )
 
-    # TODO: Integrate SMS gateway (e.g. Twilio) to send `code` to the user's phone.
-    # For now, raise an error to indicate that SMS integration is missing.
+    # TODO: Integrate SMS gateway to send `code` to the user's phone.
     raise BusinessLogicError("SMS gateway not configured. Cannot send OTP.")
-    # SECURITY: Never return or log the plain OTP code.
 
 
 @transaction.atomic
-def otp_verify(*, phone: str, code: str, new_password: str) -> None:
+def otp_verify(*, national_id: str, code: str, new_password: str) -> None:
     """
     Verify OTP code and reset password.
     """
-    phone = normalize_phone(phone)
+    national_id = str(national_id).strip()
 
     try:
-        user = User.objects.get(phone_number=phone)
+        user = User.objects.get(national_id=national_id)
     except User.DoesNotExist:
-        raise BusinessLogicError("رقم الجوال غير مسجل في النظام.")
+        raise BusinessLogicError("رقم الهوية غير مسجل في النظام.")
 
     code_hash = OTPCode.hash_code(code)
     otp = OTPCode.objects.filter(

@@ -22,15 +22,12 @@ function InstallButton() {
   const [waitingWorker, setWaitingWorker] = useState<ServiceWorker | null>(null);
 
   useEffect(() => {
-    // Detect available update
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.getRegistration().then((reg) => {
         if (!reg) return;
-        // Already waiting (update downloaded before page load)
         if (reg.waiting) {
           setWaitingWorker(reg.waiting);
         }
-        // New update found while page is open
         reg.addEventListener("updatefound", () => {
           const newWorker = reg.installing;
           if (!newWorker) return;
@@ -53,7 +50,6 @@ function InstallButton() {
 
   if (installed) return null;
 
-  // Update available
   if (waitingWorker) {
     return (
       <button
@@ -72,7 +68,6 @@ function InstallButton() {
     );
   }
 
-  // Browser supports install prompt
   if (prompt) {
     return (
       <button
@@ -90,7 +85,6 @@ function InstallButton() {
     );
   }
 
-  // Fallback: manual install guide
   return (
     <div className="w-full">
       <button
@@ -117,20 +111,18 @@ function InstallButton() {
   );
 }
 
-// ── مكوّن داخلي يقرأ searchParams (يجب لفّه بـ Suspense) ──────────────────
 function LoginForm() {
   const { login } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // إذا جاء المستخدم من redirect بسبب انتهاء الجلسة، أظهر الرسالة فوراً
   const [error, setError] = useState<string | null>(
     searchParams.get("reason") === "session_expired"
       ? "انتهت صلاحية الجلسة. يرجى تسجيل الدخول مجدداً."
       : null
   );
 
-  const [phone, setPhone] = useState("");
+  const [nationalId, setNationalId] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -139,13 +131,13 @@ function LoginForm() {
     e.preventDefault();
     setError(null);
 
-    if (!phone.trim() || !password.trim()) {
-      setError("يرجى إدخال رقم الجوال/الهوية وكلمة المرور.");
+    if (!nationalId.trim() || !password.trim()) {
+      setError("يرجى إدخال رقم الهوية وكلمة المرور.");
       return;
     }
 
     setIsSubmitting(true);
-    const { error: errorMsg, role } = await login(phone, password);
+    const { error: errorMsg, role } = await login(nationalId, password);
     setIsSubmitting(false);
 
     if (errorMsg) {
@@ -178,8 +170,8 @@ function LoginForm() {
           <Input
             type="text"
             placeholder="أدخل رقم الهوية"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
+            value={nationalId}
+            onChange={(e) => setNationalId(e.target.value)}
             aria-label="رقم الهوية"
             className="text-start"
             dir="ltr"
@@ -249,7 +241,6 @@ function LoginForm() {
   );
 }
 
-// ── الصفحة الرئيسية ملفوفة بـ Suspense لأن useSearchParams يتطلب ذلك ──────
 export default function LoginPage() {
   return (
     <Suspense fallback={null}>

@@ -15,7 +15,7 @@ interface AuthContextValue {
   user: UserProfile | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: (phone_number: string, password: string) => Promise<{ error: string | null; role: string | null }>;
+  login: (national_id: string, password: string) => Promise<{ error: string | null; role: string | null }>;
   logout: () => Promise<void>;
 }
 
@@ -32,6 +32,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const data = res.data;
       setUser({
         id: data.id as string,
+        national_id: data.national_id as string,
         phone_number: data.phone_number as string,
         role: data.role as UserProfile["role"],
         full_name:
@@ -51,7 +52,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // عند بدء التطبيق: تحقق من صلاحية الـ token الموجود
-  // مع retry تلقائي إذا كان السيرفر نايم (Render free tier cold start)
   useEffect(() => {
     let isMounted = true;
 
@@ -83,16 +83,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
           if (!localStorage.getItem("access_token")) break;
         } catch {
-          // network error — fall through to retry
+          // network error
         }
         if (attempt < MAX_RETRIES - 1) {
           await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
         }
       }
 
-      // If bootstrap failed entirely (e.g. network down, stale token),
-      // clear the token so ProtectedRoute redirects to /login instead of
-      // hanging on the "connecting to server" screen.
       if (!authed && localStorage.getItem("access_token")) {
         localStorage.removeItem("access_token");
         localStorage.removeItem("refresh_token");
@@ -111,17 +108,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [fetchMe]);
 
   const login = useCallback(
-    async (phone_number: string, password: string): Promise<{ error: string | null; role: string | null }> => {
-      const res = await api.login({ phone_number, password });
+    async (national_id: string, password: string): Promise<{ error: string | null; role: string | null }> => {
+      const res = await api.login({ national_id, password });
 
       if (res.success) {
-        // بعد تسجيل الدخول نجلب الـ profile الكامل للحصول على IDs
         const meSuccess = await fetchMe();
         const role = meSuccess
-          ? res.data.user.role  // role from login (me() updates state async)
+          ? res.data.user.role
           : res.data.user.role;
         if (!meSuccess) {
-          // تعذّر جلب الـ profile لكن تسجيل الدخول نجح — استخدم البيانات الأساسية
           setUser(res.data.user);
         }
         return { error: null, role };

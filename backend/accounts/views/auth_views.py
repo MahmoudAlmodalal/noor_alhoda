@@ -18,7 +18,7 @@ from accounts.selectors.auth_selectors import user_get_me
 # Serializers (inline)
 # ---------------------------------------------------------------------------
 class LoginInputSerializer(serializers.Serializer):
-    phone_number = serializers.CharField(help_text="رقم الجوال أو رقم الهوية")
+    national_id = serializers.CharField(help_text="رقم الهوية")
     password = serializers.CharField(help_text="كلمة المرور")
 
 
@@ -27,11 +27,11 @@ class LogoutInputSerializer(serializers.Serializer):
 
 
 class OTPSendInputSerializer(serializers.Serializer):
-    phone_number = serializers.CharField(help_text="رقم الجوال")
+    national_id = serializers.CharField(help_text="رقم الهوية")
 
 
 class OTPVerifyInputSerializer(serializers.Serializer):
-    phone_number = serializers.CharField(help_text="رقم الجوال")
+    national_id = serializers.CharField(help_text="رقم الهوية")
     code = serializers.CharField(max_length=6, help_text="رمز التحقق المكون من 6 أرقام")
     new_password = serializers.CharField(min_length=6, help_text="كلمة المرور الجديدة")
 
@@ -60,7 +60,7 @@ class LoginApi(APIView):
                             name="LoginUser",
                             fields={
                                 "id": serializers.UUIDField(),
-                                "phone_number": serializers.CharField(),
+                                "national_id": serializers.CharField(),
                                 "role": serializers.CharField(),
                                 "full_name": serializers.CharField(),
                             },
@@ -70,14 +70,14 @@ class LoginApi(APIView):
             },
         )},
         summary="تسجيل الدخول",
-        description="تسجيل الدخول باستخدام رقم الجوال أو رقم الهوية وكلمة المرور. يتم قفل الحساب بعد 5 محاولات فاشلة لمدة 30 دقيقة.",
+        description="تسجيل الدخول باستخدام رقم الهوية وكلمة المرور. يتم قفل الحساب بعد 5 محاولات فاشلة لمدة 30 دقيقة.",
     )
     def post(self, request):
         serializer = LoginInputSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         result = user_login(
-            phone=serializer.validated_data["phone_number"],
+            national_id=serializer.validated_data["national_id"],
             password=serializer.validated_data["password"],
         )
 
@@ -129,13 +129,13 @@ class OTPSendApi(APIView):
             },
         )},
         summary="إرسال رمز OTP",
-        description="إرسال رمز تحقق مكون من 6 أرقام إلى رقم الجوال. صالح لمدة 10 دقائق.",
+        description="إرسال رمز تحقق مكون من 6 أرقام إلى رقم الهوية المرتبط بالحساب.",
     )
     def post(self, request):
         serializer = OTPSendInputSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        otp_send(phone=serializer.validated_data["phone_number"])
+        otp_send(national_id=serializer.validated_data["national_id"])
 
         return Response(
             {"success": True, "message": "تم إرسال رمز التحقق."},
@@ -165,7 +165,7 @@ class OTPVerifyApi(APIView):
         serializer.is_valid(raise_exception=True)
 
         otp_verify(
-            phone=serializer.validated_data["phone_number"],
+            national_id=serializer.validated_data["national_id"],
             code=serializer.validated_data["code"],
             new_password=serializer.validated_data["new_password"],
         )
@@ -190,7 +190,7 @@ class MeApi(APIView):
                     name="MeData",
                     fields={
                         "id": serializers.UUIDField(),
-                        "phone_number": serializers.CharField(),
+                        "national_id": serializers.CharField(),
                         "role": serializers.CharField(),
                         "full_name": serializers.CharField(),
                     },

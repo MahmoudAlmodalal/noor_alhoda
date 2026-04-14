@@ -1,5 +1,4 @@
 import logging
-
 from django.db import transaction
 from rest_framework.exceptions import ValidationError, PermissionDenied
 
@@ -18,37 +17,29 @@ def user_create(*, creator: User, **data) -> User:
     if not is_admin_user(creator):
         raise PermissionDenied("فقط المدير يمكنه إنشاء حسابات جديدة.")
 
-    phone_number = normalize_phone(data.get("phone_number", ""))
-    if not phone_number:
-        raise ValidationError({"phone_number": "رقم الجوال مطلوب."})
+    national_id = str(data.get("national_id", "")).strip()
+    if not national_id:
+        raise ValidationError({"national_id": "رقم الهوية مطلوب."})
 
-    if User.objects.filter(phone_number=phone_number).exists():
-        raise ValidationError({"phone_number": "رقم الجوال مسجل مسبقاً."})
+    if User.objects.filter(national_id=national_id).exists():
+        raise ValidationError({"national_id": "رقم الهوية مسجل مسبقاً."})
 
     role = data.get("role", "student")
 
-    # Prevent creating student users directly — use student_create() instead
-    # to ensure a Student profile is always created alongside the User.
     if role == "student" and not data.get("_internal_student_create"):
         raise ValidationError(
             {"role": "لإنشاء حساب طالب، استخدم صفحة تسجيل الطلاب."}
         )
 
-    # Default password logic:
-    # 1. If password is provided, use it.
-    # 2. If national_id is provided (common for students), use its last 4 digits.
-    # 3. Fallback to last 4 digits of phone_number.
-    national_id = data.get("national_id", "")
-    if data.get("password"):
-        password = data["password"]
-    elif national_id:
-        password = str(national_id)[-4:]
-        logger.info("Created %s user %s with password = last 4 digits of national_id.", role, phone_number)
-    else:
-        password = phone_number[-4:]
-        logger.info("Created %s user %s with password = last 4 digits of phone.", role, phone_number)
+    password = data.get("password")
+    if not password:
+        password = national_id[-4:]
+        logger.info("Created %s user %s with default password (last 4 digits of national_id).", role, national_id)
+
+    phone_number = normalize_phone(data.get("phone_number", ""))
 
     user = User(
+        national_id=national_id,
         phone_number=phone_number,
         first_name=data.get("first_name", ""),
         last_name=data.get("last_name", ""),
@@ -69,11 +60,11 @@ def user_update(*, user: User, actor: User, data: dict) -> User:
     if not is_admin_user(actor) and actor.id != user.id:
         raise PermissionDenied("ليس لديك صلاحية لتعديل هذا المستخدم.")
 
-    allowed_fields = ["first_name", "last_name", "fcm_token", "specialization", "affiliation"]
+    allowed_fields = ["first_name", "last_name", "fcm_token", "specialization", "affiliation", "phone_number"]
     if is_admin_user(actor):
-        allowed_fields += ["role", "phone_number"]
+        allowed_fields += ["role", "national_id"]
 
-    old_phone = user.phone_number
+    old_national_id = user.national_id
 
     for field_name, value in data.items():
         if field_name in allowed_fields:
@@ -91,9 +82,9 @@ def user_update(*, user: User, actor: User, data: dict) -> User:
 
     if "password" in data and (is_admin_user(actor) or actor.id == user.id):
         user.set_password(data["password"])
-    elif user.phone_number != old_phone and user.role in ("student", "teacher"):
-        user.set_password(user.phone_number[-4:])
-        logger.info("Resynced %s user %s password to last 4 digits of new phone.", user.role, user.phone_number)
+    elif user.national_id != old_national_id:
+        user.set_password(user.national_id[-4:])
+        logger.info("Resynced %s user %s password to last 4 digits of new national_id.", user.role, user.national_id)
 
     user.full_clean()
     user.save()
@@ -101,39 +92,32 @@ def user_update(*, user: User, actor: User, data: dict) -> User:
 
 
 @transaction.atomic
-def user_delete(*, user: User, actor: User):
-    """Hard-delete a user account. Admin only."""
+def user_delete(*, user: User, actor: User) -> None:
+    """Delete a user. Admin only."""
     if not is_admin_user(actor):
         raise PermissionDenied("فقط المدير يمكنه حذف الحسابات.")
-
     user.delete()
 
 
 @transaction.atomic
 def teacher_create(*, creator: User, **data) -> Teacher:
-    """
-    Create a teacher profile. Creates the User first, then the Teacher profile.
-    """
-    if not is_admin_user(creator):
-        raise PermissionDenied("فقط المدير يمكنه إنشاء حسابات المحفظين.")
-
+    """Create a new teacher (User + Teacher profile)."""
     user = user_create(
         creator=creator,
-        phone_number=data.get("phone_number"),
+        national_id=data["national_id"],
+        phone_number=data.get("phone_number", ""),
         first_name=data.get("first_name", ""),
         last_name=data.get("last_name", ""),
         role="teacher",
+        password=data.get("password"),
     )
 
-    teacher = Teacher(
+    teacher = Teacher.objects.create(
         user=user,
-        full_name=data.get("full_name", user.get_full_name()),
+        full_name=data["full_name"],
         specialization=data.get("specialization", ""),
-        affiliation=data.get("affiliation", ""),
         session_days=data.get("session_days", []),
         max_students=data.get("max_students", 25),
+        affiliation=data.get("affiliation", ""),
     )
-    teacher.full_clean()
-    teacher.save()
-
     return teacher
