@@ -1,121 +1,83 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { OTPInput } from "@/components/ui/OTPInput";
+import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { useMutation } from "@/hooks/useMutation";
 import type { OtpSendRequest } from "@/types/api";
 
-const OTP_LENGTH = 6;
-
-export default function VerifyOTPPage() {
+export default function ForgotPasswordPage() {
     const router = useRouter();
-    const [phone, setPhone] = useState<string>("");
-    const [otp, setOtp] = useState("");
-    const [error, setError] = useState<string | null>(null);
-    const [isResolved, setIsResolved] = useState(false);
-    const { mutate: resend, isSubmitting: isResending } = useMutation<unknown>(
+    const [nationalId, setNationalId] = useState("");
+    const [validationError, setValidationError] = useState<string | null>(null);
+    const { mutate, isSubmitting, error, fieldErrors } = useMutation<unknown>(
         "post",
         "/api/auth/otp/send/"
     );
 
-    useEffect(() => {
-        let timeoutId: number | undefined;
-        const stored = sessionStorage.getItem("pw_reset");
-        if (!stored) {
-            router.replace("/login/forgot-password");
-            timeoutId = window.setTimeout(() => setIsResolved(true), 0);
-            return;
-        }
-        try {
-            const parsed = JSON.parse(stored) as { phone_number?: string };
-            if (!parsed.phone_number) {
-                router.replace("/login/forgot-password");
-                timeoutId = window.setTimeout(() => setIsResolved(true), 0);
-                return;
-            }
-            timeoutId = window.setTimeout(() => {
-                setPhone(parsed.phone_number ?? "");
-                setIsResolved(true);
-            }, 0);
-        } catch {
-            router.replace("/login/forgot-password");
-            timeoutId = window.setTimeout(() => setIsResolved(true), 0);
-        }
-
-        return () => {
-            if (timeoutId !== undefined) {
-                window.clearTimeout(timeoutId);
-            }
-        };
-    }, [router]);
-
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setError(null);
+        setValidationError(null);
 
-        if (otp.length < OTP_LENGTH) {
-            setError("الرمز غير مكتمل");
+        if (!nationalId) {
+            setValidationError("رقم الهوية مطلوب");
             return;
         }
 
-        sessionStorage.setItem(
-            "pw_reset",
-            JSON.stringify({ phone_number: phone, code: otp })
-        );
-        router.push("/login/reset-password");
+        const payload: OtpSendRequest = { national_id: nationalId };
+        const result = await mutate(payload, {
+            successMessage: "تم إرسال رمز التحقق",
+        });
+        if (!result && !fieldErrors) return;
+        if (result !== null) {
+            sessionStorage.setItem(
+                "pw_reset",
+                JSON.stringify({ national_id: nationalId })
+            );
+            router.push("/login/verify-otp");
+        }
     };
 
-    const handleResend = async () => {
-        if (!phone) return;
-        const payload: OtpSendRequest = { phone_number: phone };
-        await resend(payload, { successMessage: "تم إرسال رمز جديد" });
-    };
-
-    if (!isResolved || !phone) {
-        return <div className="text-center py-10">جاري التحميل...</div>;
-    }
+    const nationalIdError =
+        validationError ||
+        (fieldErrors?.national_id
+            ? Array.isArray(fieldErrors.national_id)
+                ? fieldErrors.national_id[0]
+                : fieldErrors.national_id
+            : null) ||
+        error;
 
     return (
         <div>
             <div className="text-center mb-6">
-                <h1 className="text-2xl font-bold text-[#1e2939] leading-8 mb-1">إدخال رمز التحقق</h1>
-                <p className="text-sm text-[#6a7282] leading-5">
-                    الخطوة 2 من 3: تم إرسال رمز {OTP_LENGTH} أرقام إلى
-                    <br />
-                    <span className="font-bold text-[#364153]" dir="ltr">{phone}</span>
-                </p>
+                <h1 className="text-2xl font-bold text-[#1e2939] leading-8 mb-1">استعادة كلمة المرور</h1>
+                <p className="text-sm text-[#6a7282] leading-5">الخطوة 1 من 3: أدخل رقم الهوية المسجل</p>
             </div>
 
             <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-                <div className="flex justify-center px-2">
-                    <OTPInput
-                        length={OTP_LENGTH}
-                        value={otp}
-                        onChange={setOtp}
-                        error={error || undefined}
+                <div className="space-y-2">
+                    <label className="block text-sm font-bold text-[#364153]">رقم الهوية</label>
+                    <Input
+                        type="text"
+                        placeholder="1XXXXXXXXX"
+                        value={nationalId}
+                        onChange={(e) => setNationalId(e.target.value)}
+                        aria-label="رقم الهوية"
+                        className="text-start"
+                        dir="ltr"
+                        disabled={isSubmitting}
                     />
-                </div>
-
-                <div className="text-center">
-                    <button
-                        type="button"
-                        onClick={handleResend}
-                        disabled={isResending}
-                        className="text-sm font-bold text-secondary hover:underline disabled:opacity-50"
-                    >
-                        {isResending ? "جارٍ الإرسال..." : "إعادة إرسال الرمز"}
-                    </button>
+                    {nationalIdError && <p className="text-sm text-red-500 mt-1">{nationalIdError}</p>}
                 </div>
 
                 <Button
                     type="submit"
                     size="lg"
-                    disabled={otp.length !== OTP_LENGTH}
+                    disabled={isSubmitting}
                     className="w-full h-14 text-lg font-bold"
                 >
-                    تحقق من الرمز
+                    {isSubmitting ? "جارٍ الإرسال..." : "إرسال رمز التحقق"}
                 </Button>
             </form>
         </div>
