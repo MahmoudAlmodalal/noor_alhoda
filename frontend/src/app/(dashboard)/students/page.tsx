@@ -74,10 +74,6 @@ export default function StudentsPage() {
   const { data: teachers } = useApi<Teacher[]>(isAdmin ? "/api/users/teachers/" : null);
   const { data: courses } = useApi<Course[]>(canFilterByCourse ? "/api/courses/" : null);
 
-  useEffect(() => {
-    setPage(1);
-  }, [courseFilter, debouncedSearch, teacherFilter]);
-
   const reload = useCallback(
     async (pageToLoad = page) => {
       setLoading(true);
@@ -104,7 +100,13 @@ export default function StudentsPage() {
   );
 
   useEffect(() => {
-    void reload();
+    const timeoutId = window.setTimeout(() => {
+      void reload();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
   }, [reload]);
 
   const [assignModal, setAssignModal] = useState<{ open: boolean; student: Student | null }>({
@@ -140,13 +142,19 @@ export default function StudentsPage() {
           placeholder="البحث بالاسم أو الهوية..."
           className="h-14 rounded-2xl bg-slate-50/50"
           value={search}
-          onChange={(event) => setSearch(event.target.value)}
+          onChange={(event) => {
+            setSearch(event.target.value);
+            setPage(1);
+          }}
         />
 
         {isAdmin ? (
           <select
             value={teacherFilter}
-            onChange={(event) => setTeacherFilter(event.target.value)}
+            onChange={(event) => {
+              setTeacherFilter(event.target.value);
+              setPage(1);
+            }}
             className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
           >
             <option value="">كل المحفظين</option>
@@ -161,7 +169,10 @@ export default function StudentsPage() {
         {canFilterByCourse ? (
           <select
             value={courseFilter}
-            onChange={(event) => setCourseFilter(event.target.value)}
+            onChange={(event) => {
+              setCourseFilter(event.target.value);
+              setPage(1);
+            }}
             className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
           >
             <option value="">كل الدورات</option>

@@ -18,6 +18,32 @@ import type {
 
 const PAGE_SIZE = 25;
 
+type XLSXSheet = Record<string, unknown>;
+type XLSXWorkbook = {
+  SheetNames: string[];
+  Sheets: Record<string, XLSXSheet>;
+};
+type XLSXModule = {
+  read(data: ArrayBuffer, options: { type: string; cellDates: boolean }): XLSXWorkbook;
+  writeFile(workbook: Record<string, unknown>, filename: string): void;
+  utils: {
+    json_to_sheet(
+      rows: Record<string, string>[],
+      options: { header: string[] },
+    ): Record<string, unknown>;
+    book_new(): Record<string, unknown>;
+    book_append_sheet(
+      workbook: Record<string, unknown>,
+      worksheet: Record<string, unknown>,
+      name: string,
+    ): void;
+    sheet_to_json(
+      sheet: XLSXSheet,
+      options: { header: number; defval: string; raw: boolean },
+    ): unknown[];
+  };
+};
+
 const GRADE_LABEL: Record<string, string> = {
   "1": "الأول",
   "2": "الثاني",
@@ -253,10 +279,6 @@ export default function StudentsDbPage() {
   const { data: teachers } = useApi<Teacher[]>("/api/users/teachers/");
   const { data: courses } = useApi<Course[]>("/api/courses/");
 
-  useEffect(() => {
-    setPage(1);
-  }, [debouncedSearch, teacherFilter, courseFilter]);
-
   const fetchStudents = useCallback(
     async (pageToLoad = page) => {
       setLoading(true);
@@ -283,12 +305,18 @@ export default function StudentsDbPage() {
   );
 
   useEffect(() => {
-    void fetchStudents();
+    const timeoutId = window.setTimeout(() => {
+      void fetchStudents();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
   }, [fetchStudents]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if ((window as Window & { XLSX?: unknown }).XLSX) {
+    if ((window as Window & { XLSX?: XLSXModule }).XLSX) {
       setXlsxReady(true);
       return;
     }
@@ -307,7 +335,7 @@ export default function StudentsDbPage() {
   }, []);
 
   const handleExport = useCallback(async () => {
-    const XLSX = (window as Window & { XLSX?: any }).XLSX;
+    const XLSX = (window as Window & { XLSX?: XLSXModule }).XLSX;
     if (!XLSX) {
       showToast("جاري تحميل مكتبة التصدير، يرجى المحاولة بعد لحظات.", "error");
       return;
@@ -347,7 +375,7 @@ export default function StudentsDbPage() {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    const XLSX = (window as Window & { XLSX?: any }).XLSX;
+    const XLSX = (window as Window & { XLSX?: XLSXModule }).XLSX;
     if (!XLSX) {
       showToast("جاري تحميل مكتبة الاستيراد، يرجى المحاولة بعد لحظات.", "error");
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -527,7 +555,10 @@ export default function StudentsDbPage() {
           <input
             type="text"
             value={search}
-            onChange={(event) => setSearch(event.target.value)}
+            onChange={(event) => {
+              setSearch(event.target.value);
+              setPage(1);
+            }}
             placeholder="البحث بالاسم أو الهوية..."
             className="h-11 w-full rounded-lg border border-slate-200 bg-white pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
           />
@@ -535,7 +566,10 @@ export default function StudentsDbPage() {
 
         <select
           value={teacherFilter}
-          onChange={(event) => setTeacherFilter(event.target.value)}
+          onChange={(event) => {
+            setTeacherFilter(event.target.value);
+            setPage(1);
+          }}
           className="h-11 rounded-lg border border-slate-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
         >
           <option value="">كل المحفظين</option>
@@ -548,7 +582,10 @@ export default function StudentsDbPage() {
 
         <select
           value={courseFilter}
-          onChange={(event) => setCourseFilter(event.target.value)}
+          onChange={(event) => {
+            setCourseFilter(event.target.value);
+            setPage(1);
+          }}
           className="h-11 rounded-lg border border-slate-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
         >
           <option value="">كل الدورات</option>
