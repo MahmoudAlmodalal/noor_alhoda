@@ -60,7 +60,7 @@ def user_update(*, user: User, actor: User, data: dict) -> User:
     if not is_admin_user(actor) and actor.id != user.id:
         raise PermissionDenied("ليس لديك صلاحية لتعديل هذا المستخدم.")
 
-    allowed_fields = ["first_name", "last_name", "fcm_token", "specialization", "affiliation", "sheikh_type", "phone_number"]
+    allowed_fields = ["first_name", "last_name", "fcm_token", "specialization", "affiliation", "phone_number"]
     if is_admin_user(actor):
         allowed_fields += ["role", "national_id"]
 
@@ -76,9 +76,6 @@ def user_update(*, user: User, actor: User, data: dict) -> User:
                 user.teacher_profile.save()
             elif field_name == "affiliation" and hasattr(user, "teacher_profile"):
                 user.teacher_profile.affiliation = value
-                user.teacher_profile.save()
-            elif field_name == "sheikh_type" and hasattr(user, "teacher_profile"):
-                user.teacher_profile.sheikh_type = value
                 user.teacher_profile.save()
             else:
                 setattr(user, field_name, value)
@@ -122,6 +119,5 @@ def teacher_create(*, creator: User, **data) -> Teacher:
         session_days=data.get("session_days", []),
         max_students=data.get("max_students", 25),
         affiliation=data.get("affiliation", ""),
-        sheikh_type=data.get("sheikh_type", ""),
     )
     return teacher

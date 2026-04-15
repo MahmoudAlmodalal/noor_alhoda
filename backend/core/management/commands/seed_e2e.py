@@ -96,6 +96,7 @@ class Command(BaseCommand):
         previous_week_start = current_week_start - timedelta(days=7)
 
         admin = User.objects.create_superuser(
+            national_id=E2E_PHONES["admin"],
             phone_number=E2E_PHONES["admin"],
             password=E2E_PASSWORDS["admin"],
             first_name="Admin",
@@ -105,6 +106,7 @@ class Command(BaseCommand):
         )
 
         teacher_user = User.objects.create_user(
+            national_id=E2E_PHONES["teacher"],
             phone_number=E2E_PHONES["teacher"],
             password=E2E_PASSWORDS["teacher"],
             first_name="Teacher",
@@ -122,6 +124,7 @@ class Command(BaseCommand):
         )
 
         teacher_two_user = User.objects.create_user(
+            national_id=E2E_PHONES["teacher_two"],
             phone_number=E2E_PHONES["teacher_two"],
             password=E2E_PASSWORDS["teacher_two"],
             first_name="Teacher",
@@ -139,6 +142,7 @@ class Command(BaseCommand):
         )
 
         student_user = User.objects.create_user(
+            national_id=E2E_PHONES["student"],
             phone_number=E2E_PHONES["student"],
             password=E2E_PASSWORDS["student"],
             first_name="Student",
@@ -161,6 +165,7 @@ class Command(BaseCommand):
         )
 
         student_two_user = User.objects.create_user(
+            national_id=E2E_PHONES["student_two"],
             phone_number=E2E_PHONES["student_two"],
             password=E2E_PASSWORDS["student"],
             first_name="Student",
@@ -183,6 +188,7 @@ class Command(BaseCommand):
         )
 
         student_unassigned_user = User.objects.create_user(
+            national_id=E2E_PHONES["student_unassigned"],
             phone_number=E2E_PHONES["student_unassigned"],
             password=E2E_PASSWORDS["student"],
             first_name="Student",

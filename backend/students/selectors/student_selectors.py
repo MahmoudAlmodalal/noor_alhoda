@@ -1,4 +1,4 @@
-from django.db.models import QuerySet, Q, Sum, Count, Avg
+from django.db.models import QuerySet, Q, Sum
 from django.shortcuts import get_object_or_404
 from rest_framework.exceptions import PermissionDenied
 
@@ -55,6 +55,10 @@ def student_list(*, filters: dict, user: User) -> QuerySet[Student]:
     teacher_id = filters.get("teacher_id")
     if teacher_id:
         qs = qs.filter(teacher_id=teacher_id)
+
+    course_id = filters.get("course_id")
+    if course_id:
+        qs = qs.filter(course_enrollments__course_id=course_id).distinct()
 
     grade = filters.get("grade")
     if grade:

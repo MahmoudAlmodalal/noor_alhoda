@@ -14,11 +14,13 @@ from students.models import Student
 class ReportTestSetup(APITestCase):
     def setUp(self):
         self.admin = User.objects.create_user(
+            national_id="970590400000",
             phone_number="970590400000",
             password="adminpass", role="admin",
         )
 
         self.teacher_user_1 = User.objects.create_user(
+            national_id="970590400010",
             phone_number="970590400010",
             password="secret123", role="teacher",
         )
@@ -27,6 +29,7 @@ class ReportTestSetup(APITestCase):
         )
 
         self.teacher_user_2 = User.objects.create_user(
+            national_id="970590400020",
             phone_number="970590400020",
             password="secret123", role="teacher",
         )
@@ -35,6 +38,7 @@ class ReportTestSetup(APITestCase):
         )
 
         self.student_user_1 = User.objects.create_user(
+            national_id="970590400030",
             phone_number="970590400030",
             password="secret123", role="student",
         )
@@ -45,6 +49,7 @@ class ReportTestSetup(APITestCase):
         )
 
         self.student_user_2 = User.objects.create_user(
+            national_id="970590400040",
             phone_number="970590400040",
             password="secret123", role="student",
         )
@@ -168,3 +173,115 @@ class StudentStatsTests(ReportTestSetup):
         response = self.client.get(f"/api/students/{self.student_1.id}/stats/")
         self.assertEqual(response.status_code, 200)
         self.assertIn("data", response.data)
+
+
+# ==========================================================================
+# Extended coverage — plan: endpoint matrix for /api/reports/
+# ==========================================================================
+import uuid
+
+from accounts.models import Parent, ParentStudentLink
+
+
+DASHBOARD_URL = "/api/reports/dashboard/"
+ATTENDANCE_URL = "/api/reports/attendance/"
+LEADERBOARD_URL = "/api/reports/leaderboard/"
+STUDENT_PDF_URL = "/api/reports/student/"
+
+
+class DashboardExtendedTests(ReportTestSetup):
+    def test_student_cannot_access_dashboard(self):
+        self.client.force_authenticate(self.student_user_1)
+        response = self.client.get(DASHBOARD_URL)
+        self.assertEqual(response.status_code, 403)
+
+    def test_unauthenticated_dashboard_returns_401(self):
+        response = self.client.get(DASHBOARD_URL)
+        self.assertEqual(response.status_code, 401)
+
+    def test_dashboard_success_envelope(self):
+        self.client.force_authenticate(self.admin)
+        response = self.client.get(DASHBOARD_URL)
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.data["success"])
+
+
+class AttendanceReportExtendedTests(ReportTestSetup):
+    def test_admin_gets_all_students(self):
+        self.client.force_authenticate(self.admin)
+        response = self.client.get(ATTENDANCE_URL + "?month=4&year=2026")
+        self.assertEqual(response.status_code, 200)
+        students = response.data["data"]["students"]
+        self.assertEqual(len(students), 2)
+
+    def test_unauthenticated_returns_401(self):
+        response = self.client.get(ATTENDANCE_URL + "?month=4&year=2026")
+        self.assertEqual(response.status_code, 401)
+
+    def test_missing_month_param_returns_400(self):
+        self.client.force_authenticate(self.admin)
+        response = self.client.get(ATTENDANCE_URL + "?year=2026")
+        self.assertEqual(response.status_code, 400)
+
+
+class StudentPDFExtendedTests(ReportTestSetup):
+    def test_teacher_own_student_pdf_success(self):
+        self.client.force_authenticate(self.teacher_user_1)
+        response = self.client.get(f"{STUDENT_PDF_URL}{self.student_1.id}/pdf/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "application/pdf")
+
+    def test_pdf_bytes_start_with_magic_header(self):
+        self.client.force_authenticate(self.admin)
+        response = self.client.get(f"{STUDENT_PDF_URL}{self.student_1.id}/pdf/")
+        self.assertTrue(response.content.startswith(b"%PDF-"))
+
+    def test_missing_student_returns_404(self):
+        self.client.force_authenticate(self.admin)
+        response = self.client.get(f"{STUDENT_PDF_URL}{uuid.uuid4()}/pdf/")
+        self.assertEqual(response.status_code, 404)
+
+
+class LeaderboardExtendedTests(ReportTestSetup):
+    def test_invalid_month_returns_400(self):
+        self.client.force_authenticate(self.admin)
+        response = self.client.get(LEADERBOARD_URL + "?month=13&year=2026")
+        self.assertEqual(response.status_code, 400)
+
+    def test_invalid_year_returns_400(self):
+        self.client.force_authenticate(self.admin)
+        response = self.client.get(LEADERBOARD_URL + "?month=1&year=1900")
+        self.assertEqual(response.status_code, 400)
+
+    def test_student_can_access_leaderboard(self):
+        self.client.force_authenticate(self.student_user_1)
+        response = self.client.get(LEADERBOARD_URL + "?month=4&year=2026")
+        self.assertEqual(response.status_code, 200)
+
+    def test_parent_can_access_leaderboard(self):
+        parent_user = User.objects.create_user(
+            national_id="970590400099",
+            phone_number="970590400099",
+            password="p",
+            role="parent",
+        )
+        Parent.objects.create(user=parent_user, full_name="P")
+        self.client.force_authenticate(parent_user)
+        response = self.client.get(LEADERBOARD_URL + "?month=4&year=2026")
+        self.assertEqual(response.status_code, 200)
+
+    def test_leaderboard_descending_order(self):
+        self.client.force_authenticate(self.admin)
+        response = self.client.get(LEADERBOARD_URL + "?month=4&year=2026")
+        data = response.data["data"]
+        totals = [row["total_achieved"] for row in data]
+        self.assertEqual(totals, sorted(totals, reverse=True))
+
+    def test_leaderboard_caps_at_ten_entries(self):
+        self.client.force_authenticate(self.admin)
+        response = self.client.get(LEADERBOARD_URL + "?month=4&year=2026")
+        self.assertLessEqual(len(response.data["data"]), 10)
+
+    def test_unauthenticated_returns_401(self):
+        response = self.client.get(LEADERBOARD_URL + "?month=4&year=2026")
+        self.assertEqual(response.status_code, 401)

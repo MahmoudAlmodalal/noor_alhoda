@@ -1,42 +1,36 @@
 "use client";
 
+import type { ChangeEvent } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Search } from "lucide-react";
+import { useToast } from "@/contexts/ToastContext";
+import { useDebounce } from "@/hooks/useDebounce";
+import { useApi } from "@/hooks/useApi";
 import { api } from "@/lib/api";
+import type {
+  BulkStudentImportResult,
+  Course,
+  PaginatedData,
+  Student,
+  StudentSkills,
+  Teacher,
+} from "@/types/api";
 
-type BackendStudent = {
-  id: string;
-  full_name: string;
-  national_id: string;
-  birthdate: string;
-  grade: string;
-  address: string;
-  whatsapp: string;
-  mobile: string;
-  previous_courses: string;
-  bank_account_number: string | null;
-  bank_account_name: string | null;
-  bank_account_type: string | null;
-  guardian_name: string;
-  guardian_national_id: string;
-  guardian_mobile: string;
-  teacher_id: string | null;
-  teacher_name: string | null;
-  health_status: string;
-  health_note: string;
-  skills: Record<string, unknown> | null;
-  affiliation: string;
-};
-
-type BulkResult = {
-  created_count: number;
-  error_count: number;
-  errors: { row: number; national_id: string; message: string }[];
-};
+const PAGE_SIZE = 25;
 
 const GRADE_LABEL: Record<string, string> = {
-  "1": "الأول", "2": "الثاني", "3": "الثالث", "4": "الرابع",
-  "5": "الخامس", "6": "السادس", "7": "السابع", "8": "الثامن",
-  "9": "التاسع", "10": "العاشر", "11": "الحادي عشر", "12": "الثاني عشر",
+  "1": "الأول",
+  "2": "الثاني",
+  "3": "الثالث",
+  "4": "الرابع",
+  "5": "الخامس",
+  "6": "السادس",
+  "7": "السابع",
+  "8": "الثامن",
+  "9": "التاسع",
+  "10": "العاشر",
+  "11": "الحادي عشر",
+  "12": "الثاني عشر",
 };
 
 const HEALTH_LABEL: Record<string, string> = {
@@ -47,77 +41,111 @@ const HEALTH_LABEL: Record<string, string> = {
   other: "",
 };
 
-const COLUMNS: { label: string; get: (s: BackendStudent, i: number) => string }[] = [
-  { label: "م", get: (_s, i) => String(i + 1) },
-  { label: "الاسم الرباعي", get: (s) => s.full_name },
-  { label: "رقم الهوية", get: (s) => s.national_id },
-  { label: "تاريخ الميلاد", get: (s) => s.birthdate },
-  { label: "العمر", get: (s) => computeAge(s.birthdate) },
-  { label: "الصف الدراسي", get: (s) => GRADE_LABEL[s.grade] || s.grade },
-  { label: "رقم الجوال", get: (s) => s.mobile },
-  { label: "رقم الواتساب", get: (s) => s.whatsapp },
-  { label: "عنوان السكن", get: (s) => s.address },
-  { label: "الحالة الخاصة", get: (s) => HEALTH_LABEL[s.health_status] || s.health_note || "" },
-  { label: "المهارات", get: (s) => (s.skills && typeof s.skills === "object" && "description" in s.skills ? String((s.skills as Record<string, unknown>).description || "") : "") },
-  { label: "الدورات السابقة", get: (s) => s.previous_courses },
-  { label: "اسم ولي الأمر", get: (s) => s.guardian_name },
-  { label: "رقم هوية ولي الأمر", get: (s) => s.guardian_national_id },
-  { label: "رقم جوال ولي الأمر", get: (s) => s.guardian_mobile },
-  { label: "رقم الحساب", get: (s) => s.bank_account_number || "" },
-  { label: "اسم الحساب", get: (s) => s.bank_account_name || "" },
-  { label: "نوع الحساب", get: (s) => s.bank_account_type || "" },
-  { label: "اسم الشيخ", get: (s) => s.teacher_name || "" },
-  { label: "التباعية", get: (s) => s.affiliation || "" },
+const AFFILIATION_LABEL: Record<string, string> = {
+  awqaf: "أوقاف",
+  dar_quran: "دار القرآن",
+  sheikh_tabaea: "شيخ التباعية",
+};
+
+const COLUMNS: { label: string; get: (student: Student, index: number) => string }[] = [
+  { label: "م", get: (_student, index) => String(index + 1) },
+  { label: "الاسم الرباعي", get: (student) => student.full_name },
+  { label: "رقم الهوية", get: (student) => student.national_id },
+  { label: "تاريخ الميلاد", get: (student) => student.birthdate },
+  { label: "العمر", get: (student) => computeAge(student.birthdate) },
+  { label: "الصف الدراسي", get: (student) => GRADE_LABEL[student.grade] || student.grade },
+  { label: "رقم الجوال", get: (student) => student.mobile || "" },
+  { label: "رقم الواتساب", get: (student) => student.whatsapp || "" },
+  { label: "عنوان السكن", get: (student) => student.address || "" },
+  { label: "الحالة الخاصة", get: (student) => formatHealth(student) },
+  { label: "المهارات", get: (student) => formatSkills(student.skills) },
+  { label: "الدورات السابقة", get: (student) => student.previous_courses || "" },
+  { label: "اسم ولي الأمر", get: (student) => student.guardian_name || "" },
+  { label: "رقم هوية ولي الأمر", get: (student) => student.guardian_national_id || "" },
+  { label: "رقم جوال ولي الأمر", get: (student) => student.guardian_mobile || "" },
+  { label: "رقم الحساب", get: (student) => student.bank_account_number || "" },
+  { label: "اسم الحساب", get: (student) => student.bank_account_name || "" },
+  { label: "نوع الحساب", get: (student) => student.bank_account_type || "" },
+  { label: "اسم الشيخ", get: (student) => student.teacher_name || "" },
+  { label: "التباعية", get: (student) => AFFILIATION_LABEL[student.affiliation || ""] || student.affiliation || "" },
 ];
 
 function computeAge(birthdate: string): string {
-  if (!birthdate) return "";
-  const d = new Date(birthdate);
-  if (isNaN(d.getTime())) return "";
+  if (!birthdate || birthdate === "1900-01-01") return "";
+
+  const date = new Date(birthdate);
+  if (Number.isNaN(date.getTime())) return "";
+
   const today = new Date();
-  let age = today.getFullYear() - d.getFullYear();
-  const m = today.getMonth() - d.getMonth();
-  if (m < 0 || (m === 0 && today.getDate() < d.getDate())) age--;
+  let age = today.getFullYear() - date.getFullYear();
+  const monthDiff = today.getMonth() - date.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < date.getDate())) {
+    age -= 1;
+  }
+
   return age >= 0 && age <= 120 ? String(age) : "";
 }
 
-function classifyHeader(raw: string, counters: Record<string, number>): string | null {
-  const h = String(raw || "").trim();
-  if (!h) return null;
-  if (h === "م" || h === "#") return null;
-  if (h === "العمر") return null;
+function formatHealth(student: Student): string {
+  const status = HEALTH_LABEL[student.health_status] || "";
+  const note = student.health_note || "";
+  if (status && note) return `${status}، ${note}`;
+  return status || note || "";
+}
 
-  if (h.includes("ولي")) {
-    if (h.includes("هوية")) return "guardian_national_id";
-    if (h.includes("جوال") || h.includes("حوال") || h.includes("هاتف") || h.includes("موبايل") || h.includes("الحوال")) return "guardian_mobile";
-    if (h.includes("اسم")) return "guardian_name";
+function formatSkills(skills: StudentSkills | null | undefined): string {
+  if (!skills) return "";
+
+  const labels: string[] = [];
+  if (skills.quran) labels.push("قراءة القرآن");
+  if (skills.nasheed) labels.push("إنشاد");
+  if (skills.poetry) labels.push("شعر");
+  if (skills.other_text) labels.push(skills.other_text);
+  else if (skills.other) labels.push("أخرى");
+
+  return labels.join("، ");
+}
+
+function classifyHeader(raw: string, counters: Record<string, number>): string | null {
+  const header = String(raw || "").trim();
+  if (!header || header === "م" || header === "#" || header === "العمر") {
     return null;
   }
 
-  if (h.includes("الشيخ") || h.includes("المحفظ")) return "teacher_name";
-  if (h.includes("الحساب")) {
-    if (h.includes("رقم")) return "bank_account_number";
-    if (h.includes("اسم")) return "bank_account_name";
-    if (h.includes("نوع")) return "bank_account_type";
+  if (header.includes("ولي")) {
+    if (header.includes("هوية")) return "guardian_national_id";
+    if (header.includes("جوال") || header.includes("حوال") || header.includes("هاتف") || header.includes("موبايل")) {
+      return "guardian_mobile";
+    }
+    if (header.includes("اسم")) return "guardian_name";
+    return null;
   }
-  if (h.includes("التباع") || h.includes("التبع")) return "affiliation";
-  if (h.includes("الواتس")) return "whatsapp";
-  if (h.includes("الميلاد") || h.includes("تاريخ")) return "birthdate";
-  if (h.includes("الصف")) return "grade";
-  if (h.includes("العنوان") || h.includes("السكن")) return "address";
-  if (h.includes("الحالة") || h.includes("الخاصه")) return "health_status";
-  if (h.includes("المهارات") || h.includes("المهارة")) return "skills";
-  if (h.includes("الدورات") || h.includes("السابقة")) return "previous_courses";
 
-  if (h.includes("اسم")) {
+  if (header.includes("الشيخ") || header.includes("المحفظ")) return "teacher_name";
+  if (header.includes("الحساب")) {
+    if (header.includes("رقم")) return "bank_account_number";
+    if (header.includes("اسم")) return "bank_account_name";
+    if (header.includes("نوع")) return "bank_account_type";
+  }
+  if (header.includes("التباع") || header.includes("التبع")) return "affiliation";
+  if (header.includes("الواتس")) return "whatsapp";
+  if (header.includes("الميلاد") || header.includes("تاريخ")) return "birthdate";
+  if (header.includes("الصف")) return "grade";
+  if (header.includes("العنوان") || header.includes("السكن")) return "address";
+  if (header.includes("الحالة") || header.includes("الخاصه")) return "health_status";
+  if (header.includes("المهارات") || header.includes("المهارة")) return "skills";
+  if (header.includes("الدورات") || header.includes("السابقة")) return "previous_courses";
+  if (header.includes("المطلوب")) return "desired_courses";
+
+  if (header.includes("اسم")) {
     counters.name = (counters.name || 0) + 1;
     return counters.name === 1 ? "full_name" : "guardian_name";
   }
-  if (h.includes("هوية")) {
+  if (header.includes("هوية")) {
     counters.id = (counters.id || 0) + 1;
     return counters.id === 1 ? "national_id" : "guardian_national_id";
   }
-  if (h.includes("جوال") || h.includes("حوال") || h.includes("هاتف") || h.includes("موبايل") || h.includes("الحوال")) {
+  if (header.includes("جوال") || header.includes("حوال") || header.includes("هاتف") || header.includes("موبايل")) {
     counters.phone = (counters.phone || 0) + 1;
     return counters.phone === 1 ? "mobile" : "guardian_mobile";
   }
@@ -127,259 +155,361 @@ function classifyHeader(raw: string, counters: Record<string, number>): string |
 
 function cellToString(cell: unknown): string {
   if (cell === null || cell === undefined) return "";
+
   if (cell instanceof Date) {
-    const y = cell.getFullYear();
-    const m = String(cell.getMonth() + 1).padStart(2, "0");
-    const d = String(cell.getDate()).padStart(2, "0");
-    return `${y}-${m}-${d}`;
+    const year = cell.getFullYear();
+    const month = String(cell.getMonth() + 1).padStart(2, "0");
+    const day = String(cell.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
   }
+
   return String(cell).trim();
 }
 
 async function uploadChunkWithRetry(
   chunkData: Record<string, string>[],
-  maxRetries: number = 3,
-  initialDelay: number = 1000
-): Promise<BulkResult> {
+  maxRetries = 3,
+  initialDelay = 1000,
+): Promise<BulkStudentImportResult> {
   let lastError: Error | null = null;
-  
-  for (let attempt = 0; attempt < maxRetries; attempt++) {
+
+  for (let attempt = 0; attempt < maxRetries; attempt += 1) {
     try {
-      const res = await api.post<BulkResult>("/api/students/bulk-create/", { rows: chunkData });
-      if (!res.success) {
-        throw new Error(res.error?.message || "خطأ غير معروف من الخادم");
+      const response = await api.post<BulkStudentImportResult>("/api/students/bulk-create/", {
+        rows: chunkData,
+      });
+      if (!response.success) {
+        throw new Error(response.error?.message || "خطأ غير معروف من الخادم");
       }
-      return res.data;
-    } catch (err) {
-      lastError = err instanceof Error ? err : new Error(String(err));
-      
+      return response.data;
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
       if (attempt < maxRetries - 1) {
         const delay = initialDelay * Math.pow(2, attempt);
-        console.log(`[retry] محاولة ${attempt + 1} فشلت، إعادة المحاولة بعد ${delay}ms...`);
-        await new Promise(resolve => setTimeout(resolve, delay));
+        await new Promise((resolve) => setTimeout(resolve, delay));
       }
     }
   }
-  
+
   throw lastError || new Error("فشل الرفع بعد عدة محاولات");
 }
 
+function PaginationBar({
+  page,
+  totalPages,
+  count,
+  onPageChange,
+}: {
+  page: number;
+  totalPages: number;
+  count: number;
+  onPageChange: (nextPage: number) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+      <p className="text-sm text-slate-600">
+        إجمالي السجلات: <span className="font-bold text-slate-900">{count}</span>
+      </p>
+      <div className="flex items-center gap-2 self-start sm:self-auto">
+        <button
+          type="button"
+          onClick={() => onPageChange(page - 1)}
+          disabled={page <= 1}
+          className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          السابق
+        </button>
+        <span className="text-sm font-semibold text-slate-700">
+          صفحة {page} من {totalPages}
+        </span>
+        <button
+          type="button"
+          onClick={() => onPageChange(page + 1)}
+          disabled={page >= totalPages}
+          className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          التالي
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function StudentsDbPage() {
-  const [students, setStudents] = useState<BackendStudent[]>([]);
+  const { showToast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [studentsPage, setStudentsPage] = useState<PaginatedData<Student> | null>(null);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const [teacherFilter, setTeacherFilter] = useState("");
+  const [courseFilter, setCourseFilter] = useState("");
   const [importing, setImporting] = useState(false);
   const [importProgress, setImportProgress] = useState<{ current: number; total: number } | null>(null);
   const [xlsxReady, setXlsxReady] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const reload = useCallback(async () => {
-    setLoading(true);
-    const res = await api.get<BackendStudent[]>("/api/students/");
-    if (res.success) {
-      setStudents(res.data);
-    } else {
-      console.error(res.error);
-    }
-    setLoading(false);
-  }, []);
+  const debouncedSearch = useDebounce(search);
+  const { data: teachers } = useApi<Teacher[]>("/api/users/teachers/");
+  const { data: courses } = useApi<Course[]>("/api/courses/");
 
   useEffect(() => {
-    reload();
-  }, [reload]);
+    setPage(1);
+  }, [debouncedSearch, teacherFilter, courseFilter]);
+
+  const fetchStudents = useCallback(
+    async (pageToLoad = page) => {
+      setLoading(true);
+      const response = await api.get<PaginatedData<Student>>("/api/students/", {
+        paginated: "1",
+        page: String(pageToLoad),
+        search: debouncedSearch || undefined,
+        teacher_id: teacherFilter || undefined,
+        course_id: courseFilter || undefined,
+      });
+
+      if (response.success) {
+        setStudentsPage(response.data);
+        if (response.data.page !== pageToLoad) {
+          setPage(response.data.page);
+        }
+      } else {
+        showToast(response.error?.message || "تعذر تحميل قائمة الطلاب.", "error");
+      }
+
+      setLoading(false);
+    },
+    [courseFilter, debouncedSearch, page, showToast, teacherFilter],
+  );
+
+  useEffect(() => {
+    void fetchStudents();
+  }, [fetchStudents]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if ((window as unknown as { XLSX?: unknown }).XLSX) {
+    if ((window as Window & { XLSX?: unknown }).XLSX) {
       setXlsxReady(true);
       return;
     }
-    const s = document.createElement("script");
-    s.src = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
-    s.async = true;
-    s.onload = () => setXlsxReady(true);
-    document.body.appendChild(s);
+
+    const script = document.createElement("script");
+    script.src = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
+    script.async = true;
+    script.onload = () => setXlsxReady(true);
+    document.body.appendChild(script);
+
     return () => {
-      if (s.parentNode) s.parentNode.removeChild(s);
+      if (script.parentNode) {
+        script.parentNode.removeChild(script);
+      }
     };
   }, []);
 
-  const handleExport = () => {
-    const XLSX = (window as unknown as { XLSX?: any }).XLSX;
+  const handleExport = useCallback(async () => {
+    const XLSX = (window as Window & { XLSX?: any }).XLSX;
     if (!XLSX) {
-      alert("جاري تحميل مكتبة التصدير، يرجى المحاولة بعد لحظات.");
+      showToast("جاري تحميل مكتبة التصدير، يرجى المحاولة بعد لحظات.", "error");
       return;
     }
-    const rows = students.map((s, i) =>
-      COLUMNS.reduce<Record<string, string>>((acc, c) => {
-        acc[c.label] = c.get(s, i);
-        return acc;
-      }, {})
-    );
-    const ws = XLSX.utils.json_to_sheet(rows, {
-      header: COLUMNS.map((c) => c.label),
+
+    const response = await api.get<Student[]>("/api/students/", {
+      search: debouncedSearch || undefined,
+      teacher_id: teacherFilter || undefined,
+      course_id: courseFilter || undefined,
     });
-    ws["!rtl"] = true;
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "الطلاب");
-    XLSX.writeFile(wb, "قاعدة_الطلاب.xlsx");
-  };
+
+    if (!response.success) {
+      showToast(response.error?.message || "تعذر تصدير البيانات.", "error");
+      return;
+    }
+
+    const rows = response.data.map((student, index) =>
+      COLUMNS.reduce<Record<string, string>>((accumulator, column) => {
+        accumulator[column.label] = column.get(student, index);
+        return accumulator;
+      }, {}),
+    );
+
+    const worksheet = XLSX.utils.json_to_sheet(rows, {
+      header: COLUMNS.map((column) => column.label),
+    });
+    worksheet["!rtl"] = true;
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "الطلاب");
+    XLSX.writeFile(workbook, "قاعدة_الطلاب.xlsx");
+  }, [courseFilter, debouncedSearch, showToast, teacherFilter]);
 
   const handleImportClick = () => fileInputRef.current?.click();
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
     if (!file) return;
-    const XLSX = (window as unknown as { XLSX?: any }).XLSX;
+
+    const XLSX = (window as Window & { XLSX?: any }).XLSX;
     if (!XLSX) {
-      alert("جاري تحميل مكتبة الاستيراد، يرجى المحاولة بعد لحظات.");
+      showToast("جاري تحميل مكتبة الاستيراد، يرجى المحاولة بعد لحظات.", "error");
       if (fileInputRef.current) fileInputRef.current.value = "";
       return;
     }
 
     setImporting(true);
     setImportProgress(null);
-    try {
-      const buf = await file.arrayBuffer();
-      const wb = XLSX.read(buf, { type: "array", cellDates: true });
 
-      let aoa: unknown[][] = [];
-      for (const name of wb.SheetNames) {
-        const sheet = wb.Sheets[name];
-        const rowsRaw = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "", raw: false }) as unknown[][];
-        if (rowsRaw.length > aoa.length) {
-          aoa = rowsRaw;
+    try {
+      const buffer = await file.arrayBuffer();
+      const workbook = XLSX.read(buffer, { type: "array", cellDates: true });
+
+      let rowsMatrix: unknown[][] = [];
+      for (const sheetName of workbook.SheetNames) {
+        const sheet = workbook.Sheets[sheetName];
+        const candidate = XLSX.utils.sheet_to_json(sheet, {
+          header: 1,
+          defval: "",
+          raw: false,
+        }) as unknown[][];
+        if (candidate.length > rowsMatrix.length) {
+          rowsMatrix = candidate;
         }
       }
-      console.log(`[import] اختير ورقة بعدد ${aoa.length} صف خام`);
 
-      if (aoa.length === 0) {
+      if (rowsMatrix.length === 0) {
         alert("لا يوجد صفوف في الملف.");
         return;
       }
 
-      let headerRowIdx = -1;
-      let bestMap: (string | null)[] = [];
-      for (let r = 0; r < Math.min(aoa.length, 5); r++) {
-        const candidate = aoa[r].map(cellToString);
-        const c: Record<string, number> = {};
-        const m = candidate.map((h) => classifyHeader(h, c));
-        if (m.includes("full_name") && m.includes("national_id")) {
-          headerRowIdx = r;
-          bestMap = m;
+      let headerRowIndex = -1;
+      let columnMap: (string | null)[] = [];
+      for (let rowIndex = 0; rowIndex < Math.min(rowsMatrix.length, 6); rowIndex += 1) {
+        const candidateHeaders = rowsMatrix[rowIndex].map(cellToString);
+        const counters: Record<string, number> = {};
+        const detectedColumns = candidateHeaders.map((header) => classifyHeader(header, counters));
+        if (detectedColumns.includes("full_name") && detectedColumns.includes("national_id")) {
+          headerRowIndex = rowIndex;
+          columnMap = detectedColumns;
           break;
         }
       }
 
-      if (headerRowIdx === -1) {
+      if (headerRowIndex === -1) {
         alert(
           "لم يتم العثور على أعمدة 'الاسم الرباعي' و'رقم الهوية'.\n" +
-          "تأكد أن أحد الصفوف الأولى يحتوي على أسماء الأعمدة بالعربية."
+            "تأكد أن أحد الصفوف الأولى يحتوي على أسماء الأعمدة بالعربية.",
         );
         return;
       }
 
-      const columnMap = bestMap;
-      const fullNameIdx = columnMap.indexOf("full_name");
-      const nationalIdIdx = columnMap.indexOf("national_id");
-      const dataRows = aoa.slice(headerRowIdx + 1).filter((row) => {
-        const name = cellToString(row[fullNameIdx]);
-        const nid = cellToString(row[nationalIdIdx]);
-        return name !== "" || nid !== "";
-      });
-      console.log(`[import] بعد الفلترة: ${dataRows.length} صف بيانات`);
-      const rows = dataRows.map((row) => {
-        const obj: Record<string, string> = {};
-        columnMap.forEach((key, idx) => {
-          if (!key) return;
-          obj[key] = cellToString(row[idx]);
-        });
-        return obj;
+      const fullNameIndex = columnMap.indexOf("full_name");
+      const nationalIdIndex = columnMap.indexOf("national_id");
+      const dataRows = rowsMatrix.slice(headerRowIndex + 1).filter((row) => {
+        const fullName = cellToString(row[fullNameIndex]);
+        const nationalId = cellToString(row[nationalIdIndex]);
+        return fullName !== "" || nationalId !== "";
       });
 
-      if (rows.length === 0) {
+      const parsedRows = dataRows.map((row) => {
+        const normalizedRow: Record<string, string> = {};
+        columnMap.forEach((key, columnIndex) => {
+          if (!key) return;
+          normalizedRow[key] = cellToString(row[columnIndex]);
+        });
+        return normalizedRow;
+      });
+
+      if (parsedRows.length === 0) {
         alert("لا يوجد صفوف في الملف.");
         return;
       }
 
-      const CHUNK_SIZE = 10;
+      const chunkSize = 10;
       let totalCreated = 0;
-      let totalErrors: { row: number; national_id: string; message: string }[] = [];
+      let totalUpdated = 0;
       let rowOffset = 0;
+      let totalErrors: BulkStudentImportResult["errors"] = [];
 
-      for (let i = 0; i < rows.length; i += CHUNK_SIZE) {
-        const chunk = rows.slice(i, i + CHUNK_SIZE);
-        const chunkNumber = Math.floor(i / CHUNK_SIZE) + 1;
-        const totalChunks = Math.ceil(rows.length / CHUNK_SIZE);
-        
+      for (let index = 0; index < parsedRows.length; index += chunkSize) {
+        const chunk = parsedRows.slice(index, index + chunkSize);
+        const chunkNumber = Math.floor(index / chunkSize) + 1;
+        const totalChunks = Math.ceil(parsedRows.length / chunkSize);
         setImportProgress({ current: chunkNumber, total: totalChunks });
-        
-        try {
-          console.log(`[import] رفع الدفعة ${chunkNumber}/${totalChunks} (${chunk.length} طالب)...`);
-          const result = await uploadChunkWithRetry(chunk, 3, 1000);
-          
-          const { created_count, error_count, errors } = result;
-          totalCreated += created_count;
-          
-          const adjustedErrors = errors.map(e => ({
-            ...e,
-            row: e.row + rowOffset
-          }));
-          totalErrors = totalErrors.concat(adjustedErrors);
-          rowOffset += chunk.length;
 
-          console.log(`[import] الدفعة ${chunkNumber}/${totalChunks}: تم إنشاء ${created_count} طالب، فشل ${error_count}`);
-        } catch (err) {
-          const errorMsg = err instanceof Error ? err.message : String(err);
-          console.error(`Error in chunk ${chunkNumber}:`, err);
-          alert(`حدث خطأ في الدفعة ${chunkNumber}: ${errorMsg}\n\nتم إنشاء ${totalCreated} طالب قبل الخطأ.\nيرجى المحاولة مرة أخرى أو التحقق من الاتصال بالإنترنت.`);
-          return;
+        const result = await uploadChunkWithRetry(chunk);
+        totalCreated += result.created_count;
+        totalUpdated += result.updated_count;
+        totalErrors = totalErrors.concat(
+          result.errors.map((error) => ({
+            ...error,
+            row: error.row + rowOffset,
+          })),
+        );
+        rowOffset += chunk.length;
+      }
+
+      let message = `تم إنشاء ${totalCreated} طالب`;
+      if (totalUpdated > 0) {
+        message += `، وتحديث ${totalUpdated} سجل`;
+      }
+      message += " بنجاح.";
+
+      if (totalErrors.length > 0) {
+        message += `\nفشل ${totalErrors.length} صف:\n`;
+        message += totalErrors
+          .slice(0, 10)
+          .map((error) => `صف ${error.row} (${error.national_id || "بدون هوية"}): ${error.message}`)
+          .join("\n");
+        if (totalErrors.length > 10) {
+          message += `\n... و${totalErrors.length - 10} خطأ إضافي.`;
         }
       }
 
-      let msg = `تم إنشاء ${totalCreated} طالب بنجاح.`;
-      if (totalErrors.length > 0) {
-        msg += `\nفشل ${totalErrors.length} صف:\n`;
-        msg += totalErrors
-          .slice(0, 10)
-          .map((e) => `صف ${e.row} (${e.national_id}): ${e.message}`)
-          .join("\n");
-        if (totalErrors.length > 10) msg += `\n... و${totalErrors.length - 10} خطأ إضافي.`;
-      }
-      alert(msg);
-      await reload();
-    } catch (err) {
-      console.error(err);
-      alert("تعذر قراءة الملف. تأكد من أنه ملف Excel صالح.");
+      alert(message);
+      setPage(1);
+      await fetchStudents(1);
+    } catch (error) {
+      console.error(error);
+      alert("تعذر قراءة الملف أو استيراده. تأكد من أنه ملف Excel صالح.");
     } finally {
       setImporting(false);
       setImportProgress(null);
-      if (fileInputRef.current) fileInputRef.current.value = "";
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
     }
   };
 
+  const students = studentsPage?.items ?? [];
+  const totalPages = studentsPage?.total_pages ?? 1;
+  const rowOffset = ((studentsPage?.page ?? 1) - 1) * PAGE_SIZE;
+
   return (
-    <div dir="rtl" className="p-6 space-y-4 min-h-screen bg-slate-50">
+    <div dir="rtl" className="min-h-screen space-y-4 bg-slate-50 p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold text-slate-800">
-          قاعدة بيانات الطلاب
-          <span className="text-sm text-slate-500 font-normal mr-3">
-            ({students.length})
-          </span>
-        </h1>
-        <div className="flex gap-2">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-800">قاعدة بيانات الطلاب</h1>
+          <p className="mt-1 text-sm text-slate-500">
+            عرض {students.length} من أصل {studentsPage?.count ?? 0} سجل
+          </p>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
           <button
+            type="button"
             onClick={handleExport}
             disabled={!xlsxReady || loading}
-            className="bg-blue-600 hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold px-4 py-2 rounded-lg shadow-sm transition"
+            className="rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
             تصدير Excel
           </button>
           <button
+            type="button"
             onClick={handleImportClick}
             disabled={!xlsxReady || importing}
-            className="bg-amber-600 hover:bg-amber-700 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold px-4 py-2 rounded-lg shadow-sm transition"
+            className="rounded-lg bg-amber-600 px-4 py-2 font-semibold text-white transition hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {importing ? `جاري الاستيراد... (${importProgress?.current || 0}/${importProgress?.total || 0})` : "استيراد Excel"}
+            {importing
+              ? `جاري الاستيراد... (${importProgress?.current || 0}/${importProgress?.total || 0})`
+              : "استيراد Excel"}
           </button>
           <input
             ref={fileInputRef}
@@ -391,19 +521,65 @@ export default function StudentsDbPage() {
         </div>
       </div>
 
+      <div className="grid gap-3 rounded-xl border border-slate-200 bg-white p-4 md:grid-cols-3">
+        <label className="relative block">
+          <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <input
+            type="text"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="البحث بالاسم أو الهوية..."
+            className="h-11 w-full rounded-lg border border-slate-200 bg-white pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+          />
+        </label>
+
+        <select
+          value={teacherFilter}
+          onChange={(event) => setTeacherFilter(event.target.value)}
+          className="h-11 rounded-lg border border-slate-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+        >
+          <option value="">كل المحفظين</option>
+          {(teachers ?? []).map((teacher) => (
+            <option key={teacher.id} value={teacher.id}>
+              {teacher.full_name}
+            </option>
+          ))}
+        </select>
+
+        <select
+          value={courseFilter}
+          onChange={(event) => setCourseFilter(event.target.value)}
+          className="h-11 rounded-lg border border-slate-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+        >
+          <option value="">كل الدورات</option>
+          {(courses ?? []).map((course) => (
+            <option key={course.id} value={course.id}>
+              {course.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <PaginationBar
+        page={studentsPage?.page ?? 1}
+        totalPages={totalPages}
+        count={studentsPage?.count ?? 0}
+        onPageChange={setPage}
+      />
+
       {loading ? (
-        <div className="text-center py-20 text-slate-500">جاري التحميل...</div>
+        <div className="py-20 text-center text-slate-500">جاري التحميل...</div>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
-          <table className="min-w-max w-full text-sm text-right">
+          <table className="min-w-max w-full text-right text-sm">
             <thead className="bg-slate-100 text-slate-700">
               <tr>
-                {COLUMNS.map((c) => (
+                {COLUMNS.map((column) => (
                   <th
-                    key={c.label}
-                    className="px-3 py-3 font-semibold whitespace-nowrap border-b border-slate-200"
+                    key={column.label}
+                    className="whitespace-nowrap border-b border-slate-200 px-3 py-3 font-semibold"
                   >
-                    {c.label}
+                    {column.label}
                   </th>
                 ))}
               </tr>
@@ -412,18 +588,18 @@ export default function StudentsDbPage() {
               {students.length === 0 ? (
                 <tr>
                   <td colSpan={COLUMNS.length} className="px-3 py-8 text-center text-slate-500">
-                    لا يوجد طلاب. استخدم زر "استيراد Excel" لإضافة بيانات.
+                    لا توجد نتائج مطابقة للبحث أو الفلاتر الحالية.
                   </td>
                 </tr>
               ) : (
-                students.map((s, i) => (
-                  <tr key={s.id} className="even:bg-slate-50 hover:bg-blue-50 transition-colors">
-                    {COLUMNS.map((c) => (
+                students.map((student, index) => (
+                  <tr key={student.id} className="transition-colors even:bg-slate-50 hover:bg-blue-50">
+                    {COLUMNS.map((column) => (
                       <td
-                        key={c.label}
-                        className="px-3 py-2 whitespace-nowrap border-b border-slate-100 text-slate-700"
+                        key={column.label}
+                        className="whitespace-nowrap border-b border-slate-100 px-3 py-2 text-slate-700"
                       >
-                        {c.get(s, i)}
+                        {column.get(student, rowOffset + index)}
                       </td>
                     ))}
                   </tr>
@@ -433,6 +609,13 @@ export default function StudentsDbPage() {
           </table>
         </div>
       )}
+
+      <PaginationBar
+        page={studentsPage?.page ?? 1}
+        totalPages={totalPages}
+        count={studentsPage?.count ?? 0}
+        onPageChange={setPage}
+      />
     </div>
   );
 }

@@ -25,6 +25,10 @@ class Command(BaseCommand):
             if user.role != "admin":
                 user.role = "admin"
                 changed.append("role")
+            if user.first_name == "Admin" and user.last_name == "System":
+                user.first_name = "مدير"
+                user.last_name = "المركز"
+                changed.extend(["first_name", "last_name"])
             if changed:
                 user.save(update_fields=changed)
                 self.stdout.write(self.style.SUCCESS(f"Default admin updated: {NATIONAL_ID}"))
@@ -35,8 +39,8 @@ class Command(BaseCommand):
         user = User.objects.create_superuser(
             national_id=NATIONAL_ID,
             password=PASSWORD,
-            first_name="Admin",
-            last_name="System",
+            first_name="مدير",
+            last_name="المركز",
             role="admin",
             is_active=True,
         )

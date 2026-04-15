@@ -1,3 +1,4 @@
+from django.core.paginator import Paginator
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, serializers
@@ -24,8 +25,11 @@ from students.services.student_services import (
 # ---------------------------------------------------------------------------
 class StudentFilterSerializer(serializers.Serializer):
     teacher_id = serializers.UUIDField(required=False)
+    course_id = serializers.UUIDField(required=False)
     grade = serializers.CharField(required=False)
     search = serializers.CharField(required=False)
+    paginated = serializers.BooleanField(required=False, default=False)
+    page = serializers.IntegerField(required=False, default=1, min_value=1)
 
 
 class StudentInputSerializer(serializers.Serializer):
@@ -143,13 +147,27 @@ class StudentListApi(APIView):
         filter_serializer = StudentFilterSerializer(data=request.query_params)
         filter_serializer.is_valid(raise_exception=True)
 
+        filters = filter_serializer.validated_data
         students = student_list(
-            filters=filter_serializer.validated_data,
+            filters=filters,
             user=request.user,
         )
 
+        if filters.get("paginated"):
+            paginator = Paginator(students, 25)
+            page_obj = paginator.get_page(filters.get("page", 1))
+            data = {
+                "items": StudentOutputSerializer(page_obj.object_list, many=True).data,
+                "count": paginator.count,
+                "page": page_obj.number,
+                "page_size": 25,
+                "total_pages": paginator.num_pages,
+            }
+        else:
+            data = StudentOutputSerializer(students, many=True).data
+
         return Response(
-            {"success": True, "data": StudentOutputSerializer(students, many=True).data},
+            {"success": True, "data": data},
             status=status.HTTP_200_OK,
         )
 
