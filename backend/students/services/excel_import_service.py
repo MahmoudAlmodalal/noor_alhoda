@@ -655,6 +655,12 @@ def excel_bulk_import(*, creator: User, rows: list) -> dict:
         try:
             with transaction.atomic():
                 row = _normalize_row(raw_row)
+                
+                # Basic validation for required fields in normalization
+                if not row.get("full_name") or row.get("full_name") == "غ. م":
+                     if not raw_row.get("full_name"):
+                         raise ValueError("اسم الطالب مطلوب.")
+
                 student = Student.objects.select_related("user", "teacher").filter(
                     national_id=row["national_id"]
                 ).first()
@@ -676,38 +682,70 @@ def excel_bulk_import(*, creator: User, rows: list) -> dict:
                     student = _update_existing_student(student=student, row=row)
                     updated_count += 1
 
-                parent = _resolve_parent(
-                    guardian_name=row["guardian_name"],
-                    guardian_mobile=row["guardian_mobile"],
-                    guardian_national_id=row["guardian_national_id"],
-                    creator=creator,
-                    parent_cache=parent_cache,
-                )
-                if parent is not None:
-                    ParentStudentLink.objects.get_or_create(parent=parent, student=student)
+                # Resolve parent and link
+                try:
+                    parent = _resolve_parent(
+                        guardian_name=row["guardian_name"],
+                        guardian_mobile=row["guardian_mobile"],
+                        guardian_national_id=row["guardian_national_id"],
+                        creator=creator,
+                        parent_cache=parent_cache,
+                    )
+                    if parent is not None:
+                        ParentStudentLink.objects.get_or_create(parent=parent, student=student)
+                except Exception as p_exc:
+                    # Log parent error but don't fail the whole student import
+                    errors.append({
+                        "row": idx,
+                        "national_id": row["national_id"],
+                        "message": f"تنبيه: فشل ربط ولي الأمر: {str(p_exc)}"
+                    })
 
-                teacher = _resolve_teacher(
-                    teacher_name=row["teacher_name"],
-                    affiliation=row["affiliation"],
-                    creator=creator,
-                    teacher_cache=teacher_cache,
-                )
-                if teacher is not None and student.teacher_id != teacher.id:
-                    student.teacher = teacher
-                    student.save(update_fields=["teacher", "updated_at"])
+                # Resolve teacher
+                try:
+                    teacher = _resolve_teacher(
+                        teacher_name=row["teacher_name"],
+                        affiliation=row["affiliation"],
+                        creator=creator,
+                        teacher_cache=teacher_cache,
+                    )
+                    if teacher is not None and student.teacher_id != teacher.id:
+                        student.teacher = teacher
+                        student.save(update_fields=["teacher", "updated_at"])
+                except Exception as t_exc:
+                    errors.append({
+                        "row": idx,
+                        "national_id": row["national_id"],
+                        "message": f"تنبيه: فشل تعيين المحفظ: {str(t_exc)}"
+                    })
 
-                _reconcile_student_courses(
-                    student=student,
-                    course_names=row["course_names"],
-                    course_cache=course_cache,
-                )
+                # Reconcile courses
+                try:
+                    _reconcile_student_courses(
+                        student=student,
+                        course_names=row["course_names"],
+                        course_cache=course_cache,
+                    )
+                except Exception as c_exc:
+                    errors.append({
+                        "row": idx,
+                        "national_id": row["national_id"],
+                        "message": f"تنبيه: فشل تحديث الدورات: {str(c_exc)}"
+                    })
 
         except Exception as exc:
+            # Extract a more user-friendly message if it's a ValidationError
+            msg = str(exc)
+            if hasattr(exc, 'message_dict'):
+                msg = "; ".join([f"{k}: {', '.join(v)}" for k, v in exc.message_dict.items()])
+            elif hasattr(exc, 'messages'):
+                msg = "; ".join(exc.messages)
+                
             errors.append(
                 {
                     "row": idx,
                     "national_id": _clean_text(raw_row.get("national_id")) or None,
-                    "message": str(exc),
+                    "message": msg,
                 }
             )
 

@@ -154,7 +154,7 @@ function classifyHeader(raw: string, counters: Record<string, number>, colIdx: n
     }
   }
 
-  if (header.includes("الشيخ") || header.includes("المحفظ")) return "teacher_name";
+    if (header.includes("الشيخ") || header.includes("المحفظ")) return "teacher_name";
   if (header.includes("الحساب")) {
     if (header.includes("رقم")) return "bank_account_number";
     if (header.includes("اسم")) return "bank_account_name";
@@ -171,14 +171,20 @@ function classifyHeader(raw: string, counters: Record<string, number>, colIdx: n
   if (header.includes("المطلوب")) return "desired_courses";
 
   if (header.includes("اسم")) {
+    if (header.includes("الطالب")) return "full_name";
+    if (header.includes("ولي")) return "guardian_name";
     counters.name = (counters.name || 0) + 1;
     return counters.name === 1 ? "full_name" : "guardian_name";
   }
   if (header.includes("هوية")) {
+    if (header.includes("الطالب")) return "national_id";
+    if (header.includes("ولي")) return "guardian_national_id";
     counters.id = (counters.id || 0) + 1;
     return counters.id === 1 ? "national_id" : "guardian_national_id";
   }
   if (header.includes("جوال") || header.includes("حوال") || header.includes("هاتف") || header.includes("موبايل") || header.includes("الحوال")) {
+    if (header.includes("الطالب")) return "mobile";
+    if (header.includes("ولي")) return "guardian_mobile";
     counters.phone = (counters.phone || 0) + 1;
     return counters.phone === 1 ? "mobile" : "guardian_mobile";
   }
@@ -504,7 +510,8 @@ export default function StudentsDbPage() {
       await fetchStudents(1);
     } catch (error) {
       console.error(error);
-      alert("تعذر قراءة الملف أو استيراده. تأكد من أنه ملف Excel صالح.");
+      const errorMessage = error instanceof Error ? error.message : "تعذر قراءة الملف أو استيراده. تأكد من أنه ملف Excel صالح.";
+      alert(errorMessage);
     } finally {
       setImporting(false);
       setImportProgress(null);
