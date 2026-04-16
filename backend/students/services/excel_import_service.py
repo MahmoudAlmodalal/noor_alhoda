@@ -326,6 +326,49 @@ def _join_course_names(course_names: list[str]) -> str:
     return "، ".join(course_names)
 
 
+def _flatten_detail(detail) -> list[str]:
+    if detail is None:
+        return []
+    if isinstance(detail, dict):
+        parts: list[str] = []
+        for key, value in detail.items():
+            nested = _flatten_detail(value)
+            if not nested:
+                continue
+            if key in (None, "non_field_errors"):
+                parts.extend(nested)
+            else:
+                parts.append(f"{key}: {', '.join(nested)}")
+        return parts
+    if isinstance(detail, (list, tuple)):
+        parts = []
+        for item in detail:
+            parts.extend(_flatten_detail(item))
+        return parts
+    return [str(detail)]
+
+
+def _format_exception_message(exc: Exception) -> str:
+    detail = getattr(exc, "detail", None)
+    if detail is not None:
+        parts = _flatten_detail(detail)
+        if parts:
+            return "؛ ".join(parts)
+
+    message_dict = getattr(exc, "message_dict", None)
+    if message_dict:
+        return "؛ ".join(
+            f"{field}: {', '.join(str(item) for item in messages)}"
+            for field, messages in message_dict.items()
+        )
+
+    messages = getattr(exc, "messages", None)
+    if messages:
+        return "؛ ".join(str(item) for item in messages)
+
+    return str(exc) or exc.__class__.__name__
+
+
 def _build_missing_national_id(row: dict) -> str:
     seed = "|".join(
         [
@@ -694,11 +737,10 @@ def excel_bulk_import(*, creator: User, rows: list) -> dict:
                     if parent is not None:
                         ParentStudentLink.objects.get_or_create(parent=parent, student=student)
                 except Exception as p_exc:
-                    # Log parent error but don't fail the whole student import
                     errors.append({
                         "row": idx,
                         "national_id": row["national_id"],
-                        "message": f"تنبيه: فشل ربط ولي الأمر: {str(p_exc)}"
+                        "message": f"تنبيه: فشل ربط ولي الأمر: {_format_exception_message(p_exc)}"
                     })
 
                 # Resolve teacher
@@ -716,7 +758,7 @@ def excel_bulk_import(*, creator: User, rows: list) -> dict:
                     errors.append({
                         "row": idx,
                         "national_id": row["national_id"],
-                        "message": f"تنبيه: فشل تعيين المحفظ: {str(t_exc)}"
+                        "message": f"تنبيه: فشل تعيين المحفظ: {_format_exception_message(t_exc)}"
                     })
 
                 # Reconcile courses
@@ -730,22 +772,15 @@ def excel_bulk_import(*, creator: User, rows: list) -> dict:
                     errors.append({
                         "row": idx,
                         "national_id": row["national_id"],
-                        "message": f"تنبيه: فشل تحديث الدورات: {str(c_exc)}"
+                        "message": f"تنبيه: فشل تحديث الدورات: {_format_exception_message(c_exc)}"
                     })
 
         except Exception as exc:
-            # Extract a more user-friendly message if it's a ValidationError
-            msg = str(exc)
-            if hasattr(exc, 'message_dict'):
-                msg = "; ".join([f"{k}: {', '.join(v)}" for k, v in exc.message_dict.items()])
-            elif hasattr(exc, 'messages'):
-                msg = "; ".join(exc.messages)
-                
             errors.append(
                 {
                     "row": idx,
                     "national_id": _clean_text(raw_row.get("national_id")) or None,
-                    "message": msg,
+                    "message": _format_exception_message(exc),
                 }
             )
 
