@@ -56,7 +56,6 @@ class UserUpdateSerializer(serializers.Serializer):
     password = serializers.CharField(required=False)
     specialization = serializers.CharField(required=False, allow_blank=True)
     affiliation = serializers.CharField(required=False, allow_blank=True)
-    sheikh_type = serializers.CharField(required=False, allow_blank=True)
 
 
 class TeacherInputSerializer(serializers.Serializer):
@@ -66,7 +65,6 @@ class TeacherInputSerializer(serializers.Serializer):
     full_name = serializers.CharField()
     specialization = serializers.CharField(required=False, allow_blank=True, default="")
     affiliation = serializers.CharField(required=False, allow_blank=True, default="")
-    sheikh_type = serializers.CharField(required=False, allow_blank=True, default="")
     session_days = serializers.ListField(child=serializers.CharField(), required=False, default=[])
     max_students = serializers.IntegerField(required=False, default=25)
 
@@ -78,7 +76,6 @@ class TeacherOutputSerializer(serializers.Serializer):
     full_name = serializers.CharField()
     specialization = serializers.CharField(allow_blank=True)
     affiliation = serializers.CharField(allow_blank=True)
-    sheikh_type = serializers.CharField(allow_blank=True)
     session_days = serializers.JSONField()
     max_students = serializers.IntegerField()
     created_at = serializers.DateTimeField()

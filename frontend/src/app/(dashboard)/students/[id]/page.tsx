@@ -4,6 +4,7 @@ import { use, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, BookMarked, FileText, PlusCircle, User } from "lucide-react";
 import { PageLoading } from "@/components/ui/LoadingSpinner";
+import { Modal } from "@/components/ui/Modal";
 import { useApi } from "@/hooks/useApi";
 import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
@@ -13,6 +14,7 @@ import type { Student, StudentCourseStatus, StudentStats, WeeklyPlan } from "@/t
 export default function StudentDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const [planOpen, setPlanOpen] = useState(false);
+  const [coursesOpen, setCoursesOpen] = useState(false);
   const [togglingCourseId, setTogglingCourseId] = useState<string | null>(null);
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
@@ -111,6 +113,16 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
             <PlusCircle className="w-4 h-4" />
             إضافة واجب
           </button>
+          {isAdmin && (
+            <button
+              type="button"
+              onClick={() => setCoursesOpen(true)}
+              className="px-4 py-2 bg-emerald-50 text-emerald-700 text-xs font-bold rounded-xl hover:bg-emerald-100 flex items-center gap-2"
+            >
+              <BookMarked className="w-4 h-4" />
+              الدورات التي اجتازها
+            </button>
+          )}
         </div>
       </div>
 
@@ -172,13 +184,37 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
         </div>
       </div>
 
-      {/* Completed Courses Section */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-        <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-2">
-          <BookMarked className="w-5 h-5 text-primary" />
-          <h2 className="font-bold text-base text-slate-800">الدورات المنجزة</h2>
+      {/* Courses Summary (read-only chips) */}
+      {(studentCourses ?? []).some((c) => c.is_completed) && (
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <BookMarked className="w-5 h-5 text-primary" />
+            <h2 className="font-bold text-base text-slate-800">الدورات المنجزة</h2>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {(studentCourses ?? [])
+              .filter((c) => c.is_completed)
+              .map((c) => (
+                <span
+                  key={c.course_id}
+                  className="px-3 py-1.5 bg-emerald-50 text-emerald-700 text-xs font-bold rounded-lg"
+                >
+                  ✓ {c.course_name}
+                </span>
+              ))}
+          </div>
         </div>
-        <div className="p-5">
+      )}
+
+      <Modal isOpen={coursesOpen} onClose={() => setCoursesOpen(false)} className="max-w-md">
+        <div className="flex items-center gap-2 mb-5">
+          <BookMarked className="w-5 h-5 text-primary" />
+          <h2 className="text-lg font-bold text-primary">الدورات التي اجتازها الطالب</h2>
+        </div>
+        <p className="text-xs text-slate-500 mb-4">
+          حدّد الدورات التي أخذها الطالب بالنقر على المربع المقابل لاسم الدورة.
+        </p>
+        <div className="max-h-[60vh] overflow-y-auto -mx-2 px-2">
           {coursesLoading && !studentCourses ? (
             <p className="text-center py-6 text-sm text-slate-400">جارٍ التحميل...</p>
           ) : coursesError ? (
@@ -190,40 +226,45 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
               {(studentCourses ?? []).map((c) => {
                 const isLoading = togglingCourseId === c.course_id;
                 return (
-                  <li key={c.course_id} className="py-3 flex items-center gap-3">
-                    <div className="flex-1 min-w-0">
-                      <p className="font-bold text-sm text-slate-800">{c.course_name}</p>
-                      {c.description && (
-                        <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{c.description}</p>
-                      )}
-                      {c.is_completed && c.completion_date && (
-                        <p className="text-[11px] text-green-600 mt-1" dir="ltr">
-                          ✓ {c.completion_date}
-                        </p>
-                      )}
-                    </div>
-                    <button
-                      type="button"
-                      disabled={!isAdmin || isLoading}
-                      onClick={() => toggleCourse(c.course_id, !c.is_completed)}
-                      aria-pressed={c.is_completed}
-                      className={`relative inline-flex h-7 w-12 shrink-0 rounded-full transition-colors ${
-                        c.is_completed ? "bg-green-500" : "bg-slate-200"
-                      } ${!isAdmin || isLoading ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}
+                  <li key={c.course_id} className="py-3">
+                    <label
+                      className={`flex items-start gap-3 ${
+                        !isAdmin || isLoading ? "cursor-not-allowed opacity-60" : "cursor-pointer"
+                      }`}
                     >
-                      <span
-                        className={`inline-block h-6 w-6 bg-white rounded-full shadow transform transition-transform mt-0.5 ${
-                          c.is_completed ? "-translate-x-0.5" : "-translate-x-[22px]"
-                        }`}
+                      <input
+                        type="checkbox"
+                        checked={c.is_completed}
+                        disabled={!isAdmin || isLoading}
+                        onChange={(e) => toggleCourse(c.course_id, e.target.checked)}
+                        className="mt-0.5 w-5 h-5 rounded border-slate-300 text-primary focus:ring-primary/30"
                       />
-                    </button>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-sm text-slate-800">{c.course_name}</p>
+                        {c.description && (
+                          <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{c.description}</p>
+                        )}
+                        {c.is_completed && c.completion_date && (
+                          <p className="text-[11px] text-green-600 mt-1" dir="ltr">
+                            ✓ {c.completion_date}
+                          </p>
+                        )}
+                      </div>
+                    </label>
                   </li>
                 );
               })}
             </ul>
           )}
         </div>
-      </div>
+        <button
+          type="button"
+          onClick={() => setCoursesOpen(false)}
+          className="w-full mt-5 h-12 bg-primary text-white font-bold rounded-xl hover:bg-primary/90"
+        >
+          تم
+        </button>
+      </Modal>
 
       <WeeklyPlanModal
         isOpen={planOpen}

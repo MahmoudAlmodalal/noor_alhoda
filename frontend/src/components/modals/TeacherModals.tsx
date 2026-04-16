@@ -17,7 +17,6 @@ export function AddTeacherModal({ isOpen, onClose, onSuccess }: { isOpen: boolea
     phone_number: "",
     specialization: "",
     affiliation: "",
-    sheikh_type: "",
   });
 
   const { mutate, isSubmitting, fieldErrors, reset, error } = useMutation("post", "/api/users/teachers/create/");
@@ -31,11 +30,10 @@ export function AddTeacherModal({ isOpen, onClose, onSuccess }: { isOpen: boolea
       full_name: form.full_name,
       specialization: form.specialization,
       affiliation: form.affiliation,
-      sheikh_type: form.sheikh_type,
     }, { successMessage: "تم إضافة المحفظ بنجاح" });
 
     if (result) {
-      setForm({ full_name: "", phone_number: "", specialization: "", affiliation: "", sheikh_type: "" });
+      setForm({ full_name: "", phone_number: "", specialization: "", affiliation: "" });
       reset();
       onSuccess?.();
     }
@@ -74,10 +72,6 @@ export function AddTeacherModal({ isOpen, onClose, onSuccess }: { isOpen: boolea
             <option value="sheikh_tabaea">شيخ التباعية</option>
           </select>
           {fieldErrors?.affiliation && <p className="text-xs text-red-500">{fieldErrors.affiliation}</p>}
-        </div>
-        <div className="space-y-1.5">
-          <label className="block text-sm font-bold text-slate-800">نوع الشيخ (اختياري)</label>
-          <Input value={form.sheikh_type} onChange={(e) => setForm({ ...form, sheikh_type: e.target.value })} aria-label="نوع الشيخ" placeholder="مثال: شيخ التباعية" className="h-12 rounded-xl border-slate-200" />
         </div>
       </div>
 
@@ -159,7 +153,6 @@ export function EditTeacherModal({
     phone_number: teacher.phone_number || "",
     specialization: teacher.specialization || "",
     affiliation: teacher.affiliation || "",
-    sheikh_type: teacher.sheikh_type || "",
   });
 
   const { mutate, isSubmitting, fieldErrors, error } = useMutation("patch");
@@ -172,7 +165,6 @@ export function EditTeacherModal({
       phone_number: form.phone_number,
       specialization: form.specialization,
       affiliation: form.affiliation,
-      sheikh_type: form.sheikh_type,
     };
     const result = await mutate(payload, {
       endpoint: `/api/users/${teacher.user_id}/`,
@@ -216,10 +208,6 @@ export function EditTeacherModal({
             <option value="sheikh_tabaea">شيخ التباعية</option>
           </select>
           {fieldErrors?.affiliation && <p className="text-xs text-red-500">{fieldErrors.affiliation}</p>}
-        </div>
-        <div className="space-y-1.5">
-          <label className="block text-sm font-bold text-slate-800">نوع الشيخ</label>
-          <Input value={form.sheikh_type} onChange={(e) => setForm({ ...form, sheikh_type: e.target.value })} aria-label="نوع الشيخ" className="h-12 rounded-xl border-slate-200 font-medium" />
         </div>
       </div>
 

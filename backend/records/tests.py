@@ -18,11 +18,13 @@ class RecordTestSetup(APITestCase):
 
     def setUp(self):
         self.admin = User.objects.create_user(
+            national_id="970590200000",
             phone_number="970590200000",
             password="adminpass", role="admin",
         )
 
         self.teacher_user = User.objects.create_user(
+            national_id="970590200010",
             phone_number="970590200010",
             password="secret123", role="teacher",
         )
@@ -32,6 +34,7 @@ class RecordTestSetup(APITestCase):
         )
 
         self.teacher2_user = User.objects.create_user(
+            national_id="970590200011",
             phone_number="970590200011",
             password="secret123", role="teacher",
         )
@@ -40,6 +43,7 @@ class RecordTestSetup(APITestCase):
         )
 
         self.parent_user = User.objects.create_user(
+            national_id="970590200020",
             phone_number="970590200020",
             password="secret123", role="parent",
         )
@@ -49,6 +53,7 @@ class RecordTestSetup(APITestCase):
         )
 
         self.student_user = User.objects.create_user(
+            national_id="970590200030",
             phone_number="970590200030",
             password="secret123", role="student",
         )
@@ -61,6 +66,7 @@ class RecordTestSetup(APITestCase):
 
         # Student belonging to teacher2 (for cross-teacher tests)
         self.student2_user = User.objects.create_user(
+            national_id="970590200031",
             phone_number="970590200031",
             password="secret123", role="student",
         )
@@ -115,7 +121,8 @@ class AbsenceNotificationTests(RecordTestSetup):
     def test_absent_to_absent_update_does_not_retrigger(self):
         """REC-13: Changing absent -> absent does NOT re-trigger notification."""
         record = DailyRecord.objects.create(
-            weekly_plan=self.plan, day="mon", date=date(2026, 4, 6),
+            weekly_plan=self.plan, day="mon",
+            date=timezone.now().date() - timedelta(days=1),
             attendance="absent", recorded_by=self.teacher_user,
         )
         # Clear any notification from creation
@@ -299,3 +306,316 @@ class TeacherOwnershipTests(RecordTestSetup):
             format="json",
         )
         self.assertEqual(response.status_code, 400)
+
+
+# ==========================================================================
+# Extended coverage — plan: endpoint matrix for /api/records/
+# ==========================================================================
+import uuid
+
+
+RECORDS_URL = "/api/records/"
+RECORDS_CREATE_URL = "/api/records/create/"
+BULK_ATTENDANCE_URL = "/api/records/bulk-attendance/"
+WEEKLY_SUMMARY_URL = "/api/records/weekly-summary/"
+WEEKLY_PLANS_URL = "/api/records/weekly-plans/"
+
+
+class DailyRecordListTests(RecordTestSetup):
+    def test_missing_date_returns_400(self):
+        self.client.force_authenticate(self.teacher_user)
+        response = self.client.get(RECORDS_URL)
+        self.assertEqual(response.status_code, 400)
+
+    def test_teacher_sees_only_own_students_records(self):
+        DailyRecord.objects.create(
+            weekly_plan=self.plan, day="sat", date=date(2026, 4, 4),
+            attendance="present", recorded_by=self.teacher_user,
+        )
+        plan2 = WeeklyPlan.objects.create(
+            student=self.student2, week_number=1, week_start=date(2026, 4, 4),
+        )
+        DailyRecord.objects.create(
+            weekly_plan=plan2, day="sat", date=date(2026, 4, 4),
+            attendance="present", recorded_by=self.teacher2_user,
+        )
+        self.client.force_authenticate(self.teacher_user)
+        response = self.client.get(RECORDS_URL + "?date=2026-04-04")
+        self.assertEqual(response.status_code, 200)
+        student_ids = {row["student_id"] for row in response.data["data"]}
+        self.assertIn(str(self.student.id), student_ids)
+        self.assertNotIn(str(self.student2.id), student_ids)
+
+    def test_admin_sees_all_records(self):
+        DailyRecord.objects.create(
+            weekly_plan=self.plan, day="sat", date=date(2026, 4, 4),
+            attendance="present", recorded_by=self.teacher_user,
+        )
+        self.client.force_authenticate(self.admin)
+        response = self.client.get(RECORDS_URL + "?date=2026-04-04")
+        self.assertEqual(response.status_code, 200)
+        self.assertGreaterEqual(len(response.data["data"]), 1)
+
+    def test_student_cannot_list_records(self):
+        self.client.force_authenticate(self.student_user)
+        response = self.client.get(RECORDS_URL + "?date=2026-04-04")
+        self.assertEqual(response.status_code, 403)
+
+    def test_parent_cannot_list_records(self):
+        self.client.force_authenticate(self.parent_user)
+        response = self.client.get(RECORDS_URL + "?date=2026-04-04")
+        self.assertEqual(response.status_code, 403)
+
+
+class DailyRecordCreateValidationTests(RecordTestSetup):
+    def test_invalid_weekly_plan_id_returns_error(self):
+        self.client.force_authenticate(self.teacher_user)
+        response = self.client.post(
+            RECORDS_CREATE_URL,
+            {
+                "weekly_plan_id": str(uuid.uuid4()),
+                "day": "sat",
+                "date": "2026-04-04",
+                "attendance": "present",
+            },
+            format="json",
+        )
+        self.assertIn(response.status_code, (400, 404))
+
+    def test_invalid_day_choice_rejected(self):
+        self.client.force_authenticate(self.teacher_user)
+        response = self.client.post(
+            RECORDS_CREATE_URL,
+            {
+                "weekly_plan_id": str(self.plan.id),
+                "day": "fri",
+                "date": "2026-04-04",
+                "attendance": "present",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_invalid_attendance_choice_rejected(self):
+        self.client.force_authenticate(self.teacher_user)
+        response = self.client.post(
+            RECORDS_CREATE_URL,
+            {
+                "weekly_plan_id": str(self.plan.id),
+                "day": "sat",
+                "date": "2026-04-04",
+                "attendance": "unknown",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_invalid_quality_choice_rejected(self):
+        self.client.force_authenticate(self.teacher_user)
+        response = self.client.post(
+            RECORDS_CREATE_URL,
+            {
+                "weekly_plan_id": str(self.plan.id),
+                "day": "sat",
+                "date": "2026-04-04",
+                "attendance": "present",
+                "quality": "banger",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+
+
+class DailyRecordPatchTests(RecordTestSetup):
+    def test_missing_record_returns_404(self):
+        self.client.force_authenticate(self.teacher_user)
+        response = self.client.patch(
+            f"{RECORDS_URL}{uuid.uuid4()}/",
+            {"attendance": "late"},
+            format="json",
+        )
+        self.assertIn(response.status_code, (400, 404))
+
+    def test_teacher_cannot_patch_other_teachers_record(self):
+        plan2 = WeeklyPlan.objects.create(
+            student=self.student2, week_number=1, week_start=date(2026, 4, 4),
+        )
+        record2 = DailyRecord.objects.create(
+            weekly_plan=plan2, day="sat", date=date(2026, 4, 4),
+            attendance="present", recorded_by=self.teacher2_user,
+        )
+        self.client.force_authenticate(self.teacher_user)
+        response = self.client.patch(
+            f"{RECORDS_URL}{record2.id}/",
+            {"attendance": "late"},
+            format="json",
+        )
+        self.assertIn(response.status_code, (403, 404))
+
+
+class BulkAttendanceExtendedTests(RecordTestSetup):
+    def test_present_bulk_does_not_create_notifications(self):
+        self.client.force_authenticate(self.teacher_user)
+        self.client.post(
+            BULK_ATTENDANCE_URL,
+            {
+                "date": "2026-04-04",
+                "records": [{"student_id": str(self.student.id), "attendance": "present"}],
+            },
+            format="json",
+        )
+        self.assertEqual(
+            Notification.objects.filter(recipient=self.parent_user).count(), 0
+        )
+
+    def test_absent_bulk_creates_notifications(self):
+        self.client.force_authenticate(self.teacher_user)
+        self.client.post(
+            BULK_ATTENDANCE_URL,
+            {
+                "date": "2026-04-04",
+                "records": [{"student_id": str(self.student.id), "attendance": "absent"}],
+            },
+            format="json",
+        )
+        self.assertEqual(
+            Notification.objects.filter(recipient=self.parent_user).count(), 1
+        )
+
+    def test_bulk_skips_unknown_student_id(self):
+        self.client.force_authenticate(self.teacher_user)
+        response = self.client.post(
+            BULK_ATTENDANCE_URL,
+            {
+                "date": "2026-04-04",
+                "records": [
+                    {"student_id": str(uuid.uuid4()), "attendance": "present"},
+                    {"student_id": str(self.student.id), "attendance": "present"},
+                ],
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201)
+        records = DailyRecord.objects.filter(
+            weekly_plan__student=self.student, date=date(2026, 4, 4)
+        )
+        self.assertEqual(records.count(), 1)
+
+
+class WeeklySummaryTests(RecordTestSetup):
+    def test_missing_week_start_returns_400(self):
+        self.client.force_authenticate(self.teacher_user)
+        response = self.client.get(f"{WEEKLY_SUMMARY_URL}{self.student.id}/")
+        self.assertEqual(response.status_code, 400)
+
+    def test_unauthorized_access_returns_403(self):
+        self.client.force_authenticate(self.teacher_user)
+        response = self.client.get(
+            f"{WEEKLY_SUMMARY_URL}{self.student2.id}/?week_start=2026-04-04"
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_authorized_no_plan_returns_zero_state(self):
+        plan_only_student = Student.objects.create(
+            user=User.objects.create_user(
+                national_id="970590200099",
+                phone_number="970590200099",
+                password="s",
+                role="student",
+            ),
+            full_name="Plain",
+            national_id="REC-099",
+            birthdate=date(2012, 1, 1),
+            grade="G5",
+            teacher=self.teacher,
+        )
+        self.client.force_authenticate(self.teacher_user)
+        response = self.client.get(
+            f"{WEEKLY_SUMMARY_URL}{plan_only_student.id}/?week_start=2030-01-04"
+        )
+        self.assertEqual(response.status_code, 200)
+
+    def test_authorized_with_records_returns_daily_grid(self):
+        DailyRecord.objects.create(
+            weekly_plan=self.plan, day="sat", date=date(2026, 4, 4),
+            attendance="present", required_verses=5, achieved_verses=5,
+            recorded_by=self.teacher_user,
+        )
+        self.client.force_authenticate(self.teacher_user)
+        response = self.client.get(
+            f"{WEEKLY_SUMMARY_URL}{self.student.id}/?week_start=2026-04-04"
+        )
+        self.assertEqual(response.status_code, 200)
+
+
+class WeeklyPlanListTests(RecordTestSetup):
+    def test_admin_sees_all_plans(self):
+        WeeklyPlan.objects.create(
+            student=self.student2, week_number=1, week_start=date(2026, 4, 4),
+        )
+        self.client.force_authenticate(self.admin)
+        response = self.client.get(WEEKLY_PLANS_URL)
+        self.assertEqual(response.status_code, 200)
+        self.assertGreaterEqual(len(response.data["data"]), 2)
+
+    def test_teacher_sees_only_own_plans(self):
+        WeeklyPlan.objects.create(
+            student=self.student2, week_number=1, week_start=date(2026, 4, 4),
+        )
+        self.client.force_authenticate(self.teacher_user)
+        response = self.client.get(WEEKLY_PLANS_URL)
+        self.assertEqual(response.status_code, 200)
+        for row in response.data["data"]:
+            self.assertEqual(
+                row.get("student_id") or row.get("student", {}).get("id"),
+                str(self.student.id),
+            )
+
+    def test_student_cannot_list_plans(self):
+        self.client.force_authenticate(self.student_user)
+        response = self.client.get(WEEKLY_PLANS_URL)
+        self.assertEqual(response.status_code, 403)
+
+    def test_unauthenticated_returns_401(self):
+        self.client.force_authenticate(user=None)
+        response = self.client.get(WEEKLY_PLANS_URL)
+        self.assertEqual(response.status_code, 401)
+
+
+class WeeklyPlanCreateExtendedTests(RecordTestSetup):
+    def test_invalid_student_id_returns_400(self):
+        self.client.force_authenticate(self.teacher_user)
+        response = self.client.post(
+            WEEKLY_PLANS_URL,
+            {
+                "student_id": str(uuid.uuid4()),
+                "week_start": "2026-05-02",
+            },
+            format="json",
+        )
+        self.assertIn(response.status_code, (400, 404))
+
+    def test_teacher_cannot_create_plan_for_other_teachers_student(self):
+        self.client.force_authenticate(self.teacher_user)
+        response = self.client.post(
+            WEEKLY_PLANS_URL,
+            {
+                "student_id": str(self.student2.id),
+                "week_start": "2026-05-02",
+            },
+            format="json",
+        )
+        self.assertIn(response.status_code, (400, 403))
+
+    def test_week_number_defaulted_when_omitted(self):
+        self.client.force_authenticate(self.teacher_user)
+        response = self.client.post(
+            WEEKLY_PLANS_URL,
+            {
+                "student_id": str(self.student.id),
+                "week_start": "2026-05-02",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertIsNotNone(response.data["data"]["week_number"])

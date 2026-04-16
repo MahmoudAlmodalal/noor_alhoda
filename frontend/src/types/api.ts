@@ -24,7 +24,6 @@ export interface UserProfile {
     session_days: string[];
     max_students: number;
     affiliation: string;
-    sheikh_type: string;
   };
   parent_profile?: {
     id: string;
@@ -61,7 +60,6 @@ export interface Teacher {
   full_name: string;
   specialization: string;
   affiliation?: string;
-  sheikh_type?: string;
   session_days: string[];
   max_students: number;
   created_at: string;
@@ -86,12 +84,34 @@ export interface CreateTeacherRequest {
   full_name: string;
   specialization?: string;
   affiliation?: string;
-  sheikh_type?: string;
   session_days?: string[];
   max_students?: number;
 }
 
 // ─── Students ────────────────────────────────────────────────────────────────
+
+export interface StudentSkills {
+  quran?: boolean;
+  nasheed?: boolean;
+  poetry?: boolean;
+  other?: boolean;
+  other_text?: string;
+}
+
+export interface PaginatedData<T> {
+  items: T[];
+  count: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}
+
+export interface BulkStudentImportResult {
+  created_count: number;
+  updated_count: number;
+  error_count: number;
+  errors: { row: number; national_id: string | null; message: string }[];
+}
 
 export interface Student {
   id: string;
@@ -115,7 +135,7 @@ export interface Student {
   health_status: string;
   health_note: string;
   affiliation?: string;
-  skills: Record<string, boolean>;
+  skills: StudentSkills | null;
   is_active: boolean;
   enrollment_date: string;
 }
@@ -138,7 +158,7 @@ export interface CreateStudentRequest {
   guardian_national_id?: string;
   health_status?: string;
   health_note?: string;
-  skills?: Record<string, boolean>;
+  skills?: StudentSkills;
   teacher_id?: string;
   password?: string;
 }

@@ -63,9 +63,29 @@ def _parse_date(raw) -> str:
         parts = s.split("/")
         if len(parts) == 3:
             d, m, y = parts
+            # Disambiguate DD/MM vs MM/DD: Arabic data is usually DD/MM, but
+            # Excel sometimes formats cells as m/d/yyyy and xlsx.js returns
+            # that string verbatim. If the "month" slot is > 12 and the "day"
+            # slot is ≤ 12, swap them so the date becomes valid.
+            try:
+                if int(m) > 12 and int(d) <= 12:
+                    d, m = m, d
+            except ValueError:
+                pass
             # Ensure year is 4 digits
             if len(y) == 2:
                 y = "20" + y if int(y) < 50 else "19" + y
+            # Reject garbage years (e.g. '9/10/200169' typo in the Excel).
+            # Returning "" lets the caller fall back to the placeholder dob
+            # instead of failing the whole row over a single bad cell.
+            if len(y) != 4 or not y.isdigit():
+                return ""
+            return f"{y}-{m.zfill(2)}-{d.zfill(2)}"
+    # ISO-like fallthrough (YYYY-M-D or YYYY-MM-DD, possibly unpadded)
+    if "-" in s:
+        parts = s.split("-")
+        if len(parts) == 3 and len(parts[0]) == 4 and parts[0].isdigit():
+            y, m, d = parts
             return f"{y}-{m.zfill(2)}-{d.zfill(2)}"
     return s
 
@@ -278,172 +298,10 @@ def student_link_parent(*, student_id, parent_id, actor: User) -> ParentStudentL
 
 def student_bulk_create(*, creator: User, rows: list) -> dict:
     """
-    Bulk-create or update students from Excel import.
-    
-    Rules:
-    1. Student Check: If national_id exists, skip creation but proceed to link guardian/courses.
-    2. Guardian Linking: Find or create Parent by guardian_mobile and link to student.
-    3. Course Enrollment: Find or create Course by name and enroll student.
-    4. Teacher Assignment: Resolve Teacher by name and assign to student.
+    Bulk-create or repair students from Excel import.
+    The canonical normalization and reconciliation logic lives in
+    students.services.excel_import_service.
     """
-    if not is_admin_user(creator):
-        raise PermissionDenied("فقط المدير يمكنه استيراد الطلاب.")
+    from students.services.excel_import_service import excel_bulk_import
 
-    from courses.models import Course, StudentCourse
-    
-    created_count = 0
-    updated_count = 0
-    errors = []
-
-    for idx, row in enumerate(rows, start=1):
-        try:
-            with transaction.atomic():
-                national_id = str(row.get("national_id", "") or "").strip()
-                if not national_id:
-                    raise ValidationError("رقم الهوية مطلوب.")
-
-                # 1. Student Check (Duplicate Prevention)
-                student = Student.objects.filter(national_id=national_id).first()
-                is_new = False
-                
-                if not student:
-                    is_new = True
-                    full_name = str(row.get("full_name", "") or "").strip()
-                    birthdate = _parse_date(row.get("birthdate"))
-                    grade = _normalize_grade(row.get("grade"))
-
-                    # Normalize mobile/whatsapp — fall back to synthetic phone derived
-                    # from national_id so we never pass national_id as phone_number.
-                    def get_safe_phone(key, fallback):
-                        val = str(row.get(key, "") or "").strip()
-                        if not val:
-                            return fallback
-                        try:
-                            return normalize_phone(val)
-                        except Exception:
-                            digits = "".join(c for c in val if c.isdigit())
-                            return digits[:15] if digits else fallback
-
-                    synthetic = _synthetic_phone(national_id)
-                    guardian_mobile = get_safe_phone("guardian_mobile", synthetic)
-                    whatsapp = get_safe_phone("whatsapp", "")
-                    mobile = get_safe_phone("mobile", "")
-
-                    # student_create will derive phone_number from mobile internally
-                    student = student_create(
-                        creator=creator,
-                        full_name=full_name or "غ. م",
-                        national_id=national_id,
-                        birthdate=birthdate or "1900-01-01",
-                        grade=grade or "غ. م",
-                        mobile=mobile,
-                        guardian_name=str(row.get("guardian_name", "") or "").strip() or "غ. م",
-                        guardian_mobile=guardian_mobile,
-                        guardian_national_id=str(row.get("guardian_national_id", "") or "").strip() or "غ. م",
-                        address=str(row.get("address", "") or "").strip() or "غ. م",
-                        whatsapp=whatsapp,
-                        bank_account_number=str(row.get("bank_account_number", "") or "").strip() or None,
-                        bank_account_name=str(row.get("bank_account_name", "") or "").strip() or None,
-                        bank_account_type=str(row.get("bank_account_type", "") or "").strip() or None,
-                        previous_courses=str(row.get("previous_courses", "") or "").strip() or "",
-                        desired_courses=str(row.get("desired_courses", "") or "").strip() or "",
-                        health_status=_normalize_health(row.get("health_status"))[0],
-                        health_note=_normalize_health(row.get("health_status"))[1],
-                        _internal_student_create=True,
-                    )
-                    created_count += 1
-                else:
-                    updated_count += 1
-
-                # 2. Guardian/Parent Linking (Find or Create)
-                # Use the same robust logic for guardian_mobile in linking
-                def get_safe_phone_simple(key):
-                    val = str(row.get(key, "") or "").strip()
-                    if not val: return None
-                    try:
-                        return normalize_phone(val)
-                    except Exception:
-                        digits = "".join(c for c in val if c.isdigit())
-                        return digits[:15] if digits else None
-
-                guardian_mobile = get_safe_phone_simple("guardian_mobile")
-
-                if guardian_mobile:
-                    parent_user = User.objects.filter(phone_number=guardian_mobile, role="parent").first()
-                    if not parent_user:
-                        # Create new Parent User and Profile
-                        parent_user = user_create(
-                            creator=creator,
-                            phone_number=guardian_mobile,
-                            first_name=str(row.get("guardian_name", "") or "ولي").strip(),
-                            last_name="أمر",
-                            role="parent"
-                        )
-                        parent = Parent.objects.create(
-                            user=parent_user,
-                            full_name=str(row.get("guardian_name", "") or "ولي أمر").strip(),
-                            phone_number=guardian_mobile
-                        )
-                    else:
-                        parent = parent_user.parent_profile
-                    
-                    # Link student to parent
-                    ParentStudentLink.objects.get_or_create(parent=parent, student=student)
-
-                # 3. Course Enrollment (Assign to Existing)
-                courses_raw = row.get("desired_courses") or row.get("previous_courses")
-                if courses_raw:
-                    course_names = [c.strip() for c in str(courses_raw).split(",") if c.strip()]
-                    for name in course_names:
-                        course, _ = Course.objects.get_or_create(name=name)
-                        StudentCourse.objects.get_or_create(student=student, course=course)
-
-                # 4. Teacher Assignment (Find or Create)
-                teacher_name = str(row.get("teacher_name", "") or "").strip()
-                if teacher_name:
-                    # Use iexact for exact name matching (icontains could match wrong teacher)
-                    teacher = Teacher.objects.filter(full_name__iexact=teacher_name).first()
-                    if not teacher:
-                        import hashlib
-                        teacher_id_hash = hashlib.md5(teacher_name.encode()).hexdigest()[:10]
-                        synthetic_national_id = f"T{teacher_id_hash}"
-
-                        from accounts.services.user_services import teacher_create
-                        affiliation_raw = str(row.get("affiliation", "") or "").strip()
-                        # Only use affiliation if it maps to a valid choice; otherwise leave blank
-                        affiliation = _AFFILIATION_MAP.get(affiliation_raw, "")
-
-                        name_parts = teacher_name.split()
-                        teacher_phone = _synthetic_phone(teacher_id_hash)
-
-                        try:
-                            teacher = teacher_create(
-                                creator=creator,
-                                national_id=synthetic_national_id,
-                                phone_number=teacher_phone,
-                                full_name=teacher_name,
-                                first_name=name_parts[0] if name_parts else teacher_name,
-                                last_name=" ".join(name_parts[1:]) if len(name_parts) > 1 else "محفظ",
-                                affiliation=affiliation,
-                            )
-                        except Exception:
-                            # Duplicate synthetic ID or other DB error — try to fetch again
-                            teacher = Teacher.objects.filter(full_name__iexact=teacher_name).first()
-
-                    if teacher:
-                        student.teacher = teacher
-                        student.save(update_fields=["teacher"])
-
-        except Exception as e:
-            errors.append({
-                "row": idx,
-                "national_id": row.get("national_id"),
-                "message": str(e)
-            })
-
-    return {
-        "created_count": created_count,
-        "updated_count": updated_count,
-        "error_count": len(errors),
-        "errors": errors,
-    }
+    return excel_bulk_import(creator=creator, rows=rows)

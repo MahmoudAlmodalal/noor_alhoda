@@ -16,8 +16,8 @@ def dashboard_data(*, admin_user) -> dict:
     """
     today = timezone.now().date()
 
-    total_students = Student.objects.filter(is_active=True).count()
-    total_teachers = Teacher.objects.count()
+    total_students = Student.objects.filter(user__is_active=True).count()
+    total_teachers = Teacher.objects.filter(user__is_active=True).count()
 
     # Outstanding memorizers: distinct students with at least one "excellent" record today
     outstanding_count = (

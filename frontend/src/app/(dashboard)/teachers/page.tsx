@@ -95,11 +95,6 @@ function TeachersPageInner() {
 	                  </div>
 	
 	                  <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-lg px-4">
-	                    <span className="text-sm text-slate-500 font-medium">نوع الشيخ:</span>
-	                    <span className="text-sm font-semibold text-slate-700">{teacher.sheikh_type || "—"}</span>
-	                  </div>
-	
-	                  <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-lg px-4">
 	                    <span className="text-sm text-slate-500 font-medium">أيام الحلقة:</span>
 	                    <span className="text-sm font-semibold text-slate-700">
 	                      {teacher.session_days?.length ? teacher.session_days.join(", ") : "غير محدد"}

@@ -141,13 +141,6 @@ class Teacher(models.Model):
         default="",
         verbose_name="التباعية",
     )
-    sheikh_type = models.CharField(
-        max_length=50,
-        blank=True,
-        default="",
-        verbose_name="نوع الشيخ",
-        help_text="مثال: شيخ التباعية",
-    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

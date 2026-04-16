@@ -15,10 +15,12 @@ from students.models import Student
 class NotificationTestSetup(APITestCase):
     def setUp(self):
         self.admin = User.objects.create_user(
+            national_id="970590300000",
             phone_number="970590300000",
             password="adminpass", role="admin",
         )
         self.teacher_user = User.objects.create_user(
+            national_id="970590300010",
             phone_number="970590300010",
             password="secret123", role="teacher",
         )
@@ -26,6 +28,7 @@ class NotificationTestSetup(APITestCase):
             user=self.teacher_user, full_name="Teacher Not",
         )
         self.parent_user = User.objects.create_user(
+            national_id="970590300020",
             phone_number="970590300020",
             password="secret123", role="parent",
         )
@@ -34,6 +37,7 @@ class NotificationTestSetup(APITestCase):
             phone_number="970590300020",
         )
         self.parent2_user = User.objects.create_user(
+            national_id="970590300021",
             phone_number="970590300021",
             password="secret123", role="parent",
         )
@@ -42,6 +46,7 @@ class NotificationTestSetup(APITestCase):
             phone_number="970590300021",
         )
         self.student_user = User.objects.create_user(
+            national_id="970590300030",
             phone_number="970590300030",
             password="secret123", role="student",
         )
@@ -151,3 +156,176 @@ class AbsenceNotificationServiceTests(NotificationTestSetup):
         self.assertEqual(
             Notification.objects.filter(type="absence").count(), 2,
         )
+
+
+# ==========================================================================
+# Extended coverage — plan: endpoint matrix for /api/notifications/
+# ==========================================================================
+import uuid
+
+
+NOTIFICATIONS_URL = "/api/notifications/"
+ANNOUNCE_URL = "/api/notifications/announce/"
+
+
+class NotificationListExtendedTests(NotificationTestSetup):
+    def test_unauthenticated_list_returns_401(self):
+        response = self.client.get(NOTIFICATIONS_URL)
+        self.assertEqual(response.status_code, 401)
+
+    def test_list_newest_first_ordering(self):
+        first = Notification.objects.create(
+            recipient=self.parent_user, type="announcement",
+            title="First", body="b",
+        )
+        second = Notification.objects.create(
+            recipient=self.parent_user, type="announcement",
+            title="Second", body="b",
+        )
+        self.client.force_authenticate(self.parent_user)
+        response = self.client.get(NOTIFICATIONS_URL)
+        self.assertEqual(response.status_code, 200)
+        titles = [row["title"] for row in response.data["data"]]
+        self.assertEqual(titles[0], "Second")
+        self.assertEqual(titles[1], "First")
+
+    def test_unread_count_matches_only_own_unread(self):
+        Notification.objects.create(
+            recipient=self.parent_user, type="announcement",
+            title="A", body="b", is_read=False,
+        )
+        Notification.objects.create(
+            recipient=self.parent_user, type="announcement",
+            title="B", body="b", is_read=True,
+        )
+        Notification.objects.create(
+            recipient=self.admin, type="announcement",
+            title="C", body="b", is_read=False,
+        )
+        self.client.force_authenticate(self.parent_user)
+        response = self.client.get(NOTIFICATIONS_URL)
+        self.assertEqual(response.data["unread_count"], 1)
+
+
+class NotificationMarkReadIdempotencyTests(NotificationTestSetup):
+    def test_rereading_already_read_notification_remains_200(self):
+        n = Notification.objects.create(
+            recipient=self.parent_user, type="announcement",
+            title="R", body="b", is_read=True,
+        )
+        self.client.force_authenticate(self.parent_user)
+        response = self.client.patch(f"{NOTIFICATIONS_URL}{n.id}/read/")
+        self.assertEqual(response.status_code, 200)
+        n.refresh_from_db()
+        self.assertTrue(n.is_read)
+
+    def test_unknown_notification_id_returns_404(self):
+        self.client.force_authenticate(self.parent_user)
+        response = self.client.patch(f"{NOTIFICATIONS_URL}{uuid.uuid4()}/read/")
+        self.assertEqual(response.status_code, 404)
+
+
+class NotificationMarkAllReadExtendedTests(NotificationTestSetup):
+    def test_mark_all_does_not_touch_other_users_notifications(self):
+        Notification.objects.create(
+            recipient=self.parent_user, type="absence", title="A", body="b",
+        )
+        Notification.objects.create(
+            recipient=self.parent2_user, type="absence", title="B", body="b",
+        )
+        self.client.force_authenticate(self.parent_user)
+        self.client.patch(f"{NOTIFICATIONS_URL}read-all/")
+        self.assertEqual(
+            Notification.objects.filter(recipient=self.parent_user, is_read=False).count(),
+            0,
+        )
+        self.assertEqual(
+            Notification.objects.filter(recipient=self.parent2_user, is_read=False).count(),
+            1,
+        )
+
+    def test_second_call_is_idempotent(self):
+        Notification.objects.create(
+            recipient=self.parent_user, type="absence", title="A", body="b",
+        )
+        self.client.force_authenticate(self.parent_user)
+        self.client.patch(f"{NOTIFICATIONS_URL}read-all/")
+        response = self.client.patch(f"{NOTIFICATIONS_URL}read-all/")
+        self.assertEqual(response.status_code, 200)
+
+
+class AnnouncementCreateTests(NotificationTestSetup):
+    def test_non_admin_forbidden(self):
+        self.client.force_authenticate(self.teacher_user)
+        response = self.client.post(
+            ANNOUNCE_URL,
+            {"title": "Hi", "body": "Body"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_admin_broadcasts_to_all_except_self(self):
+        self.client.force_authenticate(self.admin)
+        response = self.client.post(
+            ANNOUNCE_URL,
+            {"title": "All Hands", "body": "General announcement"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertFalse(
+            Notification.objects.filter(
+                recipient=self.admin, title="All Hands"
+            ).exists()
+        )
+        self.assertTrue(
+            Notification.objects.filter(
+                recipient=self.parent_user, title="All Hands"
+            ).exists()
+        )
+
+    def test_admin_broadcasts_to_role(self):
+        self.client.force_authenticate(self.admin)
+        self.client.post(
+            ANNOUNCE_URL,
+            {"title": "For Parents", "body": "Body", "target_roles": ["parent"]},
+            format="json",
+        )
+        self.assertTrue(
+            Notification.objects.filter(
+                recipient=self.parent_user, title="For Parents"
+            ).exists()
+        )
+        self.assertFalse(
+            Notification.objects.filter(
+                recipient=self.teacher_user, title="For Parents"
+            ).exists()
+        )
+
+    def test_admin_broadcasts_to_specific_user_ids(self):
+        self.client.force_authenticate(self.admin)
+        self.client.post(
+            ANNOUNCE_URL,
+            {
+                "title": "Targeted",
+                "body": "Body",
+                "target_user_ids": [str(self.teacher_user.id)],
+            },
+            format="json",
+        )
+        self.assertTrue(
+            Notification.objects.filter(
+                recipient=self.teacher_user, title="Targeted"
+            ).exists()
+        )
+        self.assertFalse(
+            Notification.objects.filter(
+                recipient=self.parent_user, title="Targeted"
+            ).exists()
+        )
+
+    def test_missing_title_returns_400(self):
+        self.client.force_authenticate(self.admin)
+        response = self.client.post(
+            ANNOUNCE_URL, {"body": "No title"}, format="json"
+        )
+        self.assertEqual(response.status_code, 400)
