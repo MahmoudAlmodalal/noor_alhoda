@@ -698,7 +698,7 @@ def excel_bulk_import(*, creator: User, rows: list) -> dict:
         try:
             with transaction.atomic():
                 row = _normalize_row(raw_row)
-                
+
                 # Basic validation for required fields in normalization
                 if not row.get("full_name") or row.get("full_name") == "غ. م":
                      if not raw_row.get("full_name"):
@@ -711,13 +711,16 @@ def excel_bulk_import(*, creator: User, rows: list) -> dict:
                 if student is None:
                     orphan = User.objects.filter(national_id=row["national_id"]).first()
                     if orphan:
-                        has_profile = (
-                            Student.objects.filter(user=orphan).exists()
-                            or Teacher.objects.filter(user=orphan).exists()
-                            or Parent.objects.filter(user=orphan).exists()
-                        )
-                        if not has_profile:
-                            orphan.delete()
+                        has_student = Student.objects.filter(user=orphan).exists()
+                        has_teacher = Teacher.objects.filter(user=orphan).exists()
+                        orphan_parent = Parent.objects.filter(user=orphan).first()
+
+                        if not has_student and not has_teacher:
+                            if orphan_parent is None:
+                                orphan.delete()
+                            elif not orphan_parent.student_links.exists():
+                                orphan_parent.delete()
+                                orphan.delete()
 
                     student = _create_student_from_row(creator=creator, row=row)
                     created_count += 1

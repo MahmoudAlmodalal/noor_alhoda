@@ -464,16 +464,39 @@ export default function StudentsDbPage() {
         return;
       }
 
+      // Dedup on the frontend before chunking. The backend processes each
+      // chunk in isolation, so a per-request set cannot catch duplicates
+      // that land in different chunks. Rows with an empty national_id are
+      // passed through as-is (the backend assigns them synthetic NOID ids).
+      const firstSeenAt = new Map<string, number>();
+      const uniqueRows: typeof parsedRows = [];
+      const originalPositions: number[] = [];
+      let totalErrors: BulkStudentImportResult["errors"] = [];
+
+      parsedRows.forEach((row, idx) => {
+        const position = idx + 1;
+        const nationalId = (row.national_id || "").trim();
+        if (nationalId && firstSeenAt.has(nationalId)) {
+          totalErrors.push({
+            row: position,
+            national_id: nationalId,
+            message: "رقم الهوية مكرر في نفس الملف.",
+          });
+          return;
+        }
+        if (nationalId) firstSeenAt.set(nationalId, position);
+        uniqueRows.push(row);
+        originalPositions.push(position);
+      });
+
       const chunkSize = 10;
       let totalCreated = 0;
       let totalUpdated = 0;
-      let rowOffset = 0;
-      let totalErrors: BulkStudentImportResult["errors"] = [];
 
-      for (let index = 0; index < parsedRows.length; index += chunkSize) {
-        const chunk = parsedRows.slice(index, index + chunkSize);
+      for (let index = 0; index < uniqueRows.length; index += chunkSize) {
+        const chunk = uniqueRows.slice(index, index + chunkSize);
         const chunkNumber = Math.floor(index / chunkSize) + 1;
-        const totalChunks = Math.ceil(parsedRows.length / chunkSize);
+        const totalChunks = Math.max(1, Math.ceil(uniqueRows.length / chunkSize));
         setImportProgress({ current: chunkNumber, total: totalChunks });
 
         const result = await uploadChunkWithRetry(chunk);
@@ -482,10 +505,9 @@ export default function StudentsDbPage() {
         totalErrors = totalErrors.concat(
           result.errors.map((error) => ({
             ...error,
-            row: error.row + rowOffset,
+            row: originalPositions[index + error.row - 1] ?? error.row + index,
           })),
         );
-        rowOffset += chunk.length;
       }
 
       let message = `تم إنشاء ${totalCreated} طالب`;
