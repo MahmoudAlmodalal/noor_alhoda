@@ -205,28 +205,43 @@ function cellToString(cell: unknown): string {
   return String(cell).trim();
 }
 
+const CHUNK_TIMEOUT_ERROR = "chunk_timeout";
+
 async function uploadChunkWithRetry(
   chunkData: Record<string, string>[],
   maxRetries = 3,
   initialDelay = 1000,
+  timeoutMs = 60_000,
 ): Promise<BulkStudentImportResult> {
   let lastError: Error | null = null;
 
   for (let attempt = 0; attempt < maxRetries; attempt += 1) {
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
     try {
-      const response = await api.post<BulkStudentImportResult>("/api/students/bulk-create/", {
-        rows: chunkData,
-      });
+      const response = await api.post<BulkStudentImportResult>(
+        "/api/students/bulk-create/",
+        { rows: chunkData },
+        controller.signal,
+      );
       if (!response.success) {
         throw new Error(response.error?.message || "خطأ غير معروف من الخادم");
       }
       return response.data;
     } catch (error) {
-      lastError = error instanceof Error ? error : new Error(String(error));
+      const name = (error as { name?: string } | null)?.name;
+      const isAbort = name === "AbortError";
+      lastError = isAbort
+        ? new Error(CHUNK_TIMEOUT_ERROR)
+        : error instanceof Error
+          ? error
+          : new Error(String(error));
       if (attempt < maxRetries - 1) {
         const delay = initialDelay * Math.pow(2, attempt);
         await new Promise((resolve) => setTimeout(resolve, delay));
       }
+    } finally {
+      window.clearTimeout(timeoutId);
     }
   }
 
@@ -489,9 +504,26 @@ export default function StudentsDbPage() {
         originalPositions.push(position);
       });
 
-      const chunkSize = 10;
+      const chunkSize = 5;
+      const MAX_CONSECUTIVE_CHUNK_FAILURES = 3;
       let totalCreated = 0;
       let totalUpdated = 0;
+      let consecutiveFailures = 0;
+      let backendDown = false;
+
+      const recordChunkTransportError = (
+        chunkRows: typeof uniqueRows,
+        chunkStart: number,
+        message: string,
+      ) => {
+        chunkRows.forEach((row, offset) => {
+          totalErrors.push({
+            row: originalPositions[chunkStart + offset] ?? chunkStart + offset + 1,
+            national_id: (row.national_id || "").trim() || null,
+            message,
+          });
+        });
+      };
 
       for (let index = 0; index < uniqueRows.length; index += chunkSize) {
         const chunk = uniqueRows.slice(index, index + chunkSize);
@@ -499,15 +531,40 @@ export default function StudentsDbPage() {
         const totalChunks = Math.max(1, Math.ceil(uniqueRows.length / chunkSize));
         setImportProgress({ current: chunkNumber, total: totalChunks });
 
-        const result = await uploadChunkWithRetry(chunk);
-        totalCreated += result.created_count;
-        totalUpdated += result.updated_count;
-        totalErrors = totalErrors.concat(
-          result.errors.map((error) => ({
-            ...error,
-            row: originalPositions[index + error.row - 1] ?? error.row + index,
-          })),
-        );
+        if (backendDown) {
+          recordChunkTransportError(
+            chunk,
+            index,
+            "لم يتم رفع هذه الصفوف — تعذر الوصول إلى الخادم لعدة محاولات. حاول لاحقاً.",
+          );
+          continue;
+        }
+
+        try {
+          const result = await uploadChunkWithRetry(chunk);
+          totalCreated += result.created_count;
+          totalUpdated += result.updated_count;
+          totalErrors = totalErrors.concat(
+            result.errors.map((error) => ({
+              ...error,
+              row: originalPositions[index + error.row - 1] ?? error.row + index,
+            })),
+          );
+          consecutiveFailures = 0;
+        } catch (chunkError) {
+          const isTimeout =
+            chunkError instanceof Error && chunkError.message === CHUNK_TIMEOUT_ERROR;
+          const detail =
+            chunkError instanceof Error ? chunkError.message : String(chunkError);
+          const transportMessage = isTimeout
+            ? "انتهت مهلة الاتصال بالخادم — حاول رفع هذه الصفوف من جديد."
+            : `تعذر الاتصال بالخادم: ${detail} — حاول لاحقاً.`;
+          recordChunkTransportError(chunk, index, transportMessage);
+          consecutiveFailures += 1;
+          if (consecutiveFailures >= MAX_CONSECUTIVE_CHUNK_FAILURES) {
+            backendDown = true;
+          }
+        }
       }
 
       let message = `تم إنشاء ${totalCreated} طالب`;
