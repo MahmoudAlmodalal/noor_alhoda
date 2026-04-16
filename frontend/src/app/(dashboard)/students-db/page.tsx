@@ -81,17 +81,25 @@ function computeAge(birthdate: string): string {
   return age >= 0 && age <= 120 ? String(age) : "";
 }
 
-function classifyHeader(raw: string, counters: Record<string, number>): string | null {
+function classifyHeader(raw: string, counters: Record<string, number>, colIdx: number): string | null {
   const h = String(raw || "").trim();
   if (!h) return null;
   if (h === "م" || h === "#") return null;
   if (h === "العمر") return null;
 
-  if (h.includes("ولي")) {
+  // Specific check for Guardian section based on typical column index or context
+  // In the provided file, guardian info starts around index 13
+  const isGuardianSection = colIdx >= 13 && colIdx <= 15;
+
+  if (h.includes("ولي") || isGuardianSection) {
     if (h.includes("هوية")) return "guardian_national_id";
     if (h.includes("جوال") || h.includes("حوال") || h.includes("هاتف") || h.includes("موبايل") || h.includes("الحوال")) return "guardian_mobile";
     if (h.includes("اسم")) return "guardian_name";
-    return null;
+    if (isGuardianSection) {
+       // If we are in the guardian section but "ولي" isn't in the text
+       if (h.includes("هوية")) return "guardian_national_id";
+       if (h.includes("اسم")) return "guardian_name";
+    }
   }
 
   if (h.includes("الشيخ") || h.includes("المحفظ")) return "teacher_name";
@@ -259,10 +267,13 @@ export default function StudentsDbPage() {
 
       let headerRowIdx = -1;
       let bestMap: (string | null)[] = [];
-      for (let r = 0; r < Math.min(aoa.length, 5); r++) {
+      // Search deeper for header (up to 10 rows) to handle files with many title rows
+      for (let r = 0; r < Math.min(aoa.length, 10); r++) {
         const candidate = aoa[r].map(cellToString);
         const c: Record<string, number> = {};
-        const m = candidate.map((h) => classifyHeader(h, c));
+        const m = candidate.map((h, idx) => classifyHeader(h, c, idx));
+        
+        // A row is a header if it contains at least Name and National ID
         if (m.includes("full_name") && m.includes("national_id")) {
           headerRowIdx = r;
           bestMap = m;
