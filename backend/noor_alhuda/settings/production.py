@@ -4,6 +4,7 @@ Production settings.
 
 import dj_database_url
 from decouple import config
+from urllib.parse import quote
 
 from .base import *  # noqa: F401,F403
 
@@ -24,6 +25,20 @@ USE_X_FORWARDED_PORT = True
 # Database — prefer DATABASE_URL (Render), fall back to individual vars
 DATABASE_URL = config("DATABASE_URL", default="")
 if DATABASE_URL:
+    # Fix for URLs with special characters in password (like #, +, !, ,)
+    # which cause dj_database_url.parse() or urllib.parse.urlparse() to fail.
+    if "://" in DATABASE_URL and "@" in DATABASE_URL:
+        try:
+            prefix, rest = DATABASE_URL.split("://", 1)
+            auth, connection = rest.split("@", 1)
+            if ":" in auth:
+                user, password = auth.split(":", 1)
+                # Only quote if not already quoted (crude check)
+                if "%" not in password:
+                    DATABASE_URL = f"{prefix}://{quote(user)}:{quote(password)}@{connection}"
+        except Exception:
+            pass  # Fallback to original URL if parsing fails
+
     # Render sometimes provides a DATABASE_URL where the "name" part is actually
     # a full connection string or contains extra info that exceeds 63 chars.
     # dj_database_url.parse() usually handles this, but if the resulting 'NAME'

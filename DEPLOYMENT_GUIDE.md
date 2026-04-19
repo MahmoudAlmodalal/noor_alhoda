@@ -1,12 +1,12 @@
 # Deployment Guide for Noor Al-Hoda
 
-This guide explains how to deploy the Noor Al-Hoda application to **Vercel** (frontend) and **Railway** (backend) for free.
+This guide explains how to deploy the Noor Al-Hoda application to **Vercel** (frontend and optionally backend) and **Railway** (backend) for free.
 
 ## Architecture
 
 - **Frontend**: Next.js deployed on Vercel
-- **Backend**: Django REST API deployed on Railway
-- **Database**: PostgreSQL on Railway
+- **Backend**: Django REST API deployed on Railway (Recommended) or Vercel
+- **Database**: PostgreSQL on Railway or Supabase
 
 ## Prerequisites
 
@@ -133,3 +133,19 @@ For more information:
 - [Vercel Documentation](https://vercel.com/docs)
 - [Railway Documentation](https://docs.railway.app)
 - [Django Deployment Guide](https://docs.djangoproject.com/en/stable/howto/deployment/)
+
+## Step 5: Deploy Backend to Vercel (Alternative)
+
+If you prefer to deploy the Django backend to Vercel instead of Railway:
+
+1. In Vercel Dashboard, create a new project and import the same repository.
+2. Configure the project:
+   - **Root Directory**: `backend`
+   - **Framework Preset**: Other (it will detect `vercel.json`)
+3. Set Environment Variables:
+   - `DJANGO_SETTINGS_MODULE`: `noor_alhuda.settings.production`
+   - `DATABASE_URL`: Your PostgreSQL URL (e.g., from Supabase)
+   - `SECRET_KEY`: Your Django secret key
+   - `ALLOWED_HOSTS`: `.vercel.app`
+   - `DEBUG`: `False`
+4. Note: Vercel's Serverless Functions have a 10-second timeout on the free tier. For long-running tasks, Railway is recommended.
