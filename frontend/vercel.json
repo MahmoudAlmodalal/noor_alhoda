@@ -1,0 +1,10 @@
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": ".next",
+  "framework": "nextjs",
+  "env": {
+    "BACKEND_URL": {
+      "description": "Backend API URL (e.g., https://noor-alhoda-backend.railway.app)"
+    }
+  }
+}

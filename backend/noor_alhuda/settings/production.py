@@ -60,7 +60,7 @@ STATIC_URL = "/django-static/"
 # CSRF trusted origins (required for admin behind Nginx proxy)
 CSRF_TRUSTED_ORIGINS = config(
     "CSRF_TRUSTED_ORIGINS",
-    default="https://noor-alhoda.onrender.com,https://noor-alhuda-backend.onrender.com",
+    default="https://noor-alhoda.onrender.com,https://noor-alhuda-backend.onrender.com,https://noor-alhoda.vercel.app,*.vercel.app,*.railway.app",
     cast=lambda v: [s.strip() for s in v.split(",")],
 )
 # Always include both domains
@@ -73,7 +73,7 @@ if "https://noor-alhuda-backend.onrender.com" not in CSRF_TRUSTED_ORIGINS:
 CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOWED_ORIGINS = config(
     "CORS_ALLOWED_ORIGINS",
-    default="https://noor-alhoda.onrender.com,https://noor-alhuda-backend.onrender.com",
+    default="https://noor-alhoda.onrender.com,https://noor-alhuda-backend.onrender.com,https://noor-alhoda.vercel.app,*.vercel.app,*.railway.app",
     cast=lambda v: [s.strip() for s in v.split(",")],
 )
 # Always include both domains
