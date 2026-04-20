@@ -228,17 +228,30 @@ def student_update(*, student: Student, actor: User, data: dict) -> Student:
 def student_delete(*, student_id, actor: User):
     """
     Hard-delete a student and their user account. Admin only.
+    Writes a Tombstone in the same transaction so offline clients learn
+    of the deletion on the next sync pull (STU-04 semantics preserved).
     """
     if not is_admin_user(actor):
         raise PermissionDenied("فقط المدير يمكنه حذف الطلاب.")
 
     from students.selectors.student_selectors import student_get
+    from sync.models import Tombstone
+    from sync.services.tombstone_service import tombstone_write
 
     student = student_get(student_id=student_id, actor=actor)
     user = student.user
-    
-    # Deleting the user will cascade to the student profile
+    deleted_uuid = student.id
+
+    # Deleting the user cascades to the student profile and all its
+    # FK children (weekly plans, daily records, evaluations, etc.).
     user.delete()
+
+    tombstone_write(
+        resource=Tombstone.Resource.STUDENT,
+        resource_uuid=deleted_uuid,
+        actor=actor,
+        scope_user_id=None,  # broadcast: anyone who cached the student learns it's gone
+    )
 
 
 @transaction.atomic
