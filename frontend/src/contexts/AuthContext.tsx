@@ -9,13 +9,30 @@ import {
   type ReactNode,
 } from "react";
 import { api } from "@/lib/api";
+import {
+  clearSessionKey,
+  hasCachedAuth,
+  initializeOrUnlockSession,
+  unlockOffline,
+} from "@/lib/db/auth";
+import { wipeDb } from "@/lib/db/schema";
+import { startSyncRunner, stopSyncRunner } from "@/lib/sync/runner";
 import type { UserProfile } from "@/types/api";
 
 interface AuthContextValue {
   user: UserProfile | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: (national_id: string, password: string) => Promise<{ error: string | null; role: string | null }>;
+  /**
+   * True when the user is authenticated AND the encrypted local DB has
+   * been unlocked in this tab. Repos throw when this is false.
+   */
+  dbUnlocked: boolean;
+  isOfflineSession: boolean;
+  login: (
+    national_id: string,
+    password: string
+  ) => Promise<{ error: string | null; role: string | null; offline: boolean }>;
   logout: () => Promise<void>;
 }
 
@@ -24,8 +41,10 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [dbUnlocked, setDbUnlocked] = useState(false);
+  const [isOfflineSession, setIsOfflineSession] = useState(false);
 
-  // دالة مشتركة لجلب بيانات المستخدم من الـ API
+  // Fetch server profile and hydrate user state.
   const fetchMe = useCallback(async (): Promise<boolean> => {
     const res = await api.me();
     if (res.success) {
@@ -51,23 +70,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return false;
   }, []);
 
-  // عند بدء التطبيق: تحقق من صلاحية الـ token الموجود
+  // On boot: if tokens exist and network is available, refresh user from
+  // /me. DB remains locked until the user logs in (enters password).
   useEffect(() => {
     let isMounted = true;
 
     const bootstrapAuth = async () => {
       if (typeof window === "undefined") {
-        if (isMounted) {
-          setIsLoading(false);
-        }
+        if (isMounted) setIsLoading(false);
         return;
       }
 
       const token = localStorage.getItem("access_token");
       if (!token) {
-        if (isMounted) {
-          setIsLoading(false);
-        }
+        if (isMounted) setIsLoading(false);
         return;
       }
 
@@ -83,7 +99,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
           if (!localStorage.getItem("access_token")) break;
         } catch {
-          // network error
+          // network error — fall through to retry
         }
         if (attempt < MAX_RETRIES - 1) {
           await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
@@ -91,13 +107,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (!authed && localStorage.getItem("access_token")) {
+        // Can't reach server. If the user has a cached auth row and wants
+        // to work offline, they must re-login (password unlocks DB).
         localStorage.removeItem("access_token");
         localStorage.removeItem("refresh_token");
       }
 
-      if (isMounted) {
-        setIsLoading(false);
-      }
+      if (isMounted) setIsLoading(false);
     };
 
     void bootstrapAuth();
@@ -108,28 +124,90 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [fetchMe]);
 
   const login = useCallback(
-    async (national_id: string, password: string): Promise<{ error: string | null; role: string | null }> => {
+    async (
+      national_id: string,
+      password: string
+    ): Promise<{ error: string | null; role: string | null; offline: boolean }> => {
+      // 1. Try online login. Populates tokens on success.
       const res = await api.login({ national_id, password });
 
       if (res.success) {
+        const u = res.data.user;
+        await initializeOrUnlockSession({
+          password,
+          userId: u.id,
+          userNationalId: u.national_id,
+          userRole: u.role,
+        });
+
         const meSuccess = await fetchMe();
-        const role = meSuccess
-          ? res.data.user.role
-          : res.data.user.role;
-        if (!meSuccess) {
-          setUser(res.data.user);
-        }
-        return { error: null, role };
+        if (!meSuccess) setUser(u);
+
+        setDbUnlocked(true);
+        setIsOfflineSession(false);
+        startSyncRunner();
+        return { error: null, role: u.role, offline: false };
       }
 
-      return { error: res.error.message, role: null };
+      // 2. Online login failed. If it's a network error and we have a
+      //    cached auth row for this national_id, try offline login.
+      const isNetworkError = res.error.code === 0;
+      if (isNetworkError && (await hasCachedAuth())) {
+        try {
+          const row = await unlockOffline({ password, userNationalId: national_id });
+          // Offline login succeeded — hydrate minimal user state from cache.
+          setUser({
+            id: row.user_id,
+            national_id: row.user_national_id,
+            phone_number: "",
+            role: row.user_role as UserProfile["role"],
+            full_name: "",
+          });
+          setDbUnlocked(true);
+          setIsOfflineSession(true);
+          return { error: null, role: row.user_role, offline: true };
+        } catch (err) {
+          const code = err instanceof Error ? err.message : String(err);
+          const message =
+            code === "OFFLINE_LOGIN_INVALID_PASSWORD"
+              ? "كلمة المرور غير صحيحة."
+              : code === "OFFLINE_LOGIN_USER_MISMATCH"
+                ? "رقم الهوية لا يطابق الحساب المسجّل على هذا الجهاز."
+                : "تعذّر تسجيل الدخول دون اتصال. يجب تسجيل الدخول أونلاين أولاً.";
+          return { error: message, role: null, offline: false };
+        }
+      }
+
+      if (isNetworkError) {
+        return {
+          error: "يجب الاتصال بالإنترنت لتسجيل الدخول لأول مرة على هذا الجهاز.",
+          role: null,
+          offline: false,
+        };
+      }
+
+      return { error: res.error.message, role: null, offline: false };
     },
     [fetchMe]
   );
 
   const logout = useCallback(async () => {
-    await api.logout();
+    stopSyncRunner();
+    try {
+      await api.logout();
+    } catch {
+      // Offline logout — just proceed to clear local state.
+    }
+    clearSessionKey();
+    setDbUnlocked(false);
+    setIsOfflineSession(false);
     setUser(null);
+    // Wipe local encrypted DB so the next user can't see this user's cached data.
+    try {
+      await wipeDb();
+    } catch {
+      // non-fatal
+    }
     window.location.href = "/login";
   }, []);
 
@@ -139,6 +217,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         isLoading,
         isAuthenticated: !!user,
+        dbUnlocked,
+        isOfflineSession,
         login,
         logout,
       }}

@@ -12,9 +12,67 @@ import { useToast } from "@/contexts/ToastContext";
 import { useApi } from "@/hooks/useApi";
 import { useDebounce } from "@/hooks/useDebounce";
 import { api } from "@/lib/api";
+import { hasSessionKey } from "@/lib/db/auth";
+import { listStudents } from "@/lib/db/repos/students";
 import { AssignStudentModal, EditStudentModal } from "@/components/modals/StudentModals";
 import { ConfirmDeleteModal } from "@/components/modals/TeacherModals";
 import type { Course, PaginatedData, Student, Teacher } from "@/types/api";
+
+const PAGE_SIZE = 20;
+
+async function loadStudentsLocally(params: {
+  page: number;
+  search?: string;
+  teacher_id?: string;
+}): Promise<PaginatedData<Student> | null> {
+  if (!hasSessionKey()) return null;
+  try {
+    const rows = await listStudents({
+      teacher_id: params.teacher_id,
+      search: params.search,
+    });
+    rows.sort((a, b) => a.full_name.localeCompare(b.full_name, "ar"));
+    const count = rows.length;
+    const total_pages = Math.max(1, Math.ceil(count / PAGE_SIZE));
+    const pageNum = Math.min(Math.max(1, params.page), total_pages);
+    const start = (pageNum - 1) * PAGE_SIZE;
+    const slice = rows.slice(start, start + PAGE_SIZE);
+    const items: Student[] = slice.map((s) => ({
+      id: s.id,
+      full_name: s.full_name,
+      national_id: s.national_id,
+      birthdate: s.birthdate ?? "",
+      grade: s.grade,
+      address: s.address,
+      whatsapp: s.whatsapp,
+      mobile: s.mobile,
+      previous_courses: s.previous_courses,
+      desired_courses: s.desired_courses,
+      bank_account_number: null,
+      bank_account_name: null,
+      bank_account_type: null,
+      guardian_name: s.guardian_name,
+      guardian_national_id: s.guardian_national_id || null,
+      guardian_mobile: s.guardian_mobile,
+      teacher_id: s.teacher_id,
+      teacher_name: null,
+      health_status: s.health_status,
+      health_note: s.health_note,
+      skills: (s.skills as Student["skills"]) ?? null,
+      is_active: true,
+      enrollment_date: s.enrollment_date ?? "",
+    }));
+    return {
+      items,
+      count,
+      page: pageNum,
+      page_size: PAGE_SIZE,
+      total_pages,
+    };
+  } catch {
+    return null;
+  }
+}
 
 function PaginationBar({
   page,
@@ -91,7 +149,25 @@ export default function StudentsPage() {
           setPage(response.data.page);
         }
       } else {
-        showToast(response.error?.message || "تعذر تحميل قائمة الطلاب.", "error");
+        // Online fetch failed — fall back to the encrypted local DB if we
+        // can. Course filter isn't indexed locally, so only fall back when
+        // the user hasn't applied one.
+        const canFallback = response.error?.code === 0 && !courseFilter;
+        const local = canFallback
+          ? await loadStudentsLocally({
+              page: pageToLoad,
+              search: debouncedSearch || undefined,
+              teacher_id: isAdmin ? teacherFilter || undefined : undefined,
+            })
+          : null;
+        if (local) {
+          setStudentsPage(local);
+          if (local.page !== pageToLoad) {
+            setPage(local.page);
+          }
+        } else {
+          showToast(response.error?.message || "تعذر تحميل قائمة الطلاب.", "error");
+        }
       }
 
       setLoading(false);

@@ -6,6 +6,7 @@ import { Menu } from "lucide-react";
 import { Sidebar } from "./Sidebar";
 import { NotificationsProvider } from "@/contexts/NotificationsContext";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { OfflineBanner } from "@/components/offline/OfflineBanner";
 
 export function LayoutWrapper({ children }: { children: React.ReactNode }) {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -35,6 +36,8 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
                             <NotificationBell />
                         </div>
                     </header>
+
+                    <OfflineBanner />
 
                     {/* Main Content Area */}
                     <main className="flex-1 overflow-y-auto pb-6">
