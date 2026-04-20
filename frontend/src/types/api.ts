@@ -380,6 +380,82 @@ export interface AnnounceRequest {
   target_user_ids?: string[];
 }
 
+// ─── Tasks / Evaluations ─────────────────────────────────────────────────────
+
+export type TaskStatus = "pending" | "in_progress" | "done";
+
+export interface TodayMemorization {
+  day_label: string;
+  surah_name: string;
+  required_verses: number;
+  achieved_verses: number;
+  quality: "excellent" | "good" | "acceptable" | "weak" | "none";
+  attendance: AttendanceStatus | "upcoming";
+  status: TaskStatus;
+  note: string;
+}
+
+export interface ReviewTask {
+  surah_name: string;
+  last_memorized_date: string;
+  last_review_date: string | null;
+  days_since_review: number;
+}
+
+export interface UpcomingTest {
+  id: string;
+  title: string;
+  surah_range: string;
+  scheduled_date: string;
+  status: "scheduled" | "passed" | "failed" | "missed";
+}
+
+export interface TodayWeeklyProgress {
+  total_required: number;
+  total_achieved: number;
+  completion_rate: number;
+  week_start: string;
+}
+
+export interface TodayTasks {
+  student_id: string;
+  student_name: string;
+  today: string;
+  is_rest_day: boolean;
+  memorization: TodayMemorization | null;
+  reviews: ReviewTask[];
+  upcoming_tests: UpcomingTest[];
+  weekly_progress: TodayWeeklyProgress;
+  review_interval_days: number;
+}
+
+export interface CompleteReviewRequest {
+  surah_name: string;
+  reviewed_date?: string;
+  quality?: "excellent" | "good" | "acceptable" | "weak";
+  note?: string;
+}
+
+export interface Evaluation {
+  id: string;
+  student_id: string;
+  student_name: string;
+  title: string;
+  surah_range: string;
+  scheduled_date: string;
+  status: "scheduled" | "passed" | "failed" | "missed";
+  result_note: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateEvaluationRequest {
+  student_id: string;
+  title: string;
+  surah_range?: string;
+  scheduled_date: string;
+}
+
 // ─── Courses ─────────────────────────────────────────────────────────────────
 
 export interface Course {

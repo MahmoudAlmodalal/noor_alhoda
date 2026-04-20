@@ -9,6 +9,7 @@ from students.selectors.student_selectors import (
     student_get,
     student_history,
     student_stats,
+    tasks_today,
 )
 from students.services.student_services import (
     student_create,
@@ -17,7 +18,9 @@ from students.services.student_services import (
     student_assign_teacher,
     student_link_parent,
     student_bulk_create,
+    student_set_review_interval,
 )
+from records.services.review_services import review_record_create
 
 
 # ---------------------------------------------------------------------------
@@ -79,6 +82,7 @@ class StudentOutputSerializer(serializers.Serializer):
     health_note = serializers.CharField()
     affiliation = serializers.CharField(source="teacher.affiliation", default="")
     skills = serializers.JSONField()
+    review_interval_days = serializers.IntegerField()
 
     enrollment_date = serializers.DateField()
 
@@ -324,4 +328,89 @@ class StudentLinkParentApi(APIView):
         return Response(
             {"success": True, "message": "تم ربط ولي الأمر بالطالب بنجاح."},
             status=status.HTTP_201_CREATED,
+        )
+
+
+# ---------------------------------------------------------------------------
+# Student "My Tasks" dashboard
+# ---------------------------------------------------------------------------
+class ReviewCompleteSerializer(serializers.Serializer):
+    surah_name = serializers.CharField(max_length=100)
+    reviewed_date = serializers.DateField(required=False)
+    quality = serializers.ChoiceField(
+        choices=["excellent", "good", "acceptable", "weak"],
+        required=False,
+        default="acceptable",
+    )
+    note = serializers.CharField(required=False, allow_blank=True, default="")
+
+
+class ReviewIntervalSerializer(serializers.Serializer):
+    days = serializers.IntegerField(min_value=1, max_value=90)
+
+
+class StudentTasksTodayApi(APIView):
+    """GET /api/students/<id>/tasks/today/ — aggregator for student dashboard"""
+
+    permission_classes = [IsAdminOrTeacherOrSelf]
+
+    def get(self, request, student_id):
+        data = tasks_today(student_id=student_id, actor=request.user)
+        return Response({"success": True, "data": data}, status=status.HTTP_200_OK)
+
+
+class StudentReviewCompleteApi(APIView):
+    """POST /api/students/<id>/reviews/complete/ — mark a review as done"""
+
+    permission_classes = [IsAdminOrTeacherOrSelf]
+
+    def post(self, request, student_id):
+        serializer = ReviewCompleteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        record = review_record_create(
+            student_id=student_id,
+            surah_name=serializer.validated_data["surah_name"],
+            reviewed_date=serializer.validated_data.get("reviewed_date"),
+            quality=serializer.validated_data.get("quality", "acceptable"),
+            note=serializer.validated_data.get("note", ""),
+            actor=request.user,
+        )
+        return Response(
+            {
+                "success": True,
+                "data": {
+                    "id": str(record.id),
+                    "surah_name": record.surah_name,
+                    "reviewed_date": str(record.reviewed_date),
+                    "quality": record.quality,
+                },
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class StudentReviewIntervalApi(APIView):
+    """PATCH /api/students/<id>/review-interval/ — set rotation interval"""
+
+    permission_classes = [IsAdminOrTeacher]
+
+    def patch(self, request, student_id):
+        serializer = ReviewIntervalSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        student = student_set_review_interval(
+            student_id=student_id,
+            days=serializer.validated_data["days"],
+            actor=request.user,
+        )
+        return Response(
+            {
+                "success": True,
+                "data": {
+                    "student_id": str(student.id),
+                    "review_interval_days": student.review_interval_days,
+                },
+            },
+            status=status.HTTP_200_OK,
         )

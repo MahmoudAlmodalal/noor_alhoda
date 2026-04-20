@@ -141,3 +141,48 @@ class DailyRecord(models.Model):
 
     def __str__(self):
         return f"{self.weekly_plan.student.full_name} - {self.get_day_display()} ({self.date})"
+
+
+class ReviewRecord(models.Model):
+    """
+    Tracks a student's review (مراجعة) of previously-memorized surahs.
+    Separate from DailyRecord to avoid the WeeklyPlan totals signal.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    student = models.ForeignKey(
+        Student,
+        on_delete=models.CASCADE,
+        related_name="review_records",
+        verbose_name="الطالب",
+    )
+    surah_name = models.CharField(max_length=100, verbose_name="اسم السورة")
+    reviewed_date = models.DateField(verbose_name="تاريخ المراجعة")
+    quality = models.CharField(
+        max_length=10,
+        choices=DailyRecord.Quality.choices,
+        default=DailyRecord.Quality.NONE,
+        verbose_name="جودة المراجعة",
+    )
+    note = models.TextField(blank=True, default="", verbose_name="ملاحظة")
+    recorded_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="recorded_reviews",
+        verbose_name="المسجّل",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "سجل مراجعة"
+        verbose_name_plural = "سجلات المراجعة"
+        unique_together = ("student", "surah_name", "reviewed_date")
+        ordering = ["-reviewed_date"]
+        indexes = [
+            models.Index(fields=["student", "reviewed_date"]),
+            models.Index(fields=["student", "surah_name"]),
+        ]
+
+    def __str__(self):
+        return f"{self.student.full_name} - {self.surah_name} ({self.reviewed_date})"

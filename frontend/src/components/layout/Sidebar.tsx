@@ -54,6 +54,7 @@ export const menuItems: NavItem[] = [
     { name: "لوحة الشرف", href: "/leaderboard", icon: Trophy, roles: ["teacher"] },
 
     // الطالب فقط
+    { name: "مهامي اليومية", href: "/student/tasks", icon: ClipboardCheck, roles: ["student"] },
     { name: "سجل الإنجاز", href: "/student/achievements", icon: Trophy, roles: ["student"] },
 ];
 
