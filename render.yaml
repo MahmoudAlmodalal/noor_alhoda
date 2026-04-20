@@ -1,9 +1,3 @@
-databases:
-  - name: noor-alhuda-db
-    plan: free
-    databaseName: noor_alhuda
-    user: noor_alhuda
-
 services:
   - type: web
     name: noor_alhoda
@@ -13,8 +7,6 @@ services:
     dockerContext: .
     healthCheckPath: /health
     envVars:
-      - key: NEXT_PUBLIC_API_URL
-        value: ''
       - key: DJANGO_SETTINGS_MODULE
         value: noor_alhuda.settings.production
       - key: SECRET_KEY
@@ -22,17 +14,12 @@ services:
       - key: ALLOWED_HOSTS
         value: .onrender.com
       - key: DATABASE_URL
-        fromDatabase:
-          name: noor-alhuda-db
-          property: connectionString
+        sync: false
       - key: CORS_ALLOWED_ORIGINS
-        value: https://noor-alhoda.onrender.com
+        value: https://frontend-nu-two-4e495azrjj.vercel.app
       - key: CSRF_TRUSTED_ORIGINS
-        value: https://noor-alhoda.onrender.com
+        value: https://frontend-nu-two-4e495azrjj.vercel.app
       - key: CLOUDINARY_URL
         sync: false
       - key: FCM_SERVER_KEY
         sync: false
-    buildArgs:
-      - key: NEXT_PUBLIC_API_URL
-        value: ''
