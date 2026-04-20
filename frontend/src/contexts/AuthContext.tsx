@@ -165,6 +165,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           });
           setDbUnlocked(true);
           setIsOfflineSession(true);
+          // Start the sync runner so that whenever connectivity returns
+          // we'll pull the latest data without needing a reload.
+          startSyncRunner();
           return { error: null, role: row.user_role, offline: true };
         } catch (err) {
           const code = err instanceof Error ? err.message : String(err);

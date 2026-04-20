@@ -13,6 +13,7 @@ import { useApi } from "@/hooks/useApi";
 import { useDebounce } from "@/hooks/useDebounce";
 import { api } from "@/lib/api";
 import { hasSessionKey } from "@/lib/db/auth";
+import { listTeachers } from "@/lib/db/repos/misc";
 import { listStudents } from "@/lib/db/repos/students";
 import { AssignStudentModal, EditStudentModal } from "@/components/modals/StudentModals";
 import { ConfirmDeleteModal } from "@/components/modals/TeacherModals";
@@ -27,10 +28,13 @@ async function loadStudentsLocally(params: {
 }): Promise<PaginatedData<Student> | null> {
   if (!hasSessionKey()) return null;
   try {
-    const rows = await listStudents({
-      teacher_id: params.teacher_id,
-      search: params.search,
-    });
+    const [rows, teachers] = await Promise.all([
+      listStudents({ teacher_id: params.teacher_id, search: params.search }),
+      listTeachers(),
+    ]);
+    const teacherNameById = new Map<string, string>(
+      teachers.map((t) => [t.id, t.full_name])
+    );
     rows.sort((a, b) => a.full_name.localeCompare(b.full_name, "ar"));
     const count = rows.length;
     const total_pages = Math.max(1, Math.ceil(count / PAGE_SIZE));
@@ -55,7 +59,7 @@ async function loadStudentsLocally(params: {
       guardian_national_id: s.guardian_national_id || null,
       guardian_mobile: s.guardian_mobile,
       teacher_id: s.teacher_id,
-      teacher_name: null,
+      teacher_name: s.teacher_id ? teacherNameById.get(s.teacher_id) ?? null : null,
       health_status: s.health_status,
       health_note: s.health_note,
       skills: (s.skills as Student["skills"]) ?? null,
