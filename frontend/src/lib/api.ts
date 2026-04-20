@@ -245,11 +245,20 @@ async function apiFetch<T>(
     if (err.name === 'AbortError') {
       throw err;
     }
+    // Provide more specific error messages for common issues
+    let errorMessage = "لا يمكن الاتصال بالخادم. تحقق من اتصال الإنترنت.";
+    if (err instanceof TypeError) {
+      if (err.message.includes('Failed to fetch')) {
+        errorMessage = "فشل الاتصال بالخادم. تحقق من اتصال الإنترنت أو أن الخادم يعمل.";
+      } else if (err.message.includes('NetworkError')) {
+        errorMessage = "خطأ في الشبكة. تحقق من اتصالك بالإنترنت.";
+      }
+    }
     return {
       success: false,
       error: {
         code: 0,
-        message: "لا يمكن الاتصال بالخادم. تحقق من اتصال الإنترنت.",
+        message: errorMessage,
       },
     };
   }

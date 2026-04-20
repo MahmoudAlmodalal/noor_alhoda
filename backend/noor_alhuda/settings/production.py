@@ -4,6 +4,7 @@ Production settings.
 
 import dj_database_url
 from decouple import config
+from urllib.parse import quote
 
 from .base import *  # noqa: F401,F403
 
@@ -24,6 +25,20 @@ USE_X_FORWARDED_PORT = True
 # Database — prefer DATABASE_URL (Render), fall back to individual vars
 DATABASE_URL = config("DATABASE_URL", default="")
 if DATABASE_URL:
+    # Fix for URLs with special characters in password (like #, +, !, ,)
+    # which cause dj_database_url.parse() or urllib.parse.urlparse() to fail.
+    if "://" in DATABASE_URL and "@" in DATABASE_URL:
+        try:
+            prefix, rest = DATABASE_URL.split("://", 1)
+            auth, connection = rest.split("@", 1)
+            if ":" in auth:
+                user, password = auth.split(":", 1)
+                # Only quote if not already quoted (crude check)
+                if "%" not in password:
+                    DATABASE_URL = f"{prefix}://{quote(user)}:{quote(password)}@{connection}"
+        except Exception:
+            pass  # Fallback to original URL if parsing fails
+
     # Render sometimes provides a DATABASE_URL where the "name" part is actually
     # a full connection string or contains extra info that exceeds 63 chars.
     # dj_database_url.parse() usually handles this, but if the resulting 'NAME'
@@ -68,8 +83,13 @@ def _normalize_origin(value: str) -> str:
 
 CSRF_TRUSTED_ORIGINS = config(
     "CSRF_TRUSTED_ORIGINS",
+<<<<<<< HEAD
     default="https://noor-alhoda.onrender.com,https://noor-alhuda-backend.onrender.com",
     cast=lambda v: [_normalize_origin(s) for s in v.split(",") if s.strip()],
+=======
+    default="https://noor-alhoda.onrender.com,https://noor-alhuda-backend.onrender.com,https://noor-alhoda.vercel.app,*.vercel.app,*.railway.app",
+    cast=lambda v: [s.strip() for s in v.split(",")],
+>>>>>>> a4debca0d9bc7bcce4500b05682925030ab25e73
 )
 # Always include both domains
 if "https://noor-alhoda.onrender.com" not in CSRF_TRUSTED_ORIGINS:
@@ -81,7 +101,7 @@ if "https://noor-alhuda-backend.onrender.com" not in CSRF_TRUSTED_ORIGINS:
 CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOWED_ORIGINS = config(
     "CORS_ALLOWED_ORIGINS",
-    default="https://noor-alhoda.onrender.com,https://noor-alhuda-backend.onrender.com",
+    default="https://noor-alhoda.onrender.com,https://noor-alhuda-backend.onrender.com,https://noor-alhoda.vercel.app,*.vercel.app,*.railway.app",
     cast=lambda v: [s.strip() for s in v.split(",")],
 )
 # Always include both domains

@@ -1,0 +1,4 @@
+{
+  "buildCommand": "pip install -r requirements.txt && python manage.py collectstatic --noinput && python manage.py migrate --noinput",
+  "startCommand": "gunicorn noor_alhuda.wsgi:application --bind 0.0.0.0:$PORT --workers 3 --timeout 120"
+}

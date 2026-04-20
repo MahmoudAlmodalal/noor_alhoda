@@ -32,7 +32,7 @@ SECRET_KEY = config("SECRET_KEY", default="django-insecure-noor-alhuda-dev-key")
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config("DEBUG", default=True, cast=_cast_bool)
 
-ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="localhost,127.0.0.1", cast=Csv())
+ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="localhost,127.0.0.1,.railway.app,.vercel.app,.onrender.com", cast=Csv())
 
 # ---------------------------------------------------------------------------
 # Application definition
