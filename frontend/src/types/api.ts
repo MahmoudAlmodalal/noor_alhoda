@@ -24,6 +24,8 @@ export interface UserProfile {
     session_days: string[];
     max_students: number;
     affiliation: string;
+    ring_name?: string;
+    courses?: { id: string; name: string }[];
   };
   parent_profile?: {
     id: string;
@@ -56,12 +58,15 @@ export interface OtpVerifyRequest {
 export interface Teacher {
   id: string;
   user_id: string;
+  national_id?: string;
   phone_number: string;
   full_name: string;
   specialization: string;
   affiliation?: string;
+  ring_name?: string;
   session_days: string[];
   max_students: number;
+  courses?: { id: string; name: string }[];
   created_at: string;
 }
 
@@ -77,15 +82,18 @@ export interface TeacherWithUser {
 }
 
 export interface CreateTeacherRequest {
+  national_id: string;
   phone_number: string;
   first_name: string;
   last_name: string;
-  password: string;
+  password?: string;
   full_name: string;
   specialization?: string;
   affiliation?: string;
+  ring_name?: string;
   session_days?: string[];
   max_students?: number;
+  course_ids?: string[];
 }
 
 // ─── Students ────────────────────────────────────────────────────────────────

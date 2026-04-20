@@ -80,6 +80,11 @@ function TeachersPageInner() {
 
                 <div className="space-y-3 mb-6">
                   <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-lg px-4">
+                    <span className="text-sm text-slate-500 font-medium">رقم الهوية:</span>
+                    <span className="text-sm font-semibold text-slate-700" dir="ltr">{teacher.national_id || "—"}</span>
+                  </div>
+
+                  <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-lg px-4">
                     <span className="text-sm text-slate-500 font-medium">التخصص:</span>
                     <span className="text-sm font-semibold text-slate-700">{teacher.specialization || "—"}</span>
                   </div>
@@ -87,20 +92,40 @@ function TeachersPageInner() {
 	                  <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-lg px-4">
 	                    <span className="text-sm text-slate-500 font-medium">التباعية:</span>
 	                    <span className="text-sm font-semibold text-slate-700">
-	                      {teacher.affiliation === "dar_quran" ? "دار القرآن" : 
-	                       teacher.affiliation === "awqaf" ? "أوقاف" : 
-	                       teacher.affiliation === "sheikh_tabaea" ? "شيخ التباعية" : 
+	                      {teacher.affiliation === "dar_quran" ? "دار القرآن" :
+	                       teacher.affiliation === "awqaf" ? "أوقاف" :
+	                       teacher.affiliation === "sheikh_tabaea" ? "شيخ التباعية" :
 	                       teacher.affiliation || "—"}
 	                    </span>
 	                  </div>
-	
+
+	                  <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-lg px-4">
+	                    <span className="text-sm text-slate-500 font-medium">اسم الحلقة:</span>
+	                    <span className="text-sm font-semibold text-slate-700">{teacher.ring_name || "—"}</span>
+	                  </div>
+
 	                  <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-lg px-4">
 	                    <span className="text-sm text-slate-500 font-medium">أيام الحلقة:</span>
 	                    <span className="text-sm font-semibold text-slate-700">
 	                      {teacher.session_days?.length ? teacher.session_days.join(", ") : "غير محدد"}
 	                    </span>
 	                  </div>
-	
+
+	                  <div className="bg-slate-50 p-2.5 rounded-lg px-4">
+	                    <span className="block text-sm text-slate-500 font-medium mb-2">الدورات:</span>
+	                    {teacher.courses?.length ? (
+	                      <div className="flex flex-wrap gap-1.5">
+	                        {teacher.courses.map((c) => (
+	                          <span key={c.id} className="inline-block text-xs font-semibold text-primary bg-primary/10 rounded-full px-2.5 py-1">
+	                            {c.name}
+	                          </span>
+	                        ))}
+	                      </div>
+	                    ) : (
+	                      <span className="text-sm font-semibold text-slate-400">—</span>
+	                    )}
+	                  </div>
+
 	                </div>
 
                 {/* Actions Footer */}

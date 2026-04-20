@@ -141,6 +141,18 @@ class Teacher(models.Model):
         default="",
         verbose_name="التباعية",
     )
+    ring_name = models.CharField(
+        max_length=100,
+        blank=True,
+        default="",
+        verbose_name="اسم الحلقة",
+    )
+    courses = models.ManyToManyField(
+        "courses.Course",
+        related_name="teachers",
+        blank=True,
+        verbose_name="الدورات",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

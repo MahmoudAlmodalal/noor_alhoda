@@ -54,31 +54,43 @@ class UserUpdateSerializer(serializers.Serializer):
 
     fcm_token = serializers.CharField(required=False)
     password = serializers.CharField(required=False)
+    national_id = serializers.CharField(required=False)
     specialization = serializers.CharField(required=False, allow_blank=True)
     affiliation = serializers.CharField(required=False, allow_blank=True)
+    ring_name = serializers.CharField(required=False, allow_blank=True)
+    course_ids = serializers.ListField(child=serializers.UUIDField(), required=False)
 
 
 class TeacherInputSerializer(serializers.Serializer):
+    national_id = serializers.CharField()
     phone_number = serializers.CharField()
     first_name = serializers.CharField(required=False, default="")
     last_name = serializers.CharField(required=False, default="")
     full_name = serializers.CharField()
     specialization = serializers.CharField(required=False, allow_blank=True, default="")
     affiliation = serializers.CharField(required=False, allow_blank=True, default="")
+    ring_name = serializers.CharField(required=False, allow_blank=True, default="")
     session_days = serializers.ListField(child=serializers.CharField(), required=False, default=[])
     max_students = serializers.IntegerField(required=False, default=25)
+    course_ids = serializers.ListField(child=serializers.UUIDField(), required=False, default=[])
 
 
 class TeacherOutputSerializer(serializers.Serializer):
     id = serializers.UUIDField()
     user_id = serializers.UUIDField(source="user.id")
+    national_id = serializers.CharField(source="user.national_id")
     phone_number = serializers.CharField(source="user.phone_number")
     full_name = serializers.CharField()
     specialization = serializers.CharField(allow_blank=True)
     affiliation = serializers.CharField(allow_blank=True)
+    ring_name = serializers.CharField(allow_blank=True)
     session_days = serializers.JSONField()
     max_students = serializers.IntegerField()
+    courses = serializers.SerializerMethodField()
     created_at = serializers.DateTimeField()
+
+    def get_courses(self, obj):
+        return [{"id": str(c.id), "name": c.name} for c in obj.courses.all()]
 
 
 # ---------------------------------------------------------------------------
