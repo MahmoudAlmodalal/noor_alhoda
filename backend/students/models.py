@@ -122,6 +122,11 @@ class Student(models.Model):
         verbose_name="صورة الطالب",
     )
 
+    review_interval_days = models.PositiveIntegerField(
+        default=14,
+        verbose_name="فترة دوران المراجعة (أيام)",
+    )
+
     enrollment_date = models.DateField(auto_now_add=True, verbose_name="تاريخ الالتحاق")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

@@ -257,3 +257,125 @@ def student_stats(*, student_id, actor: User) -> dict:
         "goal_progress": goal_progress,
         "today_record": today_record,
     }
+
+
+# ---------------------------------------------------------------------------
+# Tasks aggregator
+# ---------------------------------------------------------------------------
+
+_DAY_CODE_BY_WEEKDAY = {5: "sat", 6: "sun", 0: "mon", 1: "tue", 2: "wed", 3: "thu"}
+_DAY_LABEL_AR = {
+    "sat": "السبت", "sun": "الأحد", "mon": "الاثنين",
+    "tue": "الثلاثاء", "wed": "الأربعاء", "thu": "الخميس",
+}
+
+
+def tasks_today(*, student_id, actor: User) -> dict:
+    """
+    Aggregated response for /api/students/<id>/tasks/today/.
+    Composes today's memorization (from WeeklyPlan/DailyRecord), auto-rotated
+    review pool, upcoming evaluations, and weekly progress.
+    """
+    from datetime import date as date_cls, timedelta
+    from records.models import DailyRecord, WeeklyPlan
+    from records.selectors.review_selectors import review_pool_for_student
+    from evaluations.models import Evaluation
+
+    student = student_get(student_id=student_id, actor=actor)
+    today = date_cls.today()
+
+    # Saturday of the current week (same math as weekly_summary).
+    days_since_sat = (today.weekday() - 5) % 7
+    week_start = today - timedelta(days=days_since_sat)
+
+    # Friday = rest day in the Arabic work week.
+    is_rest_day = today.weekday() == 4  # Monday=0 ... Friday=4
+
+    memorization = None
+    weekly_progress = {
+        "total_required": 0,
+        "total_achieved": 0,
+        "completion_rate": 0,
+        "week_start": str(week_start),
+    }
+
+    plan = WeeklyPlan.objects.filter(student=student, week_start=week_start).first()
+    if plan:
+        weekly_progress = {
+            "total_required": plan.total_required,
+            "total_achieved": plan.total_achieved,
+            "completion_rate": float(plan.completion_rate),
+            "week_start": str(plan.week_start),
+        }
+
+        if not is_rest_day:
+            day_code = _DAY_CODE_BY_WEEKDAY.get(today.weekday())
+            record = plan.daily_records.filter(day=day_code).first() if day_code else None
+            if record:
+                if record.result == "pass":
+                    status = "done"
+                elif record.achieved_verses > 0:
+                    status = "in_progress"
+                else:
+                    status = "pending"
+                memorization = {
+                    "day_label": _DAY_LABEL_AR.get(day_code, ""),
+                    "surah_name": record.surah_name,
+                    "required_verses": record.required_verses,
+                    "achieved_verses": record.achieved_verses,
+                    "quality": record.quality,
+                    "attendance": record.attendance,
+                    "status": status,
+                    "note": record.note,
+                }
+            else:
+                memorization = {
+                    "day_label": _DAY_LABEL_AR.get(day_code, ""),
+                    "surah_name": "",
+                    "required_verses": 0,
+                    "achieved_verses": 0,
+                    "quality": "none",
+                    "attendance": "upcoming",
+                    "status": "pending",
+                    "note": "",
+                }
+
+    reviews_pool = review_pool_for_student(student=student, as_of=today)
+    reviews = [
+        {
+            "surah_name": item["surah_name"],
+            "last_memorized_date": str(item["last_memorized"]),
+            "last_review_date": (
+                str(item["last_review_date"]) if item["last_review_date"] else None
+            ),
+            "days_since_review": item["days_since_review"],
+        }
+        for item in reviews_pool
+    ]
+
+    upcoming_tests = [
+        {
+            "id": str(ev.id),
+            "title": ev.title,
+            "surah_range": ev.surah_range,
+            "scheduled_date": str(ev.scheduled_date),
+            "status": ev.status,
+        }
+        for ev in Evaluation.objects.filter(
+            student=student,
+            scheduled_date__gte=today,
+            status=Evaluation.Status.SCHEDULED,
+        ).order_by("scheduled_date")[:5]
+    ]
+
+    return {
+        "student_id": str(student.id),
+        "student_name": student.full_name,
+        "today": str(today),
+        "is_rest_day": is_rest_day,
+        "memorization": memorization,
+        "reviews": reviews,
+        "upcoming_tests": upcoming_tests,
+        "weekly_progress": weekly_progress,
+        "review_interval_days": student.review_interval_days,
+    }

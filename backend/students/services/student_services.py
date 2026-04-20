@@ -305,3 +305,24 @@ def student_bulk_create(*, creator: User, rows: list) -> dict:
     from students.services.excel_import_service import excel_bulk_import
 
     return excel_bulk_import(creator=creator, rows=rows)
+
+
+@transaction.atomic
+def student_set_review_interval(*, student_id, days: int, actor: User) -> Student:
+    """Update a student's review rotation interval (days). Teacher-of-student or admin."""
+    if days is None or days < 1 or days > 90:
+        raise ValidationError({"days": "يجب أن تكون الفترة بين 1 و 90 يوماً."})
+
+    from students.selectors.student_selectors import student_get
+
+    student = student_get(student_id=student_id, actor=actor)
+
+    if not is_admin_user(actor):
+        if actor.role != "teacher" or not hasattr(actor, "teacher_profile"):
+            raise PermissionDenied("ليس لديك صلاحية لتعديل فترة المراجعة.")
+        if student.teacher_id != actor.teacher_profile.id:
+            raise PermissionDenied("لا يمكنك تعديل طالب ليس في حلقتك.")
+
+    student.review_interval_days = int(days)
+    student.save(update_fields=["review_interval_days"])
+    return student

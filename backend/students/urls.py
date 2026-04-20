@@ -9,6 +9,9 @@ from students.views.student_views import (
     StudentStatsApi,
     StudentAssignTeacherApi,
     StudentLinkParentApi,
+    StudentTasksTodayApi,
+    StudentReviewCompleteApi,
+    StudentReviewIntervalApi,
 )
 
 urlpatterns = [
@@ -20,4 +23,7 @@ urlpatterns = [
     path("<uuid:student_id>/stats/", StudentStatsApi.as_view(), name="student-stats"),
     path("<uuid:student_id>/assign-teacher/", StudentAssignTeacherApi.as_view(), name="student-assign-teacher"),
     path("<uuid:student_id>/link-parent/", StudentLinkParentApi.as_view(), name="student-link-parent"),
+    path("<uuid:student_id>/tasks/today/", StudentTasksTodayApi.as_view(), name="student-tasks-today"),
+    path("<uuid:student_id>/reviews/complete/", StudentReviewCompleteApi.as_view(), name="student-review-complete"),
+    path("<uuid:student_id>/review-interval/", StudentReviewIntervalApi.as_view(), name="student-review-interval"),
 ]
