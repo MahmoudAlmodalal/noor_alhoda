@@ -1,0 +1,66 @@
+# Environment variables / secrets
+.env
+.env.*
+!.env.example
+!.env.sample
+*.env
+
+# Credentials, keys, certificates
+*.pem
+*.key
+*.crt
+*.cer
+*.p12
+*.pfx
+*.jks
+*.keystore
+credentials.json
+credentials*.json
+service-account*.json
+secrets.json
+secrets.yml
+secrets.yaml
+*.secret
+
+# MCP / local tooling configs that hold tokens
+.mcp.json
+.claude/settings.local.json
+.claude/scheduled_tasks.lock
+
+# Databases (often contain PII)
+*.sqlite
+*.sqlite3
+*.sqlite3-journal
+*.db
+
+# Logs
+*.log
+logs/
+
+# Backups / dumps
+*.bak
+*.backup
+*.dump
+*.sql.gz
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Python
+__pycache__/
+*.py[cod]
+*.so
+venv/
+.venv/
+env/
+
+# Node / Next
+node_modules/
+.next/
+.vercel
