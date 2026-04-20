@@ -83,13 +83,8 @@ def _normalize_origin(value: str) -> str:
 
 CSRF_TRUSTED_ORIGINS = config(
     "CSRF_TRUSTED_ORIGINS",
-<<<<<<< HEAD
-    default="https://noor-alhoda.onrender.com,https://noor-alhuda-backend.onrender.com",
+    default="https://noor-alhoda.onrender.com,https://noor-alhuda-backend.onrender.com,https://noor-alhoda.vercel.app,https://*.vercel.app,https://*.railway.app",
     cast=lambda v: [_normalize_origin(s) for s in v.split(",") if s.strip()],
-=======
-    default="https://noor-alhoda.onrender.com,https://noor-alhuda-backend.onrender.com,https://noor-alhoda.vercel.app,*.vercel.app,*.railway.app",
-    cast=lambda v: [s.strip() for s in v.split(",")],
->>>>>>> a4debca0d9bc7bcce4500b05682925030ab25e73
 )
 # Always include both domains
 if "https://noor-alhoda.onrender.com" not in CSRF_TRUSTED_ORIGINS:

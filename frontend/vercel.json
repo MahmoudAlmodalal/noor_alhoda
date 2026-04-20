@@ -1,16 +1,6 @@
 {
-<<<<<<< HEAD
   "installCommand": "npm install --legacy-peer-deps",
   "buildCommand": "npm run build",
-  "framework": "nextjs"
-=======
-  "buildCommand": "npm run build",
   "outputDirectory": ".next",
-  "framework": "nextjs",
-  "env": {
-    "BACKEND_URL": {
-      "description": "Backend API URL (e.g., https://noor-alhoda-backend.railway.app)"
-    }
-  }
->>>>>>> a4debca0d9bc7bcce4500b05682925030ab25e73
+  "framework": "nextjs"
 }
