@@ -58,10 +58,18 @@ else:
 STATIC_URL = "/django-static/"
 
 # CSRF trusted origins (required for admin behind Nginx proxy)
+def _normalize_origin(value: str) -> str:
+    v = value.strip()
+    if not v:
+        return v
+    if v.startswith("http://") or v.startswith("https://"):
+        return v
+    return "https://" + v
+
 CSRF_TRUSTED_ORIGINS = config(
     "CSRF_TRUSTED_ORIGINS",
     default="https://noor-alhoda.onrender.com,https://noor-alhuda-backend.onrender.com",
-    cast=lambda v: [s.strip() for s in v.split(",")],
+    cast=lambda v: [_normalize_origin(s) for s in v.split(",") if s.strip()],
 )
 # Always include both domains
 if "https://noor-alhoda.onrender.com" not in CSRF_TRUSTED_ORIGINS:

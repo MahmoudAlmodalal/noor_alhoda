@@ -211,7 +211,7 @@ async function uploadChunkWithRetry(
   chunkData: Record<string, string>[],
   maxRetries = 3,
   initialDelay = 1000,
-  timeoutMs = 60_000,
+  timeoutMs = 120_000,
 ): Promise<BulkStudentImportResult> {
   let lastError: Error | null = null;
 
@@ -558,7 +558,7 @@ export default function StudentsDbPage() {
             chunkError instanceof Error ? chunkError.message : String(chunkError);
           const transportMessage = isTimeout
             ? "انتهت مهلة الاتصال بالخادم — حاول رفع هذه الصفوف من جديد."
-            : `تعذر الاتصال بالخادم: ${detail} — حاول لاحقاً.`;
+            : detail;
           recordChunkTransportError(chunk, index, transportMessage);
           consecutiveFailures += 1;
           if (consecutiveFailures >= MAX_CONSECUTIVE_CHUNK_FAILURES) {

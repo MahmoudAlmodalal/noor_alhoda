@@ -206,22 +206,39 @@ async function apiFetch<T>(
       return { success: true, data: {} as T };
     }
 
-    const data = await res.json();
+    // Read body as text first so a non-JSON response (Django DEBUG HTML page,
+    // nginx/Render 502/504 HTML, empty body) surfaces as a real error with the
+    // HTTP status, instead of the outer catch swallowing it as "network failed".
+    const bodyText = await res.text().catch(() => "");
+    let data: any = null;
+    if (bodyText) {
+      try {
+        data = JSON.parse(bodyText);
+      } catch {
+        return {
+          success: false,
+          error: {
+            code: res.status,
+            message: `الخادم أعاد استجابة غير صالحة (${res.status}${res.statusText ? " " + res.statusText : ""}). ${bodyText.slice(0, 200)}`.trim(),
+          },
+        };
+      }
+    }
 
     if (res.ok) {
-      if (data.success !== undefined) return data as ApiResponse<T>;
-      return { success: true, data: data as T };
+      if (data && data.success !== undefined) return data as ApiResponse<T>;
+      return { success: true, data: (data ?? {}) as T };
     }
 
     // ── أخطاء أخرى (400، 403، 404، 500...) ───────────────────────────────
-    if (data.error) {
+    if (data?.error) {
       return { success: false, error: data.error };
     }
     return {
       success: false,
       error: {
         code: res.status,
-        message: data.detail || data.message || "حدث خطأ غير متوقع.",
+        message: data?.detail || data?.message || `حدث خطأ غير متوقع (${res.status}).`,
       },
     };
   } catch (err: any) {

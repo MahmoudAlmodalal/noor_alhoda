@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "supabase": {
+      "type": "http",
+      "url": "https://mcp.supabase.com/mcp?project_ref=bylysvcokvzokrtnaxti",
+      "headers": {
+        "Authorization": "Bearer sbp_2b57fc715dcd9196d432e46d35e7e645fcb9a4ac"
+      }
+    },
+    "render": {
+      "type": "http",
+      "url": "https://mcp.render.com/mcp",
+      "headers": {
+        "Authorization": "Bearer rnd_rRNBpzcRO5yCvp9Sedd63eP7WFMH"
+      }
+    }
+  }
+}
