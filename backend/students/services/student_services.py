@@ -97,10 +97,11 @@ def _synthetic_phone(national_id: str) -> str:
 
 
 @transaction.atomic
-def student_create(*, creator: User, **data) -> Student:
+def student_create(*, creator: User, id=None, **data) -> Student:
     """
     Create a new student. Creates User + Student atomically.
-    Admin only (feature 2.1).
+    Admin only (feature 2.1). Accepts optional `id` minted by an offline
+    client so the Student UUID round-trips stably through sync/push.
     """
     if not is_admin_user(creator):
         raise PermissionDenied("فقط المدير يمكنه تسجيل طلاب جدد.")
@@ -125,8 +126,8 @@ def student_create(*, creator: User, **data) -> Student:
         # Since it's a DateField, we'll use a very old date as a technical placeholder.
         birthdate = "1900-01-01"
 
-    # Check for duplicate national_id
-    if Student.objects.filter(national_id=data["national_id"]).exists():
+    # Check for duplicate national_id (canonical uniqueness lives on User).
+    if User.objects.filter(national_id=data["national_id"]).exists():
         raise ValidationError({"national_id": "رقم الهوية مسجل مسبقاً."})
 
     # Create user account
@@ -159,10 +160,9 @@ def student_create(*, creator: User, **data) -> Student:
         except Teacher.DoesNotExist:
             raise ValidationError({"teacher_id": "المحفظ غير موجود."})
 
-    student = Student(
+    student_kwargs = dict(
         user=user,
         full_name=data["full_name"],
-        national_id=data["national_id"],
         birthdate=birthdate,
         grade=data["grade"],
         address=data.get("address", ""),
@@ -181,6 +181,9 @@ def student_create(*, creator: User, **data) -> Student:
         health_note=data.get("health_note", ""),
         skills=data.get("skills", {}),
     )
+    if id is not None:
+        student_kwargs["id"] = id
+    student = Student(**student_kwargs)
     student.full_clean()
     student.save()
 
@@ -196,7 +199,7 @@ def student_update(*, student: Student, actor: User, data: dict) -> Student:
         # Admin can update all fields
         allowed = [
             # Personal Information
-            "full_name", "national_id", "birthdate", "grade",
+            "full_name", "birthdate", "grade",
             # Contact Information
             "address", "whatsapp", "mobile", "phone_number",
             # Academic Information
@@ -214,7 +217,16 @@ def student_update(*, student: Student, actor: User, data: dict) -> Student:
     else:
         raise PermissionDenied("ليس لديك صلاحية لتعديل بيانات الطالب.")
 
-    # Update allowed fields
+    # national_id is stored on the related User (USERNAME_FIELD). Route it there.
+    if is_admin_user(actor):
+        new_national_id = data.get("national_id")
+        if new_national_id and new_national_id != student.user.national_id:
+            if User.objects.filter(national_id=new_national_id).exclude(pk=student.user_id).exists():
+                raise ValidationError({"national_id": "رقم الهوية مسجل مسبقاً."})
+            student.user.national_id = new_national_id
+            student.user.save(update_fields=["national_id"])
+
+    # Update allowed fields on the Student itself
     for field, value in data.items():
         if field in allowed:
             setattr(student, field, value)
@@ -284,7 +296,7 @@ def student_assign_teacher(*, student_id, teacher_id, actor: User) -> Student:
 
 
 @transaction.atomic
-def student_link_parent(*, student_id, parent_id, actor: User) -> ParentStudentLink:
+def student_link_parent(*, student_id, parent_id, actor: User, id=None) -> ParentStudentLink:
     """
     Link a parent to a student (feature 2.6). Admin only.
     """
@@ -303,10 +315,32 @@ def student_link_parent(*, student_id, parent_id, actor: User) -> ParentStudentL
     if ParentStudentLink.objects.filter(parent=parent, student=student).exists():
         raise ValidationError("ولي الأمر مرتبط بهذا الطالب مسبقاً.")
 
-    link = ParentStudentLink(parent=parent, student=student)
+    link_kwargs = {"parent": parent, "student": student}
+    if id is not None:
+        link_kwargs["id"] = id
+    link = ParentStudentLink(**link_kwargs)
     link.full_clean()
     link.save()
     return link
+
+
+@transaction.atomic
+def student_unlink_parent(*, link: ParentStudentLink, actor: User) -> None:
+    """Remove a parent-student link. Admin only. Writes a tombstone."""
+    if not is_admin_user(actor):
+        raise PermissionDenied("فقط المدير يمكنه إلغاء ربط ولي الأمر بالطالب.")
+
+    from sync.models import Tombstone
+    from sync.services.tombstone_service import tombstone_write
+
+    deleted_uuid = link.id
+    link.delete()
+    tombstone_write(
+        resource=Tombstone.Resource.PARENT_STUDENT_LINK,
+        resource_uuid=deleted_uuid,
+        actor=actor,
+        scope_user_id=None,
+    )
 
 
 def student_bulk_create(*, creator: User, rows: list) -> dict:

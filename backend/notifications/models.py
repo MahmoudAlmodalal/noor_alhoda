@@ -33,6 +33,7 @@ class Notification(models.Model):
     body = models.TextField(verbose_name="النص")
     is_read = models.BooleanField(default=False, verbose_name="مقروء")
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="آخر تحديث")
 
     class Meta:
         verbose_name = "إشعار"

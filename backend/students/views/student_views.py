@@ -62,7 +62,7 @@ class StudentInputSerializer(serializers.Serializer):
 class StudentOutputSerializer(serializers.Serializer):
     id = serializers.UUIDField()
     full_name = serializers.CharField()
-    national_id = serializers.CharField()
+    national_id = serializers.CharField(source="user.national_id")
     birthdate = serializers.DateField()
     grade = serializers.CharField()
     address = serializers.CharField()
@@ -78,6 +78,8 @@ class StudentOutputSerializer(serializers.Serializer):
     guardian_mobile = serializers.CharField()
     teacher_id = serializers.UUIDField(source="teacher.id", default=None)
     teacher_name = serializers.CharField(source="teacher.full_name", default=None)
+    teacher_ring_name = serializers.CharField(source="teacher.ring_name", default="")
+    teacher_courses = serializers.SerializerMethodField()
     health_status = serializers.CharField()
     health_note = serializers.CharField()
     affiliation = serializers.CharField(source="teacher.affiliation", default="")
@@ -85,6 +87,11 @@ class StudentOutputSerializer(serializers.Serializer):
     review_interval_days = serializers.IntegerField()
 
     enrollment_date = serializers.DateField()
+
+    def get_teacher_courses(self, obj) -> list:
+        if obj.teacher is None:
+            return []
+        return [{"id": str(c.id), "name": c.name} for c in obj.teacher.courses.all()]
 
 
 class StudentUpdateSerializer(serializers.Serializer):

@@ -46,7 +46,6 @@ class CoursesFixture(APITestCase):
         self.student = Student.objects.create(
             user=self.student_user,
             full_name="Student Courses",
-            national_id="CRS-STU-001",
             birthdate=date(2012, 1, 1),
             grade="Grade 6",
             teacher=self.teacher,

@@ -79,6 +79,7 @@ class User(AbstractUser):
     failed_login_attempts = models.PositiveIntegerField(default=0)
     lockout_until = models.DateTimeField(null=True, blank=True)
     last_login_attempt = models.DateTimeField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="آخر تحديث")
 
     # Standard Django field for active users
     is_active = models.BooleanField(default=True, verbose_name="نشط")
@@ -154,6 +155,7 @@ class Teacher(models.Model):
         verbose_name="الدورات",
     )
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="آخر تحديث")
 
     class Meta:
         verbose_name = "محفظ"
@@ -185,6 +187,7 @@ class Parent(models.Model):
         verbose_name="رقم التواصل",
     )
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="آخر تحديث")
 
     class Meta:
         verbose_name = "ولي أمر"
@@ -216,6 +219,7 @@ class ParentStudentLink(models.Model):
         verbose_name="الطالب",
     )
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="آخر تحديث")
 
     class Meta:
         verbose_name = "ربط ولي أمر بطالب"

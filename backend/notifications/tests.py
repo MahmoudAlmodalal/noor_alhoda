@@ -52,7 +52,7 @@ class NotificationTestSetup(APITestCase):
         )
         self.student = Student.objects.create(
             user=self.student_user, full_name="Student Not",
-            national_id="NOT-001", birthdate=date(2012, 1, 1),
+            birthdate=date(2012, 1, 1),
             grade="Grade 7", teacher=self.teacher,
         )
         ParentStudentLink.objects.create(parent=self.parent, student=self.student)

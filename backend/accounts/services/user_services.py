@@ -109,7 +109,7 @@ def user_delete(*, user: User, actor: User) -> None:
 
 
 @transaction.atomic
-def teacher_create(*, creator: User, **data) -> Teacher:
+def teacher_create(*, creator: User, id=None, **data) -> Teacher:
     """Create a new teacher (User + Teacher profile)."""
     user = user_create(
         creator=creator,
@@ -121,7 +121,7 @@ def teacher_create(*, creator: User, **data) -> Teacher:
         password=data.get("password"),
     )
 
-    teacher = Teacher.objects.create(
+    teacher_kwargs = dict(
         user=user,
         full_name=data["full_name"],
         specialization=data.get("specialization", ""),
@@ -130,9 +130,122 @@ def teacher_create(*, creator: User, **data) -> Teacher:
         affiliation=data.get("affiliation", ""),
         ring_name=data.get("ring_name", ""),
     )
+    if id is not None:
+        teacher_kwargs["id"] = id
+
+    teacher = Teacher.objects.create(**teacher_kwargs)
 
     course_ids = data.get("course_ids") or []
     if course_ids:
         teacher.courses.set(course_ids)
 
     return teacher
+
+
+@transaction.atomic
+def teacher_update(*, teacher: Teacher, actor: User, data: dict) -> Teacher:
+    """Update a teacher profile. Admin only."""
+    if not is_admin_user(actor):
+        raise PermissionDenied("فقط المدير يمكنه تعديل المحفظ.")
+
+    allowed = [
+        "full_name", "specialization", "session_days",
+        "max_students", "affiliation", "ring_name",
+    ]
+    for field, value in data.items():
+        if field in allowed:
+            setattr(teacher, field, value)
+
+    course_ids = data.get("course_ids")
+    if course_ids is not None:
+        teacher.courses.set(course_ids)
+
+    teacher.full_clean()
+    teacher.save()
+    return teacher
+
+
+@transaction.atomic
+def teacher_delete(*, teacher: Teacher, actor: User) -> None:
+    """Delete a teacher profile + their User. Admin only."""
+    if not is_admin_user(actor):
+        raise PermissionDenied("فقط المدير يمكنه حذف المحفظ.")
+
+    from sync.models import Tombstone
+    from sync.services.tombstone_service import tombstone_write
+
+    deleted_uuid = teacher.id
+    user = teacher.user
+    user.delete()  # Cascades to teacher profile
+    tombstone_write(
+        resource=Tombstone.Resource.TEACHER,
+        resource_uuid=deleted_uuid,
+        actor=actor,
+        scope_user_id=None,
+    )
+
+
+@transaction.atomic
+def parent_create(*, creator: User, id=None, **data) -> Parent:
+    """Create a new parent (User + Parent profile). Admin only."""
+    if not is_admin_user(creator):
+        raise PermissionDenied("فقط المدير يمكنه إنشاء حسابات أولياء الأمور.")
+
+    user = user_create(
+        creator=creator,
+        national_id=data["national_id"],
+        phone_number=data.get("phone_number", ""),
+        first_name=data.get("first_name", ""),
+        last_name=data.get("last_name", ""),
+        role="parent",
+        password=data.get("password"),
+    )
+
+    parent_kwargs = dict(
+        user=user,
+        full_name=data["full_name"],
+        phone_number=normalize_phone(data.get("phone_number", "")),
+    )
+    if id is not None:
+        parent_kwargs["id"] = id
+
+    parent = Parent.objects.create(**parent_kwargs)
+    return parent
+
+
+@transaction.atomic
+def parent_update(*, parent: Parent, actor: User, data: dict) -> Parent:
+    """Update a parent profile. Admin only."""
+    if not is_admin_user(actor):
+        raise PermissionDenied("فقط المدير يمكنه تعديل ولي الأمر.")
+
+    allowed = ["full_name", "phone_number"]
+    for field, value in data.items():
+        if field in allowed:
+            if field == "phone_number":
+                value = normalize_phone(value)
+            setattr(parent, field, value)
+
+    parent.full_clean()
+    parent.save()
+    return parent
+
+
+@transaction.atomic
+def parent_delete(*, parent: Parent, actor: User) -> None:
+    """Delete a parent profile + their User. Admin only."""
+    if not is_admin_user(actor):
+        raise PermissionDenied("فقط المدير يمكنه حذف ولي الأمر.")
+
+    from sync.models import Tombstone
+    from sync.services.tombstone_service import tombstone_write
+
+    deleted_uuid = parent.id
+    user = parent.user
+    user.delete()  # Cascades to parent profile
+    tombstone_write(
+        resource=Tombstone.Resource.PARENT,
+        resource_uuid=deleted_uuid,
+        actor=actor,
+        scope_user_id=None,
+    )

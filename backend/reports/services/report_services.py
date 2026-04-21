@@ -60,7 +60,7 @@ def generate_student_pdf(*, student_id) -> bytes:
     teacher_name = student.teacher.full_name if student.teacher else "غير معيّن"
     info_data = [
         [_ar("الاسم"), _ar(student.full_name)],
-        [_ar("رقم الهوية"), _ar(student.national_id)],
+        [_ar("رقم الهوية"), _ar(student.user.national_id)],
         [_ar("الصف الدراسي"), _ar(student.grade)],
         [_ar("المحفظ"), _ar(teacher_name)],
         [_ar("تاريخ الالتحاق"), str(student.enrollment_date)],

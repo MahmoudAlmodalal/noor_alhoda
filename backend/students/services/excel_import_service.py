@@ -705,7 +705,7 @@ def excel_bulk_import(*, creator: User, rows: list) -> dict:
                          raise ValueError("اسم الطالب مطلوب.")
 
                 student = Student.objects.select_related("user", "teacher").filter(
-                    national_id=row["national_id"]
+                    user__national_id=row["national_id"]
                 ).first()
 
                 if student is None:

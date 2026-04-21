@@ -36,7 +36,11 @@ def student_list(*, filters: dict, user: User) -> QuerySet[Student]:
     Return filtered student list with role-based access.
     FR-11: Row-Level Security.
     """
-    qs = Student.objects.select_related("user", "teacher").all()
+    qs = (
+        Student.objects.select_related("user", "teacher")
+        .prefetch_related("teacher__courses")
+        .all()
+    )
 
     # Role-based filtering
     if user.role == "teacher" and hasattr(user, "teacher_profile"):
@@ -68,7 +72,7 @@ def student_list(*, filters: dict, user: User) -> QuerySet[Student]:
     if search:
         qs = qs.filter(
             Q(full_name__icontains=search)
-            | Q(national_id__icontains=search)
+            | Q(user__national_id__icontains=search)
         )
 
     return qs
@@ -77,7 +81,9 @@ def student_list(*, filters: dict, user: User) -> QuerySet[Student]:
 def student_get(*, student_id, actor: User) -> Student:
     """Get a single student with permission check."""
     student = get_object_or_404(
-        Student.objects.select_related("user", "teacher"),
+        Student.objects.select_related("user", "teacher").prefetch_related(
+            "teacher__courses"
+        ),
         id=student_id,
     )
     if not can_access_student(actor=actor, student=student):

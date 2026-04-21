@@ -125,7 +125,6 @@ class AccountsFixture:
         return Student.objects.create(
             user=user,
             full_name=full_name,
-            national_id=f"STU-{nid_suffix}",
             birthdate=date(2012, 1, 1),
             grade="Grade 5",
             mobile=user.phone_number,
