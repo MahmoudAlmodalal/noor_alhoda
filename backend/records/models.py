@@ -24,6 +24,7 @@ class WeeklyPlan(models.Model):
     total_required = models.PositiveIntegerField(default=0, verbose_name="إجمالي الآيات المطلوبة")
     total_achieved = models.PositiveIntegerField(default=0, verbose_name="إجمالي الآيات المنجزة")
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="آخر تحديث")
 
     class Meta:
         verbose_name = "خطة أسبوعية"
@@ -173,6 +174,7 @@ class ReviewRecord(models.Model):
         verbose_name="المسجّل",
     )
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="آخر تحديث")
 
     class Meta:
         verbose_name = "سجل مراجعة"

@@ -44,13 +44,27 @@ export default function ModalsPlayground() {
                 isOpen={activeModal === "confirmDelete"}
                 onClose={() => setActiveModal(null)}
                 targetName="محمد عبدالله"
+                resource="teacher"
+                targetId="demo"
             />
 
             <EditTeacherModal
                 isOpen={activeModal === "editTeacher"}
                 onClose={() => setActiveModal(null)}
-                teacher={{ id: "demo", user_id: "demo", phone_number: "0500000000", full_name: "الشيخ محمد عبدالله", specialization: "حفص عن عاصم", session_days: [], max_students: 25, created_at: "" }}
-
+                teacher={{
+                    id: "demo",
+                    user_id: "demo",
+                    national_id: "",
+                    phone_number: "0500000000",
+                    full_name: "الشيخ محمد عبدالله",
+                    specialization: "حفص عن عاصم",
+                    affiliation: "",
+                    ring_name: "",
+                    session_days: [],
+                    max_students: 25,
+                    created_at: "",
+                    updated_at: "",
+                }}
             />
 
             <AssignStudentModal

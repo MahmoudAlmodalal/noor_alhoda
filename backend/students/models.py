@@ -2,7 +2,8 @@ import uuid
 
 from django.db import models
 
-from accounts.models import User, Teacher
+from accounts.models import User
+from teacher.models import Teacher
 
 
 class Student(models.Model):
@@ -26,11 +27,6 @@ class Student(models.Model):
         verbose_name="حساب المستخدم",
     )
     full_name = models.CharField(max_length=100, verbose_name="الاسم الرباعي")
-    national_id = models.CharField(
-        max_length=20,
-        unique=True,
-        verbose_name="رقم الهوية",
-    )
     birthdate = models.DateField(verbose_name="تاريخ الميلاد")
     grade = models.CharField(max_length=50, verbose_name="الصف الدراسي")
     address = models.TextField(blank=True, null=True, verbose_name="عنوان السكن")

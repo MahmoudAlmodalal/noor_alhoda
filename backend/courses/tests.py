@@ -8,7 +8,8 @@ from datetime import date
 
 from rest_framework.test import APITestCase
 
-from accounts.models import Parent, ParentStudentLink, Teacher, User
+from accounts.models import Parent, ParentStudentLink, User
+from teacher.models import Teacher
 from courses.models import Course, StudentCourse
 from students.models import Student
 
@@ -46,7 +47,6 @@ class CoursesFixture(APITestCase):
         self.student = Student.objects.create(
             user=self.student_user,
             full_name="Student Courses",
-            national_id="CRS-STU-001",
             birthdate=date(2012, 1, 1),
             grade="Grade 6",
             teacher=self.teacher,

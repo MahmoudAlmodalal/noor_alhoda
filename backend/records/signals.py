@@ -18,4 +18,4 @@ def update_weekly_plan_totals(sender, instance, **kwargs):
     )
     plan.total_required = totals["total_req"] or 0
     plan.total_achieved = totals["total_ach"] or 0
-    plan.save(update_fields=["total_required", "total_achieved"])
+    plan.save(update_fields=["total_required", "total_achieved", "updated_at"])

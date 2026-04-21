@@ -2,7 +2,7 @@ import logging
 from django.db import transaction
 from rest_framework.exceptions import ValidationError, PermissionDenied
 
-from accounts.models import User, Teacher, Parent
+from accounts.models import User, Parent
 from accounts.utils import normalize_phone
 from core.permissions import is_admin_user
 
@@ -109,30 +109,66 @@ def user_delete(*, user: User, actor: User) -> None:
 
 
 @transaction.atomic
-def teacher_create(*, creator: User, **data) -> Teacher:
-    """Create a new teacher (User + Teacher profile)."""
+def parent_create(*, creator: User, id=None, **data) -> Parent:
+    """Create a new parent (User + Parent profile). Admin only."""
+    if not is_admin_user(creator):
+        raise PermissionDenied("فقط المدير يمكنه إنشاء حسابات أولياء الأمور.")
+
     user = user_create(
         creator=creator,
         national_id=data["national_id"],
         phone_number=data.get("phone_number", ""),
         first_name=data.get("first_name", ""),
         last_name=data.get("last_name", ""),
-        role="teacher",
+        role="parent",
         password=data.get("password"),
     )
 
-    teacher = Teacher.objects.create(
+    parent_kwargs = dict(
         user=user,
         full_name=data["full_name"],
-        specialization=data.get("specialization", ""),
-        session_days=data.get("session_days", []),
-        max_students=data.get("max_students", 25),
-        affiliation=data.get("affiliation", ""),
-        ring_name=data.get("ring_name", ""),
+        phone_number=normalize_phone(data.get("phone_number", "")),
     )
+    if id is not None:
+        parent_kwargs["id"] = id
 
-    course_ids = data.get("course_ids") or []
-    if course_ids:
-        teacher.courses.set(course_ids)
+    parent = Parent.objects.create(**parent_kwargs)
+    return parent
 
-    return teacher
+
+@transaction.atomic
+def parent_update(*, parent: Parent, actor: User, data: dict) -> Parent:
+    """Update a parent profile. Admin only."""
+    if not is_admin_user(actor):
+        raise PermissionDenied("فقط المدير يمكنه تعديل ولي الأمر.")
+
+    allowed = ["full_name", "phone_number"]
+    for field, value in data.items():
+        if field in allowed:
+            if field == "phone_number":
+                value = normalize_phone(value)
+            setattr(parent, field, value)
+
+    parent.full_clean()
+    parent.save()
+    return parent
+
+
+@transaction.atomic
+def parent_delete(*, parent: Parent, actor: User) -> None:
+    """Delete a parent profile + their User. Admin only."""
+    if not is_admin_user(actor):
+        raise PermissionDenied("فقط المدير يمكنه حذف ولي الأمر.")
+
+    from sync.models import Tombstone
+    from sync.services.tombstone_service import tombstone_write
+
+    deleted_uuid = parent.id
+    user = parent.user
+    user.delete()  # Cascades to parent profile
+    tombstone_write(
+        resource=Tombstone.Resource.PARENT,
+        resource_uuid=deleted_uuid,
+        actor=actor,
+        scope_user_id=None,
+    )

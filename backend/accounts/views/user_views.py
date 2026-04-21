@@ -3,13 +3,12 @@ from rest_framework.response import Response
 from rest_framework import status, serializers
 from rest_framework.permissions import IsAuthenticated
 
-from core.permissions import IsAdmin, IsAdminOrTeacher
-from accounts.selectors.user_selectors import user_list, user_get, teacher_list
+from core.permissions import IsAdmin
+from accounts.selectors.user_selectors import user_list, user_get
 from accounts.services.user_services import (
     user_create,
     user_update,
     user_delete,
-    teacher_create,
 )
 
 
@@ -59,38 +58,6 @@ class UserUpdateSerializer(serializers.Serializer):
     affiliation = serializers.CharField(required=False, allow_blank=True)
     ring_name = serializers.CharField(required=False, allow_blank=True)
     course_ids = serializers.ListField(child=serializers.UUIDField(), required=False)
-
-
-class TeacherInputSerializer(serializers.Serializer):
-    national_id = serializers.CharField()
-    phone_number = serializers.CharField()
-    first_name = serializers.CharField(required=False, default="")
-    last_name = serializers.CharField(required=False, default="")
-    full_name = serializers.CharField()
-    specialization = serializers.CharField(required=False, allow_blank=True, default="")
-    affiliation = serializers.CharField(required=False, allow_blank=True, default="")
-    ring_name = serializers.CharField(required=False, allow_blank=True, default="")
-    session_days = serializers.ListField(child=serializers.CharField(), required=False, default=[])
-    max_students = serializers.IntegerField(required=False, default=25)
-    course_ids = serializers.ListField(child=serializers.UUIDField(), required=False, default=[])
-
-
-class TeacherOutputSerializer(serializers.Serializer):
-    id = serializers.UUIDField()
-    user_id = serializers.UUIDField(source="user.id")
-    national_id = serializers.CharField(source="user.national_id")
-    phone_number = serializers.CharField(source="user.phone_number")
-    full_name = serializers.CharField()
-    specialization = serializers.CharField(allow_blank=True)
-    affiliation = serializers.CharField(allow_blank=True)
-    ring_name = serializers.CharField(allow_blank=True)
-    session_days = serializers.JSONField()
-    max_students = serializers.IntegerField()
-    courses = serializers.SerializerMethodField()
-    created_at = serializers.DateTimeField()
-
-    def get_courses(self, obj):
-        return [{"id": str(c.id), "name": c.name} for c in obj.courses.all()]
 
 
 # ---------------------------------------------------------------------------
@@ -169,38 +136,4 @@ class UserDetailApi(APIView):
         return Response(
             {"success": True, "message": "تم حذف الحساب بنجاح."},
             status=status.HTTP_200_OK,
-        )
-
-
-class TeacherListApi(APIView):
-    """GET /api/users/teachers/ — قائمة المحفظين"""
-
-    permission_classes = [IsAdminOrTeacher]
-
-    def get(self, request):
-        filter_serializer = UserFilterSerializer(data=request.query_params)
-        filter_serializer.is_valid(raise_exception=True)
-
-        teachers = teacher_list(filters=filter_serializer.validated_data)
-
-        return Response(
-            {"success": True, "data": TeacherOutputSerializer(teachers, many=True).data},
-            status=status.HTTP_200_OK,
-        )
-
-
-class TeacherCreateApi(APIView):
-    """POST /api/users/teachers/ — إنشاء محفظ جديد (مدير فقط)"""
-
-    permission_classes = [IsAdmin]
-
-    def post(self, request):
-        serializer = TeacherInputSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        teacher = teacher_create(creator=request.user, **serializer.validated_data)
-
-        return Response(
-            {"success": True, "data": TeacherOutputSerializer(teacher).data},
-            status=status.HTTP_201_CREATED,
         )

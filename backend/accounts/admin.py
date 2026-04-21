@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 
-from .models import User, Teacher, Parent, ParentStudentLink, OTPCode
+from .models import User, Parent, ParentStudentLink, OTPCode
 
 
 @admin.register(User)
@@ -46,12 +46,6 @@ class UserAdmin(BaseUserAdmin):
             },
         ),
     )
-
-
-@admin.register(Teacher)
-class TeacherAdmin(admin.ModelAdmin):
-    list_display = ("full_name", "specialization", "max_students")
-    search_fields = ("full_name",)
 
 
 @admin.register(Parent)

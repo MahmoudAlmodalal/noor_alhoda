@@ -6,7 +6,8 @@ from datetime import date
 
 from rest_framework.test import APITestCase
 
-from accounts.models import Parent, ParentStudentLink, Teacher, User
+from accounts.models import Parent, ParentStudentLink, User
+from teacher.models import Teacher
 from notifications.models import Notification
 from notifications.services.notification_services import send_absence_notification
 from students.models import Student
@@ -52,7 +53,7 @@ class NotificationTestSetup(APITestCase):
         )
         self.student = Student.objects.create(
             user=self.student_user, full_name="Student Not",
-            national_id="NOT-001", birthdate=date(2012, 1, 1),
+            birthdate=date(2012, 1, 1),
             grade="Grade 7", teacher=self.teacher,
         )
         ParentStudentLink.objects.create(parent=self.parent, student=self.student)

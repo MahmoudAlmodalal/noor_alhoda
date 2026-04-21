@@ -5,6 +5,10 @@ from django.shortcuts import get_object_or_404
 from rest_framework.exceptions import PermissionDenied
 
 from notifications.models import Notification
+from notifications.selectors.notification_selectors import (
+    announcement_recipients,
+    parents_of_student_with_phone,
+)
 from accounts.models import User
 from core.permissions import is_admin_user
 
@@ -18,12 +22,11 @@ def announcement_send(*, sender: User, title: str, body: str, target_roles: list
     if not is_admin_user(sender):
         raise PermissionDenied("فقط المدير يمكنه إرسال الإعلانات.")
 
-    if target_user_ids:
-        recipients = User.objects.filter(id__in=target_user_ids)
-    elif target_roles:
-        recipients = User.objects.filter(role__in=target_roles)
-    else:
-        recipients = User.objects.all().exclude(id=sender.id)
+    recipients = announcement_recipients(
+        sender=sender,
+        target_user_ids=target_user_ids,
+        target_roles=target_roles,
+    )
 
     notifications = [
         Notification(recipient=user, type="announcement", title=title, body=body)
@@ -70,13 +73,7 @@ def send_absence_notification(*, student, date) -> dict:
     """
     result = {"notifications_sent": 0, "whatsapp_links": []}
 
-    # Find linked parents
-    parent_links = student.parent_links.select_related("parent", "parent__user").all()
-
-    for link in parent_links:
-        parent_user = link.parent.user
-
-        # Create in-app notification
+    for _parent, parent_user, phone in parents_of_student_with_phone(student=student):
         notification_create(
             recipient=parent_user,
             type="absence",
@@ -85,13 +82,11 @@ def send_absence_notification(*, student, date) -> dict:
         )
         result["notifications_sent"] += 1
 
-        # Generate WhatsApp link (FR-18)
-        phone = link.parent.phone_number or parent_user.phone_number
         if phone:
-            formatted_phone = str(phone).strip()
+            formatted_phone = phone.strip()
             if formatted_phone.startswith("0"):
                 formatted_phone = f"966{formatted_phone[1:]}"
-                
+
             message = quote(
                 f"السلام عليكم\nنحيطكم علماً بأن الطالب {student.full_name} "
                 f"لم يحضر اليوم {date}.\nمركز نور الهدى لتحفيظ القرآن الكريم"

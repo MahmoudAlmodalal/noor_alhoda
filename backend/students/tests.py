@@ -6,7 +6,8 @@ from datetime import date
 
 from rest_framework.test import APITestCase
 
-from accounts.models import User, Teacher, Parent, ParentStudentLink
+from accounts.models import User, Parent, ParentStudentLink
+from teacher.models import Teacher
 from students.models import Student
 
 
@@ -50,7 +51,7 @@ class StudentTestSetup(APITestCase):
 
         # Student A (belongs to teacher A)
         self.student_a_user = User.objects.create_user(
-            national_id="970590100030",
+            national_id="STU-A-001",
             phone_number="970590100030",
             password="secret123",
             role="student",
@@ -58,7 +59,6 @@ class StudentTestSetup(APITestCase):
         self.student_a = Student.objects.create(
             user=self.student_a_user,
             full_name="Student A",
-            national_id="STU-A-001",
             birthdate=date(2012, 1, 1),
             grade="Grade 7",
             teacher=self.teacher_a,
@@ -68,7 +68,7 @@ class StudentTestSetup(APITestCase):
 
         # Student B (belongs to teacher B)
         self.student_b_user = User.objects.create_user(
-            national_id="970590100040",
+            national_id="STU-B-001",
             phone_number="970590100040",
             password="secret123",
             role="student",
@@ -76,7 +76,6 @@ class StudentTestSetup(APITestCase):
         self.student_b = Student.objects.create(
             user=self.student_b_user,
             full_name="Student B",
-            national_id="STU-B-001",
             birthdate=date(2012, 2, 2),
             grade="Grade 8",
             teacher=self.teacher_b,
@@ -118,7 +117,7 @@ class StudentCreateTests(StudentTestSetup):
             format="json",
         )
         self.assertEqual(response.status_code, 201)
-        self.assertTrue(Student.objects.filter(national_id="NEW-001").exists())
+        self.assertTrue(Student.objects.filter(user__national_id="NEW-001").exists())
 
     def test_non_admin_cannot_create_student(self):
         """STU-02: Non-admin gets 403."""
@@ -222,11 +221,11 @@ class StudentOperationsTests(StudentTestSetup):
         """STU-12 / Feature 2.4: Assign teacher checks max_students limit."""
         # Teacher B has max_students=2, already has 1 student
         extra_user = User.objects.create_user(
-            national_id="970590100060",
+            national_id="EX-001",
             phone_number="970590100060", password="s", role="student",
         )
         Student.objects.create(
-            user=extra_user, full_name="Extra", national_id="EX-001",
+            user=extra_user, full_name="Extra",
             birthdate=date(2012, 1, 1), grade="G7", teacher=self.teacher_b,
         )
         self.client.force_authenticate(self.admin)
@@ -333,7 +332,7 @@ class StudentListScopeTests(StudentTestSetup):
     def test_paginated_list_returns_metadata_and_25_rows(self):
         for idx in range(30):
             extra_user = User.objects.create_user(
-                national_id=f"970590200{idx:03d}",
+                national_id=f"STU-EX-{idx:03d}",
                 phone_number=f"0599200{idx:03d}"[:10],
                 password="secret123",
                 role="student",
@@ -341,7 +340,6 @@ class StudentListScopeTests(StudentTestSetup):
             Student.objects.create(
                 user=extra_user,
                 full_name=f"Student Extra {idx}",
-                national_id=f"STU-EX-{idx:03d}",
                 birthdate=date(2013, 1, 1),
                 grade="Grade 6",
                 guardian_name="Guardian Extra",
@@ -403,7 +401,7 @@ class StudentCreateContractTests(StudentTestSetup):
             format="json",
         )
         self.assertEqual(response.status_code, 201)
-        student = Student.objects.get(national_id="CT-OPT-1")
+        student = Student.objects.get(user__national_id="CT-OPT-1")
         self.assertEqual(student.bank_account_number, "123")
         self.assertEqual(student.health_status, "sick")
         self.assertEqual(student.skills.get("quran"), True)
@@ -479,7 +477,7 @@ class StudentBulkCreateTests(StudentTestSetup):
         data = response.data["data"]
         self.assertEqual(data["created_count"], 1)
         self.assertEqual(data["error_count"], 0)
-        student = Student.objects.get(national_id="BULK-001")
+        student = Student.objects.get(user__national_id="BULK-001")
         self.assertTrue(ParentStudentLink.objects.filter(student=student).exists())
         self.assertTrue(StudentCourse.objects.filter(student=student).exists())
 
@@ -508,7 +506,7 @@ class StudentBulkCreateTests(StudentTestSetup):
         )
         self.assertEqual(response.status_code, 201)
         self.assertTrue(
-            Student.objects.filter(national_id__startswith="NOID-").exists()
+            Student.objects.filter(user__national_id__startswith="NOID-").exists()
         )
 
     def test_teacher_auto_resolve_existing_by_name(self):
@@ -518,7 +516,7 @@ class StudentBulkCreateTests(StudentTestSetup):
             {"rows": [self._row(national_id="BULK-T1")]},
             format="json",
         )
-        student = Student.objects.get(national_id="BULK-T1")
+        student = Student.objects.get(user__national_id="BULK-T1")
         self.assertEqual(student.teacher, self.teacher_a)
 
     def test_teacher_auto_create_when_missing(self):
@@ -577,7 +575,7 @@ class StudentBulkCreateTests(StudentTestSetup):
             format="json",
         )
         self.assertEqual(response.status_code, 201)
-        student = Student.objects.get(national_id="BULK-SKILLS-1")
+        student = Student.objects.get(user__national_id="BULK-SKILLS-1")
         self.assertTrue(student.skills["quran"])
         self.assertTrue(student.skills["nasheed"])
         self.assertTrue(student.skills["other"])
@@ -587,7 +585,7 @@ class StudentBulkCreateTests(StudentTestSetup):
         alias_course = Course.objects.create(name="النوارنية", description="")
         placeholder_course = Course.objects.create(name="لايوجد", description="")
         existing_user = User.objects.create_user(
-            national_id="970590100080",
+            national_id="BULK-EXIST-1",
             phone_number="0599100080",
             password="secret123",
             role="student",
@@ -595,7 +593,6 @@ class StudentBulkCreateTests(StudentTestSetup):
         existing_student = Student.objects.create(
             user=existing_user,
             full_name="Existing Bulk Student",
-            national_id="BULK-EXIST-1",
             birthdate=date(1900, 1, 1),
             grade="غ. م",
             address="غ. م",

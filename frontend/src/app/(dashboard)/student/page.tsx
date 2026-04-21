@@ -1,9 +1,10 @@
 "use client";
 
 import { useAuth } from "@/contexts/AuthContext";
-import { useApi } from "@/hooks/useApi";
+import { useQuery } from "@/hooks/useApi";
 import { PageLoading } from "@/components/ui/LoadingSpinner";
-import type { StudentStats } from "@/types/api";
+import type { StudentWithTeacher } from "@/hooks/queries";
+import type { HistoryEntry, StudentStats, WeeklySummary } from "@/types/api";
 import {
     Award,
     BookOpen,
@@ -27,31 +28,7 @@ interface WeeklyRow {
     result: ResultKey;
 }
 
-interface WeeklySummaryResponse {
-    student_id: string;
-    student_name: string;
-    week_start: string;
-    week_number?: number;
-    total_required?: number;
-    total_achieved?: number;
-    completion_rate?: number;
-    days: WeeklyRow[];
-    message?: string;
-}
-
-interface HistoryRow {
-    id: number | string;
-    title: string;
-    date: string;
-    rating: "excellent" | "very_good" | "good" | "none";
-}
-
-interface StudentProfile {
-    full_name?: string;
-    grade?: string;
-    ring_name?: string;
-    teacher_name?: string;
-}
+type HistoryRow = HistoryEntry & { rating?: "excellent" | "very_good" | "good" | "none"; title?: string };
 
 /** Calculate the Saturday (week start) for a given date */
 function getSaturday(date: Date): string {
@@ -221,21 +198,26 @@ export default function StudentDashboard() {
 
     const studentProfileId = user?.student_profile?.id;
 
-    const { data: profile, isLoading: isProfileLoading } = useApi<StudentProfile>(
-        studentProfileId ? `/api/students/${studentProfileId}/` : null
+    const { data: profile, isLoading: isProfileLoading } = useQuery<StudentWithTeacher>(
+        studentProfileId ? "student" : null,
+        studentProfileId ? { id: studentProfileId } : undefined
     );
 
-    const { data: stats, isLoading: isStatsLoading } = useApi<StudentStats>(
-        studentProfileId ? `/api/students/${studentProfileId}/stats/` : null
+    const { data: stats, isLoading: isStatsLoading } = useQuery<StudentStats>(
+        studentProfileId ? "student_stats" : null,
+        studentProfileId ? { student_id: studentProfileId } : undefined
     );
 
-    const { data: weeklyPlan } = useApi<WeeklySummaryResponse>(
-        studentProfileId ? `/api/records/weekly-summary/${studentProfileId}/` : null,
-        { week_start: getSaturday(new Date()) }
+    const { data: weeklyPlan } = useQuery<WeeklySummary>(
+        studentProfileId ? "weekly_summary" : null,
+        studentProfileId
+            ? { student_id: studentProfileId, week_start: getSaturday(new Date()) }
+            : undefined
     );
 
-    const { data: history } = useApi<HistoryRow[]>(
-        studentProfileId ? `/api/students/${studentProfileId}/history/` : null
+    const { data: history } = useQuery<HistoryRow[]>(
+        studentProfileId ? "student_history" : null,
+        studentProfileId ? { student_id: studentProfileId } : undefined
     );
 
     if (isProfileLoading || isStatsLoading) {
@@ -250,7 +232,6 @@ export default function StudentDashboard() {
     const memorizationLevel = stats?.memorization_level || "-";
     const subtitleParts = [
         profile?.grade || "",
-        profile?.ring_name || "",
         profile?.teacher_name ? `الشيخ ${profile.teacher_name}` : "",
     ].filter(Boolean);
 
@@ -262,7 +243,14 @@ export default function StudentDashboard() {
     const currentGoal = stats?.current_goal || "لم يتم تحديد هدف بعد";
     const goalProgress = stats?.goal_progress ?? 0;
 
-    const planRows: WeeklyRow[] = weeklyPlan?.days?.length ? weeklyPlan.days : [];
+    const planRows: WeeklyRow[] = (weeklyPlan?.records ?? []).map((r) => ({
+        day: r.day ?? "",
+        attendance: (r.attendance ?? "upcoming") as Attendance,
+        required: String(r.required_verses ?? 0),
+        achieved: String(r.achieved_verses ?? 0),
+        evaluation: (r.quality ?? "none") as Quality,
+        result: "pending" as ResultKey,
+    }));
     const historyRows: HistoryRow[] = history?.length ? history : [];
 
     // Today's evaluation from stats
@@ -504,7 +492,7 @@ export default function StudentDashboard() {
                                         {item.date}
                                     </span>
                                 </div>
-                                <RatingPill value={item.rating} />
+                                <RatingPill value={item.rating ?? "none"} />
                             </div>
                         ))}
                     </div>

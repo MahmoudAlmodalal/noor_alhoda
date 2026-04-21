@@ -1,33 +1,14 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { Trash2, Save, Loader2 } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useMutation } from "@/hooks/useMutation";
-import { api } from "@/lib/api";
-import type { Course, Teacher } from "@/types/api";
-
-function useCoursesWhenOpen(isOpen: boolean) {
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    let cancelled = false;
-    setLoading(true);
-    (async () => {
-      const res = await api.get<Course[]>("/api/courses/");
-      if (cancelled) return;
-      if (res.success) setCourses(res.data);
-      setLoading(false);
-    })();
-    return () => { cancelled = true; };
-  }, [isOpen]);
-
-  return { courses, loading };
-}
+import { useQuery } from "@/hooks/useApi";
+import type { MutationResource } from "@/hooks/mutations";
+import type { CourseRecord, TeacherWithUser } from "@/hooks/queries";
 
 function CoursesCheckboxList({
   allCourses,
@@ -35,7 +16,7 @@ function CoursesCheckboxList({
   onToggle,
   loading,
 }: {
-  allCourses: Course[];
+  allCourses: CourseRecord[];
   selectedIds: string[];
   onToggle: (id: string) => void;
   loading: boolean;
@@ -69,10 +50,15 @@ function CoursesCheckboxList({
   );
 }
 
-/**
- * Add New Teacher Modal — إضافة محفظ جديد
- */
-export function AddTeacherModal({ isOpen, onClose, onSuccess }: { isOpen: boolean; onClose: () => void; onSuccess?: () => void }) {
+export function AddTeacherModal({
+  isOpen,
+  onClose,
+  onSuccess,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onSuccess?: () => void;
+}) {
   const [form, setForm] = useState({
     full_name: "",
     national_id: "",
@@ -83,8 +69,11 @@ export function AddTeacherModal({ isOpen, onClose, onSuccess }: { isOpen: boolea
     course_ids: [] as string[],
   });
 
-  const { courses: allCourses, loading: coursesLoading } = useCoursesWhenOpen(isOpen);
-  const { mutate, isSubmitting, fieldErrors, reset, error } = useMutation("post", "/api/users/teachers/create/");
+  const { data: coursesData, isLoading: coursesLoading } = useQuery<CourseRecord[]>(
+    isOpen ? "courses" : null
+  );
+  const allCourses = coursesData ?? [];
+  const { mutate, isSubmitting, error, reset } = useMutation("teacher", "create");
 
   const toggleCourse = (id: string) => {
     setForm((f) => ({
@@ -97,18 +86,20 @@ export function AddTeacherModal({ isOpen, onClose, onSuccess }: { isOpen: boolea
 
   const handleSubmit = async () => {
     const nameParts = form.full_name.trim().split(" ");
-    const result = await mutate({
-      national_id: form.national_id.trim(),
-      phone_number: form.phone_number,
-      first_name: nameParts[0] || "",
-      last_name: nameParts.slice(1).join(" ") || "",
-      full_name: form.full_name,
-      specialization: form.specialization,
-      affiliation: form.affiliation,
-      ring_name: form.ring_name,
-      course_ids: form.course_ids,
-    }, { successMessage: "تم إضافة المحفظ بنجاح" });
-
+    const result = await mutate(
+      {
+        national_id: form.national_id.trim(),
+        phone_number: form.phone_number,
+        first_name: nameParts[0] || "",
+        last_name: nameParts.slice(1).join(" ") || "",
+        full_name: form.full_name,
+        specialization: form.specialization,
+        affiliation: form.affiliation,
+        ring_name: form.ring_name,
+        course_ids: form.course_ids,
+      },
+      { successMessage: "تم إضافة المحفظ بنجاح" }
+    );
     if (result) {
       setForm({
         full_name: "",
@@ -132,17 +123,14 @@ export function AddTeacherModal({ isOpen, onClose, onSuccess }: { isOpen: boolea
         <div className="space-y-1.5">
           <label className="block text-sm font-bold text-slate-800">الاسم الرباعي</label>
           <Input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} aria-label="الاسم الرباعي" className="h-12 rounded-xl border-slate-200" />
-          {fieldErrors?.full_name && <p className="text-xs text-red-500">{fieldErrors.full_name}</p>}
         </div>
         <div className="space-y-1.5">
           <label className="block text-sm font-bold text-slate-800">رقم الهوية</label>
           <Input type="number" dir="ltr" value={form.national_id} onChange={(e) => setForm({ ...form, national_id: e.target.value })} aria-label="رقم الهوية" className="h-12 rounded-xl border-slate-200" />
-          {fieldErrors?.national_id && <p className="text-xs text-red-500">{fieldErrors.national_id}</p>}
         </div>
         <div className="space-y-1.5">
           <label className="block text-sm font-bold text-slate-800">رقم الجوال</label>
           <Input type="tel" dir="ltr" value={form.phone_number} onChange={(e) => setForm({ ...form, phone_number: e.target.value })} aria-label="رقم الجوال" className="h-12 rounded-xl border-slate-200" />
-          {fieldErrors?.phone_number && <p className="text-xs text-red-500">{fieldErrors.phone_number}</p>}
         </div>
         <div className="space-y-1.5">
           <label className="block text-sm font-bold text-slate-800">التخصص (اختياري)</label>
@@ -151,7 +139,6 @@ export function AddTeacherModal({ isOpen, onClose, onSuccess }: { isOpen: boolea
         <div className="space-y-1.5">
           <label className="block text-sm font-bold text-slate-800">اسم الحلقة</label>
           <Input value={form.ring_name} onChange={(e) => setForm({ ...form, ring_name: e.target.value })} aria-label="اسم الحلقة" className="h-12 rounded-xl border-slate-200" />
-          {fieldErrors?.ring_name && <p className="text-xs text-red-500">{fieldErrors.ring_name}</p>}
         </div>
         <div className="space-y-1.5">
           <label className="block text-sm font-bold text-slate-800">التباعية</label>
@@ -166,7 +153,6 @@ export function AddTeacherModal({ isOpen, onClose, onSuccess }: { isOpen: boolea
             <option value="awqaf">أوقاف</option>
             <option value="sheikh_tabaea">شيخ التباعية</option>
           </select>
-          {fieldErrors?.affiliation && <p className="text-xs text-red-500">{fieldErrors.affiliation}</p>}
         </div>
         <div className="space-y-1.5">
           <label className="block text-sm font-bold text-slate-800">الدورات</label>
@@ -176,13 +162,10 @@ export function AddTeacherModal({ isOpen, onClose, onSuccess }: { isOpen: boolea
             onToggle={toggleCourse}
             loading={coursesLoading}
           />
-          {fieldErrors?.course_ids && <p className="text-xs text-red-500">{fieldErrors.course_ids}</p>}
         </div>
       </div>
 
-      {error && !fieldErrors && (
-        <p className="text-sm text-red-500 mb-4">{error}</p>
-      )}
+      {error && <p className="text-sm text-red-500 mb-4">{error}</p>}
 
       <div className="flex items-center gap-3">
         <Button variant="ghost" onClick={onClose} className="flex-1 bg-slate-100/80 text-slate-700 hover:bg-slate-200 h-12 rounded-xl font-bold">
@@ -198,21 +181,32 @@ export function AddTeacherModal({ isOpen, onClose, onSuccess }: { isOpen: boolea
 }
 
 /**
- * 3. Confirm Deletion Modal — تأكيد الحذف
+ * Generic delete-confirmation modal. Takes a resource + id — the mutation
+ * hook enqueues the delete op in the outbox so the flow works offline.
  */
 export function ConfirmDeleteModal({
-  isOpen, onClose, targetName, deleteEndpoint, onSuccess,
+  isOpen,
+  onClose,
+  targetName,
+  resource,
+  targetId,
+  onSuccess,
 }: {
-  isOpen: boolean; onClose: () => void; targetName: string; deleteEndpoint?: string; onSuccess?: () => void;
+  isOpen: boolean;
+  onClose: () => void;
+  targetName: string;
+  resource: MutationResource;
+  targetId: string;
+  onSuccess?: () => void;
 }) {
-  const { mutate, isSubmitting, error } = useMutation("delete");
+  const { mutate, isSubmitting, error } = useMutation(resource, "delete");
 
   const handleDelete = async () => {
-    if (!deleteEndpoint) return;
-    const result = await mutate(undefined, {
-      endpoint: deleteEndpoint,
-      successMessage: "تم الحذف بنجاح",
-    });
+    if (!targetId) return;
+    const result = await mutate(
+      { id: targetId },
+      { successMessage: "تم الحذف بنجاح" }
+    );
     if (result !== null) {
       onSuccess?.();
     }
@@ -228,9 +222,7 @@ export function ConfirmDeleteModal({
         هل أنت متأكد من حذف <br /> <span className="font-bold text-primary">{targetName}</span>؟
       </p>
 
-      {error && (
-        <p className="text-sm text-red-500 mb-4">{error}</p>
-      )}
+      {error && <p className="text-sm text-red-500 mb-4">{error}</p>}
 
       <div className="flex items-center gap-3">
         <Button variant="ghost" onClick={onClose} disabled={isSubmitting} className="flex-1 bg-slate-100/80 text-slate-700 hover:bg-slate-200 h-14 rounded-2xl font-bold text-lg">
@@ -245,13 +237,16 @@ export function ConfirmDeleteModal({
   );
 }
 
-/**
- * 4. Edit Teacher Data Modal — تعديل بيانات المحفظ
- */
 export function EditTeacherModal({
-  isOpen, onClose, teacher, onSuccess,
+  isOpen,
+  onClose,
+  teacher,
+  onSuccess,
 }: {
-  isOpen: boolean; onClose: () => void; teacher: Teacher; onSuccess?: () => void;
+  isOpen: boolean;
+  onClose: () => void;
+  teacher: TeacherWithUser;
+  onSuccess?: () => void;
 }) {
   const [form, setForm] = useState({
     full_name: teacher.full_name,
@@ -260,11 +255,14 @@ export function EditTeacherModal({
     specialization: teacher.specialization || "",
     affiliation: teacher.affiliation || "",
     ring_name: teacher.ring_name ?? "",
-    course_ids: teacher.courses?.map((c) => c.id) ?? [],
+    course_ids: [] as string[],
   });
 
-  const { courses: allCourses, loading: coursesLoading } = useCoursesWhenOpen(isOpen);
-  const { mutate, isSubmitting, fieldErrors, error } = useMutation("patch");
+  const { data: coursesData, isLoading: coursesLoading } = useQuery<CourseRecord[]>(
+    isOpen ? "courses" : null
+  );
+  const allCourses = coursesData ?? [];
+  const { mutate, isSubmitting, error } = useMutation("teacher", "update");
 
   const toggleCourse = (id: string) => {
     setForm((f) => ({
@@ -278,17 +276,18 @@ export function EditTeacherModal({
   const handleSubmit = async () => {
     const nameParts = form.full_name.trim().split(" ");
     const payload: Record<string, unknown> = {
+      id: teacher.id,
       first_name: nameParts[0] || "",
       last_name: nameParts.slice(1).join(" ") || "",
       phone_number: form.phone_number,
       national_id: form.national_id.trim(),
+      full_name: form.full_name,
       specialization: form.specialization,
       affiliation: form.affiliation,
       ring_name: form.ring_name,
       course_ids: form.course_ids,
     };
     const result = await mutate(payload, {
-      endpoint: `/api/users/${teacher.user_id}/`,
       successMessage: "تم تحديث بيانات المحفظ بنجاح",
     });
     if (result) {
@@ -304,17 +303,14 @@ export function EditTeacherModal({
         <div className="space-y-1.5">
           <label className="block text-sm font-bold text-slate-800">الاسم الرباعي</label>
           <Input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} aria-label="الاسم الرباعي" className="h-12 rounded-xl border-slate-200 font-medium" />
-          {fieldErrors?.full_name && <p className="text-xs text-red-500">{fieldErrors.full_name}</p>}
         </div>
         <div className="space-y-1.5">
           <label className="block text-sm font-bold text-slate-800">رقم الهوية</label>
           <Input type="number" dir="ltr" value={form.national_id} onChange={(e) => setForm({ ...form, national_id: e.target.value })} aria-label="رقم الهوية" className="h-12 rounded-xl border-slate-200 font-medium" />
-          {fieldErrors?.national_id && <p className="text-xs text-red-500">{fieldErrors.national_id}</p>}
         </div>
         <div className="space-y-1.5">
           <label className="block text-sm font-bold text-slate-800">رقم الجوال</label>
           <Input type="tel" dir="ltr" value={form.phone_number} onChange={(e) => setForm({ ...form, phone_number: e.target.value })} aria-label="رقم الجوال" className="h-12 rounded-xl border-slate-200 font-medium" />
-          {fieldErrors?.phone_number && <p className="text-xs text-red-500">{fieldErrors.phone_number}</p>}
         </div>
         <div className="space-y-1.5">
           <label className="block text-sm font-bold text-slate-800">التخصص</label>
@@ -323,7 +319,6 @@ export function EditTeacherModal({
         <div className="space-y-1.5">
           <label className="block text-sm font-bold text-slate-800">اسم الحلقة</label>
           <Input value={form.ring_name} onChange={(e) => setForm({ ...form, ring_name: e.target.value })} aria-label="اسم الحلقة" className="h-12 rounded-xl border-slate-200 font-medium" />
-          {fieldErrors?.ring_name && <p className="text-xs text-red-500">{fieldErrors.ring_name}</p>}
         </div>
         <div className="space-y-1.5">
           <label className="block text-sm font-bold text-slate-800">التباعية</label>
@@ -338,7 +333,6 @@ export function EditTeacherModal({
             <option value="awqaf">أوقاف</option>
             <option value="sheikh_tabaea">شيخ التباعية</option>
           </select>
-          {fieldErrors?.affiliation && <p className="text-xs text-red-500">{fieldErrors.affiliation}</p>}
         </div>
         <div className="space-y-1.5">
           <label className="block text-sm font-bold text-slate-800">الدورات</label>
@@ -348,13 +342,10 @@ export function EditTeacherModal({
             onToggle={toggleCourse}
             loading={coursesLoading}
           />
-          {fieldErrors?.course_ids && <p className="text-xs text-red-500">{fieldErrors.course_ids}</p>}
         </div>
       </div>
 
-      {error && !fieldErrors && (
-        <p className="text-sm text-red-500 mb-4">{error}</p>
-      )}
+      {error && <p className="text-sm text-red-500 mb-4">{error}</p>}
 
       <div className="flex items-center gap-3">
         <Button variant="ghost" onClick={onClose} className="flex-1 bg-slate-100/80 text-slate-700 hover:bg-slate-200 h-12 rounded-xl font-bold">

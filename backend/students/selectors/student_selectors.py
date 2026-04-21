@@ -1,4 +1,4 @@
-from django.db.models import QuerySet, Q, Sum
+from django.db.models import QuerySet, Q, Sum, Count
 from django.shortcuts import get_object_or_404
 from rest_framework.exceptions import PermissionDenied
 
@@ -36,7 +36,11 @@ def student_list(*, filters: dict, user: User) -> QuerySet[Student]:
     Return filtered student list with role-based access.
     FR-11: Row-Level Security.
     """
-    qs = Student.objects.select_related("user", "teacher").all()
+    qs = (
+        Student.objects.select_related("user", "teacher")
+        .prefetch_related("teacher__courses")
+        .all()
+    )
 
     # Role-based filtering
     if user.role == "teacher" and hasattr(user, "teacher_profile"):
@@ -68,7 +72,7 @@ def student_list(*, filters: dict, user: User) -> QuerySet[Student]:
     if search:
         qs = qs.filter(
             Q(full_name__icontains=search)
-            | Q(national_id__icontains=search)
+            | Q(user__national_id__icontains=search)
         )
 
     return qs
@@ -77,7 +81,9 @@ def student_list(*, filters: dict, user: User) -> QuerySet[Student]:
 def student_get(*, student_id, actor: User) -> Student:
     """Get a single student with permission check."""
     student = get_object_or_404(
-        Student.objects.select_related("user", "teacher"),
+        Student.objects.select_related("user", "teacher").prefetch_related(
+            "teacher__courses"
+        ),
         id=student_id,
     )
     if not can_access_student(actor=actor, student=student):
@@ -99,8 +105,8 @@ def student_history(*, student_id, actor: User) -> list:
 
     history = []
     for plan in plans:
-        records = plan.daily_records.all().order_by("-date")
-        last_record = records.first()
+        records = sorted(plan.daily_records.all(), key=lambda r: r.date, reverse=True)
+        last_record = records[0] if records else None
 
         # Build a meaningful title from the surah name
         title = f"الأسبوع {plan.week_number}"
@@ -141,17 +147,17 @@ def student_stats(*, student_id, actor: User) -> dict:
 
     student = student_get(student_id=student_id, actor=actor)
 
-    # Attendance stats
-    all_records = DailyRecord.objects.filter(
-        weekly_plan__student=student
+    # Attendance stats — single round-trip via conditional aggregation.
+    all_records = DailyRecord.objects.filter(weekly_plan__student=student)
+
+    attendance_totals = all_records.aggregate(
+        total=Count("id"),
+        present=Count("id", filter=Q(attendance__in=["present", "late"])),
+        absent=Count("id", filter=Q(attendance="absent")),
     )
-    total_records = all_records.count()
-
-    present_records = all_records.filter(
-        attendance__in=["present", "late"],
-    ).count()
-
-    absent_records = all_records.filter(attendance="absent").count()
+    total_records = attendance_totals["total"]
+    present_records = attendance_totals["present"]
+    absent_records = attendance_totals["absent"]
 
     attendance_rate = (present_records / total_records * 100) if total_records > 0 else 0
 

@@ -1,40 +1,16 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense } from "react";
+import { useRouter } from "next/navigation";
 import { Trophy, Medal } from "lucide-react";
 import { PageLoading } from "@/components/ui/LoadingSpinner";
-import { useApi } from "@/hooks/useApi";
+import { useQuery } from "@/hooks/useApi";
 import type { LeaderboardEntry } from "@/types/api";
-
-const MONTHS_AR = [
-  "يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو",
-  "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر",
-];
 
 function LeaderboardContent() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const now = new Date();
-  const [month, setMonth] = useState<number>(
-    Number(searchParams.get("month")) || now.getMonth() + 1
-  );
-  const [year, setYear] = useState<number>(
-    Number(searchParams.get("year")) || now.getFullYear()
-  );
 
-  const { data, isLoading, refetch } = useApi<LeaderboardEntry[]>(
-    "/api/reports/leaderboard/",
-    { month: String(month), year: String(year) }
-  );
-
-  useEffect(() => {
-    refetch({ month: String(month), year: String(year) });
-    const params = new URLSearchParams();
-    params.set("month", String(month));
-    params.set("year", String(year));
-    router.replace(`/leaderboard?${params.toString()}`);
-  }, [month, year, refetch, router]);
+  const { data, isLoading } = useQuery<LeaderboardEntry[]>("leaderboard");
 
   const entries = data ?? [];
   const top3 = entries.slice(0, 3);
@@ -48,28 +24,7 @@ function LeaderboardContent() {
         </div>
         <div className="flex-1">
           <h1 className="text-xl font-bold text-primary">لوحة الشرف</h1>
-          <p className="text-xs text-slate-500">المتميزون شهرياً</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <select
-            value={month}
-            onChange={(e) => setMonth(Number(e.target.value))}
-            className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-          >
-            {MONTHS_AR.map((m, i) => (
-              <option key={i + 1} value={i + 1}>{m}</option>
-            ))}
-          </select>
-          <select
-            value={year}
-            onChange={(e) => setYear(Number(e.target.value))}
-            className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-          >
-            {Array.from({ length: 6 }).map((_, i) => {
-              const y = now.getFullYear() - i;
-              return <option key={y} value={y}>{y}</option>;
-            })}
-          </select>
+          <p className="text-xs text-slate-500">المتميزون هذا الأسبوع</p>
         </div>
       </div>
 
@@ -77,7 +32,7 @@ function LeaderboardContent() {
         <PageLoading />
       ) : entries.length === 0 ? (
         <div className="bg-white rounded-2xl p-12 text-center border border-slate-100">
-          <p className="text-sm text-slate-400">لا توجد بيانات لهذا الشهر</p>
+          <p className="text-sm text-slate-400">لا توجد بيانات</p>
         </div>
       ) : (
         <>

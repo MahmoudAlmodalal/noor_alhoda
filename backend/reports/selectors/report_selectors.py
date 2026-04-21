@@ -1,10 +1,21 @@
-from django.db.models import Sum, Count, Avg, Q
+from django.db.models import Sum, Count, Avg, Q, QuerySet
 from django.utils import timezone
 from rest_framework.exceptions import PermissionDenied
 
 from students.models import Student
 from records.models import DailyRecord, WeeklyPlan
-from accounts.models import Teacher, User
+from accounts.models import User
+from teacher.models import Teacher
+
+
+def student_for_report(*, student_id) -> Student:
+    """Fetch a student (with related user + teacher) for PDF generation."""
+    return Student.objects.select_related("user", "teacher").get(id=student_id)
+
+
+def weekly_plans_for_report(*, student: Student, limit: int = 12) -> QuerySet[WeeklyPlan]:
+    """Most recent `limit` weekly plans for a student, newest first."""
+    return WeeklyPlan.objects.filter(student=student).order_by("-week_start")[:limit]
 
 
 def dashboard_data(*, admin_user) -> dict:

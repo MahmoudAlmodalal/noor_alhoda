@@ -40,6 +40,11 @@ def user_get_me(*, user: User) -> dict:
             "session_days": teacher.session_days,
             "max_students": teacher.max_students,
             "affiliation": teacher.affiliation,
+            "ring_name": teacher.ring_name,
+            "courses": [
+                {"id": str(c.id), "name": c.name}
+                for c in teacher.courses.all()
+            ],
         }
 
     elif role == "parent" and hasattr(user, "parent_profile"):

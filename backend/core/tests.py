@@ -1,7 +1,8 @@
 from django.core.management import call_command
 from django.test import TestCase
 
-from accounts.models import OTPCode, ParentStudentLink, Teacher, User
+from accounts.models import OTPCode, ParentStudentLink, User
+from teacher.models import Teacher
 from courses.models import Course, StudentCourse
 from notifications.models import Notification
 from records.models import DailyRecord, WeeklyPlan

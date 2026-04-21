@@ -4,14 +4,23 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { BarChart3 } from "lucide-react";
 import { PageLoading } from "@/components/ui/LoadingSpinner";
-import { useApi } from "@/hooks/useApi";
+import { useQuery } from "@/hooks/useApi";
 import { useAuth } from "@/contexts/AuthContext";
-import type { AttendanceReport, Teacher } from "@/types/api";
+import type { TeacherWithUser } from "@/hooks/queries";
+import type { AttendanceReport } from "@/types/api";
 
 const MONTHS_AR = [
   "يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو",
   "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر",
 ];
+
+function firstOfMonthIso(year: number, month: number): string {
+  return new Date(Date.UTC(year, month - 1, 1)).toISOString().slice(0, 10);
+}
+
+function lastOfMonthIso(year: number, month: number): string {
+  return new Date(Date.UTC(year, month, 0)).toISOString().slice(0, 10);
+}
 
 function ReportContent() {
   const router = useRouter();
@@ -28,33 +37,30 @@ function ReportContent() {
     Number(searchParams.get("year")) || now.getFullYear()
   );
   const [teacherId, setTeacherId] = useState<string>(
-    searchParams.get("teacher") || (user?.role === "teacher" && teacherProfileId ? teacherProfileId : "")
+    searchParams.get("teacher") ||
+      (user?.role === "teacher" && teacherProfileId ? teacherProfileId : "")
   );
 
-  const { data: teachers } = useApi<Teacher[]>(isAdmin ? "/api/users/teachers/" : null);
+  const { data: teachers } = useQuery<TeacherWithUser[]>(isAdmin ? "teachers" : null);
 
   const params = useMemo<Record<string, string | undefined>>(
     () => ({
-      month: String(month),
-      year: String(year),
-      teacher: teacherId || undefined,
+      from: firstOfMonthIso(year, month),
+      to: lastOfMonthIso(year, month),
+      teacher_id: teacherId || undefined,
     }),
     [month, year, teacherId]
   );
 
-  const { data, isLoading, refetch } = useApi<AttendanceReport>(
-    "/api/reports/attendance/",
-    params
-  );
+  const { data, isLoading } = useQuery<AttendanceReport>("attendance_report", params);
 
   useEffect(() => {
-    refetch(params);
     const qs = new URLSearchParams();
     qs.set("month", String(month));
     qs.set("year", String(year));
     if (teacherId) qs.set("teacher", teacherId);
     router.replace(`/reports/attendance?${qs.toString()}`);
-  }, [params, refetch, router, month, year, teacherId]);
+  }, [router, month, year, teacherId]);
 
   const rows = data?.students ?? [];
 

@@ -5,15 +5,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Search } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
 import { useDebounce } from "@/hooks/useDebounce";
-import { useApi } from "@/hooks/useApi";
+import { useQuery } from "@/hooks/useApi";
+import type { CourseRecord, TeacherWithUser } from "@/hooks/queries";
 import { api } from "@/lib/api";
 import type {
   BulkStudentImportResult,
-  Course,
   PaginatedData,
   Student,
   StudentSkills,
-  Teacher,
 } from "@/types/api";
 
 const PAGE_SIZE = 25;
@@ -304,8 +303,8 @@ export default function StudentsDbPage() {
   const [xlsxReady, setXlsxReady] = useState(false);
 
   const debouncedSearch = useDebounce(search);
-  const { data: teachers } = useApi<Teacher[]>("/api/users/teachers/");
-  const { data: courses } = useApi<Course[]>("/api/courses/");
+  const { data: teachers } = useQuery<TeacherWithUser[]>("teachers");
+  const { data: courses } = useQuery<CourseRecord[]>("courses");
 
   const fetchStudents = useCallback(
     async (pageToLoad = page) => {

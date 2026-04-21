@@ -1,77 +1,28 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { BookOpen, GraduationCap, PlusCircle } from "lucide-react";
 import { PageLoading } from "@/components/ui/LoadingSpinner";
-import { useApi } from "@/hooks/useApi";
-import { useAuth } from "@/contexts/AuthContext";
+import { useQuery } from "@/hooks/useApi";
 import { WeeklyPlanModal } from "@/components/plans/WeeklyPlanModal";
 import { EvaluationCreateModal } from "@/components/modals/EvaluationCreateModal";
 import { ReviewIntervalInput } from "@/components/plans/ReviewIntervalInput";
-import { api } from "@/lib/api";
-import type { WeeklyPlan } from "@/types/api";
-
-interface StudentInterval {
-    id: string;
-    review_interval_days: number;
-}
-
-function currentWeekSaturday(): string {
-  const d = new Date();
-  const weekday = d.getDay(); // 0=Sun
-  const daysSinceSat = (weekday + 1) % 7;
-  d.setDate(d.getDate() - daysSinceSat);
-  return d.toISOString().slice(0, 10);
-}
+import type { PlanForList } from "@/lib/db/repos/aggregates";
 
 export default function PlansPage() {
-  const { user } = useAuth();
   const [planModalOpen, setPlanModalOpen] = useState(false);
   const [weekFilter, setWeekFilter] = useState<string>("");
   const [evalTarget, setEvalTarget] = useState<{ id: string; name: string } | null>(null);
-  const [intervals, setIntervals] = useState<Record<string, number>>({});
 
   const params = useMemo<Record<string, string | undefined>>(
     () => ({ week_start: weekFilter || undefined }),
     [weekFilter]
   );
 
-  const { data: plans, isLoading, refetch } = useApi<WeeklyPlan[]>(
-    "/api/records/weekly-plans/",
-    params
-  );
-
-  useEffect(() => {
-    refetch(params);
-  }, [params, refetch]);
-
-  useEffect(() => {
-    if (!plans) return;
-    const missing = plans
-      .map((p) => p.student_id)
-      .filter((id): id is string => !!id && !(id in intervals));
-    if (missing.length === 0) return;
-    const unique = Array.from(new Set(missing));
-    (async () => {
-      const entries = await Promise.all(
-        unique.map(async (id) => {
-          const res = await api.get<StudentInterval>(`/api/students/${id}/`);
-          return res.success ? [id, res.data.review_interval_days ?? 14] as const : null;
-        })
-      );
-      setIntervals((prev) => {
-        const next = { ...prev };
-        entries.forEach((e) => {
-          if (e) next[e[0]] = e[1];
-        });
-        return next;
-      });
-    })();
-  }, [plans, intervals]);
+  const { data: plans, isLoading } = useQuery<PlanForList[]>("plans_for_ui", params);
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto pb-10">
-      {/* Header */}
       <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
         <div className="flex items-center gap-3 mb-4">
           <div className="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center">
@@ -115,7 +66,6 @@ export default function PlansPage() {
         </div>
       </div>
 
-      {/* Summary Stats */}
       {plans && plans.length > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <SummaryCard label="عدد الخطط" value={plans.length} />
@@ -130,13 +80,12 @@ export default function PlansPage() {
           <SummaryCard
             label="متوسط الإنجاز"
             value={`${Math.round(
-              plans.reduce((s, p) => s + (p.completion_rate ?? 0), 0) / plans.length
+              plans.reduce((s, p) => s + p.completion_rate, 0) / plans.length
             )}%`}
           />
         </div>
       )}
 
-      {/* Plans Table */}
       {isLoading && !plans ? (
         <PageLoading />
       ) : (plans ?? []).length === 0 ? (
@@ -163,11 +112,7 @@ export default function PlansPage() {
               </thead>
               <tbody>
                 {(plans ?? []).map((plan) => {
-                  const rate = plan.completion_rate ?? (plan.total_required > 0
-                    ? Math.round((plan.total_achieved / plan.total_required) * 100)
-                    : 0);
-                  const studentId = plan.student_id;
-                  const intervalDays = studentId ? intervals[studentId] : undefined;
+                  const rate = plan.completion_rate;
                   return (
                     <tr key={plan.id} className="border-b border-slate-50 hover:bg-slate-50/50">
                       <td className="px-4 py-3">
@@ -204,31 +149,22 @@ export default function PlansPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-center">
-                        {studentId && intervalDays !== undefined ? (
-                          <ReviewIntervalInput
-                            studentId={studentId}
-                            initialDays={intervalDays}
-                            onSaved={(days) =>
-                              setIntervals((prev) => ({ ...prev, [studentId]: days }))
-                            }
-                          />
-                        ) : (
-                          <span className="text-xs text-slate-400">—</span>
-                        )}
+                        <ReviewIntervalInput
+                          studentId={plan.student_id}
+                          initialDays={plan.review_interval_days}
+                        />
                       </td>
                       <td className="px-4 py-3 text-center">
-                        {studentId && (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setEvalTarget({ id: studentId, name: plan.student_name ?? "" })
-                            }
-                            className="inline-flex items-center gap-1 rounded-[10px] border border-primary/30 px-2.5 py-1 text-[11px] font-bold text-primary hover:bg-primary/5"
-                          >
-                            <GraduationCap className="h-3.5 w-3.5" />
-                            اختبار
-                          </button>
-                        )}
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setEvalTarget({ id: plan.student_id, name: plan.student_name })
+                          }
+                          className="inline-flex items-center gap-1 rounded-[10px] border border-primary/30 px-2.5 py-1 text-[11px] font-bold text-primary hover:bg-primary/5"
+                        >
+                          <GraduationCap className="h-3.5 w-3.5" />
+                          اختبار
+                        </button>
                       </td>
                     </tr>
                   );
@@ -242,7 +178,6 @@ export default function PlansPage() {
       <WeeklyPlanModal
         isOpen={planModalOpen}
         onClose={() => setPlanModalOpen(false)}
-        onCreated={() => refetch(params)}
       />
 
       {evalTarget && (

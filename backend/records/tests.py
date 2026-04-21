@@ -7,7 +7,8 @@ from datetime import date, timedelta
 from django.utils import timezone
 from rest_framework.test import APITestCase
 
-from accounts.models import Parent, ParentStudentLink, Teacher, User
+from accounts.models import Parent, ParentStudentLink, User
+from teacher.models import Teacher
 from notifications.models import Notification
 from records.models import DailyRecord, WeeklyPlan
 from students.models import Student
@@ -59,7 +60,7 @@ class RecordTestSetup(APITestCase):
         )
         self.student = Student.objects.create(
             user=self.student_user, full_name="Student Rec",
-            national_id="REC-001", birthdate=date(2012, 1, 1),
+            birthdate=date(2012, 1, 1),
             grade="Grade 7", teacher=self.teacher,
         )
         ParentStudentLink.objects.create(parent=self.parent, student=self.student)
@@ -72,7 +73,7 @@ class RecordTestSetup(APITestCase):
         )
         self.student2 = Student.objects.create(
             user=self.student2_user, full_name="Student 2 Rec",
-            national_id="REC-002", birthdate=date(2012, 2, 2),
+            birthdate=date(2012, 2, 2),
             grade="Grade 8", teacher=self.teacher2,
         )
 
@@ -524,7 +525,6 @@ class WeeklySummaryTests(RecordTestSetup):
                 role="student",
             ),
             full_name="Plain",
-            national_id="REC-099",
             birthdate=date(2012, 1, 1),
             grade="G5",
             teacher=self.teacher,

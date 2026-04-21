@@ -5,7 +5,9 @@ import { Loader2, Send } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { useMutation } from "@/hooks/useMutation";
+import { api } from "@/lib/api";
+import { useToast } from "@/contexts/ToastContext";
+import { pullSync } from "@/lib/sync/pull";
 import type { AnnounceRequest } from "@/types/api";
 
 type Audience = "all" | "teachers" | "parents" | "students";
@@ -16,6 +18,12 @@ const AUDIENCE_TO_ROLES: Record<Exclude<Audience, "all">, AnnounceRequest["targe
   students: ["student"],
 };
 
+/**
+ * Broadcast announcement. This is a server-side fan-out (1 request creates
+ * N notifications), so it's kept as a direct online POST rather than
+ * routed through the per-record outbox. After success we trigger a pull so
+ * the created notifications appear in the local DB without a page reload.
+ */
 export function AnnounceModal({
   isOpen,
   onClose,
@@ -28,25 +36,32 @@ export function AnnounceModal({
   const [audience, setAudience] = useState<Audience>("all");
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
-  const { mutate, isSubmitting, fieldErrors, error } = useMutation(
-    "post",
-    "/api/notifications/announce/"
-  );
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const { showToast } = useToast();
 
   const handleSubmit = async () => {
+    setIsSubmitting(true);
+    setError(null);
     const payload: AnnounceRequest = {
       title,
       body,
       ...(audience === "all" ? {} : { target_roles: AUDIENCE_TO_ROLES[audience] }),
     };
-    const result = await mutate(payload, { successMessage: "تم إرسال الإعلان" });
-    if (result !== null) {
-      setTitle("");
-      setBody("");
-      setAudience("all");
-      onSent?.();
-      onClose();
+    const res = await api.post("/api/notifications/announce/", payload);
+    setIsSubmitting(false);
+    if (!res.success) {
+      setError(res.error.message);
+      showToast(res.error.message, "error");
+      return;
     }
+    showToast("تم إرسال الإعلان", "success");
+    setTitle("");
+    setBody("");
+    setAudience("all");
+    void pullSync();
+    onSent?.();
+    onClose();
   };
 
   return (
@@ -77,9 +92,6 @@ export function AnnounceModal({
             aria-label="عنوان الإعلان"
             className="h-12 rounded-xl border-slate-200"
           />
-          {fieldErrors?.title && (
-            <p className="text-xs text-red-500">{fieldErrors.title}</p>
-          )}
         </div>
 
         <div className="space-y-1.5">
@@ -91,14 +103,9 @@ export function AnnounceModal({
             rows={4}
             className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 resize-none"
           />
-          {fieldErrors?.body && (
-            <p className="text-xs text-red-500">{fieldErrors.body}</p>
-          )}
         </div>
 
-        {error && !fieldErrors && (
-          <p className="text-sm text-red-500">{error}</p>
-        )}
+        {error && <p className="text-sm text-red-500">{error}</p>}
       </div>
 
       <div className="flex items-center gap-3">

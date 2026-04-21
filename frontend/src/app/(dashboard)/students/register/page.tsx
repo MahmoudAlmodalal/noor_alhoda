@@ -6,7 +6,8 @@ import { Printer, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { useMutation } from "@/hooks/useMutation";
-import { useApi } from "@/hooks/useApi";
+import { useQuery } from "@/hooks/useApi";
+import type { CourseRecord, TeacherWithUser } from "@/hooks/queries";
 import type { CreateStudentRequest } from "@/types/api";
 import { RoleGate } from "@/components/auth/RoleGate";
 
@@ -128,7 +129,8 @@ function CheckboxItem({ label, checked, onChange }: { label: string; checked: bo
 
 function StudentRegistrationInner() {
   const router = useRouter();
-  const { mutate, isSubmitting, fieldErrors } = useMutation("post", "/api/students/create/");
+  const { mutate, isSubmitting } = useMutation("student", "create");
+  const fieldErrors: Record<string, string | string[]> | null = null;
 
   const [form, setForm] = useState({
     national_id: "",
@@ -165,8 +167,8 @@ function StudentRegistrationInner() {
   const [selectedCourses, setSelectedCourses] = useState<string[]>([]);
   const [bankAccountType, setBankAccountType] = useState("");
 
-  const { data: teachers } = useApi<{ id: string; full_name: string }[]>("/api/users/teachers/");
-  const { data: courses } = useApi<{ id: string; name: string }[]>("/api/courses/");
+  const { data: teachers } = useQuery<TeacherWithUser[]>("teachers");
+  const { data: courses } = useQuery<CourseRecord[]>("courses");
 
   const handleChange = (name: string, value: string) => {
     setForm((prev) => ({ ...prev, [name]: value }));
@@ -200,7 +202,7 @@ function StudentRegistrationInner() {
     };
 
     const defaultPassword = form.phone_number.slice(-4);
-    const result = await mutate(body, { successMessage: `تم تسجيل الطالب بنجاح. كلمة المرور الافتراضية: ${defaultPassword}` });
+    const result = await mutate(body as unknown as Record<string, unknown>, { successMessage: `تم تسجيل الطالب بنجاح. كلمة المرور الافتراضية: ${defaultPassword}` });
     if (result) {
       router.push("/students");
     }

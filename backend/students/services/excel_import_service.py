@@ -7,8 +7,10 @@ import re
 from django.db import transaction
 from rest_framework.exceptions import PermissionDenied
 
-from accounts.models import Parent, ParentStudentLink, Teacher, User
-from accounts.services.user_services import teacher_create, user_create
+from accounts.models import Parent, ParentStudentLink, User
+from teacher.models import Teacher
+from accounts.services.user_services import user_create
+from teacher.services.teacher_services import teacher_create
 from accounts.utils import normalize_phone
 from core.permissions import is_admin_user
 from courses.models import Course, StudentCourse
@@ -705,7 +707,7 @@ def excel_bulk_import(*, creator: User, rows: list) -> dict:
                          raise ValueError("اسم الطالب مطلوب.")
 
                 student = Student.objects.select_related("user", "teacher").filter(
-                    national_id=row["national_id"]
+                    user__national_id=row["national_id"]
                 ).first()
 
                 if student is None:

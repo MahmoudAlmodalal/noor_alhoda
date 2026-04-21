@@ -5,18 +5,18 @@ import { BookMarked, Edit, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
 import { PageLoading } from "@/components/ui/LoadingSpinner";
-import { useApi } from "@/hooks/useApi";
+import { useQuery } from "@/hooks/useApi";
 import { AddCourseModal, EditCourseModal } from "@/components/modals/CourseModals";
 import { ConfirmDeleteModal } from "@/components/modals/TeacherModals";
 import { RoleGate } from "@/components/auth/RoleGate";
-import type { Course } from "@/types/api";
+import type { CourseRecord } from "@/hooks/queries";
 
 function CoursesPageInner() {
-  const { data: courses, isLoading, refetch } = useApi<Course[]>("/api/courses/");
+  const { data: courses, isLoading } = useQuery<CourseRecord[]>("courses");
 
   const [showAdd, setShowAdd] = useState(false);
-  const [editCourse, setEditCourse] = useState<Course | null>(null);
-  const [deleteCourse, setDeleteCourse] = useState<Course | null>(null);
+  const [editCourse, setEditCourse] = useState<CourseRecord | null>(null);
+  const [deleteCourse, setDeleteCourse] = useState<CourseRecord | null>(null);
 
   if (isLoading && !courses) return <PageLoading />;
 
@@ -24,13 +24,11 @@ function CoursesPageInner() {
 
   return (
     <div className="space-y-6 max-w-lg mx-auto pb-10">
-      {/* Header */}
       <div className="text-center space-y-1 mb-6">
         <h1 className="text-2xl font-bold text-primary">إدارة الدورات</h1>
         <p className="text-sm text-slate-500">إنشاء وتعديل الدورات التدريبية</p>
       </div>
 
-      {/* Toolbar */}
       <Button
         onClick={() => setShowAdd(true)}
         className="w-full h-14 rounded-2xl gap-2 font-bold text-base shadow-md shadow-primary/20"
@@ -39,7 +37,6 @@ function CoursesPageInner() {
         <Plus className="w-5 h-5" />
       </Button>
 
-      {/* Courses List */}
       <div className="space-y-4">
         {list.length === 0 ? (
           <div className="text-center py-12">
@@ -63,9 +60,11 @@ function CoursesPageInner() {
                         {course.description}
                       </p>
                     )}
-                    <p className="text-[11px] text-slate-400 mt-2" dir="ltr">
-                      {new Date(course.created_at).toLocaleDateString("ar-EG")}
-                    </p>
+                    {course.created_at && (
+                      <p className="text-[11px] text-slate-400 mt-2" dir="ltr">
+                        {new Date(course.created_at).toLocaleDateString("ar-EG")}
+                      </p>
+                    )}
                   </div>
                   <div className="bg-[#eef3f8] w-12 h-12 rounded-full flex items-center justify-center shrink-0">
                     <BookMarked className="w-6 h-6 text-primary" />
@@ -98,14 +97,10 @@ function CoursesPageInner() {
         )}
       </div>
 
-      {/* Modals */}
       <AddCourseModal
         isOpen={showAdd}
         onClose={() => setShowAdd(false)}
-        onSuccess={() => {
-          setShowAdd(false);
-          refetch();
-        }}
+        onSuccess={() => setShowAdd(false)}
       />
 
       {editCourse && (
@@ -113,10 +108,7 @@ function CoursesPageInner() {
           isOpen={!!editCourse}
           onClose={() => setEditCourse(null)}
           course={editCourse}
-          onSuccess={() => {
-            setEditCourse(null);
-            refetch();
-          }}
+          onSuccess={() => setEditCourse(null)}
         />
       )}
 
@@ -125,11 +117,9 @@ function CoursesPageInner() {
           isOpen={!!deleteCourse}
           onClose={() => setDeleteCourse(null)}
           targetName={deleteCourse.name}
-          deleteEndpoint={`/api/courses/${deleteCourse.id}/`}
-          onSuccess={() => {
-            setDeleteCourse(null);
-            refetch();
-          }}
+          resource="course"
+          targetId={deleteCourse.id}
+          onSuccess={() => setDeleteCourse(null)}
         />
       )}
     </div>

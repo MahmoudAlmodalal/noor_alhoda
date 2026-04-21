@@ -6,7 +6,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useMutation } from "@/hooks/useMutation";
-import type { Course } from "@/types/api";
+import type { CourseRecord } from "@/hooks/queries";
 
 export function AddCourseModal({
   isOpen,
@@ -18,10 +18,7 @@ export function AddCourseModal({
   onSuccess?: () => void;
 }) {
   const [form, setForm] = useState({ name: "", description: "" });
-  const { mutate, isSubmitting, fieldErrors, reset, error } = useMutation(
-    "post",
-    "/api/courses/create/"
-  );
+  const { mutate, isSubmitting, error, reset } = useMutation("course", "create");
 
   const handleSubmit = async () => {
     const result = await mutate(form, { successMessage: "تم إضافة الدورة بنجاح" });
@@ -45,7 +42,6 @@ export function AddCourseModal({
             aria-label="اسم الدورة"
             className="h-12 rounded-xl border-slate-200"
           />
-          {fieldErrors?.name && <p className="text-xs text-red-500">{fieldErrors.name}</p>}
         </div>
         <div className="space-y-1.5">
           <label className="block text-sm font-bold text-slate-800">الوصف</label>
@@ -59,9 +55,7 @@ export function AddCourseModal({
         </div>
       </div>
 
-      {error && !fieldErrors && (
-        <p className="text-sm text-red-500 mb-4">{error}</p>
-      )}
+      {error && <p className="text-sm text-red-500 mb-4">{error}</p>}
 
       <div className="flex items-center gap-3">
         <Button
@@ -92,20 +86,20 @@ export function EditCourseModal({
 }: {
   isOpen: boolean;
   onClose: () => void;
-  course: Course;
+  course: CourseRecord;
   onSuccess?: () => void;
 }) {
   const [form, setForm] = useState({
     name: course.name,
     description: course.description || "",
   });
-  const { mutate, isSubmitting, fieldErrors, error } = useMutation("patch");
+  const { mutate, isSubmitting, error } = useMutation("course", "update");
 
   const handleSubmit = async () => {
-    const result = await mutate(form, {
-      endpoint: `/api/courses/${course.id}/`,
-      successMessage: "تم تحديث الدورة بنجاح",
-    });
+    const result = await mutate(
+      { id: course.id, ...form },
+      { successMessage: "تم تحديث الدورة بنجاح" }
+    );
     if (result) {
       onSuccess?.();
     }
@@ -124,7 +118,6 @@ export function EditCourseModal({
             aria-label="اسم الدورة"
             className="h-12 rounded-xl border-slate-200 font-medium"
           />
-          {fieldErrors?.name && <p className="text-xs text-red-500">{fieldErrors.name}</p>}
         </div>
         <div className="space-y-1.5">
           <label className="block text-sm font-bold text-slate-800">الوصف</label>
@@ -138,9 +131,7 @@ export function EditCourseModal({
         </div>
       </div>
 
-      {error && !fieldErrors && (
-        <p className="text-sm text-red-500 mb-4">{error}</p>
-      )}
+      {error && <p className="text-sm text-red-500 mb-4">{error}</p>}
 
       <div className="flex items-center gap-3">
         <Button

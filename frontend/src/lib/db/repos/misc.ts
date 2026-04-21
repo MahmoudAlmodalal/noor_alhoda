@@ -223,6 +223,18 @@ export async function listTeachers(): Promise<TeacherRecord[]> {
   return decryptRows<TeacherRecord>(rows);
 }
 
+export async function listUsers(): Promise<UserRecord[]> {
+  const rows = await getDb().users.toArray();
+  return decryptRows<UserRecord>(rows);
+}
+
+export async function getUser(id: string): Promise<UserRecord | undefined> {
+  const row = await getDb().users.get(id);
+  if (!row) return undefined;
+  const [dec] = await decryptRows<UserRecord>([row]);
+  return dec;
+}
+
 export async function listEvaluationsForStudent(
   student_id: string
 ): Promise<EvaluationRecord[]> {

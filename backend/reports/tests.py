@@ -6,7 +6,8 @@ from datetime import date
 
 from rest_framework.test import APITestCase
 
-from accounts.models import Teacher, User
+from accounts.models import User
+from teacher.models import Teacher
 from records.models import DailyRecord, WeeklyPlan
 from students.models import Student
 
@@ -44,7 +45,7 @@ class ReportTestSetup(APITestCase):
         )
         self.student_1 = Student.objects.create(
             user=self.student_user_1, full_name="Student Rep 1",
-            national_id="REP-001", birthdate=date(2011, 1, 1),
+            birthdate=date(2011, 1, 1),
             grade="Grade 8", teacher=self.teacher_1,
         )
 
@@ -55,7 +56,7 @@ class ReportTestSetup(APITestCase):
         )
         self.student_2 = Student.objects.create(
             user=self.student_user_2, full_name="Student Rep 2",
-            national_id="REP-002", birthdate=date(2011, 2, 2),
+            birthdate=date(2011, 2, 2),
             grade="Grade 8", teacher=self.teacher_2,
         )
 

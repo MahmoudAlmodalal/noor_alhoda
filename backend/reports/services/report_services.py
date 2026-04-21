@@ -1,8 +1,7 @@
 import io
 from pathlib import Path
 
-from students.models import Student
-from records.models import WeeklyPlan, DailyRecord
+from reports.selectors.report_selectors import student_for_report, weekly_plans_for_report
 
 FONT_PATH = Path(__file__).resolve().parent.parent.parent / "fonts" / "Amiri-Regular.ttf"
 _font_registered = False
@@ -35,7 +34,7 @@ def generate_student_pdf(*, student_id) -> bytes:
         pdfmetrics.registerFont(TTFont("Arabic", str(FONT_PATH)))
         _font_registered = True
 
-    student = Student.objects.select_related("user", "teacher").get(id=student_id)
+    student = student_for_report(student_id=student_id)
 
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=2 * cm, leftMargin=2 * cm)
@@ -60,7 +59,7 @@ def generate_student_pdf(*, student_id) -> bytes:
     teacher_name = student.teacher.full_name if student.teacher else "غير معيّن"
     info_data = [
         [_ar("الاسم"), _ar(student.full_name)],
-        [_ar("رقم الهوية"), _ar(student.national_id)],
+        [_ar("رقم الهوية"), _ar(student.user.national_id)],
         [_ar("الصف الدراسي"), _ar(student.grade)],
         [_ar("المحفظ"), _ar(teacher_name)],
         [_ar("تاريخ الالتحاق"), str(student.enrollment_date)],
@@ -94,7 +93,7 @@ def generate_student_pdf(*, student_id) -> bytes:
     elements.append(Paragraph(_ar("السجل الحفظي"), heading_style))
     elements.append(Spacer(1, 0.3 * cm))
 
-    plans = WeeklyPlan.objects.filter(student=student).order_by("-week_start")[:12]
+    plans = weekly_plans_for_report(student=student)
 
     normal_style = ParagraphStyle(
         "ArabicNormal",

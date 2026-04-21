@@ -4,7 +4,8 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
 
-from accounts.models import OTPCode, Teacher, User
+from accounts.models import OTPCode, User
+from teacher.models import Teacher
 from courses.models import Course, StudentCourse
 from notifications.models import Notification
 from records.models import DailyRecord, WeeklyPlan
@@ -154,7 +155,6 @@ class Command(BaseCommand):
             id=E2E_IDS["student"],
             user=student_user,
             full_name="Student One",
-            national_id="E2E-STU-001",
             birthdate=today - timedelta(days=12 * 365),
             grade="Grade 7",
             mobile=E2E_PHONES["student"],
@@ -177,7 +177,6 @@ class Command(BaseCommand):
             id=E2E_IDS["student_two"],
             user=student_two_user,
             full_name="Student Two",
-            national_id="E2E-STU-002",
             birthdate=today - timedelta(days=11 * 365),
             grade="Grade 8",
             mobile=E2E_PHONES["student_two"],
@@ -200,7 +199,6 @@ class Command(BaseCommand):
             id=E2E_IDS["student_unassigned"],
             user=student_unassigned_user,
             full_name="Student Three",
-            national_id="E2E-STU-003",
             birthdate=today - timedelta(days=10 * 365),
             grade="Grade 6",
             mobile=E2E_PHONES["student_unassigned"],

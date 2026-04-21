@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import { Edit, FileText, Search, Trash2, User, UserCog } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -8,75 +8,17 @@ import { Card, CardContent } from "@/components/ui/Card";
 import { PageLoading } from "@/components/ui/LoadingSpinner";
 import { Input } from "@/components/ui/Input";
 import { useAuth } from "@/contexts/AuthContext";
-import { useToast } from "@/contexts/ToastContext";
-import { useApi } from "@/hooks/useApi";
+import { useQuery } from "@/hooks/useApi";
 import { useDebounce } from "@/hooks/useDebounce";
+import type { CourseRecord, StudentWithTeacher, TeacherWithUser } from "@/hooks/queries";
 import { api } from "@/lib/api";
-import { hasSessionKey } from "@/lib/db/auth";
-import { listTeachers } from "@/lib/db/repos/misc";
-import { listStudents } from "@/lib/db/repos/students";
-import { AssignStudentModal, EditStudentModal } from "@/components/modals/StudentModals";
+import {
+  AssignStudentModal,
+  EditStudentModal,
+} from "@/components/modals/StudentModals";
 import { ConfirmDeleteModal } from "@/components/modals/TeacherModals";
-import type { Course, PaginatedData, Student, Teacher } from "@/types/api";
 
 const PAGE_SIZE = 20;
-
-async function loadStudentsLocally(params: {
-  page: number;
-  search?: string;
-  teacher_id?: string;
-}): Promise<PaginatedData<Student> | null> {
-  if (!hasSessionKey()) return null;
-  try {
-    const [rows, teachers] = await Promise.all([
-      listStudents({ teacher_id: params.teacher_id, search: params.search }),
-      listTeachers(),
-    ]);
-    const teacherNameById = new Map<string, string>(
-      teachers.map((t) => [t.id, t.full_name])
-    );
-    rows.sort((a, b) => a.full_name.localeCompare(b.full_name, "ar"));
-    const count = rows.length;
-    const total_pages = Math.max(1, Math.ceil(count / PAGE_SIZE));
-    const pageNum = Math.min(Math.max(1, params.page), total_pages);
-    const start = (pageNum - 1) * PAGE_SIZE;
-    const slice = rows.slice(start, start + PAGE_SIZE);
-    const items: Student[] = slice.map((s) => ({
-      id: s.id,
-      full_name: s.full_name,
-      national_id: s.national_id,
-      birthdate: s.birthdate ?? "",
-      grade: s.grade,
-      address: s.address,
-      whatsapp: s.whatsapp,
-      mobile: s.mobile,
-      previous_courses: s.previous_courses,
-      desired_courses: s.desired_courses,
-      bank_account_number: null,
-      bank_account_name: null,
-      bank_account_type: null,
-      guardian_name: s.guardian_name,
-      guardian_national_id: s.guardian_national_id || null,
-      guardian_mobile: s.guardian_mobile,
-      teacher_id: s.teacher_id,
-      teacher_name: s.teacher_id ? teacherNameById.get(s.teacher_id) ?? null : null,
-      health_status: s.health_status,
-      health_note: s.health_note,
-      skills: (s.skills as Student["skills"]) ?? null,
-      is_active: true,
-      enrollment_date: s.enrollment_date ?? "",
-    }));
-    return {
-      items,
-      count,
-      page: pageNum,
-      page_size: PAGE_SIZE,
-      total_pages,
-    };
-  } catch {
-    return null;
-  }
-}
 
 function PaginationBar({
   page,
@@ -121,93 +63,58 @@ function PaginationBar({
 
 export default function StudentsPage() {
   const { user } = useAuth();
-  const { showToast } = useToast();
   const isAdmin = user?.role === "admin";
   const canFilterByCourse = user?.role === "admin" || user?.role === "teacher";
 
-  const [studentsPage, setStudentsPage] = useState<PaginatedData<Student> | null>(null);
-  const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [teacherFilter, setTeacherFilter] = useState("");
   const [courseFilter, setCourseFilter] = useState("");
 
   const debouncedSearch = useDebounce(search);
-  const { data: teachers } = useApi<Teacher[]>(isAdmin ? "/api/users/teachers/" : null);
-  const { data: courses } = useApi<Course[]>(canFilterByCourse ? "/api/courses/" : null);
 
-  const reload = useCallback(
-    async (pageToLoad = page) => {
-      setLoading(true);
-      const response = await api.get<PaginatedData<Student>>("/api/students/", {
-        paginated: "1",
-        page: String(pageToLoad),
-        search: debouncedSearch || undefined,
-        teacher_id: isAdmin ? teacherFilter || undefined : undefined,
-        course_id: canFilterByCourse ? courseFilter || undefined : undefined,
-      });
+  const { data: teachers } = useQuery<TeacherWithUser[]>(isAdmin ? "teachers" : null);
+  const { data: courses } = useQuery<CourseRecord[]>(canFilterByCourse ? "courses" : null);
 
-      if (response.success) {
-        setStudentsPage(response.data);
-        if (response.data.page !== pageToLoad) {
-          setPage(response.data.page);
-        }
-      } else {
-        // Online fetch failed — fall back to the encrypted local DB if we
-        // can. Course filter isn't indexed locally, so only fall back when
-        // the user hasn't applied one.
-        const canFallback = response.error?.code === 0 && !courseFilter;
-        const local = canFallback
-          ? await loadStudentsLocally({
-              page: pageToLoad,
-              search: debouncedSearch || undefined,
-              teacher_id: isAdmin ? teacherFilter || undefined : undefined,
-            })
-          : null;
-        if (local) {
-          setStudentsPage(local);
-          if (local.page !== pageToLoad) {
-            setPage(local.page);
-          }
-        } else {
-          showToast(response.error?.message || "تعذر تحميل قائمة الطلاب.", "error");
-        }
-      }
+  const queryParams = useMemo(() => {
+    const p: Record<string, string | undefined> = {};
+    if (debouncedSearch) p.search = debouncedSearch;
+    if (isAdmin && teacherFilter) p.teacher_id = teacherFilter;
+    if (canFilterByCourse && courseFilter) p.course_id = courseFilter;
+    return p;
+  }, [debouncedSearch, isAdmin, teacherFilter, canFilterByCourse, courseFilter]);
 
-      setLoading(false);
-    },
-    [canFilterByCourse, courseFilter, debouncedSearch, isAdmin, page, showToast, teacherFilter],
+  const { data: allStudents, isLoading } = useQuery<StudentWithTeacher[]>(
+    "students_with_teacher",
+    queryParams
   );
 
-  useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      void reload();
-    }, 0);
+  const sorted = useMemo(() => {
+    const arr = (allStudents ?? []).slice();
+    arr.sort((a, b) => a.full_name.localeCompare(b.full_name, "ar"));
+    return arr;
+  }, [allStudents]);
 
-    return () => {
-      window.clearTimeout(timeoutId);
-    };
-  }, [reload]);
+  const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
+  const safePage = Math.min(Math.max(1, page), totalPages);
+  const studentList = sorted.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
-  const [assignModal, setAssignModal] = useState<{ open: boolean; student: Student | null }>({
+  const [assignModal, setAssignModal] = useState<{ open: boolean; student: StudentWithTeacher | null }>({
     open: false,
     student: null,
   });
-  const [editModal, setEditModal] = useState<{ open: boolean; student: Student | null }>({
+  const [editModal, setEditModal] = useState<{ open: boolean; student: StudentWithTeacher | null }>({
     open: false,
     student: null,
   });
-  const [deleteModal, setDeleteModal] = useState<{ open: boolean; student: Student | null }>({
+  const [deleteModal, setDeleteModal] = useState<{ open: boolean; student: StudentWithTeacher | null }>({
     open: false,
     student: null,
   });
 
-  if (loading && !studentsPage) {
+  if (isLoading && !allStudents) {
     return <PageLoading />;
   }
-
-  const studentList = studentsPage?.items ?? [];
-  const totalPages = studentsPage?.total_pages ?? 1;
 
   return (
     <div className="mx-auto max-w-lg space-y-6">
@@ -266,16 +173,14 @@ export default function StudentsPage() {
       </div>
 
       <PaginationBar
-        page={studentsPage?.page ?? 1}
+        page={safePage}
         totalPages={totalPages}
-        count={studentsPage?.count ?? 0}
+        count={sorted.length}
         onPageChange={setPage}
       />
 
       <div className="space-y-4">
-        {loading && !studentsPage ? (
-          <PageLoading />
-        ) : studentList.length === 0 ? (
+        {studentList.length === 0 ? (
           <div className="py-12 text-center">
             <User className="mx-auto mb-3 h-12 w-12 text-slate-300" />
             <p className="text-sm font-medium text-slate-400">لا يوجد طلاب مطابقون للفلاتر الحالية</p>
@@ -392,9 +297,9 @@ export default function StudentsPage() {
       </div>
 
       <PaginationBar
-        page={studentsPage?.page ?? 1}
+        page={safePage}
         totalPages={totalPages}
-        count={studentsPage?.count ?? 0}
+        count={sorted.length}
         onPageChange={setPage}
       />
 
@@ -404,10 +309,7 @@ export default function StudentsPage() {
           onClose={() => setAssignModal({ open: false, student: null })}
           studentId={assignModal.student.id}
           studentName={assignModal.student.full_name}
-          onSuccess={() => {
-            setAssignModal({ open: false, student: null });
-            void reload();
-          }}
+          onSuccess={() => setAssignModal({ open: false, student: null })}
         />
       ) : null}
 
@@ -416,10 +318,7 @@ export default function StudentsPage() {
           isOpen={editModal.open}
           onClose={() => setEditModal({ open: false, student: null })}
           student={editModal.student}
-          onSuccess={() => {
-            setEditModal({ open: false, student: null });
-            void reload();
-          }}
+          onSuccess={() => setEditModal({ open: false, student: null })}
         />
       ) : null}
 
@@ -428,11 +327,9 @@ export default function StudentsPage() {
           isOpen={deleteModal.open}
           onClose={() => setDeleteModal({ open: false, student: null })}
           targetName={deleteModal.student.full_name}
-          deleteEndpoint={`/api/students/${deleteModal.student.id}/`}
-          onSuccess={() => {
-            setDeleteModal({ open: false, student: null });
-            void reload();
-          }}
+          resource="student"
+          targetId={deleteModal.student.id}
+          onSuccess={() => setDeleteModal({ open: false, student: null })}
         />
       ) : null}
     </div>

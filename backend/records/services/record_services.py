@@ -19,6 +19,7 @@ def weekly_plan_create(
     week_number=None,
     total_required=0,
     teacher: User,
+    id=None,
 ) -> WeeklyPlan:
     """Create a weekly plan for a student."""
     if not (is_admin_user(teacher) or teacher.role == "teacher"):
@@ -37,12 +38,17 @@ def weekly_plan_create(
     if WeeklyPlan.objects.filter(student=student, week_start=week_start).exists():
         raise ValidationError("توجد خطة مسبقة لهذا الأسبوع.")
 
-    plan = WeeklyPlan(
+    plan_kwargs = dict(
         student=student,
-        week_number=week_number or week_start.isocalendar()[1],
+        week_number=week_number or (
+            week_start.isocalendar()[1] if hasattr(week_start, "isocalendar") else 1
+        ),
         week_start=week_start,
         total_required=total_required or 0,
     )
+    if id is not None:
+        plan_kwargs["id"] = id
+    plan = WeeklyPlan(**plan_kwargs)
     plan.full_clean()
     plan.save()
 
@@ -50,7 +56,44 @@ def weekly_plan_create(
 
 
 @transaction.atomic
-def daily_record_create(*, teacher: User, **data) -> DailyRecord:
+def weekly_plan_update(*, plan: WeeklyPlan, actor: User, data: dict) -> WeeklyPlan:
+    """Update a weekly plan. Admin or owning teacher only."""
+    if not (is_admin_user(actor) or actor.role == "teacher"):
+        raise PermissionDenied("ليس لديك صلاحية لتعديل الخطة الأسبوعية.")
+    if actor.role == "teacher":
+        if not hasattr(actor, "teacher_profile") or plan.student.teacher_id != actor.teacher_profile.id:
+            raise PermissionDenied("لا يمكنك تعديل خطة لطالب ليس في حلقتك.")
+
+    allowed = ["week_number", "total_required"]
+    for field, value in data.items():
+        if field in allowed:
+            setattr(plan, field, value)
+    plan.full_clean()
+    plan.save()
+    return plan
+
+
+@transaction.atomic
+def weekly_plan_delete(*, plan: WeeklyPlan, actor: User) -> None:
+    """Delete a weekly plan. Admin only (cascades daily records)."""
+    if not is_admin_user(actor):
+        raise PermissionDenied("فقط المدير يمكنه حذف الخطة الأسبوعية.")
+
+    from sync.models import Tombstone
+    from sync.services.tombstone_service import tombstone_write
+
+    deleted_uuid = plan.id
+    plan.delete()
+    tombstone_write(
+        resource=Tombstone.Resource.WEEKLY_PLAN,
+        resource_uuid=deleted_uuid,
+        actor=actor,
+        scope_user_id=None,
+    )
+
+
+@transaction.atomic
+def daily_record_create(*, teacher: User, id=None, **data) -> DailyRecord:
     """Create a daily record for a student."""
     if not (is_admin_user(teacher) or teacher.role == "teacher"):
         raise PermissionDenied("ليس لديك صلاحية لتسجيل السجلات.")
@@ -66,7 +109,7 @@ def daily_record_create(*, teacher: User, **data) -> DailyRecord:
         if not hasattr(teacher, "teacher_profile") or plan.student.teacher_id != teacher.teacher_profile.id:
             raise PermissionDenied("لا يمكنك التسجيل لطالب ليس في حلقتك.")
 
-    record = DailyRecord(
+    record_kwargs = dict(
         weekly_plan=plan,
         day=data.get("day"),
         date=data.get("date"),
@@ -79,6 +122,9 @@ def daily_record_create(*, teacher: User, **data) -> DailyRecord:
         note=data.get("note", ""),
         recorded_by=teacher,
     )
+    if id is not None:
+        record_kwargs["id"] = id
+    record = DailyRecord(**record_kwargs)
     record.full_clean()
     record.save()
 
@@ -86,6 +132,28 @@ def daily_record_create(*, teacher: User, **data) -> DailyRecord:
         send_absence_notification(student=plan.student, date=record.date)
 
     return record
+
+
+@transaction.atomic
+def daily_record_delete(*, record: DailyRecord, actor: User) -> None:
+    """Delete a daily record. Admin or owning teacher only."""
+    if not is_admin_user(actor):
+        if actor.role != "teacher" or not hasattr(actor, "teacher_profile"):
+            raise PermissionDenied("ليس لديك صلاحية لحذف السجل.")
+        if record.weekly_plan.student.teacher_id != actor.teacher_profile.id:
+            raise PermissionDenied("لا يمكنك حذف سجل لطالب ليس في حلقتك.")
+
+    from sync.models import Tombstone
+    from sync.services.tombstone_service import tombstone_write
+
+    deleted_uuid = record.id
+    record.delete()
+    tombstone_write(
+        resource=Tombstone.Resource.DAILY_RECORD,
+        resource_uuid=deleted_uuid,
+        actor=actor,
+        scope_user_id=None,
+    )
 
 
 @transaction.atomic

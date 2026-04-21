@@ -16,7 +16,7 @@ import Dexie, { type EntityTable } from "dexie";
 import type { EncryptedBlob } from "./crypto";
 
 export const DB_NAME = "noor_alhuda_local";
-export const DB_VERSION = 1;
+export const DB_VERSION = 2;
 
 export interface EncryptedRow extends EncryptedBlob {
   id: string; // UUID (server-assigned)
@@ -96,8 +96,10 @@ export interface OutboxRow {
   op_id: string; // UUIDv4 generated client-side
   resource: string;
   action: "create" | "update" | "delete";
+  target_id: string; // UUID of the record this op targets (client-minted for create)
   payload_iv: string; // EncryptedBlob split into indexable columns
   payload_ct: string;
+  base_updated_at: string | null; // server's updated_at at the time client started editing
   client_updated_at: string;
   created_at: string;
   status: "pending" | "in_flight" | "synced" | "conflict" | "error";
@@ -137,7 +139,9 @@ export class LocalDb extends Dexie {
 
   constructor() {
     super(DB_NAME);
-    this.version(DB_VERSION).stores({
+
+    // v1 — original shape. Kept for the upgrade path.
+    this.version(1).stores({
       users: "id, updated_at, national_id, role",
       teachers: "id, updated_at, user_id",
       parents: "id, updated_at, user_id",
@@ -147,8 +151,7 @@ export class LocalDb extends Dexie {
       daily_records:
         "id, updated_at, weekly_plan_id, date, [weekly_plan_id+day]",
       review_records: "id, updated_at, student_id, reviewed_date",
-      evaluations:
-        "id, updated_at, student_id, scheduled_date, status",
+      evaluations: "id, updated_at, student_id, scheduled_date, status",
       notifications: "id, updated_at, recipient_id, is_read, created_at",
       courses: "id, updated_at, name",
       student_courses: "id, updated_at, student_id, course_id",
@@ -156,6 +159,36 @@ export class LocalDb extends Dexie {
       outbox: "op_id, status, created_at, resource",
       auth: "id",
     });
+
+    // v2 — outbox gains `target_id` and `base_updated_at` to support LWW
+    // push and per-record pending-sync badges.
+    this.version(2)
+      .stores({
+        users: "id, updated_at, national_id, role",
+        teachers: "id, updated_at, user_id",
+        parents: "id, updated_at, user_id",
+        parent_student_links: "id, updated_at, parent_id, student_id",
+        students: "id, updated_at, teacher_id, national_id",
+        weekly_plans: "id, updated_at, student_id, week_start",
+        daily_records:
+          "id, updated_at, weekly_plan_id, date, [weekly_plan_id+day]",
+        review_records: "id, updated_at, student_id, reviewed_date",
+        evaluations: "id, updated_at, student_id, scheduled_date, status",
+        notifications: "id, updated_at, recipient_id, is_read, created_at",
+        courses: "id, updated_at, name",
+        student_courses: "id, updated_at, student_id, course_id",
+        tombstones: "key, resource, deleted_at",
+        outbox:
+          "op_id, status, created_at, resource, target_id, [resource+target_id]",
+        auth: "id",
+      })
+      .upgrade(async (tx) => {
+        // Backfill target_id + base_updated_at on any v1 outbox rows.
+        await tx.table("outbox").toCollection().modify((row) => {
+          if (row.target_id === undefined) row.target_id = "";
+          if (row.base_updated_at === undefined) row.base_updated_at = null;
+        });
+      });
   }
 }
 

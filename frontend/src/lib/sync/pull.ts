@@ -7,6 +7,7 @@
 import { api } from "@/lib/api";
 
 import { hasSessionKey, markSyncAt, readAuth } from "../db/auth";
+import { emitChanges, type ResourceName } from "../db/events";
 import { getDb } from "../db/schema";
 import {
   upsertCourses,
@@ -86,27 +87,62 @@ export async function pullSync(): Promise<PullResult> {
 
       // Order matters for FK consistency: parents/users before links,
       // students before plans, plans before daily records, etc.
-      if (resources.users.length) await upsertUsers(resources.users);
-      if (resources.teachers.length) await upsertTeachers(resources.teachers);
-      if (resources.parents.length) await upsertParents(resources.parents);
-      if (resources.students.length) await upsertStudents(resources.students);
-      if (resources.parent_student_links.length)
+      const touched = new Set<ResourceName>();
+      if (resources.users.length) {
+        await upsertUsers(resources.users);
+        touched.add("student"); // users feed into student cards
+      }
+      if (resources.teachers.length) {
+        await upsertTeachers(resources.teachers);
+        touched.add("teacher");
+      }
+      if (resources.parents.length) {
+        await upsertParents(resources.parents);
+        touched.add("parent");
+      }
+      if (resources.students.length) {
+        await upsertStudents(resources.students);
+        touched.add("student");
+      }
+      if (resources.parent_student_links.length) {
         await upsertParentStudentLinks(resources.parent_student_links);
-      if (resources.weekly_plans.length)
+        touched.add("parent_student_link");
+      }
+      if (resources.weekly_plans.length) {
         await upsertWeeklyPlans(resources.weekly_plans);
-      if (resources.daily_records.length)
+        touched.add("weekly_plan");
+      }
+      if (resources.daily_records.length) {
         await upsertDailyRecords(resources.daily_records);
-      if (resources.review_records.length)
+        touched.add("daily_record");
+      }
+      if (resources.review_records.length) {
         await upsertReviewRecords(resources.review_records);
-      if (resources.evaluations.length)
+        touched.add("review_record");
+      }
+      if (resources.evaluations.length) {
         await upsertEvaluations(resources.evaluations);
-      if (resources.notifications.length)
+        touched.add("evaluation");
+      }
+      if (resources.notifications.length) {
         await upsertNotifications(resources.notifications);
-      if (resources.courses.length) await upsertCourses(resources.courses);
-      if (resources.student_courses.length)
+        touched.add("notification");
+      }
+      if (resources.courses.length) {
+        await upsertCourses(resources.courses);
+        touched.add("course");
+      }
+      if (resources.student_courses.length) {
         await upsertStudentCourses(resources.student_courses);
+        touched.add("student_course");
+      }
 
-      if (tombstones.length > 0) await applyTombstones(tombstones);
+      if (tombstones.length > 0) {
+        await applyTombstones(tombstones);
+        for (const t of tombstones) touched.add(t.resource as ResourceName);
+      }
+
+      if (touched.size > 0) emitChanges(Array.from(touched));
 
       await markSyncAt(server_time);
       return { ok: true, server_time };

@@ -1,14 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Loader2, Save } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useMutation } from "@/hooks/useMutation";
-import { useApi } from "@/hooks/useApi";
+import { useQuery } from "@/hooks/useApi";
 import { useDebounce } from "@/hooks/useDebounce";
-import type { Student, WeeklyPlanRequest } from "@/types/api";
+import type { StudentWithTeacher } from "@/hooks/queries";
 
 function nextSaturday(): string {
   const d = new Date();
@@ -16,6 +16,13 @@ function nextSaturday(): string {
   const offset = (6 - day + 7) % 7 || 7;
   d.setDate(d.getDate() + offset);
   return d.toISOString().slice(0, 10);
+}
+
+function getWeekNumber(weekStart: string): number {
+  const d = new Date(weekStart);
+  const firstDay = new Date(Date.UTC(d.getFullYear(), 0, 1));
+  const diffDays = Math.floor((d.getTime() - firstDay.getTime()) / 86_400_000);
+  return Math.floor(diffDays / 7) + 1;
 }
 
 interface Props {
@@ -40,13 +47,6 @@ export function WeeklyPlanModal({ isOpen, onClose, studentId, studentName, onCre
   );
 }
 
-function getWeekNumber(weekStart: string): number {
-  const d = new Date(weekStart);
-  const firstDay = new Date(Date.UTC(d.getFullYear(), 0, 1));
-  const diffDays = Math.floor((d.getTime() - firstDay.getTime()) / 86_400_000);
-  return Math.floor(diffDays / 7) + 1;
-}
-
 function WeeklyPlanModalContent({ isOpen, onClose, studentId, studentName, onCreated }: Props) {
   const [selectedId, setSelectedId] = useState(studentId ?? "");
   const [selectedName, setSelectedName] = useState(studentName ?? "");
@@ -55,29 +55,26 @@ function WeeklyPlanModalContent({ isOpen, onClose, studentId, studentName, onCre
   const [weekStart, setWeekStart] = useState<string>(nextSaturday());
   const [totalRequired, setTotalRequired] = useState<number>(20);
 
-  const { data: students, refetch } = useApi<Student[]>(
-    isOpen && !studentId ? "/api/students/" : null
+  const { data: students } = useQuery<StudentWithTeacher[]>(
+    isOpen && !studentId ? "students_with_teacher" : null,
+    debouncedSearch ? { search: debouncedSearch } : undefined
   );
-  useEffect(() => {
-    if (isOpen && !studentId) refetch({ search: debouncedSearch });
-  }, [isOpen, studentId, debouncedSearch, refetch]);
 
-  const { mutate, isSubmitting, fieldErrors, error } = useMutation(
-    "post",
-    "/api/records/weekly-plans/"
-  );
+  const { mutate, isSubmitting, error } = useMutation("weekly_plan", "create");
 
   const filteredStudents = useMemo(() => (students ?? []).slice(0, 10), [students]);
 
   const handleSubmit = async () => {
     if (!selectedId) return;
-    const payload: WeeklyPlanRequest = {
-      student_id: selectedId,
-      week_start: weekStart,
-      week_number: getWeekNumber(weekStart),
-      total_required: Number(totalRequired) || 0,
-    };
-    const result = await mutate(payload, { successMessage: "تم إنشاء الخطة الأسبوعية" });
+    const result = await mutate(
+      {
+        student_id: selectedId,
+        week_start: weekStart,
+        week_number: getWeekNumber(weekStart),
+        total_required: Number(totalRequired) || 0,
+      },
+      { successMessage: "تم إنشاء الخطة الأسبوعية" }
+    );
     if (result !== null) {
       onCreated?.();
       onClose();
@@ -129,9 +126,6 @@ function WeeklyPlanModalContent({ isOpen, onClose, studentId, studentName, onCre
                 تم اختيار: {selectedName}
               </p>
             )}
-            {fieldErrors?.student_id && (
-              <p className="text-xs text-red-500">{fieldErrors.student_id}</p>
-            )}
           </div>
         )}
 
@@ -145,9 +139,6 @@ function WeeklyPlanModalContent({ isOpen, onClose, studentId, studentName, onCre
             className="h-12 rounded-xl border-slate-200"
             dir="ltr"
           />
-          {fieldErrors?.week_start && (
-            <p className="text-xs text-red-500">{fieldErrors.week_start}</p>
-          )}
         </div>
 
         <div className="space-y-1.5">
@@ -161,14 +152,9 @@ function WeeklyPlanModalContent({ isOpen, onClose, studentId, studentName, onCre
             className="h-12 rounded-xl border-slate-200"
             dir="ltr"
           />
-          {fieldErrors?.total_required && (
-            <p className="text-xs text-red-500">{fieldErrors.total_required}</p>
-          )}
         </div>
 
-        {error && !fieldErrors && (
-          <p className="text-sm text-red-500">{error}</p>
-        )}
+        {error && <p className="text-sm text-red-500">{error}</p>}
       </div>
 
       <div className="flex items-center gap-3">
