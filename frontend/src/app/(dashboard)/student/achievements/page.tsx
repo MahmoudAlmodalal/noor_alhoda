@@ -1,37 +1,39 @@
 "use client";
 
 import { useAuth } from "@/contexts/AuthContext";
-import { useApi } from "@/hooks/useApi";
+import { useQuery } from "@/hooks/useApi";
 import { api } from "@/lib/api";
 import { PageLoading } from "@/components/ui/LoadingSpinner";
-import type { Student, StudentStats, WeeklyPlan } from "@/types/api";
+import type { StudentWithTeacher } from "@/hooks/queries";
+import type { HistoryEntry as HistoryEntryBase, StudentStats } from "@/types/api";
 import { Award, Trophy, TrendingUp, FileText, Book, Download } from "lucide-react";
 
-interface HistoryEntry {
-    id: string;
-    title: string;
-    date: string;
-    rating: string;
-    week_number: number;
-    total_required: number;
-    total_achieved: number;
-    completion_rate: number;
+interface HistoryEntry extends HistoryEntryBase {
+    title?: string;
+    rating?: string;
+    week_number?: number;
+    total_required?: number;
+    total_achieved?: number;
+    completion_rate?: number;
 }
 
 export default function StudentAchievements() {
     const { user } = useAuth();
     const studentProfileId = user?.student_profile?.id;
 
-    const { data: profile, isLoading: isProfileLoading } = useApi<Student>(
-        studentProfileId ? `/api/students/${studentProfileId}/` : null
+    const { data: profile, isLoading: isProfileLoading } = useQuery<StudentWithTeacher>(
+        studentProfileId ? "student" : null,
+        studentProfileId ? { id: studentProfileId } : undefined
     );
 
-    const { data: stats, isLoading: isStatsLoading } = useApi<StudentStats>(
-        studentProfileId ? `/api/students/${studentProfileId}/stats/` : null
+    const { data: stats, isLoading: isStatsLoading } = useQuery<StudentStats>(
+        studentProfileId ? "student_stats" : null,
+        studentProfileId ? { student_id: studentProfileId } : undefined
     );
 
-    const { data: history } = useApi<HistoryEntry[]>(
-        studentProfileId ? `/api/students/${studentProfileId}/history/` : null
+    const { data: history } = useQuery<HistoryEntry[]>(
+        studentProfileId ? "student_history" : null,
+        studentProfileId ? { student_id: studentProfileId } : undefined
     );
 
     if (isProfileLoading || isStatsLoading) {
@@ -41,16 +43,22 @@ export default function StudentAchievements() {
     const overallRate = stats?.overall_rate || "0%";
     const overallGrade = stats?.avg_grade || "-";
 
-    // Derive achievements/certificates from history — weeks with high completion
     const achievements = (history || [])
-        .filter((h) => h.completion_rate >= 75)
+        .map((h) => ({
+            ...h,
+            rate:
+                (h.required_verses ?? 0) > 0
+                    ? Math.round(((h.achieved_verses ?? 0) / (h.required_verses || 1)) * 100)
+                    : 0,
+        }))
+        .filter((h) => h.rate >= 75)
         .slice(0, 5)
         .map((h, idx) => {
             const colors = ["bg-blue-600", "bg-green-500", "bg-purple-500", "bg-amber-500", "bg-rose-500"];
-            const gradeLabel = h.completion_rate >= 90 ? "ممتاز" : h.completion_rate >= 75 ? "جيد جداً" : "جيد";
+            const gradeLabel = h.rate >= 90 ? "ممتاز" : h.rate >= 75 ? "جيد جداً" : "جيد";
             return {
                 id: h.id,
-                title: h.title,
+                title: h.title ?? h.date,
                 date: h.date,
                 grade: gradeLabel,
                 color: colors[idx % colors.length],
@@ -58,18 +66,21 @@ export default function StudentAchievements() {
             };
         });
 
-    // Daily history from weekly plans
-    const dailyHistory = (history || []).slice(0, 10).map((item) => ({
+    const dailyHistory = (history || []).slice(0, 10).map((item, idx) => ({
         date: item.date,
-        hifz: item.total_achieved > 0 ? `${item.total_achieved}/${item.total_required}` : "-",
-        murajaah: `الأسبوع ${item.week_number}`,
+        hifz: (item.achieved_verses ?? 0) > 0
+            ? `${item.achieved_verses}/${item.required_verses}`
+            : "-",
+        murajaah: `الأسبوع ${item.week_number ?? idx + 1}`,
     }));
 
-    // Build chart data from history (last 4 weeks completion rates)
     const chartWeeks = (history || []).slice(0, 4).reverse();
     const chartPoints = chartWeeks.map((w, i) => {
         const x = chartWeeks.length <= 1 ? 50 : 5 + (i * 95) / (chartWeeks.length - 1);
-        const y = 100 - Math.min(w.completion_rate, 100);
+        const rate = (w.required_verses ?? 0) > 0
+            ? Math.round(((w.achieved_verses ?? 0) / (w.required_verses || 1)) * 100)
+            : 0;
+        const y = 100 - Math.min(rate, 100);
         return { x, y };
     });
     const chartPath = chartPoints.length >= 2
@@ -168,7 +179,7 @@ export default function StudentAchievements() {
                             </svg>
                             <div className="absolute bottom-0 left-0 w-full flex justify-between text-[8px] text-slate-400">
                                 {chartWeeks.map((w, i) => (
-                                    <span key={i}>الأسبوع {w.week_number}</span>
+                                    <span key={i}>الأسبوع {w.week_number ?? i + 1}</span>
                                 ))}
                             </div>
                         </div>

@@ -4,7 +4,8 @@ from rest_framework.exceptions import PermissionDenied
 
 from students.models import Student
 from records.models import DailyRecord, WeeklyPlan
-from accounts.models import Teacher, User
+from accounts.models import User
+from teacher.models import Teacher
 
 
 def student_for_report(*, student_id) -> Student:

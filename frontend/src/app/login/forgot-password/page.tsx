@@ -4,49 +4,39 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
-import { useMutation } from "@/hooks/useMutation";
+import { api } from "@/lib/api";
 import type { OtpSendRequest } from "@/types/api";
 
 export default function ForgotPasswordPage() {
     const router = useRouter();
     const [nationalId, setNationalId] = useState("");
-    const [validationError, setValidationError] = useState<string | null>(null);
-    const { mutate, isSubmitting, error, fieldErrors } = useMutation<unknown>(
-        "post",
-        "/api/auth/otp/send/"
-    );
+    const [error, setError] = useState<string | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setValidationError(null);
+        setError(null);
 
         if (!nationalId) {
-            setValidationError("رقم الهوية مطلوب");
+            setError("رقم الهوية مطلوب");
             return;
         }
 
+        setIsSubmitting(true);
         const payload: OtpSendRequest = { national_id: nationalId };
-        const result = await mutate(payload, {
-            successMessage: "تم إرسال رمز التحقق",
-        });
-        if (!result && !fieldErrors) return;
-        if (result !== null) {
-            sessionStorage.setItem(
-                "pw_reset",
-                JSON.stringify({ national_id: nationalId })
-            );
-            router.push("/login/verify-otp");
-        }
-    };
+        const res = await api.post("/api/auth/otp/send/", payload);
+        setIsSubmitting(false);
 
-    const nationalIdError =
-        validationError ||
-        (fieldErrors?.national_id
-            ? Array.isArray(fieldErrors.national_id)
-                ? fieldErrors.national_id[0]
-                : fieldErrors.national_id
-            : null) ||
-        error;
+        if (!res.success) {
+            setError(res.error.message);
+            return;
+        }
+        sessionStorage.setItem(
+            "pw_reset",
+            JSON.stringify({ national_id: nationalId })
+        );
+        router.push("/login/verify-otp");
+    };
 
     return (
         <div>
@@ -68,7 +58,7 @@ export default function ForgotPasswordPage() {
                         dir="ltr"
                         disabled={isSubmitting}
                     />
-                    {nationalIdError && <p className="text-sm text-red-500 mt-1">{nationalIdError}</p>}
+                    {error && <p className="text-sm text-red-500 mt-1">{error}</p>}
                 </div>
 
                 <Button

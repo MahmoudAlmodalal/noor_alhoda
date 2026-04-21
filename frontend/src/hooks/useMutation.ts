@@ -39,7 +39,7 @@ export interface MutationResult {
   id: string;
 }
 
-export function useMutation<TResponse extends Record<string, unknown> = MutationResult>(
+export function useMutation<TResponse = MutationResult>(
   resource: MutationResource,
   action: MutationAction
 ) {

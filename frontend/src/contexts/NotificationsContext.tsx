@@ -4,14 +4,15 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
-  useRef,
-  useState,
+  useMemo,
   type ReactNode,
 } from "react";
-import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
-import type { Notification, NotificationsPayload } from "@/types/api";
+import { useQuery } from "@/hooks/useApi";
+import { runMutation } from "@/hooks/mutations";
+import { triggerPush } from "@/lib/sync/push";
+import type { NotificationRecord } from "@/hooks/queries";
+import type { Notification } from "@/types/api";
 
 interface NotificationsContextValue {
   items: Notification[];
@@ -24,92 +25,57 @@ interface NotificationsContextValue {
 
 const NotificationsContext = createContext<NotificationsContextValue | null>(null);
 
-const POLL_INTERVAL_MS = 60_000;
-
 export function NotificationsProvider({ children }: { children: ReactNode }) {
-  const { isAuthenticated } = useAuth();
-  const [items, setItems] = useState<Notification[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [isLoading, setIsLoading] = useState(false);
-  const inFlight = useRef(false);
+  const { isAuthenticated, user } = useAuth();
+
+  const userId = user?.id ?? "";
+  const { data: rows, isLoading, refetch: refetchQuery } = useQuery<NotificationRecord[]>(
+    isAuthenticated && userId ? "notifications" : null,
+    userId ? { user_id: userId } : undefined
+  );
+
+  const items: Notification[] = useMemo(
+    () =>
+      (rows ?? []).map((r) => ({
+        id: r.id,
+        type: r.type,
+        title: r.title,
+        body: r.body,
+        is_read: r.is_read,
+        created_at: r.created_at ?? "",
+      })),
+    [rows]
+  );
+
+  const unreadCount = useMemo(() => items.filter((n) => !n.is_read).length, [items]);
 
   const refetch = useCallback(async () => {
-    if (!isAuthenticated || inFlight.current) return;
-    inFlight.current = true;
-    setIsLoading(true);
-    const res = await api.get<NotificationsPayload | Notification[]>("/api/notifications/");
-    if (res.success) {
-      const payload = res.data as NotificationsPayload | Notification[];
-      const list: Notification[] = Array.isArray(payload)
-        ? payload
-        : payload.items ?? payload.results ?? [];
-      setItems(list);
-      const unreadCount =
-        "unread_count" in res && typeof res.unread_count === "number"
-          ? res.unread_count
-          : undefined;
-      if (typeof unreadCount === "number") {
-        setUnreadCount(unreadCount);
-      } else {
-        setUnreadCount(list.filter((n) => !n.is_read).length);
-      }
-    }
-    setIsLoading(false);
-    inFlight.current = false;
-  }, [isAuthenticated]);
+    await refetchQuery();
+  }, [refetchQuery]);
 
   const markRead = useCallback(
     async (id: string) => {
-      const res = await api.patch(`/api/notifications/${id}/read/`);
-      if (res.success) {
-        setItems((prev) =>
-          prev.map((n) => (n.id === id ? { ...n, is_read: true } : n))
-        );
-        setUnreadCount((c) => Math.max(0, c - 1));
-      }
+      const res = await runMutation({
+        resource: "notification",
+        action: "update",
+        payload: { id, is_read: true },
+      });
+      if (res.ok) void triggerPush();
     },
     []
   );
 
   const markAllRead = useCallback(async () => {
-    const res = await api.patch("/api/notifications/read-all/");
-    if (res.success) {
-      setItems((prev) => prev.map((n) => ({ ...n, is_read: true })));
-      setUnreadCount(0);
+    const unread = items.filter((n) => !n.is_read);
+    for (const n of unread) {
+      await runMutation({
+        resource: "notification",
+        action: "update",
+        payload: { id: n.id, is_read: true },
+      });
     }
-  }, []);
-
-  useEffect(() => {
-    if (!isAuthenticated) {
-      const timeoutId = window.setTimeout(() => {
-        setItems([]);
-        setUnreadCount(0);
-        setIsLoading(false);
-      }, 0);
-      return () => window.clearTimeout(timeoutId);
-    }
-
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    const refetchTimeoutId = window.setTimeout(() => {
-      void refetch();
-    }, 0);
-
-    const onFocus = () => refetch();
-    window.addEventListener("focus", onFocus);
-
-    const interval = window.setInterval(() => {
-      if (document.visibilityState === "visible") refetch();
-    }, POLL_INTERVAL_MS);
-
-    return () => {
-      window.clearTimeout(refetchTimeoutId);
-      window.removeEventListener("focus", onFocus);
-      window.clearInterval(interval);
-    };
-  }, [isAuthenticated, refetch]);
+    if (unread.length > 0) void triggerPush();
+  }, [items]);
 
   return (
     <NotificationsContext.Provider

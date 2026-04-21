@@ -4,29 +4,88 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { ClipboardCheck, Loader2, Save } from "lucide-react";
 import { PageLoading } from "@/components/ui/LoadingSpinner";
-import { useApi } from "@/hooks/useApi";
+import { useQuery } from "@/hooks/useApi";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
-import { api } from "@/lib/api";
+import { runMutation } from "@/hooks/mutations";
+import { getDb } from "@/lib/db/schema";
+import { decryptRow } from "@/lib/db/repos/index";
+import type { DailyRecordRecord } from "@/lib/db/repos/records";
+import { triggerPush } from "@/lib/sync/push";
 import type {
-  BulkAttendanceRequest,
-  BulkAttendanceResponse,
-  DailyRecord,
-  Student,
-  Teacher,
-  UpdateRecordRequest,
-} from "@/types/api";
+  DailyRecordRecord as DailyRec,
+  StudentWithTeacher,
+  TeacherWithUser,
+} from "@/hooks/queries";
 import { AttendanceRow, type DraftRecord } from "./AttendanceRow";
 
 function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+/** Saturday on or before `d`, as ISO date. */
+function weekStartFor(d: Date): string {
+  const copy = new Date(d.getTime());
+  const diff = (copy.getDay() - 6 + 7) % 7;
+  copy.setDate(copy.getDate() - diff);
+  return copy.toISOString().slice(0, 10);
+}
+
+function weekdayKey(d: Date): "sat" | "sun" | "mon" | "tue" | "wed" | "thu" | "fri" {
+  return (["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const)[d.getDay()];
+}
+
+function weekNumberFor(iso: string): number {
+  const d = new Date(iso);
+  const firstDay = new Date(Date.UTC(d.getFullYear(), 0, 1));
+  const diffDays = Math.floor((d.getTime() - firstDay.getTime()) / 86_400_000);
+  return Math.floor(diffDays / 7) + 1;
+}
+
+/** Find an existing weekly plan locally or enqueue a new one; returns its id. */
+async function ensureWeeklyPlan(
+  student_id: string,
+  week_start: string
+): Promise<string | null> {
+  const rows = await getDb()
+    .weekly_plans.where("student_id")
+    .equals(student_id)
+    .toArray();
+  for (const r of rows) {
+    if (r.week_start === week_start) return r.id;
+  }
+  const res = await runMutation({
+    resource: "weekly_plan",
+    action: "create",
+    payload: {
+      student_id,
+      week_start,
+      week_number: weekNumberFor(week_start),
+      total_required: 0,
+    },
+  });
+  return res.ok ? res.id ?? null : null;
+}
+
+async function findDailyRecordId(
+  weekly_plan_id: string,
+  day: string
+): Promise<string | null> {
+  const rows = await getDb()
+    .daily_records.where("[weekly_plan_id+day]")
+    .equals([weekly_plan_id, day])
+    .toArray();
+  return rows[0]?.id ?? null;
+}
+
 function AttendanceContent() {
   const { user } = useAuth();
   const { showToast } = useToast();
   const searchParams = useSearchParams();
-  const initialDate = searchParams.get("date") === "today" ? todayISO() : searchParams.get("date") || todayISO();
+  const initialDate =
+    searchParams.get("date") === "today"
+      ? todayISO()
+      : searchParams.get("date") || todayISO();
 
   const [date, setDate] = useState<string>(initialDate);
   const [teacherFilter, setTeacherFilter] = useState<string>("");
@@ -36,61 +95,67 @@ function AttendanceContent() {
 
   const isAdmin = user?.role === "admin";
 
-  const studentParams = useMemo(() => {
-    const p: Record<string, string | undefined> = {};
-    if (teacherFilter) p.teacher_id = teacherFilter;
-    return p;
+  const studentParams = useMemo<Record<string, string | undefined>>(() => {
+    return teacherFilter ? { teacher_id: teacherFilter } : {};
   }, [teacherFilter]);
 
-  const { data: students, refetch: refetchStudents } = useApi<Student[]>("/api/students/");
-  const { data: records, refetch: refetchRecords } = useApi<DailyRecord[]>(
-    "/api/records/",
-    { date }
+  const { data: students } = useQuery<StudentWithTeacher[]>(
+    "students_with_teacher",
+    studentParams
   );
-  const { data: teachers } = useApi<Teacher[]>(isAdmin ? "/api/users/teachers/" : null);
+  const { data: records } = useQuery<DailyRec[]>("daily_records", { date });
+  const { data: teachers } = useQuery<TeacherWithUser[]>(isAdmin ? "teachers" : null);
 
-  // Refetch when date or teacher filter changes
+  // Seed drafts whenever students or records change. Records from the
+  // encrypted table carry weekly_plan_id, not student_id directly — resolve
+  // via the plans table so we can key drafts by student.
   useEffect(() => {
-    refetchStudents(studentParams);
-  }, [studentParams, refetchStudents]);
+    let cancelled = false;
+    const buildDrafts = async () => {
+      const map = new Map<string, DraftRecord>();
 
-  useEffect(() => {
-    refetchRecords({ date });
-  }, [date, refetchRecords]);
+      // Build a plan_id → student_id map for the records we have.
+      const planIds = new Set<string>();
+      (records ?? []).forEach((r) => planIds.add(r.weekly_plan_id));
+      const planToStudent = new Map<string, string>();
+      for (const pid of planIds) {
+        const row = await getDb().weekly_plans.get(pid);
+        if (row) planToStudent.set(pid, row.student_id);
+      }
 
-  // Seed drafts whenever students or records change
-  useEffect(() => {
-    const map = new Map<string, DraftRecord>();
-    const recordsByStudent = new Map<string, DailyRecord>();
-    (records ?? []).forEach((r) => {
-      if (r.student_id) recordsByStudent.set(r.student_id, r);
-    });
-    (students ?? []).forEach((s) => {
-      const existing = recordsByStudent.get(s.id);
-      map.set(s.id, {
-        student_id: s.id,
-        student_name: s.full_name,
-        record_id: existing?.id,
-        attendance: existing?.attendance,
-        surah_name: existing?.surah_name ?? "",
-        required_verses: existing?.required_verses ?? 0,
-        achieved_verses: existing?.achieved_verses ?? 0,
-        quality: existing?.quality ?? "none",
-        note: existing?.note ?? "",
-        dirty: false,
+      const recordsByStudent = new Map<string, DailyRec>();
+      (records ?? []).forEach((r) => {
+        const sid = planToStudent.get(r.weekly_plan_id);
+        if (sid) recordsByStudent.set(sid, r);
       });
-    });
-    const timeoutId = window.setTimeout(() => {
-      setDrafts(map);
-      setDirty(false);
-    }, 0);
 
+      (students ?? []).forEach((s) => {
+        const existing = recordsByStudent.get(s.id);
+        map.set(s.id, {
+          student_id: s.id,
+          student_name: s.full_name,
+          record_id: existing?.id,
+          attendance: existing?.attendance,
+          surah_name: existing?.surah_name ?? "",
+          required_verses: existing?.required_verses ?? 0,
+          achieved_verses: existing?.achieved_verses ?? 0,
+          quality: existing?.quality ?? "none",
+          note: existing?.note ?? "",
+          dirty: false,
+        });
+      });
+
+      if (!cancelled) {
+        setDrafts(map);
+        setDirty(false);
+      }
+    };
+    void buildDrafts();
     return () => {
-      window.clearTimeout(timeoutId);
+      cancelled = true;
     };
   }, [students, records]);
 
-  // Warn on unsaved changes
   useEffect(() => {
     if (!dirty) return;
     const onBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -117,8 +182,7 @@ function AttendanceContent() {
       return;
     }
 
-    // Friday guard — backend blocks Fridays; give instant user feedback
-    const selectedDay = new Date(date + "T00:00:00").getDay(); // 0=Sun…5=Fri in JS
+    const selectedDay = new Date(date + "T00:00:00").getDay();
     if (selectedDay === 5) {
       showToast("لا يمكن تسجيل الحضور ليوم الجمعة", "error");
       return;
@@ -126,65 +190,59 @@ function AttendanceContent() {
 
     setIsSaving(true);
 
-    // Work on a local copy so we can patch record_ids without touching React state
-    const currentDrafts = new Map(drafts);
-    const draftList = Array.from(currentDrafts.values()).filter((d) => d.dirty);
-    const withStatus = draftList.filter((d) => d.attendance);
+    const ws = weekStartFor(new Date(date));
+    const day = weekdayKey(new Date(date));
 
-    // 1) Bulk attendance — captures newly created record IDs
-    if (withStatus.length > 0) {
-      const payload: BulkAttendanceRequest = {
-        date,
-        records: withStatus.map((d) => ({
-          student_id: d.student_id,
-          attendance: d.attendance!,
-        })),
-      };
-      const res = await api.post<BulkAttendanceResponse>("/api/records/bulk-attendance/", payload);
-      if (!res.success) {
-        showToast(res.error.message, "error");
-        setIsSaving(false);
-        return;
-      }
-      // Sync record IDs into local draft copy so PATCH calls below have valid IDs
-      res.data.records.forEach((rec) => {
-        const d = currentDrafts.get(rec.student_id);
-        if (d && !d.record_id) {
-          currentDrafts.set(rec.student_id, { ...d, record_id: rec.id });
-        }
-      });
-    }
-
-    // 2) Per-row PATCH for memorization details (only when memo fields are present)
+    const dirtyDrafts = Array.from(drafts.values()).filter((d) => d.dirty);
     let failed = 0;
-    for (const d of Array.from(currentDrafts.values()).filter((d) => d.dirty)) {
-      const hasMemo =
-        d.surah_name || d.required_verses > 0 || d.achieved_verses > 0 || d.note;
-      if (!hasMemo || !d.record_id) continue;
 
-      const update: UpdateRecordRequest = {
+    for (const d of dirtyDrafts) {
+      if (!d.attendance) continue;
+
+      const planId = await ensureWeeklyPlan(d.student_id, ws);
+      if (!planId) {
+        failed++;
+        continue;
+      }
+
+      const existingId = d.record_id ?? (await findDailyRecordId(planId, day));
+      const payload = {
+        weekly_plan_id: planId,
+        day,
+        date,
+        attendance: d.attendance,
         surah_name: d.surah_name,
         required_verses: d.required_verses,
         achieved_verses: d.achieved_verses,
         quality: d.quality,
         note: d.note,
       };
-      const res = await api.patch(`/api/records/${d.record_id}/`, update);
-      if (!res.success) failed++;
+      const res = existingId
+        ? await runMutation({
+            resource: "daily_record",
+            action: "update",
+            payload: { id: existingId, ...payload },
+          })
+        : await runMutation({
+            resource: "daily_record",
+            action: "create",
+            payload,
+          });
+      if (!res.ok) failed++;
     }
 
     setIsSaving(false);
+    void triggerPush();
+
     if (failed > 0) {
       showToast(`تم الحفظ مع ${failed} أخطاء`, "error");
     } else {
       showToast("تم حفظ الحضور بنجاح", "success");
     }
-    refetchRecords({ date });
   };
 
   const studentList = students ?? [];
 
-  // Attendance summary stats computed from drafts
   const attendanceStats = useMemo(() => {
     const all = Array.from(drafts.values());
     const total = all.length;
@@ -195,9 +253,13 @@ function AttendanceContent() {
     return { total, present, absent, late, recorded };
   }, [drafts]);
 
+  // Side-effect: silence unused imports warnings in stripped build
+  void decryptRow;
+  const _dummy: DailyRecordRecord | null = null;
+  void _dummy;
+
   return (
     <div className="space-y-6 max-w-5xl mx-auto pb-10">
-      {/* Header */}
       <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
         <div className="flex items-center gap-3 mb-4">
           <div className="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center">
@@ -245,18 +307,13 @@ function AttendanceContent() {
               disabled={isSaving || !dirty}
               className="w-full h-11 px-4 bg-primary text-white text-sm font-bold rounded-xl hover:bg-primary/90 disabled:opacity-50 flex items-center justify-center gap-2"
             >
-              {isSaving ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Save className="w-4 h-4" />
-              )}
+              {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               حفظ الكل
             </button>
           </div>
         </div>
       </div>
 
-      {/* Quick Stats */}
       {attendanceStats.total > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm text-center">
@@ -274,13 +331,13 @@ function AttendanceContent() {
           <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm text-center">
             <p className="text-[10px] text-slate-500 font-medium mb-1">تم التسجيل</p>
             <h3 className="text-2xl font-black text-primary">
-              {attendanceStats.recorded}<span className="text-sm text-slate-400 font-bold">/{attendanceStats.total}</span>
+              {attendanceStats.recorded}
+              <span className="text-sm text-slate-400 font-bold">/{attendanceStats.total}</span>
             </h3>
           </div>
         </div>
       )}
 
-      {/* Students */}
       <div className="space-y-3">
         {studentList.length === 0 ? (
           <div className="bg-white rounded-2xl p-12 text-center border border-slate-100">

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { CheckCircle2 } from "lucide-react";
-import { useMutation } from "@/hooks/useMutation";
+import { api } from "@/lib/api";
 import type { OtpVerifyRequest } from "@/types/api";
 
 export default function ResetPasswordPage() {
@@ -14,12 +14,9 @@ export default function ResetPasswordPage() {
     const [code, setCode] = useState<string>("");
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
-    const [validationError, setValidationError] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const [isResolved, setIsResolved] = useState(false);
-    const { mutate, isSubmitting, error, fieldErrors } = useMutation<unknown>(
-        "post",
-        "/api/auth/otp/verify/"
-    );
 
     useEffect(() => {
         let timeoutId: number | undefined;
@@ -58,48 +55,37 @@ export default function ResetPasswordPage() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setValidationError(null);
+        setError(null);
 
         if (!password || !confirmPassword) {
-            setValidationError("الرجاء تعبئة جميع الحقول");
+            setError("الرجاء تعبئة جميع الحقول");
             return;
         }
         if (password !== confirmPassword) {
-            setValidationError("كلمتا المرور غير متطابقتين");
+            setError("كلمتا المرور غير متطابقتين");
             return;
         }
         if (password.length < 8) {
-            setValidationError("كلمة المرور يجب أن تكون 8 أحرف على الأقل");
+            setError("كلمة المرور يجب أن تكون 8 أحرف على الأقل");
             return;
         }
 
+        setIsSubmitting(true);
         const payload: OtpVerifyRequest = {
             national_id: nationalId,
             code,
             new_password: password,
         };
-        const result = await mutate(payload, {
-            successMessage: "تم تغيير كلمة المرور بنجاح",
-        });
-        if (result !== null) {
-            sessionStorage.removeItem("pw_reset");
-            router.push("/login?reset=success");
-        }
-    };
+        const res = await api.post("/api/auth/otp/verify/", payload);
+        setIsSubmitting(false);
 
-    const codeError =
-        fieldErrors?.code
-            ? Array.isArray(fieldErrors.code)
-                ? fieldErrors.code[0]
-                : fieldErrors.code
-            : null;
-    const passwordError =
-        validationError ||
-        (fieldErrors?.new_password
-            ? Array.isArray(fieldErrors.new_password)
-                ? fieldErrors.new_password[0]
-                : fieldErrors.new_password
-            : null);
+        if (!res.success) {
+            setError(res.error.message);
+            return;
+        }
+        sessionStorage.removeItem("pw_reset");
+        router.push("/login?reset=success");
+    };
 
     if (!isResolved || !nationalId || !code) {
         return <div className="text-center py-10">جاري التحميل...</div>;
@@ -135,11 +121,7 @@ export default function ResetPasswordPage() {
                         dir="ltr"
                         disabled={isSubmitting}
                     />
-                    {passwordError && <p className="text-sm text-red-500 mt-1">{passwordError}</p>}
-                    {codeError && <p className="text-sm text-red-500 mt-1">{codeError}</p>}
-                    {!passwordError && !codeError && error && (
-                        <p className="text-sm text-red-500 mt-1">{error}</p>
-                    )}
+                    {error && <p className="text-sm text-red-500 mt-1">{error}</p>}
                 </div>
 
                 <Button

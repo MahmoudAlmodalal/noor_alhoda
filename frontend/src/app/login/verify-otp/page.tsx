@@ -4,7 +4,8 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { OTPInput } from "@/components/ui/OTPInput";
 import { Button } from "@/components/ui/Button";
-import { useMutation } from "@/hooks/useMutation";
+import { api } from "@/lib/api";
+import { useToast } from "@/contexts/ToastContext";
 import type { OtpSendRequest } from "@/types/api";
 
 const OTP_LENGTH = 6;
@@ -15,10 +16,8 @@ export default function VerifyOTPPage() {
     const [otp, setOtp] = useState("");
     const [error, setError] = useState<string | null>(null);
     const [isResolved, setIsResolved] = useState(false);
-    const { mutate: resend, isSubmitting: isResending } = useMutation<unknown>(
-        "post",
-        "/api/auth/otp/send/"
-    );
+    const [isResending, setIsResending] = useState(false);
+    const { showToast } = useToast();
 
     useEffect(() => {
         let timeoutId: number | undefined;
@@ -69,8 +68,12 @@ export default function VerifyOTPPage() {
 
     const handleResend = async () => {
         if (!nationalId) return;
+        setIsResending(true);
         const payload: OtpSendRequest = { national_id: nationalId };
-        await resend(payload, { successMessage: "تم إرسال رمز جديد" });
+        const res = await api.post("/api/auth/otp/send/", payload);
+        setIsResending(false);
+        if (res.success) showToast("تم إرسال رمز جديد", "success");
+        else showToast(res.error.message, "error");
     };
 
     if (!isResolved || !nationalId) {

@@ -1,16 +1,15 @@
 "use client";
 
 import { useAuth } from "@/contexts/AuthContext";
-import { useApi } from "@/hooks/useApi";
+import { useQuery } from "@/hooks/useApi";
 import { PageLoading } from "@/components/ui/LoadingSpinner";
-import { QualityPill, QualityStars, QUALITY_LABELS, type Quality } from "@/components/student/QualityLabel";
+import { QualityPill, QualityStars, type Quality } from "@/components/student/QualityLabel";
 import { ReviewCompleteButton } from "@/components/student/ReviewCompleteButton";
 import type { TodayTasks } from "@/types/api";
 import {
     BookOpen,
     Calendar,
     CheckCircle2,
-    ClipboardCheck,
     ClipboardList,
     GraduationCap,
     Moon,
@@ -78,8 +77,9 @@ export default function StudentTasksPage() {
     const { user } = useAuth();
     const studentProfileId = user?.student_profile?.id;
 
-    const { data, isLoading, refetch } = useApi<TodayTasks>(
-        studentProfileId ? `/api/students/${studentProfileId}/tasks/today/` : null
+    const { data, isLoading, refetch } = useQuery<TodayTasks>(
+        studentProfileId ? "tasks_today" : null,
+        studentProfileId ? { student_id: studentProfileId } : undefined
     );
 
     if (isLoading || !data) {

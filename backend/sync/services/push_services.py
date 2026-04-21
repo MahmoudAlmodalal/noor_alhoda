@@ -23,7 +23,8 @@ from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
-from accounts.models import ParentStudentLink, Parent, Teacher, User
+from accounts.models import ParentStudentLink, Parent, User
+from teacher.models import Teacher
 from courses.models import Course, StudentCourse
 from evaluations.models import Evaluation
 from notifications.models import Notification
@@ -543,7 +544,7 @@ def _push_evaluation_delete(*, actor: User, op: dict) -> dict:
 
 
 def _push_teacher_create(*, actor: User, op: dict) -> dict:
-    from accounts.services.user_services import teacher_create
+    from teacher.services.teacher_services import teacher_create
 
     data = dict(op.get("data") or {})
     teacher = teacher_create(creator=actor, id=op.get("id"), **data)
@@ -555,7 +556,7 @@ def _push_teacher_create(*, actor: User, op: dict) -> dict:
 
 
 def _push_teacher_update(*, actor: User, op: dict) -> dict:
-    from accounts.services.user_services import teacher_update
+    from teacher.services.teacher_services import teacher_update
 
     target_id = op.get("id")
     base = _parse_base(op.get("base_updated_at"))
@@ -581,7 +582,7 @@ def _push_teacher_update(*, actor: User, op: dict) -> dict:
 
 
 def _push_teacher_delete(*, actor: User, op: dict) -> dict:
-    from accounts.services.user_services import teacher_delete
+    from teacher.services.teacher_services import teacher_delete
 
     target_id = op.get("id")
     base = _parse_base(op.get("base_updated_at"))

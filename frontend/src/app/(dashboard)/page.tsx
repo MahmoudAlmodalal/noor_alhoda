@@ -14,14 +14,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { PageLoading } from "@/components/ui/LoadingSpinner";
-import { useEffect, useMemo, useState } from "react";
-import { useApi } from "@/hooks/useApi";
+import { useEffect, useState } from "react";
+import { useQuery } from "@/hooks/useApi";
 import type {
-  DashboardStats,
-  Student,
-  DailyRecord,
-  ScheduleItem,
-} from "@/types/api";
+  DailyRecordRecord,
+  StudentWithTeacher,
+} from "@/hooks/queries";
+import type { DashboardStats, ScheduleItem } from "@/types/api";
 import { WeeklyPlanModal } from "@/components/plans/WeeklyPlanModal";
 import { AnnounceModal } from "@/components/notifications/AnnounceModal";
 
@@ -54,8 +53,6 @@ export default function Dashboard() {
   const isAdmin = user?.role === "admin";
   const isTeacher = user?.role === "teacher";
   const isStudent = user?.role === "student";
-
-  // For teachers, we need their profile ID, not their user ID
   const teacherProfileId = user?.teacher_profile?.id;
 
   useEffect(() => {
@@ -64,40 +61,28 @@ export default function Dashboard() {
     }
   }, [authLoading, isStudent, router]);
 
-  // Admin: live dashboard stats
-  const { data: dashStats, isLoading: dashLoading } = useApi<DashboardStats>(
-    isAdmin ? "/api/reports/dashboard/" : null
+  const { data: dashStats, isLoading: dashLoading } = useQuery<DashboardStats>(
+    isAdmin ? "dashboard_stats" : null
   );
 
-  // Teacher fallback: list own students + today's records + rings
-  const { data: teacherStudents } = useApi<Student[]>(
-    isTeacher && teacherProfileId ? "/api/students/" : null,
+  const { data: teacherStudents } = useQuery<StudentWithTeacher[]>(
+    isTeacher && teacherProfileId ? "students_with_teacher" : null,
     isTeacher && teacherProfileId ? { teacher_id: teacherProfileId } : undefined
   );
-  const { data: todayRecords } = useApi<DailyRecord[]>(
-    isTeacher ? "/api/records/" : null,
+  const { data: todayRecords } = useQuery<DailyRecordRecord[]>(
+    isTeacher ? "daily_records" : null,
     isTeacher ? { date: todayKey() } : undefined
   );
 
-  // Roster table — admin sees all, teacher sees own
-  const rosterParams = useMemo(() => {
-    const p: Record<string, string | undefined> = {};
-    if (isTeacher && teacherProfileId) p.teacher_id = teacherProfileId;
-    return p;
-  }, [isTeacher, teacherProfileId]);
-
-  const { data: rosterData, isLoading: rosterLoading, refetch: refetchRoster } = useApi<Student[]>(
-    isAdmin || isTeacher ? "/api/students/" : null
+  const { data: rosterData, isLoading: rosterLoading } = useQuery<StudentWithTeacher[]>(
+    isAdmin || isTeacher ? "students_with_teacher" : null,
+    isTeacher && teacherProfileId ? { teacher_id: teacherProfileId } : undefined
   );
-  useEffect(() => {
-    refetchRoster(rosterParams);
-  }, [rosterParams, refetchRoster]);
 
   if (authLoading) return <PageLoading />;
   if (isStudent) return <PageLoading />;
   if (isAdmin && dashLoading && !dashStats) return <PageLoading />;
 
-  // ─── Derived stats ─────────────────────────────────────────────────────────
   const stats = (() => {
     if (isAdmin && dashStats) {
       return {
@@ -113,14 +98,13 @@ export default function Dashboard() {
       return {
         totalStudents: list.length,
         attendanceToday: records.filter((r) => r.attendance === "present").length,
-        ringsCount: records.filter((r) => r.attendance === "late").length,   // المتأخرين
-        outstanding: records.filter((r) => r.attendance === "absent").length, // المتغيبون
+        ringsCount: records.filter((r) => r.attendance === "late").length,
+        outstanding: records.filter((r) => r.attendance === "absent").length,
       };
     }
     return { totalStudents: 0, attendanceToday: 0, ringsCount: 0, outstanding: 0 };
   })();
 
-  // ─── Schedule (derived from teacher session_days; backend has no endpoint) ─
   const schedule: ScheduleItem[] = (() => {
     const today = todayWeekday();
     const todayLabel = SESSION_DAY_LABELS[today];
@@ -142,7 +126,6 @@ export default function Dashboard() {
     ];
   })();
 
-  // ─── Follow-up students (best-effort: no teacher) ──────────────
   const followUpStudents = (rosterData ?? [])
     .filter((s) => !s.teacher_name)
     .slice(0, 3)
@@ -159,7 +142,6 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto pb-10">
-      {/* Top Welcome Banner */}
       <div className="bg-white rounded-2xl p-6 shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1)] border border-[#f3f4f6] flex flex-col items-center text-center">
         <h1 className="text-2xl font-bold text-primary mb-1">
           {isTeacher ? "مرحباً، الشيخ " : "مرحباً، "}{user?.full_name || ""}
@@ -187,7 +169,6 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* Stats Cards Row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-5 flex flex-col items-start gap-3">
@@ -245,7 +226,6 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Today's Schedule */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
           <div className="flex items-center gap-2 mb-5">
             <Calendar className="w-5 h-5 text-secondary" />
@@ -272,7 +252,6 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Follow up students */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
           <div className="flex items-center gap-2 mb-5">
             <Users className="w-5 h-5 text-primary" />
@@ -306,7 +285,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Quick Actions & Roster */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
@@ -364,7 +342,7 @@ export default function Dashboard() {
           <div className="bg-primary rounded-2xl p-6 text-white shadow-lg shadow-primary/20">
             <h3 className="font-bold text-lg mb-2">إجراءات سريعة</h3>
             <p className="text-xs text-white/70 mb-6 leading-relaxed">استخدم هذه الاختصارات للوصول السريع لأهم المهام اليومية</p>
-            
+
             <div className="grid grid-cols-1 gap-3">
               <button
                 onClick={() => setPlanModalOpen(true)}
@@ -408,57 +386,6 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
-
-      {/* Recent Daily Records — teacher only */}
-      {isTeacher && (todayRecords ?? []).length > 0 && (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-          <div className="p-5 border-b border-slate-50">
-            <h3 className="font-bold text-lg text-slate-800">آخر التقييمات</h3>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-right text-sm">
-              <thead className="bg-slate-50 text-slate-500 text-xs font-bold">
-                <tr>
-                  <th className="px-5 py-3">التاريخ</th>
-                  <th className="px-5 py-3">الطالب</th>
-                  <th className="px-5 py-3">الحضور</th>
-                  <th className="px-5 py-3">الحفظ</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50">
-                {(todayRecords ?? []).slice(0, 8).map((r) => {
-                  const qualityLabel: Record<string, string> = {
-                    excellent: "ممتاز", good: "جيد", acceptable: "مقبول", weak: "ضعيف", none: "-",
-                  };
-                  const attLabel: Record<string, string> = {
-                    present: "حاضر", absent: "غائب", late: "متأخر", excused: "مستأذن",
-                  };
-                  const attColor: Record<string, string> = {
-                    present: "bg-emerald-50 text-emerald-700",
-                    absent: "bg-rose-50 text-rose-600",
-                    late: "bg-amber-50 text-amber-700",
-                    excused: "bg-slate-100 text-slate-500",
-                  };
-                  return (
-                    <tr key={r.id} className="hover:bg-slate-50/50">
-                      <td className="px-5 py-3 text-slate-500 text-xs">{r.date}</td>
-                      <td className="px-5 py-3 font-medium text-slate-700">{r.student_name || "—"}</td>
-                      <td className="px-5 py-3">
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${attColor[r.attendance] || "bg-slate-100 text-slate-500"}`}>
-                          {attLabel[r.attendance] || r.attendance}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3 font-bold text-slate-700">
-                        {qualityLabel[r.quality] || "-"}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
 
       <WeeklyPlanModal isOpen={planModalOpen} onClose={() => setPlanModalOpen(false)} />
       <AnnounceModal isOpen={announceModalOpen} onClose={() => setAnnounceModalOpen(false)} />

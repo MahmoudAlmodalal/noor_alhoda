@@ -29,9 +29,9 @@ from accounts.models import (
     OTPCode,
     Parent,
     ParentStudentLink,
-    Teacher,
     User,
 )
+from teacher.models import Teacher
 from students.models import Student
 
 

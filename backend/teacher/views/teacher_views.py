@@ -1,0 +1,77 @@
+from rest_framework import serializers, status
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from core.permissions import IsAdmin, IsAdminOrTeacher
+from teacher.selectors.teacher_selectors import teacher_list
+from teacher.services.teacher_services import teacher_create
+
+
+class TeacherFilterSerializer(serializers.Serializer):
+    search = serializers.CharField(required=False)
+
+
+class TeacherInputSerializer(serializers.Serializer):
+    national_id = serializers.CharField()
+    phone_number = serializers.CharField()
+    first_name = serializers.CharField(required=False, default="")
+    last_name = serializers.CharField(required=False, default="")
+    full_name = serializers.CharField()
+    specialization = serializers.CharField(required=False, allow_blank=True, default="")
+    affiliation = serializers.CharField(required=False, allow_blank=True, default="")
+    ring_name = serializers.CharField(required=False, allow_blank=True, default="")
+    session_days = serializers.ListField(child=serializers.CharField(), required=False, default=[])
+    max_students = serializers.IntegerField(required=False, default=25)
+    course_ids = serializers.ListField(child=serializers.UUIDField(), required=False, default=[])
+
+
+class TeacherOutputSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    user_id = serializers.UUIDField(source="user.id")
+    national_id = serializers.CharField(source="user.national_id")
+    phone_number = serializers.CharField(source="user.phone_number")
+    full_name = serializers.CharField()
+    specialization = serializers.CharField(allow_blank=True)
+    affiliation = serializers.CharField(allow_blank=True)
+    ring_name = serializers.CharField(allow_blank=True)
+    session_days = serializers.JSONField()
+    max_students = serializers.IntegerField()
+    courses = serializers.SerializerMethodField()
+    created_at = serializers.DateTimeField()
+
+    def get_courses(self, obj):
+        return [{"id": str(c.id), "name": c.name} for c in obj.courses.all()]
+
+
+class TeacherListApi(APIView):
+    """GET /api/users/teachers/ — قائمة المحفظين"""
+
+    permission_classes = [IsAdminOrTeacher]
+
+    def get(self, request):
+        filter_serializer = TeacherFilterSerializer(data=request.query_params)
+        filter_serializer.is_valid(raise_exception=True)
+
+        teachers = teacher_list(filters=filter_serializer.validated_data)
+
+        return Response(
+            {"success": True, "data": TeacherOutputSerializer(teachers, many=True).data},
+            status=status.HTTP_200_OK,
+        )
+
+
+class TeacherCreateApi(APIView):
+    """POST /api/users/teachers/create/ — إنشاء محفظ جديد (مدير فقط)"""
+
+    permission_classes = [IsAdmin]
+
+    def post(self, request):
+        serializer = TeacherInputSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        teacher = teacher_create(creator=request.user, **serializer.validated_data)
+
+        return Response(
+            {"success": True, "data": TeacherOutputSerializer(teacher).data},
+            status=status.HTTP_201_CREATED,
+        )

@@ -595,6 +595,37 @@ export async function studentCoursesForStudent(
 }
 
 // ---------------------------------------------------------------------------
+// Daily records enriched with student_name (via weekly_plan join)
+// ---------------------------------------------------------------------------
+
+export interface DailyRecordWithStudent extends DailyRecordRecord {
+  student_id: string;
+  student_name: string;
+}
+
+export async function listDailyRecordsWithStudentForDate(
+  date: string,
+  filters?: { teacher_id?: string }
+): Promise<DailyRecordWithStudent[]> {
+  const [records, plans, students] = await Promise.all([
+    listDailyRecordsForDate(date),
+    listWeeklyPlans(),
+    listStudents(filters?.teacher_id ? { teacher_id: filters.teacher_id } : undefined),
+  ]);
+  const studentById = new Map(students.map((s) => [s.id, s]));
+  const planToStudent = new Map(plans.map((p) => [p.id, p.student_id]));
+  return records
+    .map((r) => {
+      const sid = planToStudent.get(r.weekly_plan_id);
+      if (!sid) return null;
+      const s = studentById.get(sid);
+      if (!s) return null;
+      return { ...r, student_id: sid, student_name: s.full_name };
+    })
+    .filter((r): r is DailyRecordWithStudent => r !== null);
+}
+
+// ---------------------------------------------------------------------------
 // Plans listing for the /plans page (joined with student name)
 // ---------------------------------------------------------------------------
 

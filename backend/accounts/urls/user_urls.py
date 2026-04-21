@@ -4,9 +4,8 @@ from accounts.views.user_views import (
     UserListApi,
     UserCreateApi,
     UserDetailApi,
-    TeacherListApi,
-    TeacherCreateApi,
 )
+from teacher.views.teacher_views import TeacherListApi, TeacherCreateApi
 
 urlpatterns = [
     path("", UserListApi.as_view(), name="user-list"),

@@ -12,6 +12,7 @@ import {
   attendanceReport,
   dashboardStats,
   leaderboard,
+  listDailyRecordsWithStudentForDate,
   listPlansForUI,
   studentCoursesForStudent,
   studentHistory,
@@ -56,6 +57,7 @@ export type QueryKey =
   | "weekly_plan_for_week"
   | "plans_for_ui"
   | "daily_records"
+  | "daily_records_with_student"
   | "review_records"
   | "evaluations"
   | "notifications"
@@ -218,6 +220,16 @@ const QUERIES: Record<QueryKey, QueryDef> = {
       return Promise.resolve([] as DailyRecordRecord[]);
     },
     depends: ["daily_record"],
+  },
+  daily_records_with_student: {
+    fn: (p) => {
+      const date = typeof p?.date === "string" ? p.date : "";
+      if (!date) return Promise.resolve([]);
+      const teacher_id =
+        typeof p?.teacher_id === "string" ? p.teacher_id : undefined;
+      return listDailyRecordsWithStudentForDate(date, { teacher_id });
+    },
+    depends: ["daily_record", "weekly_plan", "student"],
   },
   review_records: {
     fn: (p) => {

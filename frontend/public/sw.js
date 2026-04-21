@@ -14,7 +14,7 @@
  *   postMessage so the push runner drains the outbox.
  */
 
-const CACHE_VERSION = "v3";
+const CACHE_VERSION = "v4";
 const APP_CACHE = `noor-alhuda-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `noor-alhuda-runtime-${CACHE_VERSION}`;
 
