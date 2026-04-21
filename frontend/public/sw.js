@@ -1,4 +1,4 @@
-const CACHE_NAME = 'noor-alhuda-v1';
+const CACHE_NAME = 'noor-alhuda-v2';
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
