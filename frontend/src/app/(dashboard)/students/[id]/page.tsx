@@ -5,11 +5,20 @@ import Link from "next/link";
 import { ArrowRight, BookMarked, FileText, PlusCircle, User } from "lucide-react";
 import { PageLoading } from "@/components/ui/LoadingSpinner";
 import { Modal } from "@/components/ui/Modal";
-import { useApi } from "@/hooks/useApi";
+import { useQuery } from "@/hooks/useApi";
+import { useMutation } from "@/hooks/useMutation";
+import type { StudentWithTeacher } from "@/hooks/queries";
 import { api } from "@/lib/api";
+import { getDb } from "@/lib/db/schema";
+import { decryptRow } from "@/lib/db/repos/index";
+import type { StudentCourseRecord } from "@/lib/db/repos/misc";
 import { useAuth } from "@/contexts/AuthContext";
 import { WeeklyPlanModal } from "@/components/plans/WeeklyPlanModal";
-import type { Student, StudentCourseStatus, StudentStats, WeeklyPlan } from "@/types/api";
+import type {
+  HistoryEntry,
+  StudentCourseStatus,
+  StudentStats,
+} from "@/types/api";
 
 export default function StudentDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -19,26 +28,57 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
 
-  const { data: student, isLoading: studentLoading } = useApi<Student>(`/api/students/${id}/`);
-  const { data: stats } = useApi<StudentStats>(`/api/students/${id}/stats/`);
-  const { data: history } = useApi<WeeklyPlan[]>(`/api/students/${id}/history/`);
+  const { data: student, isLoading: studentLoading } = useQuery<StudentWithTeacher>(
+    "student",
+    { id }
+  );
+  const { data: stats } = useQuery<StudentStats>("student_stats", { student_id: id });
+  const { data: history } = useQuery<HistoryEntry[]>("student_history", { student_id: id });
   const {
     data: studentCourses,
     isLoading: coursesLoading,
     error: coursesError,
-    refetch: refetchCourses,
-  } = useApi<StudentCourseStatus[]>(`/api/courses/students/${id}/`);
+  } = useQuery<StudentCourseStatus[]>("student_courses", { student_id: id });
+
+  const createSc = useMutation("student_course", "create");
+  const updateSc = useMutation("student_course", "update");
 
   const toggleCourse = async (courseId: string, next: boolean) => {
     if (!isAdmin || togglingCourseId) return;
     setTogglingCourseId(courseId);
-    const res = await api.post(`/api/courses/students/${id}/toggle/`, {
-      course_id: courseId,
-      is_completed: next,
-    });
-    setTogglingCourseId(null);
-    if (res.success) {
-      refetchCourses();
+    try {
+      // Find existing local row by (student_id, course_id) without decrypting
+      // the whole table — student_id and course_id are cleartext indexes.
+      const rows = await getDb()
+        .student_courses.where("student_id")
+        .equals(id)
+        .and((r) => r.course_id === courseId)
+        .toArray();
+      if (rows.length > 0) {
+        const existing = await decryptRow<StudentCourseRecord>(rows[0]);
+        await updateSc.mutate(
+          {
+            id: existing.id,
+            is_completed: next,
+            completion_date: next
+              ? (existing.completion_date ?? new Date().toISOString().slice(0, 10))
+              : null,
+          },
+          { silent: true }
+        );
+      } else {
+        await createSc.mutate(
+          {
+            student_id: id,
+            course_id: courseId,
+            is_completed: next,
+            completion_date: next ? new Date().toISOString().slice(0, 10) : null,
+          },
+          { silent: true }
+        );
+      }
+    } finally {
+      setTogglingCourseId(null);
     }
   };
 
@@ -69,7 +109,6 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
         عودة لقائمة الطلاب
       </Link>
 
-      {/* Profile Card */}
       <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
         <div className="flex items-start gap-4 mb-6">
           <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center shrink-0">
@@ -82,7 +121,6 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
               <span className="px-2.5 py-0.5 bg-blue-50 text-primary text-xs font-bold rounded-md">
                 {student.grade}
               </span>
-
             </div>
           </div>
         </div>
@@ -126,7 +164,6 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
         </div>
       </div>
 
-      {/* Stats Block */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatCard label="نسبة الحضور" value={stats?.attendance_rate != null ? `${stats.attendance_rate}%` : "—"} />
         <StatCard label="الأجزاء المحفوظة" value={stats?.memorized_ajza ?? "—"} />
@@ -134,7 +171,6 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
         <StatCard label="المعدل العام" value={stats?.avg_grade ?? "—"} />
       </div>
 
-      {/* History Table */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
         <div className="px-5 py-4 border-b border-slate-100">
           <h2 className="font-bold text-base text-slate-800">السجل الأسبوعي</h2>
@@ -143,7 +179,6 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
           <table className="w-full text-sm text-right">
             <thead className="text-xs text-slate-500 bg-slate-50/80">
               <tr>
-                <th className="px-4 py-3 font-bold">الأسبوع</th>
                 <th className="px-4 py-3 font-bold">بداية الأسبوع</th>
                 <th className="px-4 py-3 font-bold">المطلوب</th>
                 <th className="px-4 py-3 font-bold">المنجز</th>
@@ -153,19 +188,20 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
             <tbody>
               {(history ?? []).length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="text-center py-8 text-sm text-slate-400">
+                  <td colSpan={4} className="text-center py-8 text-sm text-slate-400">
                     لا يوجد سجل بعد
                   </td>
                 </tr>
               ) : (
                 (history ?? []).map((w) => {
-                  const rate = w.total_required > 0 ? Math.round((w.total_achieved / w.total_required) * 100) : 0;
+                  const required = w.required_verses ?? 0;
+                  const achieved = w.achieved_verses ?? 0;
+                  const rate = required > 0 ? Math.round((achieved / required) * 100) : 0;
                   return (
                     <tr key={w.id} className="border-b border-slate-50">
-                      <td className="px-4 py-3 font-bold text-slate-700">#{w.week_number}</td>
-                      <td className="px-4 py-3 text-slate-600" dir="ltr">{w.week_start}</td>
-                      <td className="px-4 py-3 text-slate-600">{w.total_required}</td>
-                      <td className="px-4 py-3 text-slate-600">{w.total_achieved}</td>
+                      <td className="px-4 py-3 text-slate-600" dir="ltr">{w.date}</td>
+                      <td className="px-4 py-3 text-slate-600">{required}</td>
+                      <td className="px-4 py-3 text-slate-600">{achieved}</td>
                       <td className="px-4 py-3">
                         <span className={`text-xs font-bold px-2 py-1 rounded-md ${
                           rate >= 80 ? "bg-green-50 text-green-600" :
@@ -184,7 +220,6 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
         </div>
       </div>
 
-      {/* Courses Summary (read-only chips) */}
       {(studentCourses ?? []).some((c) => c.is_completed) && (
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
           <div className="flex items-center gap-2 mb-3">

@@ -1,3 +1,4 @@
+"use client";
 
 import React, { useState } from "react";
 import { Loader2, Save } from "lucide-react";
@@ -5,26 +6,34 @@ import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useMutation } from "@/hooks/useMutation";
-import { useApi } from "@/hooks/useApi";
-import type { Teacher, Student } from "@/types/api";
+import { useQuery } from "@/hooks/useApi";
+import type { StudentWithTeacher, TeacherWithUser } from "@/hooks/queries";
 
 /**
  * Assign Student to Teacher Modal — تعيين الطالب لمحفظ
  */
 export function AssignStudentModal({
-  isOpen, onClose, studentId, studentName, onSuccess,
+  isOpen,
+  onClose,
+  studentId,
+  studentName,
+  onSuccess,
 }: {
-  isOpen: boolean; onClose: () => void; studentId: string; studentName: string; onSuccess?: () => void;
+  isOpen: boolean;
+  onClose: () => void;
+  studentId: string;
+  studentName: string;
+  onSuccess?: () => void;
 }) {
   const [teacherId, setTeacherId] = useState("");
-  const { data: teachers } = useApi<Teacher[]>(isOpen ? "/api/users/teachers/" : null);
-  const { mutate, isSubmitting, error } = useMutation("patch");
+  const { data: teachers } = useQuery<TeacherWithUser[]>(isOpen ? "teachers" : null);
+  const { mutate, isSubmitting, error } = useMutation("student", "update");
 
   const handleSubmit = async () => {
     if (!teacherId) return;
     const result = await mutate(
-      { teacher_id: teacherId },
-      { endpoint: `/api/students/${studentId}/assign-teacher/`, successMessage: "تم تعيين المحفظ بنجاح" }
+      { id: studentId, teacher_id: teacherId },
+      { successMessage: "تم تعيين المحفظ بنجاح" }
     );
     if (result) {
       onSuccess?.();
@@ -48,14 +57,14 @@ export function AssignStudentModal({
         >
           <option value="">— اختر المحفظ —</option>
           {(teachers ?? []).map((t) => (
-            <option key={t.id} value={t.id}>{t.full_name}</option>
+            <option key={t.id} value={t.id}>
+              {t.full_name}
+            </option>
           ))}
         </select>
       </div>
 
-      {error && (
-        <p className="text-sm text-red-500 mb-4">{error}</p>
-      )}
+      {error && <p className="text-sm text-red-500 mb-4">{error}</p>}
 
       <div className="flex items-center gap-3">
         <Button variant="ghost" onClick={onClose} className="flex-1 bg-slate-100/80 text-slate-700 hover:bg-slate-200 h-12 rounded-xl font-bold">
@@ -74,14 +83,20 @@ export function AssignStudentModal({
  * Edit Student Modal — تعديل بيانات الطالب
  */
 export function EditStudentModal({
-  isOpen, onClose, student, onSuccess,
+  isOpen,
+  onClose,
+  student,
+  onSuccess,
 }: {
-  isOpen: boolean; onClose: () => void; student: Student; onSuccess?: () => void;
+  isOpen: boolean;
+  onClose: () => void;
+  student: StudentWithTeacher;
+  onSuccess?: () => void;
 }) {
   const [form, setForm] = useState({
     full_name: student.full_name,
     national_id: student.national_id,
-    birthdate: student.birthdate,
+    birthdate: student.birthdate ?? "",
     grade: student.grade,
     phone_number: student.mobile || "",
     address: student.address || "",
@@ -102,27 +117,22 @@ export function EditStudentModal({
 
   const [healthOtherText, setHealthOtherText] = useState(student.health_note || "");
 
+  const skillsObj = (student.skills ?? {}) as Record<string, boolean | string>;
   const [skills, setSkills] = useState({
-    quran: student.skills?.quran ?? false,
-    nasheed: student.skills?.nasheed ?? false,
-    poetry: student.skills?.poetry ?? false,
-    other: student.skills?.other ?? false,
+    quran: Boolean(skillsObj.quran),
+    nasheed: Boolean(skillsObj.nasheed),
+    poetry: Boolean(skillsObj.poetry),
+    other: Boolean(skillsObj.other),
   });
 
-  const [skillsOtherText, setSkillsOtherText] = useState((student.skills as any)?.other_text || "");
+  const [skillsOtherText, setSkillsOtherText] = useState(
+    typeof skillsObj.other_text === "string" ? skillsObj.other_text : ""
+  );
 
-  const { mutate, isSubmitting, fieldErrors, error } = useMutation("patch");
+  const { mutate, isSubmitting, error } = useMutation("student", "update");
 
   const handleChange = (field: string, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const getFieldError = (name: string): string | undefined => {
-    if (!fieldErrors) return undefined;
-    const err = fieldErrors[name];
-    if (Array.isArray(err)) return err[0];
-    if (typeof err === "string") return err;
-    return undefined;
   };
 
   const handleSubmit = async () => {
@@ -134,6 +144,7 @@ export function EditStudentModal({
 
     const result = await mutate(
       {
+        id: student.id,
         full_name: form.full_name,
         national_id: form.national_id,
         birthdate: form.birthdate,
@@ -150,7 +161,7 @@ export function EditStudentModal({
         health_note: health.other ? healthOtherText : "",
         skills: { ...skills, ...(skills.other && skillsOtherText ? { other_text: skillsOtherText } : {}) },
       },
-      { endpoint: `/api/students/${student.id}/`, successMessage: "تم تحديث بيانات الطالب بنجاح" }
+      { successMessage: "تم تحديث بيانات الطالب بنجاح" }
     );
     if (result) {
       onSuccess?.();
@@ -165,20 +176,17 @@ export function EditStudentModal({
         <div className="space-y-1.5">
           <label className="block text-sm font-bold text-slate-800">الاسم رباعي</label>
           <Input value={form.full_name} onChange={(e) => handleChange("full_name", e.target.value)} aria-label="الاسم رباعي" className="h-12 rounded-xl border-slate-200" />
-          {getFieldError("full_name") && <p className="text-xs text-red-500">{getFieldError("full_name")}</p>}
         </div>
 
         <div className="space-y-1.5">
           <label className="block text-sm font-bold text-slate-800">رقم الهوية</label>
           <Input type="number" dir="ltr" value={form.national_id} onChange={(e) => handleChange("national_id", e.target.value)} aria-label="رقم الهوية" className="h-12 rounded-xl border-slate-200" />
-          {getFieldError("national_id") && <p className="text-xs text-red-500">{getFieldError("national_id")}</p>}
         </div>
 
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-1.5">
             <label className="block text-sm font-bold text-slate-800">تاريخ الميلاد</label>
             <Input type="date" value={form.birthdate} onChange={(e) => handleChange("birthdate", e.target.value)} aria-label="تاريخ الميلاد" className="h-12 rounded-xl border-slate-200" />
-            {getFieldError("birthdate") && <p className="text-xs text-red-500">{getFieldError("birthdate")}</p>}
           </div>
           <div className="space-y-1.5">
             <label className="block text-sm font-bold text-slate-800">الصف الدراسي</label>
@@ -192,56 +200,47 @@ export function EditStudentModal({
                 <option key={i + 1} value={String(i + 1)}>الصف {i + 1}</option>
               ))}
             </select>
-            {getFieldError("grade") && <p className="text-xs text-red-500">{getFieldError("grade")}</p>}
           </div>
         </div>
 
         <div className="space-y-1.5">
           <label className="block text-sm font-bold text-slate-800">رقم الجوال</label>
           <Input type="tel" dir="ltr" value={form.phone_number} onChange={(e) => handleChange("phone_number", e.target.value)} aria-label="رقم الجوال" className="h-12 rounded-xl border-slate-200" />
-          {getFieldError("mobile") && <p className="text-xs text-red-500">{getFieldError("mobile")}</p>}
         </div>
 
         <div className="space-y-1.5">
           <label className="block text-sm font-bold text-slate-800">العنوان</label>
           <Input value={form.address} onChange={(e) => handleChange("address", e.target.value)} aria-label="العنوان" className="h-12 rounded-xl border-slate-200" />
-          {getFieldError("address") && <p className="text-xs text-red-500">{getFieldError("address")}</p>}
         </div>
 
         <div className="space-y-1.5">
           <label className="block text-sm font-bold text-slate-800">اسم ولي الأمر</label>
           <Input value={form.guardian_name} onChange={(e) => handleChange("guardian_name", e.target.value)} aria-label="اسم ولي الأمر" className="h-12 rounded-xl border-slate-200" />
-          {getFieldError("guardian_name") && <p className="text-xs text-red-500">{getFieldError("guardian_name")}</p>}
         </div>
 
         <div className="space-y-1.5">
           <label className="block text-sm font-bold text-slate-800">رقم هوية ولي الأمر</label>
           <Input type="number" dir="ltr" value={form.guardian_national_id} onChange={(e) => handleChange("guardian_national_id", e.target.value)} aria-label="رقم هوية ولي الأمر" className="h-12 rounded-xl border-slate-200" />
-          {getFieldError("guardian_national_id") && <p className="text-xs text-red-500">{getFieldError("guardian_national_id")}</p>}
         </div>
 
         <div className="space-y-1.5">
           <label className="block text-sm font-bold text-slate-800">جوال ولي الأمر</label>
           <Input type="tel" dir="ltr" value={form.guardian_mobile} onChange={(e) => handleChange("guardian_mobile", e.target.value)} aria-label="جوال ولي الأمر" className="h-12 rounded-xl border-slate-200" />
-          {getFieldError("guardian_mobile") && <p className="text-xs text-red-500">{getFieldError("guardian_mobile")}</p>}
         </div>
 
         <div className="space-y-1.5">
           <label className="block text-sm font-bold text-slate-800">رقم الحساب</label>
           <Input value={form.bank_account_number} onChange={(e) => handleChange("bank_account_number", e.target.value)} aria-label="رقم الحساب" className="h-12 rounded-xl border-slate-200" />
-          {getFieldError("bank_account_number") && <p className="text-xs text-red-500">{getFieldError("bank_account_number")}</p>}
         </div>
 
         <div className="space-y-1.5">
           <label className="block text-sm font-bold text-slate-800">اسم الحساب</label>
           <Input value={form.bank_account_name} onChange={(e) => handleChange("bank_account_name", e.target.value)} aria-label="اسم الحساب" className="h-12 rounded-xl border-slate-200" />
-          {getFieldError("bank_account_name") && <p className="text-xs text-red-500">{getFieldError("bank_account_name")}</p>}
         </div>
 
         <div className="space-y-1.5">
           <label className="block text-sm font-bold text-slate-800">نوع الحساب</label>
           <Input value={form.bank_account_type} onChange={(e) => handleChange("bank_account_type", e.target.value)} aria-label="نوع الحساب" className="h-12 rounded-xl border-slate-200" />
-          {getFieldError("bank_account_type") && <p className="text-xs text-red-500">{getFieldError("bank_account_type")}</p>}
         </div>
 
         <div className="space-y-2 pt-2">
@@ -289,9 +288,7 @@ export function EditStudentModal({
         </div>
       </div>
 
-      {error && !fieldErrors && (
-        <p className="text-sm text-red-500 mb-4">{error}</p>
-      )}
+      {error && <p className="text-sm text-red-500 mb-4">{error}</p>}
 
       <div className="flex items-center gap-3">
         <Button variant="ghost" onClick={onClose} className="flex-1 bg-slate-100/80 text-slate-700 hover:bg-slate-200 h-12 rounded-xl font-bold">

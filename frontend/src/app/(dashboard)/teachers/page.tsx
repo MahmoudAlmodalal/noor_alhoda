@@ -1,48 +1,50 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useMemo, useState } from "react";
 import { Search, UserPlus, Edit, Trash2, UserCog } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
 import { PageLoading } from "@/components/ui/LoadingSpinner";
-import { useApi } from "@/hooks/useApi";
+import { useQuery } from "@/hooks/useApi";
 import { useDebounce } from "@/hooks/useDebounce";
+import type { TeacherWithUser } from "@/hooks/queries";
 import {
   AddTeacherModal,
   EditTeacherModal,
   ConfirmDeleteModal,
 } from "@/components/modals/TeacherModals";
-import type { Teacher } from "@/types/api";
 import { RoleGate } from "@/components/auth/RoleGate";
 
 function TeachersPageInner() {
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search);
-  const { data: teachers, isLoading, refetch } = useApi<Teacher[]>("/api/users/teachers/");
+  const { data: teachers, isLoading } = useQuery<TeacherWithUser[]>("teachers");
 
-  useEffect(() => {
-    refetch({ search: debouncedSearch });
-  }, [debouncedSearch, refetch]);
-
-  // Modal states
   const [showAdd, setShowAdd] = useState(false);
-  const [editTeacher, setEditTeacher] = useState<Teacher | null>(null);
-  const [deleteTeacher, setDeleteTeacher] = useState<Teacher | null>(null);
+  const [editTeacher, setEditTeacher] = useState<TeacherWithUser | null>(null);
+  const [deleteTeacher, setDeleteTeacher] = useState<TeacherWithUser | null>(null);
+
+  const teacherList = useMemo(() => {
+    const all = teachers ?? [];
+    const q = debouncedSearch.trim().toLowerCase();
+    if (!q) return all;
+    return all.filter(
+      (t) =>
+        t.full_name.toLowerCase().includes(q) ||
+        (t.national_id ?? "").toLowerCase().includes(q)
+    );
+  }, [teachers, debouncedSearch]);
 
   if (isLoading && !teachers) return <PageLoading />;
 
-  const teacherList = teachers ?? [];
-
   return (
     <div className="space-y-6 max-w-lg mx-auto">
-      {/* Header */}
       <div className="text-center space-y-1 mb-6">
         <h1 className="text-2xl font-bold text-primary">إدارة المحفظين</h1>
         <p className="text-sm text-slate-500">إضافة وتعيين الحلقات لمعلمي التحفيظ</p>
       </div>
 
-      {/* Toolbar */}
       <div className="space-y-4">
         <Input
           icon={<Search className="w-5 h-5" />}
@@ -60,7 +62,6 @@ function TeachersPageInner() {
         </Button>
       </div>
 
-      {/* Teachers List */}
       <div className="space-y-4">
         {teacherList.length === 0 ? (
           <div className="text-center py-12">
@@ -89,46 +90,29 @@ function TeachersPageInner() {
                     <span className="text-sm font-semibold text-slate-700">{teacher.specialization || "—"}</span>
                   </div>
 
-	                  <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-lg px-4">
-	                    <span className="text-sm text-slate-500 font-medium">التباعية:</span>
-	                    <span className="text-sm font-semibold text-slate-700">
-	                      {teacher.affiliation === "dar_quran" ? "دار القرآن" :
-	                       teacher.affiliation === "awqaf" ? "أوقاف" :
-	                       teacher.affiliation === "sheikh_tabaea" ? "شيخ التباعية" :
-	                       teacher.affiliation || "—"}
-	                    </span>
-	                  </div>
+                  <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-lg px-4">
+                    <span className="text-sm text-slate-500 font-medium">التباعية:</span>
+                    <span className="text-sm font-semibold text-slate-700">
+                      {teacher.affiliation === "dar_quran" ? "دار القرآن" :
+                       teacher.affiliation === "awqaf" ? "أوقاف" :
+                       teacher.affiliation === "sheikh_tabaea" ? "شيخ التباعية" :
+                       teacher.affiliation || "—"}
+                    </span>
+                  </div>
 
-	                  <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-lg px-4">
-	                    <span className="text-sm text-slate-500 font-medium">اسم الحلقة:</span>
-	                    <span className="text-sm font-semibold text-slate-700">{teacher.ring_name || "—"}</span>
-	                  </div>
+                  <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-lg px-4">
+                    <span className="text-sm text-slate-500 font-medium">اسم الحلقة:</span>
+                    <span className="text-sm font-semibold text-slate-700">{teacher.ring_name || "—"}</span>
+                  </div>
 
-	                  <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-lg px-4">
-	                    <span className="text-sm text-slate-500 font-medium">أيام الحلقة:</span>
-	                    <span className="text-sm font-semibold text-slate-700">
-	                      {teacher.session_days?.length ? teacher.session_days.join(", ") : "غير محدد"}
-	                    </span>
-	                  </div>
+                  <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-lg px-4">
+                    <span className="text-sm text-slate-500 font-medium">أيام الحلقة:</span>
+                    <span className="text-sm font-semibold text-slate-700">
+                      {teacher.session_days?.length ? teacher.session_days.join(", ") : "غير محدد"}
+                    </span>
+                  </div>
+                </div>
 
-	                  <div className="bg-slate-50 p-2.5 rounded-lg px-4">
-	                    <span className="block text-sm text-slate-500 font-medium mb-2">الدورات:</span>
-	                    {teacher.courses?.length ? (
-	                      <div className="flex flex-wrap gap-1.5">
-	                        {teacher.courses.map((c) => (
-	                          <span key={c.id} className="inline-block text-xs font-semibold text-primary bg-primary/10 rounded-full px-2.5 py-1">
-	                            {c.name}
-	                          </span>
-	                        ))}
-	                      </div>
-	                    ) : (
-	                      <span className="text-sm font-semibold text-slate-400">—</span>
-	                    )}
-	                  </div>
-
-	                </div>
-
-                {/* Actions Footer */}
                 <div className="flex items-center gap-2 pt-4 border-t border-slate-100">
                   <Button
                     variant="ghost" size="icon"
@@ -154,11 +138,10 @@ function TeachersPageInner() {
         )}
       </div>
 
-      {/* Modals */}
       <AddTeacherModal
         isOpen={showAdd}
         onClose={() => setShowAdd(false)}
-        onSuccess={() => { setShowAdd(false); refetch(); }}
+        onSuccess={() => setShowAdd(false)}
       />
 
       {editTeacher && (
@@ -166,7 +149,7 @@ function TeachersPageInner() {
           isOpen={!!editTeacher}
           onClose={() => setEditTeacher(null)}
           teacher={editTeacher}
-          onSuccess={() => { setEditTeacher(null); refetch(); }}
+          onSuccess={() => setEditTeacher(null)}
         />
       )}
 
@@ -175,11 +158,11 @@ function TeachersPageInner() {
           isOpen={!!deleteTeacher}
           onClose={() => setDeleteTeacher(null)}
           targetName={deleteTeacher.full_name}
-          deleteEndpoint={`/api/users/${deleteTeacher.user_id}/`}
-          onSuccess={() => { setDeleteTeacher(null); refetch(); }}
+          resource="teacher"
+          targetId={deleteTeacher.id}
+          onSuccess={() => setDeleteTeacher(null)}
         />
       )}
-
     </div>
   );
 }

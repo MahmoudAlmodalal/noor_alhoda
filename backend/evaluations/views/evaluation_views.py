@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from core.permissions import IsAdminOrTeacher, IsAdminOrTeacherOrSelf
-from evaluations.models import Evaluation
+from evaluations.selectors.evaluation_selectors import evaluation_list_for_student
 from evaluations.services.evaluation_services import evaluation_create, evaluation_update
 from students.selectors.student_selectors import can_access_student
 
@@ -62,9 +62,7 @@ class EvaluationListCreateApi(APIView):
         student = student_get(student_id=student_id, actor=request.user)
         # student_get already enforces can_access_student
 
-        evaluations = Evaluation.objects.select_related("student").filter(
-            student=student
-        ).order_by("scheduled_date")
+        evaluations = evaluation_list_for_student(student=student)
 
         return Response(
             {"success": True, "data": EvaluationOutputSerializer(evaluations, many=True).data},
