@@ -202,7 +202,7 @@ function StudentRegistrationInner() {
     };
 
     const defaultPassword = form.phone_number.slice(-4);
-    const result = await mutate(body, { successMessage: `تم تسجيل الطالب بنجاح. كلمة المرور الافتراضية: ${defaultPassword}` });
+    const result = await mutate(body as unknown as Record<string, unknown>, { successMessage: `تم تسجيل الطالب بنجاح. كلمة المرور الافتراضية: ${defaultPassword}` });
     if (result) {
       router.push("/students");
     }
