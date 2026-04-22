@@ -1,7 +1,8 @@
 from django.db import transaction
 from rest_framework.exceptions import ValidationError, PermissionDenied
 
-from accounts.models import User, Teacher, Parent, ParentStudentLink
+from accounts.models import User, Parent, ParentStudentLink
+from teacher.models import Teacher
 from accounts.services.user_services import user_create
 from accounts.utils import normalize_phone
 from core.permissions import is_admin_user

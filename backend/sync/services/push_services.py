@@ -31,6 +31,7 @@ from notifications.models import Notification
 from records.models import DailyRecord, ReviewRecord, WeeklyPlan
 from students.models import Student
 from sync.models import IdempotencyKey, Tombstone
+from sync.selectors.idempotency_selectors import idempotency_get
 from sync.services.resource_dicts import RESOURCE_DICT_MAP
 from sync.services.tombstone_service import tombstone_write
 
@@ -73,7 +74,7 @@ def _apply_op(*, actor: User, op: dict) -> dict[str, Any]:
 
     # 1. Idempotency — replayed op returns the cached result.
     if client_id:
-        cached = IdempotencyKey.objects.filter(op_id=client_id, user=actor).first()
+        cached = idempotency_get(op_id=client_id, user=actor)
         if cached is not None:
             return cached.result_json
 

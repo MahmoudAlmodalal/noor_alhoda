@@ -6,7 +6,8 @@ from datetime import date
 
 from rest_framework.test import APITestCase
 
-from accounts.models import User, Teacher, Parent, ParentStudentLink
+from accounts.models import User, Parent, ParentStudentLink
+from teacher.models import Teacher
 from students.models import Student
 
 

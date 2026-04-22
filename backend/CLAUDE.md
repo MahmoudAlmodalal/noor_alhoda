@@ -1,3 +1,4 @@
+
 # Backend — Django Conventions
 
 See the root `CLAUDE.md` for project-wide rules (Arabic/RTL, `national_id` auth, UUID PKs, roles).

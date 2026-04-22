@@ -73,5 +73,6 @@ class LeaderboardApi(APIView):
         data = leaderboard(
             month=filter_ser.validated_data["month"],
             year=filter_ser.validated_data["year"],
+            actor=request.user,
         )
         return Response({"success": True, "data": data}, status=status.HTTP_200_OK)

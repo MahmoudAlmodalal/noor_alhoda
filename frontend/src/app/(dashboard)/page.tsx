@@ -1,6 +1,6 @@
 "use client";
 
-import { Card, CardContent } from "@/components/ui/Card";
+import { StatTile } from "@/components/ui/StatTile";
 import {
   Users,
   CheckCircle2,
@@ -170,59 +170,45 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-5 flex flex-col items-start gap-3">
-            <div className="w-14 h-14 bg-[#ceddea] rounded-full flex items-center justify-center shadow-[0px_2px_4px_0px_rgba(0,0,0,0.1)]">
-              <Users className="w-7 h-7 text-primary" />
-            </div>
-            <p className="text-sm text-[#818181] font-medium">
-              {isTeacher ? "طلاب الحلقة" : "عدد الطلاب المسجلين"}
-            </p>
-            <h2 className="text-4xl font-bold text-primary">{stats.totalStudents}</h2>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-5 flex flex-col items-start gap-3">
-            <div className="w-14 h-14 bg-[#d1fae5] rounded-full flex items-center justify-center shadow-[0px_2px_4px_0px_rgba(0,0,0,0.1)]">
-              <CheckCircle2 className="w-7 h-7 text-emerald-600" />
-            </div>
-            <p className="text-sm text-[#818181] font-medium">الحضور اليوم</p>
-            <h2 className="text-4xl font-bold text-emerald-600">{stats.attendanceToday}</h2>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-5 flex flex-col items-start gap-3">
-            <div className={`w-14 h-14 rounded-full flex items-center justify-center shadow-[0px_2px_4px_0px_rgba(0,0,0,0.1)] ${isTeacher ? "bg-[#fef3c7]" : "bg-[#fbf2de]"}`}>
-              {isTeacher
-                ? <Clock className="w-7 h-7 text-amber-600" />
-                : <BookOpen className="w-7 h-7 text-secondary" />}
-            </div>
-            <p className="text-sm text-[#818181] font-medium">
-              {isTeacher ? "المتأخرين" : "عدد الحلقات"}
-            </p>
-            <h2 className={`text-4xl font-bold ${isTeacher ? "text-amber-600" : "text-secondary"}`}>
-              {stats.ringsCount}
-            </h2>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-5 flex flex-col items-start gap-3">
-            <div className={`w-14 h-14 rounded-full flex items-center justify-center shadow-[0px_2px_4px_0px_rgba(0,0,0,0.1)] ${isTeacher ? "bg-[#fce7f3]" : "bg-[#ceddea]"}`}>
-              {isTeacher
-                ? <UserX className="w-7 h-7 text-pink-600" />
-                : <Star className="w-7 h-7 text-primary" />}
-            </div>
-            <p className="text-sm text-[#818181] font-medium">
-              {isTeacher ? "المتغيبون" : "الحفظة المتقنون"}
-            </p>
-            <h2 className={`text-4xl font-bold ${isTeacher ? "text-pink-600" : "text-primary"}`}>
-              {stats.outstanding}
-            </h2>
-          </CardContent>
-        </Card>
+        <StatTile
+          icon={<Users className="h-6 w-6 text-primary" />}
+          tileBg="blue"
+          label={isTeacher ? "طلاب الحلقة" : "عدد الطلاب المسجلين"}
+          value={stats.totalStudents}
+        />
+        <StatTile
+          icon={<CheckCircle2 className="h-6 w-6 text-emerald-600" />}
+          tileBg="green"
+          label="الحضور اليوم"
+          value={stats.attendanceToday}
+          valueClassName="text-[30px] font-bold leading-9 text-emerald-600"
+        />
+        <StatTile
+          icon={
+            isTeacher ? (
+              <Clock className="h-6 w-6 text-amber-600" />
+            ) : (
+              <BookOpen className="h-6 w-6 text-secondary" />
+            )
+          }
+          tileBg={isTeacher ? "yellow" : "amber"}
+          label={isTeacher ? "المتأخرين" : "عدد الحلقات"}
+          value={stats.ringsCount}
+          valueClassName={`text-[30px] font-bold leading-9 ${isTeacher ? "text-amber-600" : "text-secondary"}`}
+        />
+        <StatTile
+          icon={
+            isTeacher ? (
+              <UserX className="h-6 w-6 text-pink-600" />
+            ) : (
+              <Star className="h-6 w-6 fill-secondary text-secondary" />
+            )
+          }
+          tileBg={isTeacher ? "red" : "blue"}
+          label={isTeacher ? "المتغيبون" : "الحفظة المتقنون"}
+          value={stats.outstanding}
+          valueClassName={`text-[30px] font-bold leading-9 ${isTeacher ? "text-pink-600" : "text-primary"}`}
+        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

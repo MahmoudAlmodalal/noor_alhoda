@@ -10,7 +10,8 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from accounts.models import User, Teacher, Parent, ParentStudentLink
+from accounts.models import User, Parent, ParentStudentLink
+from teacher.models import Teacher
 from courses.models import Course, StudentCourse
 from evaluations.models import Evaluation
 from notifications.models import Notification

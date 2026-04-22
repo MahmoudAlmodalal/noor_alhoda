@@ -6,7 +6,8 @@ from datetime import date
 
 from rest_framework.test import APITestCase
 
-from accounts.models import Teacher, User
+from accounts.models import User
+from teacher.models import Teacher
 from records.models import DailyRecord, WeeklyPlan
 from students.models import Student
 

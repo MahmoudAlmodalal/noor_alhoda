@@ -27,6 +27,55 @@
   --color-surface-subtle: #f9fafb; /* input bg */
   --color-border-subtle: #e5e7eb;  /* input border */
   --color-border-card: #f3f4f6;    /* card border */
+
+  /* Radius scale — exact values already used inline across repo */
+  --radius-xs: 4px;    /* AttendancePill */
+  --radius-sm: 10px;   /* QualityPill, small buttons */
+  --radius-md: 14px;   /* buttons, inputs, sidebar links, hero cards */
+  --radius-lg: 16px;   /* stat tiles */
+  --radius-xl: 24px;   /* dashboard panels */
+
+  /* Elevation */
+  --shadow-card: 0 8px 10px -6px rgba(0,0,0,0.10);
+  --shadow-sidebar: 2px 0 8px rgba(0,0,0,0.06);
+  --shadow-xs: 0 1px 3px 0 rgba(0,0,0,0.10);
+
+  /* Tile pastels (stat cards) */
+  --color-tile-blue:   #eff6ff;
+  --color-tile-yellow: #fefce8;
+  --color-tile-red:    #fef2f2;
+  --color-tile-green:  #dcfce7;
+  --color-tile-amber:  #fefce8;
+
+  /* Attendance pill palette */
+  --color-attend-present-bg:  #dcfce7;
+  --color-attend-present-text:  #008236;
+  --color-attend-late-bg:     #fef3c7;
+  --color-attend-late-text:     #b45309;
+  --color-attend-absent-bg:   #ffe2e2;
+  --color-attend-absent-text:   #c10007;
+  --color-attend-excused-bg:  #e0e7ff;
+  --color-attend-excused-text:  #4338ca;
+  --color-attend-upcoming-bg: #f3f4f6;
+  --color-attend-upcoming-text: #6a7282;
+
+  /* Result pill palette */
+  --color-result-pass-bg:    #dcfce7;
+  --color-result-pass-text:    #008236;
+  --color-result-fail-bg:    #ffe2e2;
+  --color-result-fail-text:    #c10007;
+  --color-result-pending-bg: #fef3c7;
+  --color-result-pending-text: #b45309;
+
+  /* Role badge palette */
+  --color-role-admin-bg:   #eff6ff;
+  --color-role-admin-text:   #0b5394;
+  --color-role-teacher-bg: #fdf5e8;
+  --color-role-teacher-text: #8a4f0a;
+  --color-role-student-bg: #dcfce7;
+  --color-role-student-text: #008236;
+  --color-role-parent-bg:  #e0e7ff;
+  --color-role-parent-text:  #4338ca;
 }
 
 body {

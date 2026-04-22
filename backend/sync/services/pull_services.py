@@ -11,17 +11,25 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from django.db.models import Q
 from django.utils import timezone
 
-from accounts.models import User, Teacher, Parent, ParentStudentLink
-from courses.models import Course, StudentCourse
-from evaluations.models import Evaluation
-from notifications.models import Notification
-from records.models import DailyRecord, ReviewRecord, WeeklyPlan
-from students.models import Student
-from students.selectors.student_selectors import student_list
-from sync.models import Tombstone
+from accounts.models import User
+from sync.selectors.pull_selectors import (
+    pull_courses,
+    pull_daily_records_for_students,
+    pull_evaluations_for_students,
+    pull_notifications_for,
+    pull_review_records_for_students,
+    pull_student_courses_for_students,
+    pull_tombstones,
+    pull_visible_parent_links,
+    pull_visible_parents,
+    pull_visible_students,
+    pull_visible_teachers,
+    pull_visible_users,
+    pull_weekly_plans_for_students,
+    since_q,
+)
 from sync.services.resource_dicts import (
     course_to_dict,
     daily_record_to_dict,
@@ -39,20 +47,6 @@ from sync.services.resource_dicts import (
 )
 
 
-# ---------------------------------------------------------------------------
-# Delta filter helpers
-# ---------------------------------------------------------------------------
-
-def _since_q(field: str, since: datetime | None) -> Q:
-    if since is None:
-        return Q()
-    return Q(**{f"{field}__gt": since})
-
-
-# ---------------------------------------------------------------------------
-# Main entrypoint
-# ---------------------------------------------------------------------------
-
 def sync_pull(*, actor: User, since: datetime | None = None) -> dict[str, Any]:
     """
     Return a snapshot of records the actor can see whose `updated_at` is
@@ -64,76 +58,45 @@ def sync_pull(*, actor: User, since: datetime | None = None) -> dict[str, Any]:
     """
     now = timezone.now()
 
-    # 1. Visible students (role-aware, via existing selector).
-    students_qs = student_list(filters={}, user=actor).select_related("user", "teacher")
+    students_qs = pull_visible_students(actor=actor)
     visible_student_ids = list(students_qs.values_list("id", flat=True))
 
-    # 2. Teachers: admin + teacher see all teachers; parent/student see
-    #    only the teacher(s) of their visible students.
-    if actor.role in ("admin", "teacher") or actor.is_superuser:
-        teachers_qs = Teacher.objects.select_related("user").all()
-    else:
-        teacher_ids = students_qs.exclude(teacher__isnull=True).values_list(
-            "teacher_id", flat=True
-        )
-        teachers_qs = Teacher.objects.select_related("user").filter(id__in=teacher_ids)
+    teachers_qs = pull_visible_teachers(actor=actor, student_ids=visible_student_ids)
 
-    # 3. Parents: only those linked to visible students.
-    parent_links_qs = ParentStudentLink.objects.select_related(
-        "parent__user"
-    ).filter(student_id__in=visible_student_ids)
+    parent_links_qs = pull_visible_parent_links(student_ids=visible_student_ids)
     parent_ids = list(parent_links_qs.values_list("parent_id", flat=True))
-    parents_qs = Parent.objects.select_related("user").filter(id__in=parent_ids)
+    parents_qs = pull_visible_parents(parent_ids=parent_ids)
 
-    # 4. Users: every user referenced above (actor, students' users,
-    #    teachers' users, parents' users).
     user_ids: set = {actor.id}
     user_ids.update(students_qs.values_list("user_id", flat=True))
     user_ids.update(teachers_qs.values_list("user_id", flat=True))
     user_ids.update(parents_qs.values_list("user_id", flat=True))
-    users_qs = User.objects.filter(id__in=user_ids)
+    users_qs = pull_visible_users(user_ids=user_ids)
 
-    # 5. Records scoped to visible students.
-    weekly_plans_qs = WeeklyPlan.objects.filter(student_id__in=visible_student_ids)
-    daily_records_qs = DailyRecord.objects.filter(
-        weekly_plan__student_id__in=visible_student_ids
-    )
-    review_records_qs = ReviewRecord.objects.filter(
-        student_id__in=visible_student_ids
-    )
-    evaluations_qs = Evaluation.objects.filter(student_id__in=visible_student_ids)
+    weekly_plans_qs = pull_weekly_plans_for_students(student_ids=visible_student_ids)
+    daily_records_qs = pull_daily_records_for_students(student_ids=visible_student_ids)
+    review_records_qs = pull_review_records_for_students(student_ids=visible_student_ids)
+    evaluations_qs = pull_evaluations_for_students(student_ids=visible_student_ids)
+    notifications_qs = pull_notifications_for(actor=actor)
+    courses_qs = pull_courses()
+    student_courses_qs = pull_student_courses_for_students(student_ids=visible_student_ids)
 
-    # 6. Notifications are per-recipient.
-    notifications_qs = Notification.objects.filter(recipient=actor)
+    # Apply the `updated_at` delta everywhere.
+    delta = since_q("updated_at", since)
+    users_qs = users_qs.filter(delta)
+    teachers_qs = teachers_qs.filter(delta)
+    parents_qs = parents_qs.filter(delta)
+    parent_links_qs = parent_links_qs.filter(delta)
+    students_delta = students_qs.filter(delta)
+    weekly_plans_qs = weekly_plans_qs.filter(delta)
+    daily_records_qs = daily_records_qs.filter(delta)
+    review_records_qs = review_records_qs.filter(delta)
+    evaluations_qs = evaluations_qs.filter(delta)
+    notifications_qs = notifications_qs.filter(delta)
+    courses_qs = courses_qs.filter(delta)
+    student_courses_qs = student_courses_qs.filter(delta)
 
-    # 7. Courses catalog is visible to every authenticated user.
-    courses_qs = Course.objects.all()
-    student_courses_qs = StudentCourse.objects.filter(
-        student_id__in=visible_student_ids
-    )
-
-    # 8. Apply the `since` delta filter on real `updated_at` everywhere.
-    users_qs = users_qs.filter(_since_q("updated_at", since))
-    teachers_qs = teachers_qs.filter(_since_q("updated_at", since))
-    parents_qs = parents_qs.filter(_since_q("updated_at", since))
-    parent_links_qs = parent_links_qs.filter(_since_q("updated_at", since))
-    students_delta = students_qs.filter(_since_q("updated_at", since))
-    weekly_plans_qs = weekly_plans_qs.filter(_since_q("updated_at", since))
-    daily_records_qs = daily_records_qs.filter(_since_q("updated_at", since))
-    review_records_qs = review_records_qs.filter(_since_q("updated_at", since))
-    evaluations_qs = evaluations_qs.filter(_since_q("updated_at", since))
-    notifications_qs = notifications_qs.filter(_since_q("updated_at", since))
-    courses_qs = courses_qs.filter(_since_q("updated_at", since))
-    student_courses_qs = student_courses_qs.filter(_since_q("updated_at", since))
-
-    # 9. Tombstones: return those whose scope the actor could have seen.
-    tombstones_qs = Tombstone.objects.all()
-    if since is not None:
-        tombstones_qs = tombstones_qs.filter(deleted_at__gt=since)
-    if not (actor.role == "admin" or actor.is_superuser):
-        tombstones_qs = tombstones_qs.filter(
-            Q(scope_user_id__isnull=True) | Q(scope_user_id=actor.id)
-        )
+    tombstones_qs = pull_tombstones(actor=actor, since=since)
 
     return {
         "resources": {
@@ -157,5 +120,5 @@ def sync_pull(*, actor: User, since: datetime | None = None) -> dict[str, Any]:
             ],
         },
         "tombstones": [tombstone_to_dict(t) for t in tombstones_qs],
-        "server_time": timezone.now().isoformat() if now is None else now.isoformat(),
+        "server_time": now.isoformat(),
     }

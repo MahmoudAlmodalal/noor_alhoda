@@ -4,7 +4,8 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
 
-from accounts.models import OTPCode, Teacher, User
+from accounts.models import OTPCode, User
+from teacher.models import Teacher
 from courses.models import Course, StudentCourse
 from notifications.models import Notification
 from records.models import DailyRecord, WeeklyPlan

@@ -3,6 +3,13 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@/hooks/useApi";
 import { PageLoading } from "@/components/ui/LoadingSpinner";
+import { StatTile } from "@/components/ui/StatTile";
+import { ProgressBar } from "@/components/ui/ProgressBar";
+import {
+    AttendancePill,
+    type AttendanceValue,
+} from "@/components/ui/AttendancePill";
+import { ResultPill, type ResultValue } from "@/components/ui/ResultPill";
 import type { StudentWithTeacher } from "@/hooks/queries";
 import type { HistoryEntry, StudentStats, WeeklySummary } from "@/types/api";
 import {
@@ -15,8 +22,8 @@ import {
     Trophy,
 } from "lucide-react";
 
-type Attendance = "present" | "absent" | "late" | "excused" | "upcoming";
-type ResultKey = "pass" | "fail" | "pending" | "none";
+type Attendance = AttendanceValue;
+type ResultKey = ResultValue;
 type Quality = "excellent" | "good" | "acceptable" | "weak" | "none";
 
 interface WeeklyRow {
@@ -37,71 +44,6 @@ function getSaturday(date: Date): string {
     const saturday = new Date(date);
     saturday.setDate(date.getDate() - diff);
     return saturday.toISOString().split("T")[0];
-}
-
-function AttendancePill({ value }: { value: Attendance }) {
-    if (value === "present") {
-        return (
-            <span className="inline-block rounded-[4px] bg-[#dcfce7] px-2 py-1 text-[12px] font-bold text-[#008236]">
-                حاضر
-            </span>
-        );
-    }
-    if (value === "late") {
-        return (
-            <span className="inline-block rounded-[4px] bg-[#fef3c7] px-2 py-1 text-[12px] font-bold text-[#b45309]">
-                متأخر
-            </span>
-        );
-    }
-    if (value === "absent") {
-        return (
-            <span className="inline-block rounded-[4px] bg-[#ffe2e2] px-2 py-1 text-[12px] font-bold text-[#c10007]">
-                غائب
-            </span>
-        );
-    }
-    if (value === "excused") {
-        return (
-            <span className="inline-block rounded-[4px] bg-[#e0e7ff] px-2 py-1 text-[12px] font-bold text-[#4338ca]">
-                مستأذن
-            </span>
-        );
-    }
-    return (
-        <span className="inline-block rounded-[4px] bg-[#f3f4f6] px-2 py-1 text-[12px] font-bold text-[#6a7282]">
-            قادم
-        </span>
-    );
-}
-
-function ResultPill({ value }: { value: ResultKey }) {
-    if (value === "pass") {
-        return (
-            <span className="inline-block rounded-[4px] bg-[#dcfce7] px-2 py-1 text-[12px] font-bold text-[#008236]">
-                ناجح
-            </span>
-        );
-    }
-    if (value === "fail") {
-        return (
-            <span className="inline-block rounded-[4px] bg-[#ffe2e2] px-2 py-1 text-[12px] font-bold text-[#c10007]">
-                راسب
-            </span>
-        );
-    }
-    if (value === "pending") {
-        return (
-            <span className="inline-block rounded-[4px] bg-[#fef3c7] px-2 py-1 text-[12px] font-bold text-[#b45309]">
-                معلّق
-            </span>
-        );
-    }
-    return (
-        <span className="inline-block rounded-[4px] bg-[#f3f4f6] px-2 py-1 text-[12px] font-bold text-[#6a7282]">
-            -
-        </span>
-    );
 }
 
 const QUALITY_LABELS: Record<string, string> = {
@@ -159,38 +101,6 @@ function RatingPill({ value }: { value: string }) {
         );
     }
     return null;
-}
-
-function StatsTile({
-    icon,
-    tileBg,
-    label,
-    value,
-    labelMaxWidth,
-}: {
-    icon: React.ReactNode;
-    tileBg: string;
-    label: string;
-    value: string | number;
-    labelMaxWidth?: string;
-}) {
-    return (
-        <div className="flex h-[180px] flex-col items-center justify-center rounded-[16px] border border-[#f3f4f6] bg-white px-4 shadow-sm">
-            <div
-                className={`mb-3 flex h-14 w-14 items-center justify-center rounded-[14px] ${tileBg}`}
-            >
-                {icon}
-            </div>
-            <span
-                className={`mb-1 text-center text-[12px] font-bold text-[#6a7282] leading-tight ${labelMaxWidth ?? ""}`}
-            >
-                {label}
-            </span>
-            <span className="text-[30px] font-bold leading-9 text-[#1e2939]">
-                {value}
-            </span>
-        </div>
-    );
 }
 
 export default function StudentDashboard() {
@@ -300,27 +210,27 @@ export default function StudentDashboard() {
 
             {/* 3. Stats grid */}
             <div className="grid grid-cols-2 gap-4">
-                <StatsTile
+                <StatTile
                     icon={<BookOpen className="h-6 w-6 text-[#1e88e5]" />}
-                    tileBg="bg-[#eff6ff]"
+                    tileBg="blue"
                     label="الأجزاء المحفوظة"
                     value={memorizedParts}
                 />
-                <StatsTile
-                    icon={<Star className="h-6 w-6 fill-[#eabd5b] text-[#eabd5b]" />}
-                    tileBg="bg-[#fefce8]"
+                <StatTile
+                    icon={<Star className="h-6 w-6 fill-secondary text-secondary" />}
+                    tileBg="yellow"
                     label="النقاط"
                     value={points.toLocaleString("ar-SA")}
                 />
-                <StatsTile
+                <StatTile
                     icon={<Flame className="h-6 w-6 text-[#f43f5e]" />}
-                    tileBg="bg-[#fef2f2]"
+                    tileBg="red"
                     label="الغيابات"
                     value={absentDays}
                 />
-                <StatsTile
-                    icon={<Calendar className="h-6 w-6 text-[#0b5394]" />}
-                    tileBg="bg-[#eff6ff]"
+                <StatTile
+                    icon={<Calendar className="h-6 w-6 text-primary" />}
+                    tileBg="blue"
                     label="أيام الدراسة"
                     value={studyDays}
                 />
@@ -349,27 +259,22 @@ export default function StudentDashboard() {
             )}
 
             {/* 4. Goal progress */}
-            <div className="rounded-[24px] border border-[#f3f4f6] bg-white p-6 shadow-sm">
+            <div className="rounded-[24px] border border-border-card bg-white p-6 shadow-sm">
                 <div className="mb-4 flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                        <Target className="h-5 w-5 text-[#0b5394]" />
-                        <h3 className="text-[18px] font-bold text-[#1e2939]">
+                        <Target className="h-5 w-5 text-primary" />
+                        <h3 className="text-[18px] font-bold text-text-body">
                             الهدف الحالي
                         </h3>
                     </div>
-                    <span className="text-[14px] font-bold text-[#0b5394]">
+                    <span className="text-[14px] font-bold text-primary">
                         {goalProgress}%
                     </span>
                 </div>
-                <p className="mb-3 text-[16px] font-bold text-[#1e2939]">
+                <p className="mb-3 text-[16px] font-bold text-text-body">
                     {currentGoal}
                 </p>
-                <div className="h-2 w-full rounded-full bg-[#f3f4f6]">
-                    <div
-                        className="h-full rounded-full bg-primary"
-                        style={{ width: `${Math.min(goalProgress, 100)}%` }}
-                    />
-                </div>
+                <ProgressBar value={goalProgress} size="md" />
             </div>
 
             {/* 4b. Today's Evaluation */}

@@ -7,7 +7,8 @@ from datetime import date, timedelta
 from django.utils import timezone
 from rest_framework.test import APITestCase
 
-from accounts.models import Parent, ParentStudentLink, Teacher, User
+from accounts.models import Parent, ParentStudentLink, User
+from teacher.models import Teacher
 from notifications.models import Notification
 from records.models import DailyRecord, WeeklyPlan
 from students.models import Student
