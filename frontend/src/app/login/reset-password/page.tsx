@@ -95,7 +95,7 @@ export default function ResetPasswordPage() {
         <div>
             <div className="text-center mb-6">
                 <h1 className="text-2xl font-bold text-[#1e2939] leading-8 mb-1">كلمة مرور جديدة</h1>
-                <p className="text-sm text-[#6a7282] leading-5">الخطوة 3 من 3: قم بتعيين كلمة مرور قوية</p>
+                <p className="text-sm text-text-muted leading-5">الخطوة 3 من 3: قم بتعيين كلمة مرور قوية</p>
             </div>
 
             <form onSubmit={handleSubmit} className="flex flex-col gap-6">

@@ -4,8 +4,16 @@ import { Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { Trophy, Medal } from "lucide-react";
 import { PageLoading } from "@/components/ui/LoadingSpinner";
+import { SectionCard } from "@/components/ui/SectionCard";
+import { Avatar } from "@/components/ui/Avatar";
 import { useQuery } from "@/hooks/useApi";
 import type { LeaderboardEntry } from "@/types/api";
+
+const PODIUM_STYLES = [
+  { tile: "bg-tile-yellow", icon: "text-secondary" },
+  { tile: "bg-border-card", icon: "text-text-muted" },
+  { tile: "bg-tile-red",    icon: "text-[#c2410c]" },
+] as const;
 
 function LeaderboardContent() {
   const router = useRouter();
@@ -18,45 +26,45 @@ function LeaderboardContent() {
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto pb-10">
-      <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex items-center gap-4">
-        <div className="w-12 h-12 bg-yellow-50 rounded-full flex items-center justify-center">
-          <Trophy className="w-6 h-6 text-yellow-500" />
+      <SectionCard padding="lg" className="flex items-center gap-4">
+        <div className="w-12 h-12 bg-tile-yellow rounded-[14px] flex items-center justify-center">
+          <Trophy className="w-6 h-6 text-secondary" />
         </div>
         <div className="flex-1">
           <h1 className="text-xl font-bold text-primary">لوحة الشرف</h1>
-          <p className="text-xs text-slate-500">المتميزون هذا الأسبوع</p>
+          <p className="text-xs text-text-muted">المتميزون هذا الأسبوع</p>
         </div>
-      </div>
+      </SectionCard>
 
       {isLoading && entries.length === 0 ? (
         <PageLoading />
       ) : entries.length === 0 ? (
-        <div className="bg-white rounded-2xl p-12 text-center border border-slate-100">
-          <p className="text-sm text-slate-400">لا توجد بيانات</p>
-        </div>
+        <SectionCard padding="lg" className="py-12 text-center">
+          <p className="text-sm text-text-muted">لا توجد بيانات</p>
+        </SectionCard>
       ) : (
         <>
           {top3.length > 0 && (
             <div className="grid grid-cols-3 gap-3">
               {top3.map((entry, idx) => {
-                const colors = ["bg-yellow-50 text-yellow-600", "bg-slate-100 text-slate-500", "bg-orange-50 text-orange-600"];
+                const style = PODIUM_STYLES[idx];
                 return (
                   <button
                     key={entry.student_id}
                     type="button"
                     onClick={() => router.push(`/students/${entry.student_id}`)}
-                    className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm text-center hover:border-primary/30 transition-colors"
+                    className="bg-white rounded-[16px] p-5 border border-border-card shadow-sm text-center hover:border-primary/30 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
                   >
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3 ${colors[idx]}`}>
-                      <Medal className="w-6 h-6" />
+                    <div className={`w-14 h-14 rounded-[14px] flex items-center justify-center mx-auto mb-3 ${style.tile}`}>
+                      <Medal className={`w-6 h-6 ${style.icon}`} />
                     </div>
-                    <h3 className="font-bold text-sm text-slate-800 mb-1 line-clamp-1">{entry.student_name}</h3>
-                    <p className="text-2xl font-black text-primary">{entry.total_achieved}</p>
-                    <p className="text-[10px] text-slate-400 mt-1">
+                    <h3 className="font-bold text-sm text-text-body mb-1 line-clamp-1">{entry.student_name}</h3>
+                    <p className="text-[30px] font-bold leading-9 text-primary">{entry.total_achieved}</p>
+                    <p className="text-[11px] text-text-muted mt-1">
                       {entry.total_required > 0 ? `${entry.total_required} مطلوب` : `${entry.present_days} يوم حضور`}
                     </p>
                     {entry.ring_name && (
-                      <p className="text-[10px] text-slate-400 mt-1">{entry.ring_name}</p>
+                      <p className="text-[11px] text-text-muted mt-1">{entry.ring_name}</p>
                     )}
                   </button>
                 );
@@ -65,9 +73,9 @@ function LeaderboardContent() {
           )}
 
           {rest.length > 0 && (
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+            <SectionCard padding="none" className="overflow-hidden">
               <table className="w-full text-sm text-right">
-                <thead className="text-xs text-slate-500 bg-slate-50/80">
+                <thead className="text-xs text-text-muted bg-surface-subtle">
                   <tr>
                     <th className="px-4 py-3 font-bold">الترتيب</th>
                     <th className="px-4 py-3 font-bold">الاسم</th>
@@ -79,18 +87,23 @@ function LeaderboardContent() {
                   {rest.map((entry) => (
                     <tr
                       key={entry.student_id}
-                      className="border-b border-slate-50 hover:bg-slate-50/50 cursor-pointer"
+                      className="border-b border-border-card hover:bg-surface-subtle cursor-pointer"
                       onClick={() => router.push(`/students/${entry.student_id}`)}
                     >
-                      <td className="px-4 py-3 font-bold text-slate-700">#{entry.rank}</td>
-                      <td className="px-4 py-3 font-bold text-slate-800">{entry.student_name}</td>
-                      <td className="px-4 py-3 text-slate-600">{entry.ring_name || "—"}</td>
+                      <td className="px-4 py-3 font-bold text-text-label">#{entry.rank}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2.5">
+                          <Avatar name={entry.student_name} size={32} />
+                          <span className="font-bold text-text-body">{entry.student_name}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-text-label">{entry.ring_name || "—"}</td>
                       <td className="px-4 py-3 font-bold text-primary">{entry.total_achieved}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-            </div>
+            </SectionCard>
           )}
         </>
       )}

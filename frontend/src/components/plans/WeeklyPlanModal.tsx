@@ -88,23 +88,23 @@ function WeeklyPlanModalContent({ isOpen, onClose, studentId, studentName, onCre
       <div className="space-y-4 mb-8">
         {studentId ? (
           <div className="space-y-1.5">
-            <label className="block text-sm font-bold text-slate-800">الطالب</label>
-            <div className="h-12 rounded-xl border border-slate-200 bg-slate-50 px-4 flex items-center text-sm font-bold text-slate-700">
+            <label className="block text-sm font-bold text-text-body">الطالب</label>
+            <div className="h-12 rounded-xl border border-border-subtle bg-surface-subtle px-4 flex items-center text-sm font-bold text-text-body">
               {selectedName || "—"}
             </div>
           </div>
         ) : (
           <div className="space-y-1.5">
-            <label className="block text-sm font-bold text-slate-800">الطالب</label>
+            <label className="block text-sm font-bold text-text-body">الطالب</label>
             <Input
               placeholder="ابحث عن طالب..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               aria-label="ابحث عن طالب"
-              className="h-12 rounded-xl border-slate-200"
+              className="h-12 rounded-xl border-border-subtle"
             />
             {filteredStudents.length > 0 && !selectedId && (
-              <div className="max-h-40 overflow-y-auto rounded-xl border border-slate-100 bg-slate-50/50">
+              <div className="max-h-40 overflow-y-auto rounded-xl border border-border-card bg-surface-subtle/50">
                 {filteredStudents.map((s) => (
                   <button
                     key={s.id}
@@ -114,7 +114,7 @@ function WeeklyPlanModalContent({ isOpen, onClose, studentId, studentName, onCre
                       setSelectedName(s.full_name);
                       setSearch(s.full_name);
                     }}
-                    className="w-full text-start px-3 py-2 text-sm hover:bg-white border-b border-slate-100 last:border-b-0"
+                    className="w-full text-start px-3 py-2 text-sm hover:bg-white border-b border-border-card last:border-b-0"
                   >
                     {s.full_name}
                   </button>
@@ -130,26 +130,26 @@ function WeeklyPlanModalContent({ isOpen, onClose, studentId, studentName, onCre
         )}
 
         <div className="space-y-1.5">
-          <label className="block text-sm font-bold text-slate-800">بداية الأسبوع (السبت)</label>
+          <label className="block text-sm font-bold text-text-body">بداية الأسبوع (السبت)</label>
           <Input
             type="date"
             value={weekStart}
             onChange={(e) => setWeekStart(e.target.value)}
             aria-label="بداية الأسبوع"
-            className="h-12 rounded-xl border-slate-200"
+            className="h-12 rounded-xl border-border-subtle"
             dir="ltr"
           />
         </div>
 
         <div className="space-y-1.5">
-          <label className="block text-sm font-bold text-slate-800">عدد الآيات المطلوبة</label>
+          <label className="block text-sm font-bold text-text-body">عدد الآيات المطلوبة</label>
           <Input
             type="number"
             min={1}
             value={totalRequired}
             onChange={(e) => setTotalRequired(Number(e.target.value))}
             aria-label="عدد الآيات المطلوبة"
-            className="h-12 rounded-xl border-slate-200"
+            className="h-12 rounded-xl border-border-subtle"
             dir="ltr"
           />
         </div>
@@ -161,7 +161,7 @@ function WeeklyPlanModalContent({ isOpen, onClose, studentId, studentName, onCre
         <Button
           variant="ghost"
           onClick={onClose}
-          className="flex-1 bg-slate-100/80 text-slate-700 hover:bg-slate-200 h-12 rounded-xl font-bold"
+          className="flex-1 bg-border-card/80 text-text-body hover:bg-border-subtle h-12 rounded-xl font-bold"
         >
           إلغاء
         </Button>

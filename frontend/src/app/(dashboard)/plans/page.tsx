@@ -23,25 +23,25 @@ export default function PlansPage() {
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto pb-10">
-      <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+      <div className="bg-white rounded-[24px] p-6 shadow-sm border border-border-card">
         <div className="flex items-center gap-3 mb-4">
-          <div className="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center">
+          <div className="w-12 h-12 bg-tile-blue rounded-full flex items-center justify-center">
             <BookOpen className="w-6 h-6 text-primary" />
           </div>
           <div>
             <h1 className="text-xl font-bold text-primary">خطط التسميع</h1>
-            <p className="text-xs text-slate-500">إدارة الخطط الأسبوعية لطلاب الحلقة</p>
+            <p className="text-xs text-text-muted">إدارة الخطط الأسبوعية لطلاب الحلقة</p>
           </div>
         </div>
 
         <div className="flex items-center gap-3 flex-wrap mt-4">
           <div className="space-y-1.5">
-            <label className="block text-xs font-bold text-slate-700">فلترة بالأسبوع</label>
+            <label className="block text-xs font-bold text-text-body">فلترة بالأسبوع</label>
             <input
               type="date"
               value={weekFilter}
               onChange={(e) => setWeekFilter(e.target.value)}
-              className="h-11 rounded-xl border border-slate-200 bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+              className="h-11 rounded-xl border border-border-subtle bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
               dir="ltr"
             />
           </div>
@@ -89,16 +89,16 @@ export default function PlansPage() {
       {isLoading && !plans ? (
         <PageLoading />
       ) : (plans ?? []).length === 0 ? (
-        <div className="bg-white rounded-2xl p-12 text-center border border-slate-100">
-          <BookOpen className="w-12 h-12 text-slate-200 mx-auto mb-3" />
-          <p className="text-sm text-slate-400 font-medium">لا توجد خطط أسبوعية</p>
-          <p className="text-xs text-slate-300 mt-1">أنشئ خطة جديدة لطلابك</p>
+        <div className="bg-white rounded-[24px] p-12 text-center border border-border-card">
+          <BookOpen className="w-12 h-12 text-border-subtle mx-auto mb-3" />
+          <p className="text-sm text-text-muted font-medium">لا توجد خطط أسبوعية</p>
+          <p className="text-xs text-text-muted mt-1">أنشئ خطة جديدة لطلابك</p>
         </div>
       ) : (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+        <div className="bg-white rounded-[24px] shadow-sm border border-border-card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm text-right">
-              <thead className="text-[10px] text-slate-500 bg-slate-50/80">
+              <thead className="text-[10px] text-text-muted bg-surface-subtle/80">
                 <tr>
                   <th className="px-4 py-3 font-bold">الطالب</th>
                   <th className="px-4 py-3 font-bold text-center">الأسبوع</th>
@@ -114,25 +114,25 @@ export default function PlansPage() {
                 {(plans ?? []).map((plan) => {
                   const rate = plan.completion_rate;
                   return (
-                    <tr key={plan.id} className="border-b border-slate-50 hover:bg-slate-50/50">
+                    <tr key={plan.id} className="border-b border-border-card hover:bg-surface-subtle/50">
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 bg-blue-50 rounded-full flex items-center justify-center text-xs font-bold text-primary">
+                          <div className="w-8 h-8 bg-tile-blue rounded-full flex items-center justify-center text-xs font-bold text-primary">
                             {plan.student_name?.[0] ?? "?"}
                           </div>
-                          <span className="font-bold text-slate-700">{plan.student_name}</span>
+                          <span className="font-bold text-text-body">{plan.student_name}</span>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-center text-slate-600 font-bold">
+                      <td className="px-4 py-3 text-center text-text-label font-bold">
                         #{plan.week_number}
                       </td>
-                      <td className="px-4 py-3 text-center text-slate-500" dir="ltr">
+                      <td className="px-4 py-3 text-center text-text-muted" dir="ltr">
                         {plan.week_start}
                       </td>
-                      <td className="px-4 py-3 text-center text-slate-600">
+                      <td className="px-4 py-3 text-center text-text-label">
                         {plan.total_required}
                       </td>
-                      <td className="px-4 py-3 text-center text-slate-600">
+                      <td className="px-4 py-3 text-center text-text-label">
                         {plan.total_achieved}
                       </td>
                       <td className="px-4 py-3 text-center">
@@ -142,7 +142,7 @@ export default function PlansPage() {
                               ? "bg-green-50 text-green-600"
                               : rate >= 50
                               ? "bg-orange-50 text-orange-600"
-                              : "bg-red-50 text-red-600"
+                              : "bg-tile-red text-danger-text"
                           }`}
                         >
                           {rate}%
@@ -194,8 +194,8 @@ export default function PlansPage() {
 
 function SummaryCard({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm text-center">
-      <p className="text-xs text-slate-500 font-medium mb-2">{label}</p>
+    <div className="bg-white rounded-[24px] p-5 border border-border-card shadow-sm text-center">
+      <p className="text-xs text-text-muted font-medium mb-2">{label}</p>
       <h3 className="text-xl font-black text-primary">{value}</h3>
     </div>
   );

@@ -20,27 +20,27 @@ export const QUALITY_STARS: Record<Quality, number> = {
 
 export function QualityText({ value }: { value: Quality }) {
     if (value === "excellent") {
-        return <span className="text-[16px] font-bold text-[#2f944d]">ممتاز</span>;
+        return <span className="text-[16px] font-bold text-success-text">ممتاز</span>;
     }
     if (value === "good") {
-        return <span className="text-[16px] font-bold text-[#0b5394]">جيد جداً</span>;
+        return <span className="text-[16px] font-bold text-primary">جيد جداً</span>;
     }
     if (value === "acceptable") {
         return <span className="text-[16px] font-bold text-[#ca3500]">جيد</span>;
     }
     if (value === "weak") {
-        return <span className="text-[16px] font-bold text-[#c10007]">ضعيف</span>;
+        return <span className="text-[16px] font-bold text-attend-absent-text">ضعيف</span>;
     }
-    return <span className="text-[16px] font-bold text-[#6a7282]">-</span>;
+    return <span className="text-[16px] font-bold text-text-muted">-</span>;
 }
 
 export function QualityPill({ value }: { value: Quality }) {
     const styles: Record<Quality, string> = {
-        excellent: "bg-[#dcfce7] text-[#008236]",
+        excellent: "bg-attend-present-bg text-attend-present-text",
         good: "bg-[#dbeafe] text-[#1447e6]",
         acceptable: "bg-[#ffedd4] text-[#ca3500]",
-        weak: "bg-[#ffe2e2] text-[#c10007]",
-        none: "bg-[#f3f4f6] text-[#6a7282]",
+        weak: "bg-attend-absent-bg text-attend-absent-text",
+        none: "bg-border-card text-text-muted",
     };
     return (
         <span className={`inline-block rounded-[10px] px-3 py-1 text-[13px] font-bold ${styles[value]}`}>
@@ -56,7 +56,7 @@ export function QualityStars({ value }: { value: Quality }) {
             {[1, 2, 3].map((s) => (
                 <Star
                     key={s}
-                    className={`h-3.5 w-3.5 ${s <= filled ? "fill-[#eabd5b] text-[#eabd5b]" : "text-[#e5e7eb]"}`}
+                    className={`h-3.5 w-3.5 ${s <= filled ? "fill-secondary text-secondary" : "text-border-subtle"}`}
                 />
             ))}
         </div>

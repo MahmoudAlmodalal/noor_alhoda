@@ -84,7 +84,7 @@ export default function VerifyOTPPage() {
         <div>
             <div className="text-center mb-6">
                 <h1 className="text-2xl font-bold text-[#1e2939] leading-8 mb-1">إدخال رمز التحقق</h1>
-                <p className="text-sm text-[#6a7282] leading-5">
+                <p className="text-sm text-text-muted leading-5">
                     الخطوة 2 من 3: تم إرسال رمز {OTP_LENGTH} أرقام إلى
                     <br />
                     <span className="font-bold text-[#364153]" dir="ltr">{nationalId}</span>

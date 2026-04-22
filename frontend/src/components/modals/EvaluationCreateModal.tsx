@@ -60,12 +60,12 @@ export function EvaluationCreateModal({ isOpen, onClose, studentId, studentName,
       <form onSubmit={handleSubmit} className="space-y-4" dir="rtl">
         <div>
           <h2 className="text-lg font-bold text-primary">اختبار جديد</h2>
-          {studentName && <p className="text-xs text-slate-500 mt-1">للطالب: {studentName}</p>}
+          {studentName && <p className="text-xs text-text-muted mt-1">للطالب: {studentName}</p>}
         </div>
 
         <div className="space-y-3">
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-700">عنوان الاختبار</label>
+            <label className="text-xs font-bold text-text-body">عنوان الاختبار</label>
             <Input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -76,7 +76,7 @@ export function EvaluationCreateModal({ isOpen, onClose, studentId, studentName,
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-700">نطاق السور (اختياري)</label>
+            <label className="text-xs font-bold text-text-body">نطاق السور (اختياري)</label>
             <Input
               value={surahRange}
               onChange={(e) => setSurahRange(e.target.value)}
@@ -85,19 +85,19 @@ export function EvaluationCreateModal({ isOpen, onClose, studentId, studentName,
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-700">تاريخ الاختبار</label>
+            <label className="text-xs font-bold text-text-body">تاريخ الاختبار</label>
             <input
               type="date"
               value={scheduledDate}
               onChange={(e) => setScheduledDate(e.target.value)}
-              className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+              className="h-11 w-full rounded-[14px] border border-border-subtle bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
               dir="ltr"
               required
             />
           </div>
         </div>
 
-        {error && <p className="text-xs text-red-600">{error}</p>}
+        {error && <p className="text-xs text-danger-text">{error}</p>}
 
         <div className="flex items-center justify-end gap-2 pt-2">
           <Button type="button" variant="ghost" onClick={onClose} disabled={isSubmitting}>

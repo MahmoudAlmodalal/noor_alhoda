@@ -85,7 +85,7 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
             {/* Sidebar Drawer */}
             <div
                 className={cn(
-                    "fixed inset-y-0 start-0 z-50 w-64 bg-white transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:block shadow-[2px_0_8px_rgba(0,0,0,0.06)] border-e border-slate-100",
+                    "fixed inset-y-0 start-0 z-50 w-64 bg-white transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:block shadow-[2px_0_8px_rgba(0,0,0,0.06)] border-e border-border-card",
                     isOpen ? "translate-x-0" : "translate-x-full lg:translate-x-0"
                 )}
             >
@@ -124,7 +124,7 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
                     </div>
 
                     <div className="px-4 mt-auto">
-                        <div className="border-t border-slate-200 mb-4 px-2" />
+                        <div className="border-t border-border-subtle mb-4 px-2" />
                         <button
                             onClick={() => logout()}
                             className="flex w-full items-center space-x-reverse space-x-3 px-4 py-3 rounded-[14px] text-red-600 hover:bg-red-50 font-medium transition-colors"

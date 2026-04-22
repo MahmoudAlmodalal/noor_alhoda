@@ -15,13 +15,13 @@ export default function LoginLayout({ children }: { children: React.ReactNode })
                         priority
                     />
                 </div>
-                <p className="text-base text-[#6a7282] text-center leading-6">
+                <p className="text-base text-text-muted text-center leading-6">
                     لتحفيظ القرآن الكريم وعلومه
                 </p>
             </div>
 
             <div
-                className="w-full max-w-[360px] bg-white rounded-[24px] border border-[#f3f4f6] shadow-[0px_8px_10px_-6px_rgba(0,0,0,0.1)] overflow-hidden"
+                className="w-full max-w-[360px] bg-white rounded-[24px] border border-border-card shadow-[0px_8px_10px_-6px_rgba(0,0,0,0.1)] overflow-hidden"
             >
                 <div
                     className="h-2 w-full"

@@ -10,6 +10,7 @@ import {
     type AttendanceValue,
 } from "@/components/ui/AttendancePill";
 import { ResultPill, type ResultValue } from "@/components/ui/ResultPill";
+import { Pattern } from "@/components/ui/Pattern";
 import type { StudentWithTeacher } from "@/hooks/queries";
 import type { HistoryEntry, StudentStats, WeeklySummary } from "@/types/api";
 import {
@@ -64,24 +65,24 @@ const QUALITY_STARS: Record<string, number> = {
 
 function RatingText({ value }: { value: Quality }) {
     if (value === "excellent") {
-        return <span className="text-[16px] font-bold text-[#2f944d]">ممتاز</span>;
+        return <span className="text-[16px] font-bold text-success-text">ممتاز</span>;
     }
     if (value === "good") {
-        return <span className="text-[16px] font-bold text-[#0b5394]">جيد جداً</span>;
+        return <span className="text-[16px] font-bold text-primary">جيد جداً</span>;
     }
     if (value === "acceptable") {
         return <span className="text-[16px] font-bold text-[#ca3500]">جيد</span>;
     }
     if (value === "weak") {
-        return <span className="text-[16px] font-bold text-[#c10007]">ضعيف</span>;
+        return <span className="text-[16px] font-bold text-attend-absent-text">ضعيف</span>;
     }
-    return <span className="text-[16px] font-bold text-[#6a7282]">-</span>;
+    return <span className="text-[16px] font-bold text-text-muted">-</span>;
 }
 
 function RatingPill({ value }: { value: string }) {
     if (value === "excellent") {
         return (
-            <span className="inline-block rounded-[10px] bg-[#dcfce7] px-3 py-1 text-[14px] font-bold text-[#008236]">
+            <span className="inline-block rounded-[10px] bg-attend-present-bg px-3 py-1 text-[14px] font-bold text-attend-present-text">
                 ممتاز
             </span>
         );
@@ -167,51 +168,54 @@ export default function StudentDashboard() {
     const todayRecord = stats?.today_record;
 
     return (
-        <div className="mx-auto max-w-md space-y-8 pb-24" dir="rtl">
-            {/* 1. Header card */}
-            <div className="flex items-center justify-between gap-4 rounded-[16px] border-t-[3px] border-t-primary bg-white px-5 pb-4 pt-[18px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1)]">
-                <div className="flex flex-col gap-1">
-                    <h1 className="text-[24px] font-bold leading-8 text-[#0b5394]">
-                        مرحباً، {firstName}
-                    </h1>
-                    <p className="text-[14px] text-[#6a7282]">
-                        طالب مجتهد، جعلك الله قرة عين لوالديك
-                    </p>
-                </div>
-                <div className="flex shrink-0 items-center gap-3 rounded-[10px] border border-primary/20 bg-[#eff6ff] px-4 py-2">
-                    <div className="flex flex-col text-right">
-                        <span className="text-[12px] text-[#6a7282]">
-                            مستوى الحفظ الحالي
-                        </span>
-                        <span className="text-[16px] font-bold text-[#0b5394]">
-                            {memorizationLevel}
+        <div className="mx-auto max-w-md space-y-6 pb-24" dir="rtl">
+            {/* 1. Primary gradient hero with Islamic pattern */}
+            <div
+                className="relative overflow-hidden rounded-[24px] p-6 text-white shadow-lg shadow-primary/20"
+                style={{ background: "linear-gradient(135deg, #0b5394, #083d73)" }}
+            >
+                <Pattern kind="star8" color="#eabd5b" opacity={0.3} size={50} />
+                <div className="relative">
+                    <p className="text-[12px] text-white/80">مرحباً، {firstName}</p>
+                    <div className="mt-1 flex items-baseline gap-2">
+                        <span className="text-[64px] font-extrabold leading-none">{memorizedParts}</span>
+                        <span className="text-[18px] text-white/90">جزء</span>
+                        <span className="ms-auto text-[32px]">✨</span>
+                    </div>
+                    <div className="mt-3 flex items-center gap-2">
+                        <Trophy className="w-4 h-4 text-secondary fill-secondary" />
+                        <span className="text-[13px] text-white/90">
+                            نقاطك: <strong className="text-white">{points.toLocaleString("ar-SA")}</strong>
                         </span>
                     </div>
-                    <Award className="h-6 w-6 text-[#1e88e5]" />
                 </div>
             </div>
 
-            {/* 2. Profile card */}
-            <div className="flex items-center justify-between gap-4 rounded-[24px] border border-[#f3f4f6] bg-white p-6 shadow-sm">
+            {/* 2. Level + name summary */}
+            <div className="flex items-center justify-between gap-4 rounded-[20px] border border-border-card bg-white p-5 shadow-sm">
                 <div className="flex min-w-0 flex-col gap-1">
-                    <h2 className="text-[24px] font-bold leading-8 text-[#0b5394]">
-                        السلام عليكم، {fullName}
+                    <h2 className="text-[18px] font-bold leading-7 text-text-title truncate">
+                        {fullName}
                     </h2>
                     {subtitleParts.length > 0 && (
-                        <p className="text-[14px] text-[#6a7282]">
+                        <p className="text-[13px] text-text-muted truncate">
                             {subtitleParts.join(" • ")}
                         </p>
                     )}
                 </div>
-                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border border-[#eabd5b] bg-[#fcf8ef] text-[30px]">
-                    👤
+                <div className="flex shrink-0 items-center gap-2 rounded-[10px] border border-primary/20 bg-tile-blue px-3 py-2">
+                    <Award className="h-5 w-5 text-primary" />
+                    <div className="flex flex-col text-right">
+                        <span className="text-[10px] text-text-muted">المستوى</span>
+                        <span className="text-[13px] font-bold text-primary">{memorizationLevel}</span>
+                    </div>
                 </div>
             </div>
 
             {/* 3. Stats grid */}
             <div className="grid grid-cols-2 gap-4">
                 <StatTile
-                    icon={<BookOpen className="h-6 w-6 text-[#1e88e5]" />}
+                    icon={<BookOpen className="h-6 w-6 text-primary" />}
                     tileBg="blue"
                     label="الأجزاء المحفوظة"
                     value={memorizedParts}
@@ -223,7 +227,7 @@ export default function StudentDashboard() {
                     value={points.toLocaleString("ar-SA")}
                 />
                 <StatTile
-                    icon={<Flame className="h-6 w-6 text-[#f43f5e]" />}
+                    icon={<Flame className="h-6 w-6 text-danger-text" />}
                     tileBg="red"
                     label="الغيابات"
                     value={absentDays}
@@ -236,21 +240,82 @@ export default function StudentDashboard() {
                 />
             </div>
 
-            {/* 3b. Achievement badges */}
+            {/* 3a. Weekly day-dots — Sat to Thu */}
+            <div className="rounded-[20px] border border-border-card bg-white p-5 shadow-sm">
+                <div className="mb-4 flex items-center gap-2">
+                    <Calendar className="h-5 w-5 text-primary" />
+                    <h3 className="text-[15px] font-bold text-text-body">أسبوعك</h3>
+                </div>
+                <div className="flex items-start justify-between">
+                    {(() => {
+                        const dayOrder: Array<{ key: string; label: string }> = [
+                            { key: "sat", label: "س" },
+                            { key: "sun", label: "أ" },
+                            { key: "mon", label: "ث" },
+                            { key: "tue", label: "ر" },
+                            { key: "wed", label: "خ" },
+                            { key: "thu", label: "ج" },
+                        ];
+                        const todayMap = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+                        const todayKey = todayMap[new Date().getDay()];
+                        const recordByDay = new Map(
+                            (weeklyPlan?.records ?? []).map((r) => [r.day, r])
+                        );
+                        return dayOrder.map(({ key, label }) => {
+                            const rec = recordByDay.get(key);
+                            const done = rec?.attendance === "present";
+                            const late = rec?.attendance === "late";
+                            const isToday = key === todayKey;
+                            const bg = done
+                                ? "bg-success-text"
+                                : late
+                                  ? "bg-attend-late-text"
+                                  : isToday
+                                    ? "bg-secondary"
+                                    : "bg-border-card";
+                            const fg = done || late || isToday ? "text-white" : "text-text-muted";
+                            return (
+                                <div key={key} className="text-center">
+                                    <div
+                                        className={`mx-auto mb-1 flex h-9 w-9 items-center justify-center rounded-full text-[13px] font-bold ${bg} ${fg} ${isToday ? "ring-4 ring-secondary/30" : ""}`}
+                                    >
+                                        {done ? "✓" : label}
+                                    </div>
+                                    <div className="text-[10px] text-text-muted">{label}</div>
+                                </div>
+                            );
+                        });
+                    })()}
+                </div>
+            </div>
+
+            {/* 3b. Verse of the day */}
+            <div className="relative overflow-hidden rounded-[24px] border border-border-card bg-white p-6 shadow-sm">
+                <Pattern kind="star8" color="#eabd5b" opacity={0.12} size={80} />
+                <div className="relative">
+                    <div className="mb-2 text-[11px] font-bold tracking-[1px] text-secondary">آية اليوم</div>
+                    <p className="mb-2 text-[22px] font-semibold leading-[1.9] text-text-title">
+                        وَقُل رَّبِّ زِدْنِي عِلْمًا
+                    </p>
+                    <p className="text-[11px] text-text-muted">طه · ١١٤</p>
+                </div>
+            </div>
+
+            {/* 3c. Achievement badges */}
             {streak >= 7 && (
                 <div className="space-y-2">
                     {streak >= 30 && (
-                        <div className="flex items-center gap-3 rounded-[14px] bg-[#fefce8] border border-[#eabd5b]/30 px-4 py-3">
-                            <Trophy className="h-5 w-5 shrink-0 text-[#eabd5b]" />
-                            <span className="text-[13px] font-bold text-[#1e2939]">
+                        <div className="flex items-center gap-3 rounded-[14px] bg-tile-yellow border border-secondary/30 px-4 py-3">
+                            <Trophy className="h-5 w-5 shrink-0 text-secondary" />
+                            <span className="text-[13px] font-bold text-text-body">
                                 نبارك الإنجاز! {streak} يوم حضور متواصل
                             </span>
                         </div>
                     )}
                     {memorizedParts >= 7 && (
-                        <div className="flex items-center gap-3 rounded-[14px] bg-[#dcfce7] border border-emerald-200 px-4 py-3">
+                        <div className="flex items-center gap-3 rounded-[14px] bg-tile-green border border-emerald-200 px-4 py-3">
                             <Award className="h-5 w-5 shrink-0 text-emerald-600" />
-                            <span className="text-[13px] font-bold text-[#1e2939]">
+                            <span className="text-[13px] font-bold text-text-body">
                                 نبارك إتمام {memorizedParts} أجزاء من القرآن الكريم
                             </span>
                         </div>
@@ -278,10 +343,10 @@ export default function StudentDashboard() {
             </div>
 
             {/* 4b. Today's Evaluation */}
-            <div className="rounded-[24px] border border-[#f3f4f6] bg-white p-5 shadow-sm">
+            <div className="rounded-[24px] border border-border-card bg-white p-5 shadow-sm">
                 <div className="mb-4 flex items-center gap-2">
-                    <Star className="h-5 w-5 text-[#eabd5b] fill-[#eabd5b]" />
-                    <h3 className="text-[16px] font-bold text-[#1e2939]">تقييم اليوم</h3>
+                    <Star className="h-5 w-5 text-secondary fill-secondary" />
+                    <h3 className="text-[16px] font-bold text-text-body">تقييم اليوم</h3>
                 </div>
                 {todayRecord ? (
                     <div className="space-y-3">
@@ -296,24 +361,24 @@ export default function StudentDashboard() {
                                 label: "الحفظ",
                                 value: QUALITY_LABELS[todayRecord.quality] || "-",
                                 stars: QUALITY_STARS[todayRecord.quality] || 0,
-                                color: "text-[#0b5394]",
+                                color: "text-primary",
                             },
                             {
                                 label: "المنجز",
                                 value: todayRecord.achieved_verses > 0 ? `${todayRecord.achieved_verses} آيات` : "-",
                                 stars: todayRecord.achieved_verses >= 5 ? 3 : todayRecord.achieved_verses >= 3 ? 2 : todayRecord.achieved_verses >= 1 ? 1 : 0,
-                                color: "text-[#0b5394]",
+                                color: "text-primary",
                             },
                         ].map(({ label, value, stars, color }) => (
                             <div key={label} className="flex items-center justify-between">
-                                <span className="text-[13px] text-[#6a7282] font-medium">{label}</span>
+                                <span className="text-[13px] text-text-muted font-medium">{label}</span>
                                 <div className="flex items-center gap-2">
                                     <span className={"text-[13px] font-bold " + color}>{value}</span>
                                     <div className="flex gap-0.5">
                                         {[1, 2, 3].map((s) => (
                                             <Star
                                                 key={s}
-                                                className={"h-3.5 w-3.5 " + (s <= stars ? "fill-[#eabd5b] text-[#eabd5b]" : "text-[#e5e7eb]")}
+                                                className={"h-3.5 w-3.5 " + (s <= stars ? "fill-secondary text-secondary" : "text-border-subtle")}
                                             />
                                         ))}
                                     </div>
@@ -322,15 +387,15 @@ export default function StudentDashboard() {
                         ))}
                     </div>
                 ) : (
-                    <p className="text-[13px] text-[#6a7282] text-center py-4">لا يوجد تقييم لليوم بعد</p>
+                    <p className="text-[13px] text-text-muted text-center py-4">لا يوجد تقييم لليوم بعد</p>
                 )}
             </div>
 
             {/* 5. Weekly plan table */}
-            <div className="rounded-[24px] border border-[#f3f4f6] bg-white p-6 shadow-sm">
+            <div className="rounded-[24px] border border-border-card bg-white p-6 shadow-sm">
                 <div className="mb-5 flex items-center gap-2">
-                    <Calendar className="h-5 w-5 text-[#0b5394]" />
-                    <h3 className="text-[18px] font-bold text-[#1e2939]">
+                    <Calendar className="h-5 w-5 text-primary" />
+                    <h3 className="text-[18px] font-bold text-text-body">
                         الخطة الأسبوعية الحالية
                     </h3>
                 </div>
@@ -338,7 +403,7 @@ export default function StudentDashboard() {
                     <div className="overflow-x-auto">
                         <table className="w-full text-right">
                             <thead>
-                                <tr className="border-b border-[#f3f4f6] text-[12px] font-bold text-[#6a7282]">
+                                <tr className="border-b border-border-card text-[12px] font-bold text-text-muted">
                                     <th className="pb-3 pr-2">اليوم</th>
                                     <th className="pb-3">الحضور</th>
                                     <th className="pb-3">المطلوب</th>
@@ -347,17 +412,17 @@ export default function StudentDashboard() {
                                     <th className="pb-3 pl-2">النتيجة</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-[#f3f4f6]">
+                            <tbody className="divide-y divide-border-card">
                                 {planRows.map((row, idx) => (
                                     <tr key={idx} className="text-[14px]">
-                                        <td className="py-4 pr-2 font-bold text-[#1e2939]">
+                                        <td className="py-4 pr-2 font-bold text-text-body">
                                             {row.day}
                                         </td>
                                         <td className="py-4">
                                             <AttendancePill value={row.attendance} />
                                         </td>
-                                        <td className="py-4 text-[#1e2939]">{row.required}</td>
-                                        <td className="py-4 text-[#1e2939]">{row.achieved}</td>
+                                        <td className="py-4 text-text-body">{row.required}</td>
+                                        <td className="py-4 text-text-body">{row.achieved}</td>
                                         <td className="py-4">
                                             <RatingText value={row.evaluation} />
                                         </td>
@@ -370,15 +435,15 @@ export default function StudentDashboard() {
                         </table>
                     </div>
                 ) : (
-                    <p className="text-[13px] text-[#6a7282] text-center py-6">لا توجد خطة أسبوعية حالياً</p>
+                    <p className="text-[13px] text-text-muted text-center py-6">لا توجد خطة أسبوعية حالياً</p>
                 )}
             </div>
 
             {/* 6. History list */}
-            <div className="rounded-[24px] border border-[#f3f4f6] bg-white p-6 shadow-sm">
+            <div className="rounded-[24px] border border-border-card bg-white p-6 shadow-sm">
                 <div className="mb-5 flex items-center gap-2">
-                    <Star className="h-5 w-5 text-[#0b5394]" />
-                    <h3 className="text-[18px] font-bold text-[#1e2939]">
+                    <Star className="h-5 w-5 text-primary" />
+                    <h3 className="text-[18px] font-bold text-text-body">
                         آخر الإنجازات
                     </h3>
                 </div>
@@ -387,13 +452,13 @@ export default function StudentDashboard() {
                         {historyRows.slice(0, 5).map((item) => (
                             <div
                                 key={item.id}
-                                className="flex items-center justify-between rounded-[16px] border border-[#f3f4f6] p-4"
+                                className="flex items-center justify-between rounded-[16px] border border-border-card p-4"
                             >
                                 <div className="flex flex-col gap-1">
-                                    <span className="text-[16px] font-bold text-[#1e2939]">
+                                    <span className="text-[16px] font-bold text-text-body">
                                         {item.title}
                                     </span>
-                                    <span className="text-[12px] text-[#6a7282]">
+                                    <span className="text-[12px] text-text-muted">
                                         {item.date}
                                     </span>
                                 </div>
@@ -402,7 +467,7 @@ export default function StudentDashboard() {
                         ))}
                     </div>
                 ) : (
-                    <p className="text-[13px] text-[#6a7282] text-center py-6">لا توجد إنجازات مسجلة بعد</p>
+                    <p className="text-[13px] text-text-muted text-center py-6">لا توجد إنجازات مسجلة بعد</p>
                 )}
             </div>
         </div>

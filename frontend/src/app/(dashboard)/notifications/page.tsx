@@ -33,14 +33,14 @@ export default function NotificationsPage() {
 
   return (
     <div className="space-y-6 max-w-3xl mx-auto pb-10">
-      <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex items-center justify-between">
+      <div className="bg-white rounded-[24px] p-6 shadow-sm border border-border-card flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center">
+          <div className="w-12 h-12 bg-tile-blue rounded-full flex items-center justify-center">
             <Bell className="w-6 h-6 text-primary" />
           </div>
           <div>
             <h1 className="text-xl font-bold text-primary">الإشعارات</h1>
-            <p className="text-xs text-slate-500">{unreadCount} غير مقروءة</p>
+            <p className="text-xs text-text-muted">{unreadCount} غير مقروءة</p>
           </div>
         </div>
         {isAdmin && (
@@ -55,8 +55,8 @@ export default function NotificationsPage() {
         )}
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100">
+      <div className="bg-white rounded-[24px] shadow-sm border border-border-card overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-border-card">
           <div className="flex items-center gap-2">
             <button
               type="button"
@@ -64,7 +64,7 @@ export default function NotificationsPage() {
               className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-colors ${
                 filter === "all"
                   ? "bg-primary text-white"
-                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  : "bg-border-card text-text-label hover:bg-border-subtle"
               }`}
             >
               الكل
@@ -75,7 +75,7 @@ export default function NotificationsPage() {
               className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-colors ${
                 filter === "unread"
                   ? "bg-primary text-white"
-                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  : "bg-border-card text-text-label hover:bg-border-subtle"
               }`}
             >
               غير مقروء
@@ -93,26 +93,26 @@ export default function NotificationsPage() {
           )}
         </div>
 
-        <div className="divide-y divide-slate-50">
+        <div className="divide-y divide-border-card">
           {filtered.length === 0 ? (
-            <p className="text-center text-sm text-slate-400 py-12">لا توجد إشعارات</p>
+            <p className="text-center text-sm text-text-muted py-12">لا توجد إشعارات</p>
           ) : (
             filtered.map((n) => (
               <button
                 key={n.id}
                 type="button"
                 onClick={() => !n.is_read && markRead(n.id)}
-                className={`w-full text-start px-5 py-4 hover:bg-slate-50 transition-colors flex items-start gap-3 ${
-                  !n.is_read ? "bg-blue-50/40" : ""
+                className={`w-full text-start px-5 py-4 hover:bg-surface-subtle transition-colors flex items-start gap-3 ${
+                  !n.is_read ? "bg-tile-blue/40" : ""
                 }`}
               >
                 {!n.is_read && (
                   <span className="w-2 h-2 rounded-full bg-primary mt-2 shrink-0" />
                 )}
                 <div className="flex-1 min-w-0">
-                  <h4 className="font-bold text-sm text-slate-800">{n.title}</h4>
-                  <p className="text-xs text-slate-500 mt-1">{n.body}</p>
-                  <p className="text-[10px] text-slate-400 mt-2">{relativeTime(n.created_at)}</p>
+                  <h4 className="font-bold text-sm text-text-body">{n.title}</h4>
+                  <p className="text-xs text-text-muted mt-1">{n.body}</p>
+                  <p className="text-[10px] text-text-muted mt-2">{relativeTime(n.created_at)}</p>
                 </div>
               </button>
             ))

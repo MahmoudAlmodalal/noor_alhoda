@@ -85,7 +85,7 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
   if (studentLoading && !student) return <PageLoading />;
   if (!student) {
     return (
-      <div className="text-center py-12 text-slate-500">لم يتم العثور على الطالب</div>
+      <div className="text-center py-12 text-text-muted">لم يتم العثور على الطالب</div>
     );
   }
 
@@ -109,16 +109,16 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
         عودة لقائمة الطلاب
       </Link>
 
-      <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+      <div className="bg-white rounded-[24px] p-6 shadow-sm border border-border-card">
         <div className="flex items-start gap-4 mb-6">
-          <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center shrink-0">
+          <div className="w-16 h-16 bg-tile-blue rounded-full flex items-center justify-center shrink-0">
             <User className="w-8 h-8 text-primary" />
           </div>
           <div className="flex-1 min-w-0">
-            <h1 className="text-xl font-bold text-slate-900">{student.full_name}</h1>
-            <p className="text-xs text-slate-500 mt-1">{student.national_id}</p>
+            <h1 className="text-xl font-bold text-text-title">{student.full_name}</h1>
+            <p className="text-xs text-text-muted mt-1">{student.national_id}</p>
             <div className="flex items-center gap-2 mt-2 flex-wrap">
-              <span className="px-2.5 py-0.5 bg-blue-50 text-primary text-xs font-bold rounded-md">
+              <span className="px-2.5 py-0.5 bg-tile-blue text-primary text-xs font-bold rounded-md">
                 {student.grade}
               </span>
             </div>
@@ -134,11 +134,11 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
           <InfoItem label="تاريخ التسجيل" value={student.enrollment_date || "—"} ltr />
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap pt-4 border-t border-slate-100">
+        <div className="flex items-center gap-2 flex-wrap pt-4 border-t border-border-card">
           <button
             type="button"
             onClick={downloadPdf}
-            className="px-4 py-2 bg-slate-100 text-slate-700 text-xs font-bold rounded-xl hover:bg-slate-200 flex items-center gap-2"
+            className="px-4 py-2 bg-border-card text-text-body text-xs font-bold rounded-xl hover:bg-border-subtle flex items-center gap-2"
           >
             <FileText className="w-4 h-4" />
             تحميل التقرير
@@ -171,13 +171,13 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
         <StatCard label="المعدل العام" value={stats?.avg_grade ?? "—"} />
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-        <div className="px-5 py-4 border-b border-slate-100">
-          <h2 className="font-bold text-base text-slate-800">السجل الأسبوعي</h2>
+      <div className="bg-white rounded-[24px] shadow-sm border border-border-card overflow-hidden">
+        <div className="px-5 py-4 border-b border-border-card">
+          <h2 className="font-bold text-base text-text-body">السجل الأسبوعي</h2>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-right">
-            <thead className="text-xs text-slate-500 bg-slate-50/80">
+            <thead className="text-xs text-text-muted bg-surface-subtle/80">
               <tr>
                 <th className="px-4 py-3 font-bold">بداية الأسبوع</th>
                 <th className="px-4 py-3 font-bold">المطلوب</th>
@@ -188,7 +188,7 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
             <tbody>
               {(history ?? []).length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="text-center py-8 text-sm text-slate-400">
+                  <td colSpan={4} className="text-center py-8 text-sm text-text-muted">
                     لا يوجد سجل بعد
                   </td>
                 </tr>
@@ -198,10 +198,10 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
                   const achieved = w.achieved_verses ?? 0;
                   const rate = required > 0 ? Math.round((achieved / required) * 100) : 0;
                   return (
-                    <tr key={w.id} className="border-b border-slate-50">
-                      <td className="px-4 py-3 text-slate-600" dir="ltr">{w.date}</td>
-                      <td className="px-4 py-3 text-slate-600">{required}</td>
-                      <td className="px-4 py-3 text-slate-600">{achieved}</td>
+                    <tr key={w.id} className="border-b border-border-card">
+                      <td className="px-4 py-3 text-text-label" dir="ltr">{w.date}</td>
+                      <td className="px-4 py-3 text-text-label">{required}</td>
+                      <td className="px-4 py-3 text-text-label">{achieved}</td>
                       <td className="px-4 py-3">
                         <span className={`text-xs font-bold px-2 py-1 rounded-md ${
                           rate >= 80 ? "bg-green-50 text-green-600" :
@@ -221,10 +221,10 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
       </div>
 
       {(studentCourses ?? []).some((c) => c.is_completed) && (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+        <div className="bg-white rounded-[24px] shadow-sm border border-border-card p-5">
           <div className="flex items-center gap-2 mb-3">
             <BookMarked className="w-5 h-5 text-primary" />
-            <h2 className="font-bold text-base text-slate-800">الدورات المنجزة</h2>
+            <h2 className="font-bold text-base text-text-body">الدورات المنجزة</h2>
           </div>
           <div className="flex flex-wrap gap-2">
             {(studentCourses ?? [])
@@ -246,18 +246,18 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
           <BookMarked className="w-5 h-5 text-primary" />
           <h2 className="text-lg font-bold text-primary">الدورات التي اجتازها الطالب</h2>
         </div>
-        <p className="text-xs text-slate-500 mb-4">
+        <p className="text-xs text-text-muted mb-4">
           حدّد الدورات التي أخذها الطالب بالنقر على المربع المقابل لاسم الدورة.
         </p>
         <div className="max-h-[60vh] overflow-y-auto -mx-2 px-2">
           {coursesLoading && !studentCourses ? (
-            <p className="text-center py-6 text-sm text-slate-400">جارٍ التحميل...</p>
+            <p className="text-center py-6 text-sm text-text-muted">جارٍ التحميل...</p>
           ) : coursesError ? (
             <p className="text-center py-6 text-sm text-red-500">تعذر تحميل الدورات</p>
           ) : (studentCourses ?? []).length === 0 ? (
-            <p className="text-center py-6 text-sm text-slate-400">لا توجد دورات متاحة في النظام</p>
+            <p className="text-center py-6 text-sm text-text-muted">لا توجد دورات متاحة في النظام</p>
           ) : (
-            <ul className="divide-y divide-slate-100">
+            <ul className="divide-y divide-border-card">
               {(studentCourses ?? []).map((c) => {
                 const isLoading = togglingCourseId === c.course_id;
                 return (
@@ -272,12 +272,12 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
                         checked={c.is_completed}
                         disabled={!isAdmin || isLoading}
                         onChange={(e) => toggleCourse(c.course_id, e.target.checked)}
-                        className="mt-0.5 w-5 h-5 rounded border-slate-300 text-primary focus:ring-primary/30"
+                        className="mt-0.5 w-5 h-5 rounded border-border-subtle text-primary focus:ring-primary/30"
                       />
                       <div className="flex-1 min-w-0">
-                        <p className="font-bold text-sm text-slate-800">{c.course_name}</p>
+                        <p className="font-bold text-sm text-text-body">{c.course_name}</p>
                         {c.description && (
-                          <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{c.description}</p>
+                          <p className="text-xs text-text-muted mt-0.5 line-clamp-2">{c.description}</p>
                         )}
                         {c.is_completed && c.completion_date && (
                           <p className="text-[11px] text-green-600 mt-1" dir="ltr">
@@ -313,9 +313,9 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
 
 function InfoItem({ label, value, ltr }: { label: string; value: string | number; ltr?: boolean }) {
   return (
-    <div className="bg-slate-50/80 p-3 rounded-xl">
-      <span className="block text-[11px] text-slate-500 font-medium mb-1">{label}</span>
-      <span className="block text-sm font-bold text-slate-800" dir={ltr ? "ltr" : undefined}>
+    <div className="bg-surface-subtle/80 p-3 rounded-xl">
+      <span className="block text-[11px] text-text-muted font-medium mb-1">{label}</span>
+      <span className="block text-sm font-bold text-text-body" dir={ltr ? "ltr" : undefined}>
         {value}
       </span>
     </div>
@@ -324,8 +324,8 @@ function InfoItem({ label, value, ltr }: { label: string; value: string | number
 
 function StatCard({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm text-center">
-      <p className="text-xs text-slate-500 font-medium mb-2">{label}</p>
+    <div className="bg-white rounded-[24px] p-5 border border-border-card shadow-sm text-center">
+      <p className="text-xs text-text-muted font-medium mb-2">{label}</p>
       <h3 className="text-2xl font-black text-primary">{value}</h3>
     </div>
   );

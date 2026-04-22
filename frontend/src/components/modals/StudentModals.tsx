@@ -43,17 +43,17 @@ export function AssignStudentModal({
   return (
     <Modal isOpen={isOpen} onClose={onClose}>
       <h2 className="text-xl font-bold text-primary mb-2">تعيين الطالب لمحفظ</h2>
-      <p className="text-sm text-slate-500 font-medium mb-6">
-        تعيين الطالب: <span className="font-bold text-slate-800">{studentName}</span>
+      <p className="text-sm text-text-muted font-medium mb-6">
+        تعيين الطالب: <span className="font-bold text-text-body">{studentName}</span>
       </p>
 
       <div className="space-y-1.5 mb-8">
-        <label className="block text-sm font-bold text-slate-800">اختر المحفظ</label>
+        <label className="block text-sm font-bold text-text-body">اختر المحفظ</label>
         <select
           value={teacherId}
           onChange={(e) => setTeacherId(e.target.value)}
           aria-label="اختر المحفظ"
-          className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+          className="h-12 w-full rounded-xl border border-border-subtle bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
         >
           <option value="">— اختر المحفظ —</option>
           {(teachers ?? []).map((t) => (
@@ -67,7 +67,7 @@ export function AssignStudentModal({
       {error && <p className="text-sm text-red-500 mb-4">{error}</p>}
 
       <div className="flex items-center gap-3">
-        <Button variant="ghost" onClick={onClose} className="flex-1 bg-slate-100/80 text-slate-700 hover:bg-slate-200 h-12 rounded-xl font-bold">
+        <Button variant="ghost" onClick={onClose} className="flex-1 bg-border-card/80 text-text-body hover:bg-border-subtle h-12 rounded-xl font-bold">
           إلغاء
         </Button>
         <Button onClick={handleSubmit} disabled={isSubmitting || !teacherId} className="flex-1 h-12 rounded-xl font-bold gap-2">
@@ -174,27 +174,27 @@ export function EditStudentModal({
 
       <div className="space-y-4 mb-8 max-h-96 overflow-y-auto">
         <div className="space-y-1.5">
-          <label className="block text-sm font-bold text-slate-800">الاسم رباعي</label>
-          <Input value={form.full_name} onChange={(e) => handleChange("full_name", e.target.value)} aria-label="الاسم رباعي" className="h-12 rounded-xl border-slate-200" />
+          <label className="block text-sm font-bold text-text-body">الاسم رباعي</label>
+          <Input value={form.full_name} onChange={(e) => handleChange("full_name", e.target.value)} aria-label="الاسم رباعي" className="h-12 rounded-xl border-border-subtle" />
         </div>
 
         <div className="space-y-1.5">
-          <label className="block text-sm font-bold text-slate-800">رقم الهوية</label>
-          <Input type="number" dir="ltr" value={form.national_id} onChange={(e) => handleChange("national_id", e.target.value)} aria-label="رقم الهوية" className="h-12 rounded-xl border-slate-200" />
+          <label className="block text-sm font-bold text-text-body">رقم الهوية</label>
+          <Input type="number" dir="ltr" value={form.national_id} onChange={(e) => handleChange("national_id", e.target.value)} aria-label="رقم الهوية" className="h-12 rounded-xl border-border-subtle" />
         </div>
 
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-1.5">
-            <label className="block text-sm font-bold text-slate-800">تاريخ الميلاد</label>
-            <Input type="date" value={form.birthdate} onChange={(e) => handleChange("birthdate", e.target.value)} aria-label="تاريخ الميلاد" className="h-12 rounded-xl border-slate-200" />
+            <label className="block text-sm font-bold text-text-body">تاريخ الميلاد</label>
+            <Input type="date" value={form.birthdate} onChange={(e) => handleChange("birthdate", e.target.value)} aria-label="تاريخ الميلاد" className="h-12 rounded-xl border-border-subtle" />
           </div>
           <div className="space-y-1.5">
-            <label className="block text-sm font-bold text-slate-800">الصف الدراسي</label>
+            <label className="block text-sm font-bold text-text-body">الصف الدراسي</label>
             <select
               value={form.grade}
               onChange={(e) => handleChange("grade", e.target.value)}
               aria-label="الصف الدراسي"
-              className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+              className="h-12 w-full rounded-xl border border-border-subtle bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
             >
               {[...Array(12)].map((_, i) => (
                 <option key={i + 1} value={String(i + 1)}>الصف {i + 1}</option>
@@ -204,52 +204,52 @@ export function EditStudentModal({
         </div>
 
         <div className="space-y-1.5">
-          <label className="block text-sm font-bold text-slate-800">رقم الجوال</label>
-          <Input type="tel" dir="ltr" value={form.phone_number} onChange={(e) => handleChange("phone_number", e.target.value)} aria-label="رقم الجوال" className="h-12 rounded-xl border-slate-200" />
+          <label className="block text-sm font-bold text-text-body">رقم الجوال</label>
+          <Input type="tel" dir="ltr" value={form.phone_number} onChange={(e) => handleChange("phone_number", e.target.value)} aria-label="رقم الجوال" className="h-12 rounded-xl border-border-subtle" />
         </div>
 
         <div className="space-y-1.5">
-          <label className="block text-sm font-bold text-slate-800">العنوان</label>
-          <Input value={form.address} onChange={(e) => handleChange("address", e.target.value)} aria-label="العنوان" className="h-12 rounded-xl border-slate-200" />
+          <label className="block text-sm font-bold text-text-body">العنوان</label>
+          <Input value={form.address} onChange={(e) => handleChange("address", e.target.value)} aria-label="العنوان" className="h-12 rounded-xl border-border-subtle" />
         </div>
 
         <div className="space-y-1.5">
-          <label className="block text-sm font-bold text-slate-800">اسم ولي الأمر</label>
-          <Input value={form.guardian_name} onChange={(e) => handleChange("guardian_name", e.target.value)} aria-label="اسم ولي الأمر" className="h-12 rounded-xl border-slate-200" />
+          <label className="block text-sm font-bold text-text-body">اسم ولي الأمر</label>
+          <Input value={form.guardian_name} onChange={(e) => handleChange("guardian_name", e.target.value)} aria-label="اسم ولي الأمر" className="h-12 rounded-xl border-border-subtle" />
         </div>
 
         <div className="space-y-1.5">
-          <label className="block text-sm font-bold text-slate-800">رقم هوية ولي الأمر</label>
-          <Input type="number" dir="ltr" value={form.guardian_national_id} onChange={(e) => handleChange("guardian_national_id", e.target.value)} aria-label="رقم هوية ولي الأمر" className="h-12 rounded-xl border-slate-200" />
+          <label className="block text-sm font-bold text-text-body">رقم هوية ولي الأمر</label>
+          <Input type="number" dir="ltr" value={form.guardian_national_id} onChange={(e) => handleChange("guardian_national_id", e.target.value)} aria-label="رقم هوية ولي الأمر" className="h-12 rounded-xl border-border-subtle" />
         </div>
 
         <div className="space-y-1.5">
-          <label className="block text-sm font-bold text-slate-800">جوال ولي الأمر</label>
-          <Input type="tel" dir="ltr" value={form.guardian_mobile} onChange={(e) => handleChange("guardian_mobile", e.target.value)} aria-label="جوال ولي الأمر" className="h-12 rounded-xl border-slate-200" />
+          <label className="block text-sm font-bold text-text-body">جوال ولي الأمر</label>
+          <Input type="tel" dir="ltr" value={form.guardian_mobile} onChange={(e) => handleChange("guardian_mobile", e.target.value)} aria-label="جوال ولي الأمر" className="h-12 rounded-xl border-border-subtle" />
         </div>
 
         <div className="space-y-1.5">
-          <label className="block text-sm font-bold text-slate-800">رقم الحساب</label>
-          <Input value={form.bank_account_number} onChange={(e) => handleChange("bank_account_number", e.target.value)} aria-label="رقم الحساب" className="h-12 rounded-xl border-slate-200" />
+          <label className="block text-sm font-bold text-text-body">رقم الحساب</label>
+          <Input value={form.bank_account_number} onChange={(e) => handleChange("bank_account_number", e.target.value)} aria-label="رقم الحساب" className="h-12 rounded-xl border-border-subtle" />
         </div>
 
         <div className="space-y-1.5">
-          <label className="block text-sm font-bold text-slate-800">اسم الحساب</label>
-          <Input value={form.bank_account_name} onChange={(e) => handleChange("bank_account_name", e.target.value)} aria-label="اسم الحساب" className="h-12 rounded-xl border-slate-200" />
+          <label className="block text-sm font-bold text-text-body">اسم الحساب</label>
+          <Input value={form.bank_account_name} onChange={(e) => handleChange("bank_account_name", e.target.value)} aria-label="اسم الحساب" className="h-12 rounded-xl border-border-subtle" />
         </div>
 
         <div className="space-y-1.5">
-          <label className="block text-sm font-bold text-slate-800">نوع الحساب</label>
-          <Input value={form.bank_account_type} onChange={(e) => handleChange("bank_account_type", e.target.value)} aria-label="نوع الحساب" className="h-12 rounded-xl border-slate-200" />
+          <label className="block text-sm font-bold text-text-body">نوع الحساب</label>
+          <Input value={form.bank_account_type} onChange={(e) => handleChange("bank_account_type", e.target.value)} aria-label="نوع الحساب" className="h-12 rounded-xl border-border-subtle" />
         </div>
 
         <div className="space-y-2 pt-2">
-          <label className="block text-sm font-bold text-slate-800">الحالة الصحية</label>
+          <label className="block text-sm font-bold text-text-body">الحالة الصحية</label>
           <div className="grid grid-cols-2 gap-3">
             {([["martyr_son", "ابن شهيد"], ["sick", "مريض"], ["injured", "جريح"], ["other", "أخرى"]] as const).map(([key, label]) => (
               <label key={key} className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={health[key]} onChange={() => setHealth({ martyr_son: false, sick: false, injured: false, other: false, [key]: !health[key] })} className="w-4 h-4 rounded accent-[#eabd5b]" />
-                <span className="text-sm text-slate-700">{label}</span>
+                <input type="checkbox" checked={health[key]} onChange={() => setHealth({ martyr_son: false, sick: false, injured: false, other: false, [key]: !health[key] })} className="w-4 h-4 rounded accent-secondary" />
+                <span className="text-sm text-text-body">{label}</span>
               </label>
             ))}
           </div>
@@ -259,19 +259,19 @@ export function EditStudentModal({
                 placeholder="يرجى توضيح الحالة الصحية..."
                 value={healthOtherText}
                 onChange={(e) => setHealthOtherText(e.target.value)}
-                className="h-10 text-sm rounded-lg border-slate-200"
+                className="h-10 text-sm rounded-lg border-border-subtle"
               />
             </div>
           )}
         </div>
 
         <div className="space-y-2 pt-2">
-          <label className="block text-sm font-bold text-slate-800">المهارات والاهتمامات</label>
+          <label className="block text-sm font-bold text-text-body">المهارات والاهتمامات</label>
           <div className="grid grid-cols-2 gap-3">
             {([["quran", "قراءات قرآن"], ["nasheed", "إنشاد"], ["poetry", "شعر"], ["other", "أخرى"]] as const).map(([key, label]) => (
               <label key={key} className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={skills[key]} onChange={() => setSkills({ ...skills, [key]: !skills[key] })} className="w-4 h-4 rounded accent-[#eabd5b]" />
-                <span className="text-sm text-slate-700">{label}</span>
+                <input type="checkbox" checked={skills[key]} onChange={() => setSkills({ ...skills, [key]: !skills[key] })} className="w-4 h-4 rounded accent-secondary" />
+                <span className="text-sm text-text-body">{label}</span>
               </label>
             ))}
           </div>
@@ -281,7 +281,7 @@ export function EditStudentModal({
                 placeholder="يرجى توضيح المهارات الأخرى..."
                 value={skillsOtherText}
                 onChange={(e) => setSkillsOtherText(e.target.value)}
-                className="h-10 text-sm rounded-lg border-slate-200"
+                className="h-10 text-sm rounded-lg border-border-subtle"
               />
             </div>
           )}
@@ -291,7 +291,7 @@ export function EditStudentModal({
       {error && <p className="text-sm text-red-500 mb-4">{error}</p>}
 
       <div className="flex items-center gap-3">
-        <Button variant="ghost" onClick={onClose} className="flex-1 bg-slate-100/80 text-slate-700 hover:bg-slate-200 h-12 rounded-xl font-bold">
+        <Button variant="ghost" onClick={onClose} className="flex-1 bg-border-card/80 text-text-body hover:bg-border-subtle h-12 rounded-xl font-bold">
           إلغاء
         </Button>
         <Button onClick={handleSubmit} disabled={isSubmitting} className="flex-[1.5] h-12 rounded-xl font-bold gap-2">

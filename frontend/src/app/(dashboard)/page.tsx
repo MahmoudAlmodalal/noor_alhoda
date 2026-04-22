@@ -1,6 +1,8 @@
 "use client";
 
 import { StatTile } from "@/components/ui/StatTile";
+import { SectionCard } from "@/components/ui/SectionCard";
+import { Pattern } from "@/components/ui/Pattern";
 import {
   Users,
   CheckCircle2,
@@ -134,7 +136,6 @@ export default function Dashboard() {
       name: s.full_name,
       subtitle: s.grade || "بدون محفظ",
       badge: s.grade || "تنبيه",
-      badgeColor: "text-primary bg-blue-50 border border-primary/20",
       avatar: s.full_name?.[0] ?? "؟",
     }));
 
@@ -142,31 +143,38 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto pb-10">
-      <div className="bg-white rounded-2xl p-6 shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1)] border border-[#f3f4f6] flex flex-col items-center text-center">
-        <h1 className="text-2xl font-bold text-primary mb-1">
-          {isTeacher ? "مرحباً، الشيخ " : "مرحباً، "}{user?.full_name || ""}
-        </h1>
-        <p className="text-sm text-[#818181] mb-4">
-          {isTeacher
-            ? "خيركم من تعلم القرآن وعلّمه"
-            : "نسأل الله لك التوفيق في إدارة هذه المؤسسة المباركة"}
-        </p>
-        {isTeacher ? (
-          user?.teacher_profile?.specialization && (
-            <div className="inline-flex items-center gap-2 border border-secondary/50 bg-[rgba(251,242,222,0.6)] px-4 py-2 rounded-[10px]">
-              <Star className="w-4 h-4 text-secondary fill-secondary" />
-              <span className="text-sm font-bold text-primary">{user.teacher_profile.specialization}</span>
+      <div
+        className="relative overflow-hidden rounded-[24px] p-6 text-white shadow-lg shadow-primary/20"
+        style={{ background: "linear-gradient(135deg, #0b5394, #083d73)" }}
+      >
+        <Pattern kind="arabesque" color="#ffffff" opacity={0.12} size={60} />
+        <div className="relative flex flex-col items-center text-center">
+          <p className="text-xs text-white/80 mb-1">مرحباً بكم،</p>
+          <h1 className="text-2xl font-bold text-white mb-2">
+            {isTeacher ? "الشيخ " : ""}{user?.full_name || "الأستاذ"}
+          </h1>
+          <p className="text-xs text-white/70 mb-4 leading-relaxed max-w-md">
+            {isTeacher
+              ? "خيركم من تعلم القرآن وعلّمه"
+              : "نسأل الله لك التوفيق في إدارة هذه المؤسسة المباركة"}
+          </p>
+          {isTeacher ? (
+            user?.teacher_profile?.specialization && (
+              <div className="inline-flex items-center gap-2 border border-secondary/60 bg-white/10 backdrop-blur px-4 py-2 rounded-[10px]">
+                <Star className="w-4 h-4 text-secondary fill-secondary" />
+                <span className="text-sm font-bold text-white">{user.teacher_profile.specialization}</span>
+              </div>
+            )
+          ) : (
+            <div className="inline-flex items-center gap-3 border border-secondary/60 bg-white/10 backdrop-blur px-4 py-2 rounded-[10px]">
+              <BookOpen className="w-5 h-5 text-secondary" />
+              <div className="flex flex-col text-right">
+                <span className="text-[10px] text-white/70 font-normal">العام الدراسي الحالي</span>
+                <span className="text-sm font-bold text-white">1447هـ - 2026م</span>
+              </div>
             </div>
-          )
-        ) : (
-          <div className="inline-flex items-center gap-3 border border-secondary/50 bg-[rgba(251,242,222,0.6)] px-4 py-2 rounded-[10px]">
-            <div className="flex flex-col text-right">
-              <span className="text-xs text-[#818181] font-normal">العام الدراسي الحالي</span>
-              <span className="text-base font-bold text-primary">1447هـ - 2026م</span>
-            </div>
-            <Calendar className="w-6 h-6 text-secondary" />
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -212,75 +220,82 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+        <SectionCard padding="md" radius="xl">
           <div className="flex items-center gap-2 mb-5">
             <Calendar className="w-5 h-5 text-secondary" />
-            <h3 className="font-bold text-lg text-slate-800">جدول اليوم</h3>
-            <span className="ms-auto text-xs bg-slate-100 px-3 py-1 rounded-full text-slate-600 font-medium">{HIJRI_PLACEHOLDER}</span>
+            <h3 className="font-bold text-lg text-text-body">جدول اليوم</h3>
+            <span className="ms-auto text-xs bg-border-card px-3 py-1 rounded-full text-text-label font-medium">{HIJRI_PLACEHOLDER}</span>
           </div>
 
           <div className="space-y-3">
             {schedule.map((session) => (
-              <div key={session.id} className={`p-4 rounded-xl border flex items-center justify-between ${session.active ? 'border-primary/20 bg-[#f8fbff]' : 'border-slate-100'}`}>
+              <div
+                key={session.id}
+                className={`p-4 rounded-[14px] border flex items-center justify-between ${
+                  session.active ? "border-primary/20 bg-tile-blue" : "border-border-card"
+                }`}
+              >
                 <div>
-                  <h4 className={`font-bold text-sm ${session.active ? 'text-primary' : 'text-slate-700'}`}>{session.title}</h4>
-                  <p className="text-xs text-slate-500 mt-1">{session.time}</p>
+                  <h4 className={`font-bold text-sm ${session.active ? "text-primary" : "text-text-body"}`}>{session.title}</h4>
+                  <p className="text-xs text-text-muted mt-1">{session.time}</p>
                 </div>
                 <button
                   type="button"
                   onClick={() => router.push("/attendance")}
-                  className={`text-xs px-4 py-2 font-bold rounded-lg shrink-0 ${session.active ? 'bg-primary text-white shadow-sm' : 'bg-slate-100 text-slate-500'}`}
+                  className={`text-xs px-4 py-2 font-bold rounded-[10px] shrink-0 ${
+                    session.active ? "bg-primary text-white shadow-sm" : "bg-border-card text-text-muted"
+                  }`}
                 >
                   {session.actionText}
                 </button>
               </div>
             ))}
           </div>
-        </div>
+        </SectionCard>
 
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+        <SectionCard padding="md" radius="xl">
           <div className="flex items-center gap-2 mb-5">
             <Users className="w-5 h-5 text-primary" />
-            <h3 className="font-bold text-lg text-slate-800">طلاب يحتاجون متابعة</h3>
+            <h3 className="font-bold text-lg text-text-body">طلاب يحتاجون متابعة</h3>
           </div>
 
           <div className="space-y-3">
             {followUpStudents.length === 0 ? (
-              <p className="text-xs text-slate-400 text-center py-4">لا يوجد طلاب بحاجة لمتابعة</p>
+              <p className="text-xs text-text-muted text-center py-4">لا يوجد طلاب بحاجة لمتابعة</p>
             ) : (
               followUpStudents.map((student) => (
                 <Link
                   key={student.id}
                   href={`/students/${student.id}`}
-                  className="p-3 rounded-xl border border-slate-100 flex items-center gap-3 hover:border-primary/30 transition-colors"
+                  className="p-3 rounded-[14px] border border-border-card flex items-center gap-3 hover:border-primary/30 transition-colors"
                 >
-                  <div className="w-10 h-10 bg-blue-50 text-primary font-bold rounded-full flex items-center justify-center shrink-0">
+                  <div className="w-10 h-10 bg-tile-blue text-primary font-bold rounded-full flex items-center justify-center shrink-0">
                     {student.avatar}
                   </div>
                   <div className="flex-1">
-                    <h4 className="text-sm font-bold text-slate-800">{student.name}</h4>
-                    <p className="text-xs text-slate-500">{student.subtitle}</p>
+                    <h4 className="text-sm font-bold text-text-body">{student.name}</h4>
+                    <p className="text-xs text-text-muted">{student.subtitle}</p>
                   </div>
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${student.badgeColor}`}>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full font-bold text-primary bg-role-admin-bg border border-primary/20">
                     {student.badge}
                   </span>
                 </Link>
               ))
             )}
           </div>
-        </div>
+        </SectionCard>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-            <div className="p-5 border-b border-slate-50 flex items-center justify-between">
-              <h3 className="font-bold text-lg text-slate-800">قائمة الطلاب</h3>
+          <SectionCard padding="none" radius="xl" className="overflow-hidden">
+            <div className="p-5 border-b border-border-card flex items-center justify-between">
+              <h3 className="font-bold text-lg text-text-body">قائمة الطلاب</h3>
               <Link href="/students" className="text-xs text-primary font-bold hover:underline">عرض الكل</Link>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-right">
-                <thead className="bg-slate-50 text-slate-500 text-xs font-bold">
+                <thead className="bg-surface-subtle text-text-muted text-xs font-bold">
                   <tr>
                     <th className="px-5 py-3">الطالب</th>
                     <th className="px-5 py-3">الحلقة</th>
@@ -288,26 +303,26 @@ export default function Dashboard() {
                     <th className="px-5 py-3"></th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-50">
+                <tbody className="divide-y divide-border-card">
                   {rosterLoading ? (
-                    <tr><td colSpan={4} className="py-10 text-center text-slate-400 text-xs">جاري التحميل...</td></tr>
+                    <tr><td colSpan={4} className="py-10 text-center text-text-muted text-xs">جاري التحميل...</td></tr>
                   ) : rosterStudents.length === 0 ? (
-                    <tr><td colSpan={4} className="py-10 text-center text-slate-400 text-xs">لا يوجد طلاب مسجلين</td></tr>
+                    <tr><td colSpan={4} className="py-10 text-center text-text-muted text-xs">لا يوجد طلاب مسجلين</td></tr>
                   ) : (
                     rosterStudents.map((s) => (
-                      <tr key={s.id} className="hover:bg-slate-50/50 transition-colors">
+                      <tr key={s.id} className="hover:bg-surface-subtle transition-colors">
                         <td className="px-5 py-3">
                           <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center text-xs font-bold text-slate-500">
+                            <div className="w-8 h-8 bg-border-card rounded-full flex items-center justify-center text-xs font-bold text-text-muted">
                               {s.full_name?.[0]}
                             </div>
-                            <span className="text-sm font-bold text-slate-700">{s.full_name}</span>
+                            <span className="text-sm font-bold text-text-body">{s.full_name}</span>
                           </div>
                         </td>
-                        <td className="px-5 py-3 text-xs text-slate-600">{s.teacher_name || "غير محدد"}</td>
+                        <td className="px-5 py-3 text-xs text-text-label">{s.teacher_name || "غير محدد"}</td>
                         <td className="px-5 py-3">
-                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${s.is_active ? 'bg-green-50 text-green-600' : 'bg-slate-100 text-slate-500'}`}>
-                            {s.is_active ? 'نشط' : 'متوقف'}
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${s.is_active ? "bg-role-student-bg text-role-student-text" : "bg-border-card text-text-muted"}`}>
+                            {s.is_active ? "نشط" : "متوقف"}
                           </span>
                         </td>
                         <td className="px-5 py-3 text-left">
@@ -321,20 +336,20 @@ export default function Dashboard() {
                 </tbody>
               </table>
             </div>
-          </div>
+          </SectionCard>
         </div>
 
         <div className="space-y-6">
-          <div className="bg-primary rounded-2xl p-6 text-white shadow-lg shadow-primary/20">
+          <div className="bg-primary rounded-[24px] p-6 text-white shadow-lg shadow-primary/20">
             <h3 className="font-bold text-lg mb-2">إجراءات سريعة</h3>
             <p className="text-xs text-white/70 mb-6 leading-relaxed">استخدم هذه الاختصارات للوصول السريع لأهم المهام اليومية</p>
 
             <div className="grid grid-cols-1 gap-3">
               <button
                 onClick={() => setPlanModalOpen(true)}
-                className="flex items-center gap-3 bg-white/10 hover:bg-white/20 p-3 rounded-xl transition-colors text-right"
+                className="flex items-center gap-3 bg-white/10 hover:bg-white/20 p-3 rounded-[14px] transition-colors text-right"
               >
-                <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+                <div className="w-10 h-10 bg-white/20 rounded-[10px] flex items-center justify-center">
                   <Calendar className="w-5 h-5" />
                 </div>
                 <div>
@@ -345,9 +360,9 @@ export default function Dashboard() {
 
               <button
                 onClick={() => setAnnounceModalOpen(true)}
-                className="flex items-center gap-3 bg-white/10 hover:bg-white/20 p-3 rounded-xl transition-colors text-right"
+                className="flex items-center gap-3 bg-white/10 hover:bg-white/20 p-3 rounded-[14px] transition-colors text-right"
               >
-                <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+                <div className="w-10 h-10 bg-white/20 rounded-[10px] flex items-center justify-center">
                   <Star className="w-5 h-5" />
                 </div>
                 <div>
@@ -358,9 +373,9 @@ export default function Dashboard() {
 
               <Link
                 href="/students/register"
-                className="flex items-center gap-3 bg-white/10 hover:bg-white/20 p-3 rounded-xl transition-colors text-right"
+                className="flex items-center gap-3 bg-white/10 hover:bg-white/20 p-3 rounded-[14px] transition-colors text-right"
               >
-                <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+                <div className="w-10 h-10 bg-white/20 rounded-[10px] flex items-center justify-center">
                   <Users className="w-5 h-5" />
                 </div>
                 <div>

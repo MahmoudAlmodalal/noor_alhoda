@@ -66,14 +66,14 @@ function ReportContent() {
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-10">
-      <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+      <div className="bg-white rounded-[24px] p-6 shadow-sm border border-border-card">
         <div className="flex items-center gap-3 mb-4">
-          <div className="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center">
+          <div className="w-12 h-12 bg-tile-blue rounded-full flex items-center justify-center">
             <BarChart3 className="w-6 h-6 text-primary" />
           </div>
           <div>
             <h1 className="text-xl font-bold text-primary">تقرير الحضور الشهري</h1>
-            <p className="text-xs text-slate-500">سجل الحضور التفصيلي</p>
+            <p className="text-xs text-text-muted">سجل الحضور التفصيلي</p>
           </div>
         </div>
 
@@ -81,7 +81,7 @@ function ReportContent() {
           <select
             value={month}
             onChange={(e) => setMonth(Number(e.target.value))}
-            className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+            className="h-10 rounded-xl border border-border-subtle bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
           >
             {MONTHS_AR.map((m, i) => (
               <option key={i + 1} value={i + 1}>{m}</option>
@@ -90,7 +90,7 @@ function ReportContent() {
           <select
             value={year}
             onChange={(e) => setYear(Number(e.target.value))}
-            className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+            className="h-10 rounded-xl border border-border-subtle bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
           >
             {Array.from({ length: 6 }).map((_, i) => {
               const y = now.getFullYear() - i;
@@ -101,7 +101,7 @@ function ReportContent() {
             <select
               value={teacherId}
               onChange={(e) => setTeacherId(e.target.value)}
-              className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+              className="h-10 rounded-xl border border-border-subtle bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
             >
               <option value="">جميع المحفظين</option>
               {(teachers ?? []).map((t) => (
@@ -109,7 +109,7 @@ function ReportContent() {
               ))}
             </select>
           ) : user?.full_name ? (
-            <div className="h-10 rounded-xl border border-slate-200 bg-slate-50 px-4 flex items-center text-sm font-bold text-slate-600">
+            <div className="h-10 rounded-xl border border-border-subtle bg-surface-subtle px-4 flex items-center text-sm font-bold text-text-label">
               المحفظ: {user.full_name}
             </div>
           ) : null}
@@ -127,14 +127,14 @@ function ReportContent() {
       {isLoading && rows.length === 0 ? (
         <PageLoading />
       ) : rows.length === 0 ? (
-        <div className="bg-white rounded-2xl p-12 text-center border border-slate-100">
-          <p className="text-sm text-slate-400">لا توجد بيانات</p>
+        <div className="bg-white rounded-[24px] p-12 text-center border border-border-card">
+          <p className="text-sm text-text-muted">لا توجد بيانات</p>
         </div>
       ) : (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+        <div className="bg-white rounded-[24px] shadow-sm border border-border-card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm text-right">
-              <thead className="text-[10px] text-slate-500 bg-slate-50/80">
+              <thead className="text-[10px] text-text-muted bg-surface-subtle/80">
                 <tr>
                   <th className="px-4 py-3 font-bold">الطالب</th>
                   <th className="px-4 py-3 font-bold text-center">إجمالي الأيام</th>
@@ -145,9 +145,9 @@ function ReportContent() {
               </thead>
               <tbody>
                 {rows.map((row) => (
-                  <tr key={row.student_id} className="border-b border-slate-50">
-                    <td className="px-4 py-3 font-bold text-slate-700">{row.student_name}</td>
-                    <td className="px-4 py-3 text-center text-slate-600">{row.total_days}</td>
+                  <tr key={row.student_id} className="border-b border-border-card">
+                    <td className="px-4 py-3 font-bold text-text-body">{row.student_name}</td>
+                    <td className="px-4 py-3 text-center text-text-label">{row.total_days}</td>
                     <td className="px-4 py-3 text-center text-green-700 font-bold">{row.present_days}</td>
                     <td className="px-4 py-3 text-center text-red-600 font-bold">{row.absent_days}</td>
                     <td className="px-3 py-3 text-center font-bold text-primary">{row.rate}%</td>
@@ -164,8 +164,8 @@ function ReportContent() {
 
 function SummaryCard({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm text-center">
-      <p className="text-xs text-slate-500 font-medium mb-2">{label}</p>
+    <div className="bg-white rounded-[24px] p-5 border border-border-card shadow-sm text-center">
+      <p className="text-xs text-text-muted font-medium mb-2">{label}</p>
       <h3 className="text-xl font-black text-primary">{value}</h3>
     </div>
   );

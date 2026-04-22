@@ -42,7 +42,7 @@ function TeachersPageInner() {
     <div className="space-y-6 max-w-lg mx-auto">
       <div className="text-center space-y-1 mb-6">
         <h1 className="text-2xl font-bold text-primary">إدارة المحفظين</h1>
-        <p className="text-sm text-slate-500">إضافة وتعيين الحلقات لمعلمي التحفيظ</p>
+        <p className="text-sm text-text-muted">إضافة وتعيين الحلقات لمعلمي التحفيظ</p>
       </div>
 
       <div className="space-y-4">
@@ -65,34 +65,34 @@ function TeachersPageInner() {
       <div className="space-y-4">
         {teacherList.length === 0 ? (
           <div className="text-center py-12">
-            <UserCog className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-            <p className="text-sm text-slate-400 font-medium">لا يوجد محفظون مسجلون</p>
+            <UserCog className="w-12 h-12 text-text-muted mx-auto mb-3" />
+            <p className="text-sm text-text-muted font-medium">لا يوجد محفظون مسجلون</p>
           </div>
         ) : (
           teacherList.map((teacher) => (
-            <Card key={teacher.id} className="rounded-3xl border-slate-100 shadow-sm overflow-hidden pt-4 relative">
+            <Card key={teacher.id} className="rounded-[24px] border-border-card shadow-sm overflow-hidden pt-4 relative">
               <CardContent className="p-5">
                 <div className="flex items-center gap-3 mb-6">
                   <div className="bg-[#eef3f8] w-12 h-12 rounded-full flex items-center justify-center shrink-0">
                     <UserCog className="w-6 h-6 text-primary" />
                   </div>
-                  <h3 className="font-bold text-slate-900 text-lg">{teacher.full_name}</h3>
+                  <h3 className="font-bold text-text-title text-lg">{teacher.full_name}</h3>
                 </div>
 
                 <div className="space-y-3 mb-6">
-                  <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-lg px-4">
-                    <span className="text-sm text-slate-500 font-medium">رقم الهوية:</span>
-                    <span className="text-sm font-semibold text-slate-700" dir="ltr">{teacher.national_id || "—"}</span>
+                  <div className="flex justify-between items-center bg-surface-subtle p-2.5 rounded-lg px-4">
+                    <span className="text-sm text-text-muted font-medium">رقم الهوية:</span>
+                    <span className="text-sm font-semibold text-text-body" dir="ltr">{teacher.national_id || "—"}</span>
                   </div>
 
-                  <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-lg px-4">
-                    <span className="text-sm text-slate-500 font-medium">التخصص:</span>
-                    <span className="text-sm font-semibold text-slate-700">{teacher.specialization || "—"}</span>
+                  <div className="flex justify-between items-center bg-surface-subtle p-2.5 rounded-lg px-4">
+                    <span className="text-sm text-text-muted font-medium">التخصص:</span>
+                    <span className="text-sm font-semibold text-text-body">{teacher.specialization || "—"}</span>
                   </div>
 
-                  <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-lg px-4">
-                    <span className="text-sm text-slate-500 font-medium">التباعية:</span>
-                    <span className="text-sm font-semibold text-slate-700">
+                  <div className="flex justify-between items-center bg-surface-subtle p-2.5 rounded-lg px-4">
+                    <span className="text-sm text-text-muted font-medium">التباعية:</span>
+                    <span className="text-sm font-semibold text-text-body">
                       {teacher.affiliation === "dar_quran" ? "دار القرآن" :
                        teacher.affiliation === "awqaf" ? "أوقاف" :
                        teacher.affiliation === "sheikh_tabaea" ? "شيخ التباعية" :
@@ -100,32 +100,32 @@ function TeachersPageInner() {
                     </span>
                   </div>
 
-                  <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-lg px-4">
-                    <span className="text-sm text-slate-500 font-medium">اسم الحلقة:</span>
-                    <span className="text-sm font-semibold text-slate-700">{teacher.ring_name || "—"}</span>
+                  <div className="flex justify-between items-center bg-surface-subtle p-2.5 rounded-lg px-4">
+                    <span className="text-sm text-text-muted font-medium">اسم الحلقة:</span>
+                    <span className="text-sm font-semibold text-text-body">{teacher.ring_name || "—"}</span>
                   </div>
 
-                  <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-lg px-4">
-                    <span className="text-sm text-slate-500 font-medium">أيام الحلقة:</span>
-                    <span className="text-sm font-semibold text-slate-700">
+                  <div className="flex justify-between items-center bg-surface-subtle p-2.5 rounded-lg px-4">
+                    <span className="text-sm text-text-muted font-medium">أيام الحلقة:</span>
+                    <span className="text-sm font-semibold text-text-body">
                       {teacher.session_days?.length ? teacher.session_days.join(", ") : "غير محدد"}
                     </span>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 pt-4 border-t border-slate-100">
+                <div className="flex items-center gap-2 pt-4 border-t border-border-card">
                   <Button
                     variant="ghost" size="icon"
-                    className="text-slate-400 hover:text-primary hover:bg-slate-50"
+                    className="text-text-muted hover:text-primary hover:bg-surface-subtle"
                     onClick={() => setEditTeacher(teacher)}
                     aria-label={`تعديل المحفظ ${teacher.full_name}`}
                   >
                     <Edit className="w-4 h-4" />
                   </Button>
-                  <div className="w-px h-6 bg-slate-100" />
+                  <div className="w-px h-6 bg-border-card" />
                   <Button
                     variant="ghost" size="icon"
-                    className="text-slate-400 hover:text-red-600 hover:bg-red-50"
+                    className="text-text-muted hover:text-red-600 hover:bg-red-50"
                     onClick={() => setDeleteTeacher(teacher)}
                     aria-label={`حذف المحفظ ${teacher.full_name}`}
                   >

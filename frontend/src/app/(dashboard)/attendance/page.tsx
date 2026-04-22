@@ -4,6 +4,8 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { ClipboardCheck, Loader2, Save } from "lucide-react";
 import { PageLoading } from "@/components/ui/LoadingSpinner";
+import { SectionCard } from "@/components/ui/SectionCard";
+import { Pattern } from "@/components/ui/Pattern";
 import { useQuery } from "@/hooks/useApi";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
@@ -260,36 +262,43 @@ function AttendanceContent() {
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto pb-10">
-      <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center">
-            <ClipboardCheck className="w-6 h-6 text-primary" />
+      <div
+        className="relative overflow-hidden rounded-[24px] p-6 text-white shadow-lg shadow-primary/20"
+        style={{ background: "linear-gradient(135deg, #0b5394, #083d73)" }}
+      >
+        <Pattern kind="star8" color="#eabd5b" opacity={0.25} size={48} />
+        <div className="relative flex items-center gap-3">
+          <div className="w-12 h-12 bg-white/15 backdrop-blur rounded-[14px] flex items-center justify-center">
+            <ClipboardCheck className="w-6 h-6 text-secondary" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-primary">تسجيل الحضور</h1>
-            <p className="text-xs text-slate-500">حفظ حضور وغياب الطلاب</p>
+            <h1 className="text-xl font-bold text-white">تسجيل الحضور</h1>
+            <p className="text-xs text-white/80">حفظ حضور وغياب الطلاب</p>
           </div>
         </div>
+      </div>
+
+      <SectionCard padding="lg" radius="xl">
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-4">
           <div className="space-y-1.5">
-            <label className="block text-xs font-bold text-slate-700">التاريخ</label>
+            <label className="block text-xs font-bold text-text-body">التاريخ</label>
             <input
               type="date"
               value={date}
               max={todayISO()}
               onChange={(e) => setDate(e.target.value)}
-              className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+              className="h-11 w-full rounded-[14px] border border-border-subtle bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
               dir="ltr"
             />
           </div>
           {isAdmin && (
             <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-slate-700">المحفظ</label>
+              <label className="block text-xs font-bold text-text-body">المحفظ</label>
               <select
                 value={teacherFilter}
                 onChange={(e) => setTeacherFilter(e.target.value)}
-                className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                className="h-11 w-full rounded-[14px] border border-border-subtle bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
               >
                 <option value="">جميع المحفظين</option>
                 {(teachers ?? []).map((t) => (
@@ -305,44 +314,44 @@ function AttendanceContent() {
               type="button"
               onClick={saveAll}
               disabled={isSaving || !dirty}
-              className="w-full h-11 px-4 bg-primary text-white text-sm font-bold rounded-xl hover:bg-primary/90 disabled:opacity-50 flex items-center justify-center gap-2"
+              className="w-full h-11 px-4 bg-primary text-white text-sm font-bold rounded-[14px] hover:bg-primary/90 disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               حفظ الكل
             </button>
           </div>
         </div>
-      </div>
+      </SectionCard>
 
       {attendanceStats.total > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm text-center">
-            <p className="text-[10px] text-slate-500 font-medium mb-1">الحاضرون</p>
-            <h3 className="text-2xl font-black text-emerald-600">{attendanceStats.present}</h3>
-          </div>
-          <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm text-center">
-            <p className="text-[10px] text-slate-500 font-medium mb-1">الغائبون</p>
-            <h3 className="text-2xl font-black text-red-500">{attendanceStats.absent}</h3>
-          </div>
-          <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm text-center">
-            <p className="text-[10px] text-slate-500 font-medium mb-1">المتأخرون</p>
-            <h3 className="text-2xl font-black text-amber-600">{attendanceStats.late}</h3>
-          </div>
-          <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm text-center">
-            <p className="text-[10px] text-slate-500 font-medium mb-1">تم التسجيل</p>
+          <SectionCard padding="sm" radius="md" className="text-center">
+            <p className="text-[10px] text-text-muted font-medium mb-1">الحاضرون</p>
+            <h3 className="text-2xl font-black text-attend-present-text">{attendanceStats.present}</h3>
+          </SectionCard>
+          <SectionCard padding="sm" radius="md" className="text-center">
+            <p className="text-[10px] text-text-muted font-medium mb-1">الغائبون</p>
+            <h3 className="text-2xl font-black text-attend-absent-text">{attendanceStats.absent}</h3>
+          </SectionCard>
+          <SectionCard padding="sm" radius="md" className="text-center">
+            <p className="text-[10px] text-text-muted font-medium mb-1">المتأخرون</p>
+            <h3 className="text-2xl font-black text-attend-late-text">{attendanceStats.late}</h3>
+          </SectionCard>
+          <SectionCard padding="sm" radius="md" className="text-center">
+            <p className="text-[10px] text-text-muted font-medium mb-1">تم التسجيل</p>
             <h3 className="text-2xl font-black text-primary">
               {attendanceStats.recorded}
-              <span className="text-sm text-slate-400 font-bold">/{attendanceStats.total}</span>
+              <span className="text-sm text-text-muted font-bold">/{attendanceStats.total}</span>
             </h3>
-          </div>
+          </SectionCard>
         </div>
       )}
 
       <div className="space-y-3">
         {studentList.length === 0 ? (
-          <div className="bg-white rounded-2xl p-12 text-center border border-slate-100">
-            <p className="text-sm text-slate-400 font-medium">لا يوجد طلاب</p>
-          </div>
+          <SectionCard padding="lg" radius="xl" className="py-12 text-center">
+            <p className="text-sm text-text-muted font-medium">لا يوجد طلاب</p>
+          </SectionCard>
         ) : (
           studentList.map((student) => {
             const draft = drafts.get(student.id);

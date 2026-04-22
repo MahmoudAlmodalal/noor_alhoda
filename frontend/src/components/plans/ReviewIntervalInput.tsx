@@ -46,7 +46,7 @@ export function ReviewIntervalInput({ studentId, initialDays, onSaved }: Props) 
         max={90}
         value={value}
         onChange={(e) => setValue(Math.max(1, parseInt(e.target.value || "1", 10)))}
-        className="h-8 w-14 rounded-[8px] border border-slate-200 bg-white text-center text-xs font-bold text-slate-700 focus:outline-none focus:ring-1 focus:ring-primary/40"
+        className="h-8 w-14 rounded-[8px] border border-border-subtle bg-white text-center text-xs font-bold text-text-body focus:outline-none focus:ring-1 focus:ring-primary/40"
       />
       <button
         type="button"

@@ -26,7 +26,7 @@ function CoursesPageInner() {
     <div className="space-y-6 max-w-lg mx-auto pb-10">
       <div className="text-center space-y-1 mb-6">
         <h1 className="text-2xl font-bold text-primary">إدارة الدورات</h1>
-        <p className="text-sm text-slate-500">إنشاء وتعديل الدورات التدريبية</p>
+        <p className="text-sm text-text-muted">إنشاء وتعديل الدورات التدريبية</p>
       </div>
 
       <Button
@@ -40,28 +40,28 @@ function CoursesPageInner() {
       <div className="space-y-4">
         {list.length === 0 ? (
           <div className="text-center py-12">
-            <BookMarked className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-            <p className="text-sm text-slate-400 font-medium">لا توجد دورات مسجلة</p>
+            <BookMarked className="w-12 h-12 text-text-muted mx-auto mb-3" />
+            <p className="text-sm text-text-muted font-medium">لا توجد دورات مسجلة</p>
           </div>
         ) : (
           list.map((course) => (
             <Card
               key={course.id}
-              className="rounded-3xl border-slate-100 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.05)] overflow-hidden pt-5 relative bg-white"
+              className="rounded-[24px] border-border-card shadow-[0_2px_15px_-3px_rgba(0,0,0,0.05)] overflow-hidden pt-5 relative bg-white"
             >
               <CardContent className="p-5">
                 <div className="flex justify-between items-start mb-5">
                   <div className="flex-1 min-w-0 pe-3">
-                    <h3 className="font-bold text-slate-900 text-lg mb-1">
+                    <h3 className="font-bold text-text-title text-lg mb-1">
                       {course.name}
                     </h3>
                     {course.description && (
-                      <p className="text-sm text-slate-500 line-clamp-3 whitespace-pre-wrap">
+                      <p className="text-sm text-text-muted line-clamp-3 whitespace-pre-wrap">
                         {course.description}
                       </p>
                     )}
                     {course.created_at && (
-                      <p className="text-[11px] text-slate-400 mt-2" dir="ltr">
+                      <p className="text-[11px] text-text-muted mt-2" dir="ltr">
                         {new Date(course.created_at).toLocaleDateString("ar-EG")}
                       </p>
                     )}

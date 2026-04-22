@@ -42,7 +42,7 @@ export default function ForgotPasswordPage() {
         <div>
             <div className="text-center mb-6">
                 <h1 className="text-2xl font-bold text-[#1e2939] leading-8 mb-1">استعادة كلمة المرور</h1>
-                <p className="text-sm text-[#6a7282] leading-5">الخطوة 1 من 3: أدخل رقم الهوية المسجل</p>
+                <p className="text-sm text-text-muted leading-5">الخطوة 1 من 3: أدخل رقم الهوية المسجل</p>
             </div>
 
             <form onSubmit={handleSubmit} className="flex flex-col gap-6">

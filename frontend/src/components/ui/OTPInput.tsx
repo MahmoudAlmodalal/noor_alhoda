@@ -98,7 +98,7 @@ export function OTPInput({ length = 4, value, onChange, error, className }: OTPI
                             "w-full aspect-square text-center text-xl font-bold rounded-xl border bg-white focus:outline-none focus:ring-2 transition-all",
                             error
                                 ? "border-red-500 focus:ring-red-500/20 text-red-500"
-                                : "border-slate-200 focus:ring-primary/20 focus:border-primary text-slate-800",
+                                : "border-border-subtle focus:ring-primary/20 focus:border-primary text-text-body",
                             digit && !error ? "border-primary" : ""
                         )}
                     />

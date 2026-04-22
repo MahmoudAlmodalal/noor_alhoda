@@ -66,10 +66,10 @@ export function InstallPrompt() {
           <Download className="h-5 w-5" />
         </div>
         <div className="flex-1">
-          <h3 className="text-sm font-bold text-slate-900">
+          <h3 className="text-sm font-bold text-text-title">
             ثبّت تطبيق نور الهدى على جهازك
           </h3>
-          <p className="mt-1 text-xs text-slate-600">
+          <p className="mt-1 text-xs text-text-label">
             للوصول السريع والعمل دون اتصال بالإنترنت.
           </p>
           <div className="mt-3 flex gap-2">
@@ -83,7 +83,7 @@ export function InstallPrompt() {
             <button
               type="button"
               onClick={onDismiss}
-              className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50"
+              className="rounded-lg border border-border-subtle px-3 py-1.5 text-xs font-bold text-text-body hover:bg-surface-subtle"
             >
               لاحقاً
             </button>
@@ -93,7 +93,7 @@ export function InstallPrompt() {
           type="button"
           onClick={onDismiss}
           aria-label="إغلاق"
-          className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md text-slate-400 hover:text-slate-700"
+          className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md text-text-muted hover:text-text-body"
         >
           <X className="h-4 w-4" />
         </button>

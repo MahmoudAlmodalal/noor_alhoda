@@ -18,10 +18,10 @@ export interface DraftRecord {
 }
 
 const STATUS_OPTIONS: { value: AttendanceStatus; label: string; color: string }[] = [
-  { value: "present", label: "حاضر", color: "bg-green-100 text-green-700 border-green-300" },
-  { value: "absent", label: "غائب", color: "bg-red-100 text-red-700 border-red-300" },
-  { value: "late", label: "متأخر", color: "bg-orange-100 text-orange-700 border-orange-300" },
-  { value: "excused", label: "مستأذن", color: "bg-blue-100 text-blue-700 border-blue-300" },
+  { value: "present", label: "حاضر", color: "bg-attend-present-bg text-attend-present-text border-attend-present-text/30" },
+  { value: "absent",  label: "غائب",  color: "bg-attend-absent-bg text-attend-absent-text border-attend-absent-text/30" },
+  { value: "late",    label: "متأخر", color: "bg-attend-late-bg text-attend-late-text border-attend-late-text/30" },
+  { value: "excused", label: "مستأذن", color: "bg-attend-excused-bg text-attend-excused-text border-attend-excused-text/30" },
 ];
 
 const QUALITY_OPTIONS = [
@@ -40,18 +40,21 @@ interface Props {
 export function AttendanceRow({ draft, onChange }: Props) {
   const [expanded, setExpanded] = useState(false);
 
+  const inputCls =
+    "h-10 w-full rounded-[10px] border border-border-subtle bg-surface-subtle px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20";
+
   return (
     <div
-      className={`bg-white rounded-2xl border ${
-        draft.dirty ? "border-primary/40" : "border-slate-100"
+      className={`bg-white rounded-[16px] border ${
+        draft.dirty ? "border-primary/40" : "border-border-card"
       } shadow-sm overflow-hidden`}
     >
       <div className="p-4 flex items-center gap-3 flex-wrap">
-        <div className="w-10 h-10 bg-blue-50 rounded-full flex items-center justify-center shrink-0">
+        <div className="w-10 h-10 bg-tile-blue rounded-full flex items-center justify-center shrink-0">
           <User className="w-5 h-5 text-primary" />
         </div>
         <div className="flex-1 min-w-0">
-          <h3 className="font-bold text-sm text-slate-800 truncate">{draft.student_name}</h3>
+          <h3 className="font-bold text-sm text-text-body truncate">{draft.student_name}</h3>
           {draft.dirty && (
             <p className="text-[10px] text-primary font-bold mt-0.5">تغييرات غير محفوظة</p>
           )}
@@ -65,8 +68,8 @@ export function AttendanceRow({ draft, onChange }: Props) {
                 key={opt.value}
                 type="button"
                 onClick={() => onChange({ attendance: opt.value })}
-                className={`px-3 py-1.5 text-[11px] font-bold rounded-lg border transition-colors ${
-                  active ? opt.color : "border-slate-200 text-slate-500 hover:border-slate-300"
+                className={`px-3 py-1.5 text-[11px] font-bold rounded-[10px] border transition-colors ${
+                  active ? opt.color : "border-border-subtle text-text-muted hover:border-primary/40"
                 }`}
               >
                 {opt.label}
@@ -78,7 +81,7 @@ export function AttendanceRow({ draft, onChange }: Props) {
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
-          className="p-2 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-primary"
+          className="p-2 rounded-[10px] text-text-muted hover:bg-surface-subtle hover:text-primary"
           aria-label="تفاصيل الحفظ"
         >
           {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
@@ -86,47 +89,47 @@ export function AttendanceRow({ draft, onChange }: Props) {
       </div>
 
       {expanded && (
-        <div className="border-t border-slate-100 p-4 bg-slate-50/40 space-y-3">
+        <div className="border-t border-border-card p-4 bg-surface-subtle space-y-3">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div className="space-y-1">
-              <label className="block text-[11px] font-bold text-slate-600">السورة</label>
+              <label className="block text-[11px] font-bold text-text-label">السورة</label>
               <input
                 type="text"
                 value={draft.surah_name}
                 onChange={(e) => onChange({ surah_name: e.target.value })}
-                className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                className={inputCls}
               />
             </div>
             <div className="space-y-1">
-              <label className="block text-[11px] font-bold text-slate-600">الآيات المطلوبة</label>
+              <label className="block text-[11px] font-bold text-text-label">الآيات المطلوبة</label>
               <input
                 type="number"
                 min={0}
                 value={draft.required_verses}
                 onChange={(e) => onChange({ required_verses: Number(e.target.value) })}
-                className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                className={inputCls}
                 dir="ltr"
               />
             </div>
             <div className="space-y-1">
-              <label className="block text-[11px] font-bold text-slate-600">الآيات المنجزة</label>
+              <label className="block text-[11px] font-bold text-text-label">الآيات المنجزة</label>
               <input
                 type="number"
                 min={0}
                 value={draft.achieved_verses}
                 onChange={(e) => onChange({ achieved_verses: Number(e.target.value) })}
-                className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                className={inputCls}
                 dir="ltr"
               />
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div className="space-y-1">
-              <label className="block text-[11px] font-bold text-slate-600">التقدير</label>
+              <label className="block text-[11px] font-bold text-text-label">التقدير</label>
               <select
                 value={draft.quality}
                 onChange={(e) => onChange({ quality: e.target.value })}
-                className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                className={inputCls}
               >
                 {QUALITY_OPTIONS.map((q) => (
                   <option key={q.value} value={q.value}>
@@ -136,12 +139,12 @@ export function AttendanceRow({ draft, onChange }: Props) {
               </select>
             </div>
             <div className="md:col-span-2 space-y-1">
-              <label className="block text-[11px] font-bold text-slate-600">ملاحظات</label>
+              <label className="block text-[11px] font-bold text-text-label">ملاحظات</label>
               <input
                 type="text"
                 value={draft.note}
                 onChange={(e) => onChange({ note: e.target.value })}
-                className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                className={inputCls}
               />
             </div>
           </div>

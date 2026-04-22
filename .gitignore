@@ -21,7 +21,7 @@ secrets.json
 secrets.yml
 secrets.yaml
 *.secret
-
+*.zip
 # MCP / local tooling configs that hold tokens
 .mcp.json
 .claude/settings.local.json

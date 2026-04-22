@@ -70,12 +70,12 @@ export function AnnounceModal({
 
       <div className="space-y-4 mb-8">
         <div className="space-y-1.5">
-          <label className="block text-sm font-bold text-slate-800">الجمهور</label>
+          <label className="block text-sm font-bold text-text-body">الجمهور</label>
           <select
             value={audience}
             onChange={(e) => setAudience(e.target.value as Audience)}
             aria-label="الجمهور"
-            className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+            className="h-12 w-full rounded-xl border border-border-subtle bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
           >
             <option value="all">الجميع</option>
             <option value="teachers">المحفظون</option>
@@ -85,23 +85,23 @@ export function AnnounceModal({
         </div>
 
         <div className="space-y-1.5">
-          <label className="block text-sm font-bold text-slate-800">العنوان</label>
+          <label className="block text-sm font-bold text-text-body">العنوان</label>
           <Input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             aria-label="عنوان الإعلان"
-            className="h-12 rounded-xl border-slate-200"
+            className="h-12 rounded-xl border-border-subtle"
           />
         </div>
 
         <div className="space-y-1.5">
-          <label className="block text-sm font-bold text-slate-800">الرسالة</label>
+          <label className="block text-sm font-bold text-text-body">الرسالة</label>
           <textarea
             value={body}
             onChange={(e) => setBody(e.target.value)}
             aria-label="رسالة الإعلان"
             rows={4}
-            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 resize-none"
+            className="w-full rounded-xl border border-border-subtle bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 resize-none"
           />
         </div>
 
@@ -112,7 +112,7 @@ export function AnnounceModal({
         <Button
           variant="ghost"
           onClick={onClose}
-          className="flex-1 bg-slate-100/80 text-slate-700 hover:bg-slate-200 h-12 rounded-xl font-bold"
+          className="flex-1 bg-border-card/80 text-text-body hover:bg-border-subtle h-12 rounded-xl font-bold"
         >
           إلغاء
         </Button>

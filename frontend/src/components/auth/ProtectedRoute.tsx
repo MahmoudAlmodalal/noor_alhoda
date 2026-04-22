@@ -21,10 +21,10 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-slate-50">
+      <div className="flex items-center justify-center h-screen bg-surface-subtle">
         <div className="flex flex-col items-center gap-4">
           <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-          <p className="text-sm text-slate-500 font-medium">جاري التحميل...</p>
+          <p className="text-sm text-text-muted font-medium">جاري التحميل...</p>
         </div>
       </div>
     );
@@ -34,10 +34,10 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   // نعرض شاشة انتظار بدل ما نطرد المستخدم
   if (!isAuthenticated && hasTokens) {
     return (
-      <div className="flex items-center justify-center h-screen bg-slate-50">
+      <div className="flex items-center justify-center h-screen bg-surface-subtle">
         <div className="flex flex-col items-center gap-4">
           <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-          <p className="text-sm text-slate-500 font-medium">
+          <p className="text-sm text-text-muted font-medium">
             جاري الاتصال بالخادم...
           </p>
         </div>

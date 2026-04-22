@@ -259,27 +259,27 @@ function PaginationBar({
   onPageChange: (nextPage: number) => void;
 }) {
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-      <p className="text-sm text-slate-600">
-        إجمالي السجلات: <span className="font-bold text-slate-900">{count}</span>
+    <div className="flex flex-col gap-3 rounded-xl border border-border-subtle bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+      <p className="text-sm text-text-label">
+        إجمالي السجلات: <span className="font-bold text-text-title">{count}</span>
       </p>
       <div className="flex items-center gap-2 self-start sm:self-auto">
         <button
           type="button"
           onClick={() => onPageChange(page - 1)}
           disabled={page <= 1}
-          className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+          className="rounded-lg border border-border-subtle px-3 py-2 text-sm font-semibold text-text-body disabled:cursor-not-allowed disabled:opacity-50"
         >
           السابق
         </button>
-        <span className="text-sm font-semibold text-slate-700">
+        <span className="text-sm font-semibold text-text-body">
           صفحة {page} من {totalPages}
         </span>
         <button
           type="button"
           onClick={() => onPageChange(page + 1)}
           disabled={page >= totalPages}
-          className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+          className="rounded-lg border border-border-subtle px-3 py-2 text-sm font-semibold text-text-body disabled:cursor-not-allowed disabled:opacity-50"
         >
           التالي
         </button>
@@ -604,11 +604,11 @@ export default function StudentsDbPage() {
   const rowOffset = ((studentsPage?.page ?? 1) - 1) * PAGE_SIZE;
 
   return (
-    <div dir="rtl" className="min-h-screen space-y-4 bg-slate-50 p-6">
+    <div dir="rtl" className="min-h-screen space-y-4 bg-surface-subtle p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">قاعدة بيانات الطلاب</h1>
-          <p className="mt-1 text-sm text-slate-500">
+          <h1 className="text-2xl font-bold text-text-body">قاعدة بيانات الطلاب</h1>
+          <p className="mt-1 text-sm text-text-muted">
             عرض {students.length} من أصل {studentsPage?.count ?? 0} سجل
           </p>
         </div>
@@ -642,9 +642,9 @@ export default function StudentsDbPage() {
         </div>
       </div>
 
-      <div className="grid gap-3 rounded-xl border border-slate-200 bg-white p-4 md:grid-cols-3">
+      <div className="grid gap-3 rounded-xl border border-border-subtle bg-white p-4 md:grid-cols-3">
         <label className="relative block">
-          <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
           <input
             type="text"
             value={search}
@@ -653,7 +653,7 @@ export default function StudentsDbPage() {
               setPage(1);
             }}
             placeholder="بحث بالاسم أو رقم الهوية..."
-            className="w-full rounded-lg border border-slate-200 py-2 pl-3 pr-10 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="w-full rounded-lg border border-border-subtle py-2 pl-3 pr-10 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
         </label>
 
@@ -663,7 +663,7 @@ export default function StudentsDbPage() {
             setTeacherFilter(event.target.value);
             setPage(1);
           }}
-          className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          className="rounded-lg border border-border-subtle bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
         >
           <option value="">كل المحفظين</option>
           {teachers?.map((teacher) => (
@@ -679,7 +679,7 @@ export default function StudentsDbPage() {
             setCourseFilter(event.target.value);
             setPage(1);
           }}
-          className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          className="rounded-lg border border-border-subtle bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
         >
           <option value="">كل الدورات</option>
           {courses?.map((course) => (
@@ -690,39 +690,39 @@ export default function StudentsDbPage() {
         </select>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div className="overflow-hidden rounded-xl border border-border-subtle bg-white shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full min-w-max text-right text-sm">
-            <thead className="bg-slate-50 text-slate-700">
+            <thead className="bg-surface-subtle text-text-body">
               <tr>
                 {COLUMNS.map((column) => (
                   <th
                     key={column.label}
-                    className="border-b border-slate-200 px-4 py-3 font-semibold"
+                    className="border-b border-border-subtle px-4 py-3 font-semibold"
                   >
                     {column.label}
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-border-card">
               {loading ? (
                 <tr>
-                  <td colSpan={COLUMNS.length} className="px-4 py-12 text-center text-slate-500">
+                  <td colSpan={COLUMNS.length} className="px-4 py-12 text-center text-text-muted">
                     جاري التحميل...
                   </td>
                 </tr>
               ) : students.length === 0 ? (
                 <tr>
-                  <td colSpan={COLUMNS.length} className="px-4 py-12 text-center text-slate-500">
+                  <td colSpan={COLUMNS.length} className="px-4 py-12 text-center text-text-muted">
                     لا يوجد طلاب يطابقون البحث.
                   </td>
                 </tr>
               ) : (
                 students.map((student, index) => (
-                  <tr key={student.id} className="transition-colors hover:bg-slate-50">
+                  <tr key={student.id} className="transition-colors hover:bg-surface-subtle">
                     {COLUMNS.map((column) => (
-                      <td key={column.label} className="px-4 py-3 text-slate-600">
+                      <td key={column.label} className="px-4 py-3 text-text-label">
                         {column.get(student, rowOffset + index)}
                       </td>
                     ))}

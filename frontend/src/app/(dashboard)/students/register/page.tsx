@@ -116,12 +116,12 @@ function AgeDisplay({ birthdate }: { birthdate: string }) {
 function CheckboxItem({ label, checked, onChange }: { label: string; checked: boolean; onChange: () => void }) {
   return (
     <label className="flex items-center justify-end flex-row-reverse gap-3 cursor-pointer">
-      <span className="text-sm font-medium text-slate-700">{label}</span>
+      <span className="text-sm font-medium text-text-body">{label}</span>
       <input
         type="checkbox"
         checked={checked}
         onChange={onChange}
-        className="w-5 h-5 rounded border-slate-300 text-primary focus:ring-primary/20 accent-[#eabd5b] bg-slate-50"
+        className="w-5 h-5 rounded border-border-subtle text-primary focus:ring-primary/20 accent-secondary bg-surface-subtle"
       />
     </label>
   );
@@ -240,11 +240,11 @@ function StudentRegistrationInner() {
           <label className="block text-base font-medium text-[#575757]">الدورات السابقة:</label>
           <div className="border border-[#e6e6e6] rounded-md p-3 max-h-48 overflow-y-auto bg-white space-y-2">
             {(courses ?? []).length === 0 && (
-              <p className="text-sm text-slate-400">لا توجد دورات متاحة</p>
+              <p className="text-sm text-text-muted">لا توجد دورات متاحة</p>
             )}
             {(courses ?? []).map((c) => (
               <label key={c.id} className="flex items-center justify-end flex-row-reverse gap-3 cursor-pointer">
-                <span className="text-sm text-slate-700">{c.name}</span>
+                <span className="text-sm text-text-body">{c.name}</span>
                 <input
                   type="checkbox"
                   checked={selectedCourses.includes(c.name)}
@@ -253,7 +253,7 @@ function StudentRegistrationInner() {
                       prev.includes(c.name) ? prev.filter((n) => n !== c.name) : [...prev, c.name]
                     );
                   }}
-                  className="w-5 h-5 rounded border-slate-300 accent-[#eabd5b] bg-slate-50"
+                  className="w-5 h-5 rounded border-border-subtle accent-secondary bg-surface-subtle"
                 />
               </label>
             ))}

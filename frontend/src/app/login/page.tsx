@@ -60,7 +60,7 @@ function InstallButton() {
             window.location.reload();
           });
         }}
-        className="w-full flex items-center justify-center gap-2 border border-dashed border-blue-300 text-blue-600 text-sm font-bold py-3 rounded-xl hover:bg-blue-50 transition-colors"
+        className="w-full flex items-center justify-center gap-2 border border-dashed border-blue-300 text-blue-600 text-sm font-bold py-3 rounded-xl hover:bg-tile-blue transition-colors"
       >
         <Download className="w-4 h-4" />
         يوجد تحديث — اضغط للتحديث الآن
@@ -77,7 +77,7 @@ function InstallButton() {
           const { outcome } = await prompt.userChoice;
           if (outcome === "accepted") setInstalled(true);
         }}
-        className="w-full flex items-center justify-center gap-2 border border-dashed border-slate-300 text-slate-600 text-sm font-bold py-3 rounded-xl hover:bg-slate-50 transition-colors"
+        className="w-full flex items-center justify-center gap-2 border border-dashed border-border-subtle text-text-label text-sm font-bold py-3 rounded-xl hover:bg-surface-subtle transition-colors"
       >
         <Download className="w-4 h-4" />
         تثبيت التطبيق على جهازك
@@ -90,14 +90,14 @@ function InstallButton() {
       <button
         type="button"
         onClick={() => setShowGuide((v) => !v)}
-        className="w-full flex items-center justify-center gap-2 border border-dashed border-slate-300 text-slate-600 text-sm font-bold py-3 rounded-xl hover:bg-slate-50 transition-colors"
+        className="w-full flex items-center justify-center gap-2 border border-dashed border-border-subtle text-text-label text-sm font-bold py-3 rounded-xl hover:bg-surface-subtle transition-colors"
       >
         <Download className="w-4 h-4" />
         تثبيت التطبيق على جهازك
       </button>
       {showGuide && (
-        <div className="mt-2 text-xs text-slate-500 bg-slate-50 rounded-xl p-3 leading-6 text-right space-y-1">
-          <p className="font-bold text-slate-700">كيفية التثبيت:</p>
+        <div className="mt-2 text-xs text-text-muted bg-surface-subtle rounded-xl p-3 leading-6 text-right space-y-1">
+          <p className="font-bold text-text-body">كيفية التثبيت:</p>
           <p>
             <span className="font-bold">Android Chrome:</span> القائمة (⋮) ← &quot;تثبيت التطبيق&quot;
           </p>
@@ -157,7 +157,7 @@ function LoginForm() {
         <h1 className="text-2xl font-bold text-[#1e2939] leading-8 mb-1">
           تسجيل الدخول
         </h1>
-        <p className="text-sm text-[#6a7282] leading-5">
+        <p className="text-sm text-text-muted leading-5">
           أهلاً بك مجدداً في نظام المركز
         </p>
       </div>
@@ -191,12 +191,12 @@ function LoginForm() {
               showPassword ? (
                 <EyeOff
                   onClick={() => setShowPassword(false)}
-                  className="w-5 h-5 cursor-pointer hover:text-slate-600"
+                  className="w-5 h-5 cursor-pointer hover:text-text-label"
                 />
               ) : (
                 <Eye
                   onClick={() => setShowPassword(true)}
-                  className="w-5 h-5 cursor-pointer hover:text-slate-600"
+                  className="w-5 h-5 cursor-pointer hover:text-text-label"
                 />
               )
             }

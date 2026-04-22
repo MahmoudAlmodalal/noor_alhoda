@@ -28,9 +28,9 @@ export function NotificationPanel({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <div className="absolute end-0 mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-slate-100 z-50 overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
-        <h3 className="font-bold text-slate-800 text-sm">الإشعارات</h3>
+    <div className="absolute end-0 mt-2 w-80 bg-white rounded-[16px] shadow-[0_20px_60px_rgba(0,0,0,0.18)] border border-border-card z-50 overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border-card">
+        <h3 className="font-bold text-text-body text-sm">الإشعارات</h3>
         {unreadCount > 0 && (
           <button
             type="button"
@@ -45,17 +45,17 @@ export function NotificationPanel({ onClose }: { onClose: () => void }) {
 
       <div className="max-h-96 overflow-y-auto">
         {isLoading && top.length === 0 ? (
-          <p className="text-center text-xs text-slate-400 py-6">جاري التحميل...</p>
+          <p className="text-center text-xs text-text-muted py-6">جاري التحميل...</p>
         ) : top.length === 0 ? (
-          <p className="text-center text-xs text-slate-400 py-6">لا توجد إشعارات</p>
+          <p className="text-center text-xs text-text-muted py-6">لا توجد إشعارات</p>
         ) : (
           top.map((n) => (
             <button
               key={n.id}
               type="button"
               onClick={() => handleClick(n)}
-              className={`w-full text-start px-4 py-3 border-b border-slate-50 hover:bg-slate-50 transition-colors ${
-                !n.is_read ? "bg-blue-50/40" : ""
+              className={`w-full text-start px-4 py-3 border-b border-border-card hover:bg-surface-subtle transition-colors ${
+                !n.is_read ? "bg-tile-blue/60" : ""
               }`}
             >
               <div className="flex items-start gap-2">
@@ -63,9 +63,9 @@ export function NotificationPanel({ onClose }: { onClose: () => void }) {
                   <span className="w-2 h-2 rounded-full bg-primary mt-1.5 shrink-0" />
                 )}
                 <div className="flex-1 min-w-0">
-                  <h4 className="font-bold text-xs text-slate-800 truncate">{n.title}</h4>
-                  <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{n.body}</p>
-                  <p className="text-[10px] text-slate-400 mt-1">{relativeTime(n.created_at)}</p>
+                  <h4 className="font-bold text-xs text-text-body truncate">{n.title}</h4>
+                  <p className="text-xs text-text-muted mt-0.5 line-clamp-2">{n.body}</p>
+                  <p className="text-[10px] text-text-muted mt-1">{relativeTime(n.created_at)}</p>
                 </div>
               </div>
             </button>
@@ -76,7 +76,7 @@ export function NotificationPanel({ onClose }: { onClose: () => void }) {
       <Link
         href="/notifications"
         onClick={onClose}
-        className="block text-center py-2.5 bg-slate-50 text-primary text-xs font-bold hover:bg-slate-100 transition-colors"
+        className="block text-center py-2.5 bg-surface-subtle text-primary text-xs font-bold hover:bg-border-card transition-colors"
       >
         عرض كل الإشعارات
       </Link>

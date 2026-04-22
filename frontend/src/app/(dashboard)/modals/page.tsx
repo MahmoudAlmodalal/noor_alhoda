@@ -16,7 +16,7 @@ export default function ModalsPlayground() {
         <div className="space-y-6 max-w-lg mx-auto py-10">
             <div className="text-center space-y-1 mb-6">
                 <h1 className="text-2xl font-bold text-primary">معاينة النوافذ المنبثقة (Modals)</h1>
-                <p className="text-sm text-slate-500">اضغط على الأزرار أدناه لمعاينة كل نافذة منبثقة</p>
+                <p className="text-sm text-text-muted">اضغط على الأزرار أدناه لمعاينة كل نافذة منبثقة</p>
             </div>
 
             <div className="flex flex-col gap-3">

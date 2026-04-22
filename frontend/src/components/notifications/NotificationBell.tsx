@@ -26,12 +26,12 @@ export function NotificationBell() {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="relative p-2 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-primary transition-colors"
+        className="relative p-2 rounded-[10px] text-text-label hover:bg-border-card hover:text-primary transition-colors"
         aria-label="الإشعارات"
       >
         <Bell className="w-5 h-5" />
         {unreadCount > 0 && (
-          <span className="absolute top-1 right-1 min-w-[16px] h-4 px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+          <span className="absolute top-1 end-1 min-w-[16px] h-4 px-1 bg-danger-text text-white text-[10px] font-bold rounded-full flex items-center justify-center">
             {unreadCount > 99 ? "99+" : unreadCount}
           </span>
         )}

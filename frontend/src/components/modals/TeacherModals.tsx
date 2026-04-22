@@ -22,19 +22,19 @@ function CoursesCheckboxList({
   loading: boolean;
 }) {
   if (loading) {
-    return <p className="text-xs text-slate-400">جارٍ تحميل الدورات...</p>;
+    return <p className="text-xs text-text-muted">جارٍ تحميل الدورات...</p>;
   }
   if (allCourses.length === 0) {
-    return <p className="text-xs text-slate-400">لا توجد دورات متاحة</p>;
+    return <p className="text-xs text-text-muted">لا توجد دورات متاحة</p>;
   }
   return (
-    <div className="max-h-40 overflow-y-auto rounded-xl border border-slate-200 bg-white p-2 space-y-1">
+    <div className="max-h-40 overflow-y-auto rounded-xl border border-border-subtle bg-white p-2 space-y-1">
       {allCourses.map((c) => {
         const checked = selectedIds.includes(c.id);
         return (
           <label
             key={c.id}
-            className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-50 cursor-pointer"
+            className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-surface-subtle cursor-pointer"
           >
             <input
               type="checkbox"
@@ -42,7 +42,7 @@ function CoursesCheckboxList({
               onChange={() => onToggle(c.id)}
               className="w-4 h-4 accent-primary"
             />
-            <span className="text-sm text-slate-700 font-medium">{c.name}</span>
+            <span className="text-sm text-text-body font-medium">{c.name}</span>
           </label>
         );
       })}
@@ -121,32 +121,32 @@ export function AddTeacherModal({
 
       <div className="space-y-4 mb-8">
         <div className="space-y-1.5">
-          <label className="block text-sm font-bold text-slate-800">الاسم الرباعي</label>
-          <Input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} aria-label="الاسم الرباعي" className="h-12 rounded-xl border-slate-200" />
+          <label className="block text-sm font-bold text-text-body">الاسم الرباعي</label>
+          <Input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} aria-label="الاسم الرباعي" className="h-12 rounded-xl border-border-subtle" />
         </div>
         <div className="space-y-1.5">
-          <label className="block text-sm font-bold text-slate-800">رقم الهوية</label>
-          <Input type="number" dir="ltr" value={form.national_id} onChange={(e) => setForm({ ...form, national_id: e.target.value })} aria-label="رقم الهوية" className="h-12 rounded-xl border-slate-200" />
+          <label className="block text-sm font-bold text-text-body">رقم الهوية</label>
+          <Input type="number" dir="ltr" value={form.national_id} onChange={(e) => setForm({ ...form, national_id: e.target.value })} aria-label="رقم الهوية" className="h-12 rounded-xl border-border-subtle" />
         </div>
         <div className="space-y-1.5">
-          <label className="block text-sm font-bold text-slate-800">رقم الجوال</label>
-          <Input type="tel" dir="ltr" value={form.phone_number} onChange={(e) => setForm({ ...form, phone_number: e.target.value })} aria-label="رقم الجوال" className="h-12 rounded-xl border-slate-200" />
+          <label className="block text-sm font-bold text-text-body">رقم الجوال</label>
+          <Input type="tel" dir="ltr" value={form.phone_number} onChange={(e) => setForm({ ...form, phone_number: e.target.value })} aria-label="رقم الجوال" className="h-12 rounded-xl border-border-subtle" />
         </div>
         <div className="space-y-1.5">
-          <label className="block text-sm font-bold text-slate-800">التخصص (اختياري)</label>
-          <Input value={form.specialization} onChange={(e) => setForm({ ...form, specialization: e.target.value })} aria-label="التخصص" className="h-12 rounded-xl border-slate-200" />
+          <label className="block text-sm font-bold text-text-body">التخصص (اختياري)</label>
+          <Input value={form.specialization} onChange={(e) => setForm({ ...form, specialization: e.target.value })} aria-label="التخصص" className="h-12 rounded-xl border-border-subtle" />
         </div>
         <div className="space-y-1.5">
-          <label className="block text-sm font-bold text-slate-800">اسم الحلقة</label>
-          <Input value={form.ring_name} onChange={(e) => setForm({ ...form, ring_name: e.target.value })} aria-label="اسم الحلقة" className="h-12 rounded-xl border-slate-200" />
+          <label className="block text-sm font-bold text-text-body">اسم الحلقة</label>
+          <Input value={form.ring_name} onChange={(e) => setForm({ ...form, ring_name: e.target.value })} aria-label="اسم الحلقة" className="h-12 rounded-xl border-border-subtle" />
         </div>
         <div className="space-y-1.5">
-          <label className="block text-sm font-bold text-slate-800">التباعية</label>
+          <label className="block text-sm font-bold text-text-body">التباعية</label>
           <select
             value={form.affiliation}
             onChange={(e) => setForm({ ...form, affiliation: e.target.value })}
             aria-label="التباعية"
-            className="w-full h-12 rounded-xl border border-slate-200 px-3 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+            className="w-full h-12 rounded-xl border border-border-subtle px-3 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
           >
             <option value="">اختر التباعية...</option>
             <option value="dar_quran">دار القرآن</option>
@@ -155,7 +155,7 @@ export function AddTeacherModal({
           </select>
         </div>
         <div className="space-y-1.5">
-          <label className="block text-sm font-bold text-slate-800">الدورات</label>
+          <label className="block text-sm font-bold text-text-body">الدورات</label>
           <CoursesCheckboxList
             allCourses={allCourses}
             selectedIds={form.course_ids}
@@ -168,7 +168,7 @@ export function AddTeacherModal({
       {error && <p className="text-sm text-red-500 mb-4">{error}</p>}
 
       <div className="flex items-center gap-3">
-        <Button variant="ghost" onClick={onClose} className="flex-1 bg-slate-100/80 text-slate-700 hover:bg-slate-200 h-12 rounded-xl font-bold">
+        <Button variant="ghost" onClick={onClose} className="flex-1 bg-border-card/80 text-text-body hover:bg-border-subtle h-12 rounded-xl font-bold">
           إلغاء
         </Button>
         <Button onClick={handleSubmit} disabled={isSubmitting} className="flex-1 h-12 rounded-xl font-bold gap-2">
@@ -217,15 +217,15 @@ export function ConfirmDeleteModal({
       <div className="w-20 h-20 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-6">
         <Trash2 className="w-10 h-10" />
       </div>
-      <h2 className="text-2xl font-black text-slate-900 mb-4">تأكيد الحذف</h2>
-      <p className="text-lg text-slate-600 font-medium mb-8">
+      <h2 className="text-2xl font-black text-text-title mb-4">تأكيد الحذف</h2>
+      <p className="text-lg text-text-label font-medium mb-8">
         هل أنت متأكد من حذف <br /> <span className="font-bold text-primary">{targetName}</span>؟
       </p>
 
       {error && <p className="text-sm text-red-500 mb-4">{error}</p>}
 
       <div className="flex items-center gap-3">
-        <Button variant="ghost" onClick={onClose} disabled={isSubmitting} className="flex-1 bg-slate-100/80 text-slate-700 hover:bg-slate-200 h-14 rounded-2xl font-bold text-lg">
+        <Button variant="ghost" onClick={onClose} disabled={isSubmitting} className="flex-1 bg-border-card/80 text-text-body hover:bg-border-subtle h-14 rounded-2xl font-bold text-lg">
           إلغاء
         </Button>
         <Button onClick={handleDelete} disabled={isSubmitting} className="flex-1 h-14 rounded-2xl font-bold text-lg bg-[#dd1111] hover:bg-[#c00f0f] text-white gap-2">
@@ -301,32 +301,32 @@ export function EditTeacherModal({
 
       <div className="space-y-4 mb-8">
         <div className="space-y-1.5">
-          <label className="block text-sm font-bold text-slate-800">الاسم الرباعي</label>
-          <Input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} aria-label="الاسم الرباعي" className="h-12 rounded-xl border-slate-200 font-medium" />
+          <label className="block text-sm font-bold text-text-body">الاسم الرباعي</label>
+          <Input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} aria-label="الاسم الرباعي" className="h-12 rounded-xl border-border-subtle font-medium" />
         </div>
         <div className="space-y-1.5">
-          <label className="block text-sm font-bold text-slate-800">رقم الهوية</label>
-          <Input type="number" dir="ltr" value={form.national_id} onChange={(e) => setForm({ ...form, national_id: e.target.value })} aria-label="رقم الهوية" className="h-12 rounded-xl border-slate-200 font-medium" />
+          <label className="block text-sm font-bold text-text-body">رقم الهوية</label>
+          <Input type="number" dir="ltr" value={form.national_id} onChange={(e) => setForm({ ...form, national_id: e.target.value })} aria-label="رقم الهوية" className="h-12 rounded-xl border-border-subtle font-medium" />
         </div>
         <div className="space-y-1.5">
-          <label className="block text-sm font-bold text-slate-800">رقم الجوال</label>
-          <Input type="tel" dir="ltr" value={form.phone_number} onChange={(e) => setForm({ ...form, phone_number: e.target.value })} aria-label="رقم الجوال" className="h-12 rounded-xl border-slate-200 font-medium" />
+          <label className="block text-sm font-bold text-text-body">رقم الجوال</label>
+          <Input type="tel" dir="ltr" value={form.phone_number} onChange={(e) => setForm({ ...form, phone_number: e.target.value })} aria-label="رقم الجوال" className="h-12 rounded-xl border-border-subtle font-medium" />
         </div>
         <div className="space-y-1.5">
-          <label className="block text-sm font-bold text-slate-800">التخصص</label>
-          <Input value={form.specialization} onChange={(e) => setForm({ ...form, specialization: e.target.value })} aria-label="التخصص" className="h-12 rounded-xl border-slate-200 font-medium" />
+          <label className="block text-sm font-bold text-text-body">التخصص</label>
+          <Input value={form.specialization} onChange={(e) => setForm({ ...form, specialization: e.target.value })} aria-label="التخصص" className="h-12 rounded-xl border-border-subtle font-medium" />
         </div>
         <div className="space-y-1.5">
-          <label className="block text-sm font-bold text-slate-800">اسم الحلقة</label>
-          <Input value={form.ring_name} onChange={(e) => setForm({ ...form, ring_name: e.target.value })} aria-label="اسم الحلقة" className="h-12 rounded-xl border-slate-200 font-medium" />
+          <label className="block text-sm font-bold text-text-body">اسم الحلقة</label>
+          <Input value={form.ring_name} onChange={(e) => setForm({ ...form, ring_name: e.target.value })} aria-label="اسم الحلقة" className="h-12 rounded-xl border-border-subtle font-medium" />
         </div>
         <div className="space-y-1.5">
-          <label className="block text-sm font-bold text-slate-800">التباعية</label>
+          <label className="block text-sm font-bold text-text-body">التباعية</label>
           <select
             value={form.affiliation}
             onChange={(e) => setForm({ ...form, affiliation: e.target.value })}
             aria-label="التباعية"
-            className="w-full h-12 rounded-xl border border-slate-200 px-3 bg-white text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/20"
+            className="w-full h-12 rounded-xl border border-border-subtle px-3 bg-white text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/20"
           >
             <option value="">اختر التباعية...</option>
             <option value="dar_quran">دار القرآن</option>
@@ -335,7 +335,7 @@ export function EditTeacherModal({
           </select>
         </div>
         <div className="space-y-1.5">
-          <label className="block text-sm font-bold text-slate-800">الدورات</label>
+          <label className="block text-sm font-bold text-text-body">الدورات</label>
           <CoursesCheckboxList
             allCourses={allCourses}
             selectedIds={form.course_ids}
@@ -348,7 +348,7 @@ export function EditTeacherModal({
       {error && <p className="text-sm text-red-500 mb-4">{error}</p>}
 
       <div className="flex items-center gap-3">
-        <Button variant="ghost" onClick={onClose} className="flex-1 bg-slate-100/80 text-slate-700 hover:bg-slate-200 h-12 rounded-xl font-bold">
+        <Button variant="ghost" onClick={onClose} className="flex-1 bg-border-card/80 text-text-body hover:bg-border-subtle h-12 rounded-xl font-bold">
           إلغاء
         </Button>
         <Button onClick={handleSubmit} disabled={isSubmitting} className="flex-[1.5] h-12 rounded-xl font-bold gap-2">
