@@ -1,9 +1,17 @@
 import type { Metadata, Viewport } from "next";
+import { Noto_Kufi_Arabic } from "next/font/google";
 import "./globals.css";
 
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ToastProvider } from "@/contexts/ToastContext";
 import { ServiceWorkerRegistrar } from "@/components/ServiceWorkerRegistrar";
+
+const notoKufi = Noto_Kufi_Arabic({
+  subsets: ["arabic"],
+  weight: ["400", "500", "600", "700", "800"],
+  variable: "--font-cairo",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "مركز نور الهدى لتحفيظ القرآن",
@@ -32,7 +40,7 @@ export default function RootLayout({
     <html
       lang="ar"
       dir="rtl"
-      className="h-full antialiased"
+      className={`h-full antialiased ${notoKufi.variable}`}
     >
       <head>
         <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />

@@ -40,7 +40,7 @@ import {
   type StudentRecord,
 } from "../db/repos/students";
 
-interface SyncPullResponse {
+export interface SyncPullResponse {
   resources: {
     users: UserRecord[];
     teachers: TeacherRecord[];
@@ -83,69 +83,8 @@ export async function pullSync(): Promise<PullResult> {
       if (!res.success) {
         return { ok: false, error: res.error.message };
       }
-      const { resources, tombstones, server_time } = res.data;
-
-      // Order matters for FK consistency: parents/users before links,
-      // students before plans, plans before daily records, etc.
-      const touched = new Set<ResourceName>();
-      if (resources.users.length) {
-        await upsertUsers(resources.users);
-        touched.add("student"); // users feed into student cards
-      }
-      if (resources.teachers.length) {
-        await upsertTeachers(resources.teachers);
-        touched.add("teacher");
-      }
-      if (resources.parents.length) {
-        await upsertParents(resources.parents);
-        touched.add("parent");
-      }
-      if (resources.students.length) {
-        await upsertStudents(resources.students);
-        touched.add("student");
-      }
-      if (resources.parent_student_links.length) {
-        await upsertParentStudentLinks(resources.parent_student_links);
-        touched.add("parent_student_link");
-      }
-      if (resources.weekly_plans.length) {
-        await upsertWeeklyPlans(resources.weekly_plans);
-        touched.add("weekly_plan");
-      }
-      if (resources.daily_records.length) {
-        await upsertDailyRecords(resources.daily_records);
-        touched.add("daily_record");
-      }
-      if (resources.review_records.length) {
-        await upsertReviewRecords(resources.review_records);
-        touched.add("review_record");
-      }
-      if (resources.evaluations.length) {
-        await upsertEvaluations(resources.evaluations);
-        touched.add("evaluation");
-      }
-      if (resources.notifications.length) {
-        await upsertNotifications(resources.notifications);
-        touched.add("notification");
-      }
-      if (resources.courses.length) {
-        await upsertCourses(resources.courses);
-        touched.add("course");
-      }
-      if (resources.student_courses.length) {
-        await upsertStudentCourses(resources.student_courses);
-        touched.add("student_course");
-      }
-
-      if (tombstones.length > 0) {
-        await applyTombstones(tombstones);
-        for (const t of tombstones) touched.add(t.resource as ResourceName);
-      }
-
-      if (touched.size > 0) emitChanges(Array.from(touched));
-
-      await markSyncAt(server_time);
-      return { ok: true, server_time };
+      await applyPullResponse(res.data);
+      return { ok: true, server_time: res.data.server_time };
     } catch (err) {
       return {
         ok: false,
@@ -156,6 +95,53 @@ export async function pullSync(): Promise<PullResult> {
     }
   })();
   return pullInFlight;
+}
+
+/**
+ * Apply a full pull response to the local encrypted DB: upsert each
+ * resource in FK-safe order, apply tombstones, emit change events, and
+ * mark the sync timestamp. Shared by `pullSync` (delta) and
+ * `downloadFullDb` (initial full download).
+ */
+export async function applyPullResponse(
+  data: SyncPullResponse,
+  onTableProgress?: (table: string, done: number, total: number) => void
+): Promise<void> {
+  const { resources, tombstones, server_time } = data;
+
+  // Order matters for FK consistency: parents/users before links,
+  // students before plans, plans before daily records, etc.
+  const steps: Array<{ name: string; resource: ResourceName; run: () => Promise<void> }> = [
+    { name: "users", resource: "student", run: async () => { if (resources.users.length) await upsertUsers(resources.users); } },
+    { name: "teachers", resource: "teacher", run: async () => { if (resources.teachers.length) await upsertTeachers(resources.teachers); } },
+    { name: "parents", resource: "parent", run: async () => { if (resources.parents.length) await upsertParents(resources.parents); } },
+    { name: "students", resource: "student", run: async () => { if (resources.students.length) await upsertStudents(resources.students); } },
+    { name: "parent_student_links", resource: "parent_student_link", run: async () => { if (resources.parent_student_links.length) await upsertParentStudentLinks(resources.parent_student_links); } },
+    { name: "weekly_plans", resource: "weekly_plan", run: async () => { if (resources.weekly_plans.length) await upsertWeeklyPlans(resources.weekly_plans); } },
+    { name: "daily_records", resource: "daily_record", run: async () => { if (resources.daily_records.length) await upsertDailyRecords(resources.daily_records); } },
+    { name: "review_records", resource: "review_record", run: async () => { if (resources.review_records.length) await upsertReviewRecords(resources.review_records); } },
+    { name: "evaluations", resource: "evaluation", run: async () => { if (resources.evaluations.length) await upsertEvaluations(resources.evaluations); } },
+    { name: "notifications", resource: "notification", run: async () => { if (resources.notifications.length) await upsertNotifications(resources.notifications); } },
+    { name: "courses", resource: "course", run: async () => { if (resources.courses.length) await upsertCourses(resources.courses); } },
+    { name: "student_courses", resource: "student_course", run: async () => { if (resources.student_courses.length) await upsertStudentCourses(resources.student_courses); } },
+  ];
+
+  const touched = new Set<ResourceName>();
+  for (let i = 0; i < steps.length; i++) {
+    const step = steps[i];
+    await step.run();
+    const arr = (resources as unknown as Record<string, unknown[]>)[step.name];
+    if (arr && arr.length) touched.add(step.resource);
+    onTableProgress?.(step.name, i + 1, steps.length);
+  }
+
+  if (tombstones.length > 0) {
+    await applyTombstones(tombstones);
+    for (const t of tombstones) touched.add(t.resource as ResourceName);
+  }
+
+  if (touched.size > 0) emitChanges(Array.from(touched));
+  await markSyncAt(server_time);
 }
 
 async function applyTombstones(

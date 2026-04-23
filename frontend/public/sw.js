@@ -14,7 +14,7 @@
  *   postMessage so the push runner drains the outbox.
  */
 
-const CACHE_VERSION = "v4";
+const CACHE_VERSION = "v5";
 const APP_CACHE = `noor-alhuda-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `noor-alhuda-runtime-${CACHE_VERSION}`;
 
@@ -97,13 +97,42 @@ self.addEventListener("sync", (event) => {
   }
 });
 
-// Allow the page to force-activate a new SW after update.
+// Allow the page to force-activate a new SW after update, and to request
+// background route warm-up so navigation-capable cached responses exist
+// for a cold-start offline session.
 self.addEventListener("message", (event) => {
   const data = event.data;
-  if (data && data.type === "SKIP_WAITING") {
+  if (!data || typeof data !== "object") return;
+  if (data.type === "SKIP_WAITING") {
     self.skipWaiting();
+    return;
+  }
+  if (data.type === "WARM_ROUTES" && Array.isArray(data.urls)) {
+    event.waitUntil(warmRoutes(data.urls));
   }
 });
+
+async function warmRoutes(urls) {
+  const cache = await caches.open(RUNTIME_CACHE);
+  // Sequential with small concurrency — avoid hammering the server.
+  await Promise.all(
+    urls.map(async (url) => {
+      try {
+        const res = await fetch(url, {
+          credentials: "same-origin",
+          // Mark as navigation so the network-first handler doesn't try to
+          // re-cache what we're already about to cache here.
+          headers: { "X-Warm-Route": "1" },
+        });
+        if (res.ok && res.status === 200) {
+          await cache.put(url, res.clone());
+        }
+      } catch (_err) {
+        /* silent — we'll retry next login */
+      }
+    })
+  );
+}
 
 async function broadcastTriggerPush() {
   const clients = await self.clients.matchAll({

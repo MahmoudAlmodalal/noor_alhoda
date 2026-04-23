@@ -124,7 +124,7 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # ---------------------------------------------------------------------------
 LANGUAGE_CODE = "ar"
-TIME_ZONE = "Asia/Muscat"
+TIME_ZONE = "Asia/Gaza"
 USE_I18N = True
 USE_TZ = True
 

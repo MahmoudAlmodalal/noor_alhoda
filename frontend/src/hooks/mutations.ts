@@ -67,20 +67,17 @@ export type MutationAction = OutboxAction;
 
 type Payload = Record<string, unknown>;
 
+// Methods guarding create/update/delete are optional: if a resource has no
+// matching BE push dispatcher (see backend/sync/services/push_services.py
+// `_DISPATCH`), the corresponding method is omitted and `runMutation` returns
+// an "unsupported" error before touching the outbox. Keeps FE/BE in lockstep.
 interface Handler {
-  /** ResourceName used for outbox/push/events. */
   resource: ResourceName;
-  /** Build + upsert a minimal local record for an optimistic create. */
-  upsertCreate(id: string, payload: Payload, nowIso: string): Promise<void>;
-  /** Read existing local record for an update. Returns undefined if missing. */
-  readExisting(id: string): Promise<Payload | undefined>;
-  /** Upsert a merged local record (existing ∪ patch) after an update. */
-  upsertUpdate(id: string, merged: Payload, nowIso: string): Promise<void>;
-  /** Delete a local row for a delete op. */
-  deleteLocal(id: string): Promise<void>;
-  /** Read the cleartext `updated_at` column for LWW base. */
+  upsertCreate?(id: string, payload: Payload, nowIso: string): Promise<void>;
+  readExisting?(id: string): Promise<Payload | undefined>;
+  upsertUpdate?(id: string, merged: Payload, nowIso: string): Promise<void>;
+  deleteLocal?(id: string): Promise<void>;
   readBaseUpdatedAt(id: string): Promise<string | null>;
-  /** Build the server-shaped payload sent on push. */
   serverPayload(id: string, localPatchOrFull: Payload): Payload;
 }
 
@@ -349,21 +346,10 @@ const handlers: Record<MutationResource, Handler> = {
     serverPayload: (_id, payload) => payload,
   },
 
+  // BE `_DISPATCH` supports update only (mark-read). Creation happens
+  // server-side via `/api/notifications/announce/`; deletion is unused.
   notification: {
     resource: "notification",
-    async upsertCreate(id, payload, now) {
-      const rec: NotificationRecord = {
-        id,
-        recipient_id: String(payload.recipient_id ?? ""),
-        type: String(payload.type ?? "announcement"),
-        title: String(payload.title ?? ""),
-        body: String(payload.body ?? ""),
-        is_read: Boolean(payload.is_read ?? false),
-        created_at: now,
-        updated_at: now,
-      };
-      await upsertNotifications([rec]);
-    },
     async readExisting(id) {
       const row = await getDb().notifications.get(id);
       if (!row) return undefined;
@@ -372,9 +358,6 @@ const handlers: Record<MutationResource, Handler> = {
     async upsertUpdate(id, merged, now) {
       const rec = { ...(merged as unknown as NotificationRecord), id, updated_at: now };
       await upsertNotifications([rec]);
-    },
-    async deleteLocal(id) {
-      await getDb().notifications.delete(id);
     },
     readBaseUpdatedAt: (id) => readCleartextUpdatedAt("notifications", id),
     serverPayload: (_id, payload) => payload,
@@ -410,6 +393,7 @@ const handlers: Record<MutationResource, Handler> = {
     serverPayload: (_id, payload) => payload,
   },
 
+  // BE `_DISPATCH` supports create + delete only (no update).
   parent_student_link: {
     resource: "parent_student_link",
     async upsertCreate(id, payload, now) {
@@ -420,15 +404,6 @@ const handlers: Record<MutationResource, Handler> = {
         created_at: now,
         updated_at: now,
       };
-      await upsertParentStudentLinks([rec]);
-    },
-    async readExisting(id) {
-      const row = await getDb().parent_student_links.get(id);
-      if (!row) return undefined;
-      return (await decryptRow<ParentStudentLinkRecord>(row)) as unknown as Payload;
-    },
-    async upsertUpdate(id, merged, now) {
-      const rec = { ...(merged as unknown as ParentStudentLinkRecord), id, updated_at: now };
       await upsertParentStudentLinks([rec]);
     },
     async deleteLocal(id) {
@@ -468,6 +443,9 @@ export async function runMutation(args: {
 
   try {
     if (args.action === "create") {
+      if (!h.upsertCreate) {
+        return { ok: false, error: "العملية غير مدعومة لهذا النوع." };
+      }
       const id = (args.payload.id as string) || crypto.randomUUID();
       await h.upsertCreate(id, args.payload, now);
       await enqueueOp({
@@ -486,6 +464,9 @@ export async function runMutation(args: {
     if (!id) return { ok: false, error: "المعرّف مطلوب." };
 
     if (args.action === "delete") {
+      if (!h.deleteLocal) {
+        return { ok: false, error: "العملية غير مدعومة لهذا النوع." };
+      }
       const base = await h.readBaseUpdatedAt(id);
       await h.deleteLocal(id);
       await enqueueOp({
@@ -501,6 +482,9 @@ export async function runMutation(args: {
     }
 
     // update
+    if (!h.readExisting || !h.upsertUpdate) {
+      return { ok: false, error: "العملية غير مدعومة لهذا النوع." };
+    }
     const existing = await h.readExisting(id);
     if (!existing) return { ok: false, error: "السجل غير موجود محلياً." };
     const base = await h.readBaseUpdatedAt(id);

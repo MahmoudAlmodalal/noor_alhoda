@@ -217,9 +217,16 @@ def _server_newer_than_client(server_updated_at, base_updated_at) -> bool:
 
 
 def _conflict_row(resource: str, instance) -> dict:
-    """Serialize a server row for a conflict response."""
+    """Serialize a server row for a push response (synced or conflict).
+
+    The `_resource` tag lets the frontend dispatch the row to the correct
+    local table without shape-guessing (see `frontend/src/lib/sync/push.ts`
+    `applyServerRow`) and emits the right change event so UIs refresh.
+    """
     _model, to_dict = RESOURCE_DICT_MAP[resource]
-    return to_dict(instance)
+    row = to_dict(instance)
+    row["_resource"] = resource
+    return row
 
 
 # ---------------------------------------------------------------------------

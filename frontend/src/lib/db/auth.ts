@@ -23,6 +23,7 @@ import {
 import { getDb, type AuthRow } from "./schema";
 
 const BCRYPT_COST = 10;
+const SESSION_STORAGE_KEY = "_dbk";
 
 let sessionKey: CryptoKey | null = null;
 
@@ -39,6 +40,45 @@ export function hasSessionKey(): boolean {
 
 export function clearSessionKey(): void {
   sessionKey = null;
+  if (typeof sessionStorage !== "undefined") {
+    sessionStorage.removeItem(SESSION_STORAGE_KEY);
+  }
+}
+
+// Persist the current session key in sessionStorage as JWK so it survives a
+// page reload within the same tab. sessionStorage is cleared when the tab
+// closes, which matches the "log out on tab close" model we want.
+async function persistSessionKey(key: CryptoKey): Promise<void> {
+  if (typeof sessionStorage === "undefined") return;
+  try {
+    const jwk = await crypto.subtle.exportKey("jwk", key);
+    sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(jwk));
+  } catch {
+    // exportKey fails if the key is non-extractable — nothing we can do.
+  }
+}
+
+// Restore the session key from sessionStorage if present. Returns true on
+// success. Caller must still verify that a matching auth row exists.
+export async function restoreSessionKey(): Promise<boolean> {
+  if (sessionKey !== null) return true;
+  if (typeof sessionStorage === "undefined") return false;
+  const raw = sessionStorage.getItem(SESSION_STORAGE_KEY);
+  if (!raw) return false;
+  try {
+    const jwk = JSON.parse(raw) as JsonWebKey;
+    sessionKey = await crypto.subtle.importKey(
+      "jwk",
+      jwk,
+      { name: "AES-GCM", length: 256 },
+      true,
+      ["encrypt", "decrypt"]
+    );
+    return true;
+  } catch {
+    sessionStorage.removeItem(SESSION_STORAGE_KEY);
+    return false;
+  }
 }
 
 async function hashVerifier(password: string): Promise<string> {
@@ -96,6 +136,7 @@ export async function initializeOrUnlockSession(params: {
       created_at: new Date().toISOString(),
     });
     sessionKey = dbKey;
+    await persistSessionKey(dbKey);
     return;
   }
 
@@ -108,6 +149,7 @@ export async function initializeOrUnlockSession(params: {
       iterations: existing.iterations,
     });
     sessionKey = dbKey;
+    await persistSessionKey(dbKey);
 
     const verifierOk = await checkVerifier(password, existing.verifier_hash);
     if (!verifierOk) {
@@ -133,6 +175,7 @@ export async function initializeOrUnlockSession(params: {
     created_at: new Date().toISOString(),
   });
   sessionKey = dbKey;
+  await persistSessionKey(dbKey);
 }
 
 /**
@@ -166,6 +209,7 @@ export async function unlockOffline(params: {
     iterations: row.iterations,
   });
   sessionKey = dbKey;
+  await persistSessionKey(dbKey);
   return row;
 }
 

@@ -23,7 +23,7 @@ test_*.js, test_*.py  Ad-hoc scratch scripts, not CI
 
 - **Arabic-first, RTL.** All user-facing strings are hard-coded Arabic. There is no i18n library. Do not introduce English copy in user-visible surfaces (responses, UI, errors).
 - **Auth by `national_id`**, not username/email. The custom `User.USERNAME_FIELD` is `national_id`.
-- **Timezone**: `Asia/Muscat`. School week: Saturday–Thursday (6 days).
+- **Timezone**: `Asia/Gaza`. School week: Saturday–Thursday (6 days).
 - **Roles**: `admin`, `teacher`, `student`, `parent`. Row-level access is enforced in backend **selectors** (not only permission classes).
 - **UUID primary keys** across all domain models.
 - **No secrets in git.** `.mcp.json`, `.env*`, and `.claude/settings.local.json` are in `.gitignore`. If you need to share a token, ask — never commit it.

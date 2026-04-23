@@ -2,14 +2,32 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { Menu } from "lucide-react";
+import { Menu, RefreshCw } from "lucide-react";
 import { Sidebar } from "./Sidebar";
 import { NotificationsProvider } from "@/contexts/NotificationsContext";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { OfflineBanner } from "@/components/offline/OfflineBanner";
+import { InstallPrompt } from "@/components/offline/InstallPrompt";
+import { CacheWarmer } from "@/components/offline/CacheWarmer";
+import { StaleDataBanner } from "@/components/offline/StaleDataBanner";
+import { DownloadScreen } from "@/components/offline/DownloadScreen";
+import { useAuth } from "@/contexts/AuthContext";
+
+async function hardReload() {
+    try {
+        if (typeof caches !== "undefined") {
+            const keys = await caches.keys();
+            await Promise.all(keys.map((k) => caches.delete(k)));
+        }
+    } finally {
+        window.location.reload();
+    }
+}
 
 export function LayoutWrapper({ children }: { children: React.ReactNode }) {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [reloading, setReloading] = useState(false);
+    const { needsInitialDownload } = useAuth();
 
     return (
         <NotificationsProvider>
@@ -33,10 +51,24 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
                         <div className="hidden lg:block" />
 
                         <div className="flex items-center gap-2">
+                            <button
+                                type="button"
+                                onClick={async () => {
+                                    setReloading(true);
+                                    await hardReload();
+                                }}
+                                disabled={reloading}
+                                title="إعادة تحميل شاملة"
+                                aria-label="إعادة تحميل شاملة"
+                                className="p-2 rounded-lg text-primary hover:bg-border-card disabled:opacity-50"
+                            >
+                                <RefreshCw className={`w-5 h-5 ${reloading ? "animate-spin" : ""}`} />
+                            </button>
                             <NotificationBell />
                         </div>
                     </header>
 
+                    <StaleDataBanner />
                     <OfflineBanner />
 
                     {/* Main Content Area */}
@@ -47,6 +79,10 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
                     </main>
                 </div>
             </div>
+
+            <InstallPrompt />
+            <CacheWarmer />
+            {needsInitialDownload && <DownloadScreen />}
         </NotificationsProvider>
     );
 }

@@ -13,11 +13,18 @@ import {
   clearSessionKey,
   hasCachedAuth,
   initializeOrUnlockSession,
+  readAuth,
+  restoreSessionKey,
   unlockOffline,
 } from "@/lib/db/auth";
 import { wipeDb } from "@/lib/db/schema";
 import { startSyncRunner, stopSyncRunner } from "@/lib/sync/runner";
 import type { UserProfile } from "@/types/api";
+
+// Logout keeps the encrypted local DB on-device so the same user can
+// re-login offline. A different user on the same device triggers a wipe
+// inside `initializeOrUnlockSession` (OFFLINE_LOGIN_USER_MISMATCH guard).
+// Explicit wipe is exposed via `wipeDeviceData()`.
 
 interface AuthContextValue {
   user: UserProfile | null;
@@ -29,11 +36,21 @@ interface AuthContextValue {
    */
   dbUnlocked: boolean;
   isOfflineSession: boolean;
+  /**
+   * True when we just logged this user in online AND no prior sync has
+   * landed on this device (`auth.last_sync_at === null`). The dashboard
+   * should render `<DownloadScreen />` until `markInitialDownloadComplete`
+   * fires, which then starts the sync runner.
+   */
+  needsInitialDownload: boolean;
+  markInitialDownloadComplete: () => void;
   login: (
     national_id: string,
     password: string
   ) => Promise<{ error: string | null; role: string | null; offline: boolean }>;
   logout: () => Promise<void>;
+  /** Explicit, user-initiated wipe of the encrypted IndexedDB on this device. */
+  wipeDeviceData: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -43,6 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [dbUnlocked, setDbUnlocked] = useState(false);
   const [isOfflineSession, setIsOfflineSession] = useState(false);
+  const [needsInitialDownload, setNeedsInitialDownload] = useState(false);
 
   // Fetch server profile and hydrate user state.
   const fetchMe = useCallback(async (): Promise<boolean> => {
@@ -70,6 +88,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return false;
   }, []);
 
+  const markInitialDownloadComplete = useCallback(() => {
+    setNeedsInitialDownload(false);
+    startSyncRunner();
+  }, []);
+
   // On boot: if tokens exist and network is available, refresh user from
   // /me. DB remains locked until the user logs in (enters password).
   useEffect(() => {
@@ -83,20 +106,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const token = localStorage.getItem("access_token");
       if (!token) {
+        // No tokens → must log in again. Drop any stale session key so the
+        // next user on this tab can't reuse a dangling unlock.
+        clearSessionKey();
         if (isMounted) setIsLoading(false);
         return;
       }
 
+      // Restore the DB key from sessionStorage if this is a reload within the
+      // same tab. Hydrate user state from the cached auth row so pages render
+      // immediately instead of bouncing to /login.
+      const restored = await restoreSessionKey();
+      if (restored) {
+        const row = await readAuth();
+        if (row && isMounted) {
+          setUser({
+            id: row.user_id,
+            national_id: row.user_national_id,
+            phone_number: "",
+            role: row.user_role as UserProfile["role"],
+            full_name: "",
+          });
+          setDbUnlocked(true);
+          setIsOfflineSession(false);
+          if (row.last_sync_at === null) {
+            setNeedsInitialDownload(true);
+          } else {
+            startSyncRunner();
+          }
+        } else if (!row) {
+          clearSessionKey();
+        }
+      }
+
+      // Refresh the user from /me (with retry for transient network errors).
+      // On success, server data overrides the minimal state we set from IDB.
+      // On 401/403, fetchMe clears tokens; on network failure we keep them so
+      // the sync runner can retry once connectivity returns.
       const MAX_RETRIES = 2;
       const RETRY_DELAY_MS = 1500;
-      let authed = false;
 
       for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
         try {
-          if (await fetchMe()) {
-            authed = true;
-            break;
-          }
+          if (await fetchMe()) break;
           if (!localStorage.getItem("access_token")) break;
         } catch {
           // network error — fall through to retry
@@ -104,13 +156,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (attempt < MAX_RETRIES - 1) {
           await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
         }
-      }
-
-      if (!authed && localStorage.getItem("access_token")) {
-        // Can't reach server. If the user has a cached auth row and wants
-        // to work offline, they must re-login (password unlocks DB).
-        localStorage.removeItem("access_token");
-        localStorage.removeItem("refresh_token");
       }
 
       if (isMounted) setIsLoading(false);
@@ -145,7 +190,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         setDbUnlocked(true);
         setIsOfflineSession(false);
-        startSyncRunner();
+
+        // First-time on this device → block the dashboard on full download.
+        // Start the sync runner only after the download completes (see
+        // `markInitialDownloadComplete`). Otherwise the 30s heartbeat would
+        // race us and could partially populate IDB without progress UI.
+        const row = await readAuth();
+        if (row?.last_sync_at === null) {
+          setNeedsInitialDownload(true);
+        } else {
+          startSyncRunner();
+        }
         return { error: null, role: u.role, offline: false };
       }
 
@@ -165,9 +220,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           });
           setDbUnlocked(true);
           setIsOfflineSession(true);
-          // Start the sync runner so that whenever connectivity returns
-          // we'll pull the latest data without needing a reload.
-          startSyncRunner();
+          // Offline session with no prior sync = nothing to show; force a
+          // user-visible message by flagging the download requirement. The
+          // DownloadScreen will show an offline error until they reconnect.
+          if (row.last_sync_at === null) {
+            setNeedsInitialDownload(true);
+          } else {
+            startSyncRunner();
+          }
           return { error: null, role: row.user_role, offline: true };
         } catch (err) {
           const code = err instanceof Error ? err.message : String(err);
@@ -204,8 +264,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     clearSessionKey();
     setDbUnlocked(false);
     setIsOfflineSession(false);
+    setNeedsInitialDownload(false);
     setUser(null);
-    // Wipe local encrypted DB so the next user can't see this user's cached data.
+    // Keep the encrypted IndexedDB so the same user can re-login offline.
+    // A different user triggers a wipe via initializeOrUnlockSession.
+    window.location.href = "/login";
+  }, []);
+
+  const wipeDeviceData = useCallback(async () => {
+    stopSyncRunner();
+    try {
+      await api.logout();
+    } catch {
+      // ignore
+    }
+    clearSessionKey();
+    setDbUnlocked(false);
+    setIsOfflineSession(false);
+    setNeedsInitialDownload(false);
+    setUser(null);
     try {
       await wipeDb();
     } catch {
@@ -222,8 +299,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAuthenticated: !!user,
         dbUnlocked,
         isOfflineSession,
+        needsInitialDownload,
+        markInitialDownloadComplete,
         login,
         logout,
+        wipeDeviceData,
       }}
     >
       {children}

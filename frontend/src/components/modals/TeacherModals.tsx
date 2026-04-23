@@ -1,14 +1,140 @@
 "use client";
 
 import React, { useState } from "react";
-import { Trash2, Save, Loader2 } from "lucide-react";
+import { Loader2, Minus, Plus, Save, Trash2 } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { cn } from "@/lib/utils";
 import { useMutation } from "@/hooks/useMutation";
 import { useQuery } from "@/hooks/useApi";
 import type { MutationResource } from "@/hooks/mutations";
 import type { CourseRecord, TeacherWithUser } from "@/hooks/queries";
+
+const DAY_OPTIONS: { code: string; label: string }[] = [
+  { code: "sat", label: "السبت" },
+  { code: "sun", label: "الأحد" },
+  { code: "mon", label: "الاثنين" },
+  { code: "tue", label: "الثلاثاء" },
+  { code: "wed", label: "الأربعاء" },
+  { code: "thu", label: "الخميس" },
+];
+
+const ARABIC_DAY_TO_CODE: Record<string, string> = {
+  السبت: "sat",
+  الأحد: "sun",
+  الاثنين: "mon",
+  الإثنين: "mon",
+  الثلاثاء: "tue",
+  الأربعاء: "wed",
+  الخميس: "thu",
+  الجمعة: "fri",
+};
+
+const MIN_MAX_STUDENTS = 1;
+const MAX_MAX_STUDENTS = 100;
+
+function normalizeDays(value: string[] | undefined): string[] {
+  if (!value) return [];
+  const out: string[] = [];
+  for (const raw of value) {
+    const trimmed = raw.trim();
+    const lower = trimmed.toLowerCase();
+    if (DAY_OPTIONS.some((d) => d.code === lower)) {
+      if (!out.includes(lower)) out.push(lower);
+      continue;
+    }
+    const code = ARABIC_DAY_TO_CODE[trimmed];
+    if (code && !out.includes(code)) out.push(code);
+  }
+  return out;
+}
+
+function DaysPicker({
+  value,
+  onChange,
+}: {
+  value: string[];
+  onChange: (next: string[]) => void;
+}) {
+  const toggle = (code: string) => {
+    if (value.includes(code)) {
+      onChange(value.filter((c) => c !== code));
+    } else {
+      onChange([...value, code]);
+    }
+  };
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {DAY_OPTIONS.map((d) => {
+        const active = value.includes(d.code);
+        return (
+          <button
+            key={d.code}
+            type="button"
+            onClick={() => toggle(d.code)}
+            aria-pressed={active}
+            className={cn(
+              "inline-flex h-9 items-center rounded-full px-3 text-xs font-bold transition-colors",
+              active
+                ? "bg-primary text-white shadow-sm shadow-primary/25"
+                : "bg-surface-subtle text-text-body hover:bg-border-card"
+            )}
+          >
+            {d.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function MaxStudentsStepper({
+  value,
+  onChange,
+}: {
+  value: number;
+  onChange: (next: number) => void;
+}) {
+  const clamp = (n: number) =>
+    Math.max(MIN_MAX_STUDENTS, Math.min(MAX_MAX_STUDENTS, n));
+  return (
+    <div className="inline-flex h-12 items-center gap-2 rounded-[14px] border border-border-subtle bg-white p-1">
+      <button
+        type="button"
+        onClick={() => onChange(clamp(value - 1))}
+        disabled={value <= MIN_MAX_STUDENTS}
+        aria-label="إنقاص"
+        className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-surface-subtle text-text-body transition-colors hover:bg-border-card disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        <Minus className="h-4 w-4" />
+      </button>
+      <input
+        type="number"
+        inputMode="numeric"
+        min={MIN_MAX_STUDENTS}
+        max={MAX_MAX_STUDENTS}
+        value={value}
+        onChange={(e) => {
+          const n = Number(e.target.value);
+          if (!Number.isFinite(n)) return;
+          onChange(clamp(Math.round(n)));
+        }}
+        className="h-9 w-16 rounded-[10px] bg-transparent text-center text-base font-bold text-text-title focus:outline-none"
+        aria-label="الحد الأقصى للطلاب"
+      />
+      <button
+        type="button"
+        onClick={() => onChange(clamp(value + 1))}
+        disabled={value >= MAX_MAX_STUDENTS}
+        aria-label="زيادة"
+        className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-surface-subtle text-text-body transition-colors hover:bg-border-card disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        <Plus className="h-4 w-4" />
+      </button>
+    </div>
+  );
+}
 
 function CoursesCheckboxList({
   allCourses,
@@ -28,21 +154,21 @@ function CoursesCheckboxList({
     return <p className="text-xs text-text-muted">لا توجد دورات متاحة</p>;
   }
   return (
-    <div className="max-h-40 overflow-y-auto rounded-xl border border-border-subtle bg-white p-2 space-y-1">
+    <div className="max-h-40 space-y-1 overflow-y-auto rounded-xl border border-border-subtle bg-white p-2">
       {allCourses.map((c) => {
         const checked = selectedIds.includes(c.id);
         return (
           <label
             key={c.id}
-            className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-surface-subtle cursor-pointer"
+            className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-surface-subtle"
           >
             <input
               type="checkbox"
               checked={checked}
               onChange={() => onToggle(c.id)}
-              className="w-4 h-4 accent-primary"
+              className="h-4 w-4 accent-primary"
             />
-            <span className="text-sm text-text-body font-medium">{c.name}</span>
+            <span className="text-sm font-medium text-text-body">{c.name}</span>
           </label>
         );
       })}
@@ -66,6 +192,8 @@ export function AddTeacherModal({
     specialization: "",
     affiliation: "",
     ring_name: "",
+    session_days: [] as string[],
+    max_students: 25,
     course_ids: [] as string[],
   });
 
@@ -96,6 +224,8 @@ export function AddTeacherModal({
         specialization: form.specialization,
         affiliation: form.affiliation,
         ring_name: form.ring_name,
+        session_days: form.session_days,
+        max_students: form.max_students,
         course_ids: form.course_ids,
       },
       { successMessage: "تم إضافة المحفظ بنجاح" }
@@ -108,6 +238,8 @@ export function AddTeacherModal({
         specialization: "",
         affiliation: "",
         ring_name: "",
+        session_days: [],
+        max_students: 25,
         course_ids: [],
       });
       reset();
@@ -117,28 +249,57 @@ export function AddTeacherModal({
 
   return (
     <Modal isOpen={isOpen} onClose={onClose}>
-      <h2 className="text-xl font-bold text-primary mb-6">إضافة محفظ جديد</h2>
+      <h2 className="mb-6 text-xl font-bold text-primary">إضافة محفظ جديد</h2>
 
-      <div className="space-y-4 mb-8">
+      <div className="mb-8 max-h-[60vh] space-y-4 overflow-y-auto pe-1">
         <div className="space-y-1.5">
           <label className="block text-sm font-bold text-text-body">الاسم الرباعي</label>
-          <Input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} aria-label="الاسم الرباعي" className="h-12 rounded-xl border-border-subtle" />
+          <Input
+            value={form.full_name}
+            onChange={(e) => setForm({ ...form, full_name: e.target.value })}
+            aria-label="الاسم الرباعي"
+            className="h-12 rounded-xl border-border-subtle"
+          />
         </div>
         <div className="space-y-1.5">
           <label className="block text-sm font-bold text-text-body">رقم الهوية</label>
-          <Input type="number" dir="ltr" value={form.national_id} onChange={(e) => setForm({ ...form, national_id: e.target.value })} aria-label="رقم الهوية" className="h-12 rounded-xl border-border-subtle" />
+          <Input
+            type="number"
+            dir="ltr"
+            value={form.national_id}
+            onChange={(e) => setForm({ ...form, national_id: e.target.value })}
+            aria-label="رقم الهوية"
+            className="h-12 rounded-xl border-border-subtle"
+          />
         </div>
         <div className="space-y-1.5">
           <label className="block text-sm font-bold text-text-body">رقم الجوال</label>
-          <Input type="tel" dir="ltr" value={form.phone_number} onChange={(e) => setForm({ ...form, phone_number: e.target.value })} aria-label="رقم الجوال" className="h-12 rounded-xl border-border-subtle" />
+          <Input
+            type="tel"
+            dir="ltr"
+            value={form.phone_number}
+            onChange={(e) => setForm({ ...form, phone_number: e.target.value })}
+            aria-label="رقم الجوال"
+            className="h-12 rounded-xl border-border-subtle"
+          />
         </div>
         <div className="space-y-1.5">
           <label className="block text-sm font-bold text-text-body">التخصص (اختياري)</label>
-          <Input value={form.specialization} onChange={(e) => setForm({ ...form, specialization: e.target.value })} aria-label="التخصص" className="h-12 rounded-xl border-border-subtle" />
+          <Input
+            value={form.specialization}
+            onChange={(e) => setForm({ ...form, specialization: e.target.value })}
+            aria-label="التخصص"
+            className="h-12 rounded-xl border-border-subtle"
+          />
         </div>
         <div className="space-y-1.5">
           <label className="block text-sm font-bold text-text-body">اسم الحلقة</label>
-          <Input value={form.ring_name} onChange={(e) => setForm({ ...form, ring_name: e.target.value })} aria-label="اسم الحلقة" className="h-12 rounded-xl border-border-subtle" />
+          <Input
+            value={form.ring_name}
+            onChange={(e) => setForm({ ...form, ring_name: e.target.value })}
+            aria-label="اسم الحلقة"
+            className="h-12 rounded-xl border-border-subtle"
+          />
         </div>
         <div className="space-y-1.5">
           <label className="block text-sm font-bold text-text-body">التباعية</label>
@@ -146,7 +307,7 @@ export function AddTeacherModal({
             value={form.affiliation}
             onChange={(e) => setForm({ ...form, affiliation: e.target.value })}
             aria-label="التباعية"
-            className="w-full h-12 rounded-xl border border-border-subtle px-3 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+            className="h-12 w-full rounded-xl border border-border-subtle bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
           >
             <option value="">اختر التباعية...</option>
             <option value="dar_quran">دار القرآن</option>
@@ -154,6 +315,28 @@ export function AddTeacherModal({
             <option value="sheikh_tabaea">شيخ التباعية</option>
           </select>
         </div>
+
+        <div className="space-y-2">
+          <label className="block text-sm font-bold text-text-body">أيام الحلقة</label>
+          <DaysPicker
+            value={form.session_days}
+            onChange={(next) => setForm({ ...form, session_days: next })}
+          />
+          <p className="text-[11px] text-text-muted">
+            اختر الأيام التي تُقام فيها الحلقة خلال الأسبوع.
+          </p>
+        </div>
+
+        <div className="space-y-2">
+          <label className="block text-sm font-bold text-text-body">
+            الحد الأقصى للطلاب
+          </label>
+          <MaxStudentsStepper
+            value={form.max_students}
+            onChange={(n) => setForm({ ...form, max_students: n })}
+          />
+        </div>
+
         <div className="space-y-1.5">
           <label className="block text-sm font-bold text-text-body">الدورات</label>
           <CoursesCheckboxList
@@ -165,14 +348,22 @@ export function AddTeacherModal({
         </div>
       </div>
 
-      {error && <p className="text-sm text-red-500 mb-4">{error}</p>}
+      {error && <p className="mb-4 text-sm text-red-500">{error}</p>}
 
       <div className="flex items-center gap-3">
-        <Button variant="ghost" onClick={onClose} className="flex-1 bg-border-card/80 text-text-body hover:bg-border-subtle h-12 rounded-xl font-bold">
+        <Button
+          variant="ghost"
+          onClick={onClose}
+          className="h-12 flex-1 rounded-xl bg-border-card/80 font-bold text-text-body hover:bg-border-subtle"
+        >
           إلغاء
         </Button>
-        <Button onClick={handleSubmit} disabled={isSubmitting} className="flex-1 h-12 rounded-xl font-bold gap-2">
-          {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+        <Button
+          onClick={handleSubmit}
+          disabled={isSubmitting}
+          className="h-12 flex-1 gap-2 rounded-xl font-bold"
+        >
+          {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
           إضافة
         </Button>
       </div>
@@ -213,23 +404,33 @@ export function ConfirmDeleteModal({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} className="text-center pt-8">
-      <div className="w-20 h-20 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-6">
-        <Trash2 className="w-10 h-10" />
+    <Modal isOpen={isOpen} onClose={onClose} className="pt-8 text-center">
+      <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-red-100 text-red-600">
+        <Trash2 className="h-10 w-10" />
       </div>
-      <h2 className="text-2xl font-black text-text-title mb-4">تأكيد الحذف</h2>
-      <p className="text-lg text-text-label font-medium mb-8">
-        هل أنت متأكد من حذف <br /> <span className="font-bold text-primary">{targetName}</span>؟
+      <h2 className="mb-4 text-2xl font-black text-text-title">تأكيد الحذف</h2>
+      <p className="mb-8 text-lg font-medium text-text-label">
+        هل أنت متأكد من حذف <br />{" "}
+        <span className="font-bold text-primary">{targetName}</span>؟
       </p>
 
-      {error && <p className="text-sm text-red-500 mb-4">{error}</p>}
+      {error && <p className="mb-4 text-sm text-red-500">{error}</p>}
 
       <div className="flex items-center gap-3">
-        <Button variant="ghost" onClick={onClose} disabled={isSubmitting} className="flex-1 bg-border-card/80 text-text-body hover:bg-border-subtle h-14 rounded-2xl font-bold text-lg">
+        <Button
+          variant="ghost"
+          onClick={onClose}
+          disabled={isSubmitting}
+          className="h-14 flex-1 rounded-2xl bg-border-card/80 text-lg font-bold text-text-body hover:bg-border-subtle"
+        >
           إلغاء
         </Button>
-        <Button onClick={handleDelete} disabled={isSubmitting} className="flex-1 h-14 rounded-2xl font-bold text-lg bg-[#dd1111] hover:bg-[#c00f0f] text-white gap-2">
-          {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
+        <Button
+          onClick={handleDelete}
+          disabled={isSubmitting}
+          className="h-14 flex-1 gap-2 rounded-2xl bg-[#dd1111] text-lg font-bold text-white hover:bg-[#c00f0f]"
+        >
+          {isSubmitting ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
           نعم، احذف
         </Button>
       </div>
@@ -255,6 +456,11 @@ export function EditTeacherModal({
     specialization: teacher.specialization || "",
     affiliation: teacher.affiliation || "",
     ring_name: teacher.ring_name ?? "",
+    session_days: normalizeDays(teacher.session_days),
+    max_students:
+      typeof teacher.max_students === "number" && teacher.max_students > 0
+        ? teacher.max_students
+        : 25,
     course_ids: [] as string[],
   });
 
@@ -285,6 +491,8 @@ export function EditTeacherModal({
       specialization: form.specialization,
       affiliation: form.affiliation,
       ring_name: form.ring_name,
+      session_days: form.session_days,
+      max_students: form.max_students,
       course_ids: form.course_ids,
     };
     const result = await mutate(payload, {
@@ -297,28 +505,57 @@ export function EditTeacherModal({
 
   return (
     <Modal isOpen={isOpen} onClose={onClose}>
-      <h2 className="text-xl font-bold text-primary mb-6">تعديل بيانات المحفظ</h2>
+      <h2 className="mb-6 text-xl font-bold text-primary">تعديل بيانات المحفظ</h2>
 
-      <div className="space-y-4 mb-8">
+      <div className="mb-8 max-h-[60vh] space-y-4 overflow-y-auto pe-1">
         <div className="space-y-1.5">
           <label className="block text-sm font-bold text-text-body">الاسم الرباعي</label>
-          <Input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} aria-label="الاسم الرباعي" className="h-12 rounded-xl border-border-subtle font-medium" />
+          <Input
+            value={form.full_name}
+            onChange={(e) => setForm({ ...form, full_name: e.target.value })}
+            aria-label="الاسم الرباعي"
+            className="h-12 rounded-xl border-border-subtle font-medium"
+          />
         </div>
         <div className="space-y-1.5">
           <label className="block text-sm font-bold text-text-body">رقم الهوية</label>
-          <Input type="number" dir="ltr" value={form.national_id} onChange={(e) => setForm({ ...form, national_id: e.target.value })} aria-label="رقم الهوية" className="h-12 rounded-xl border-border-subtle font-medium" />
+          <Input
+            type="number"
+            dir="ltr"
+            value={form.national_id}
+            onChange={(e) => setForm({ ...form, national_id: e.target.value })}
+            aria-label="رقم الهوية"
+            className="h-12 rounded-xl border-border-subtle font-medium"
+          />
         </div>
         <div className="space-y-1.5">
           <label className="block text-sm font-bold text-text-body">رقم الجوال</label>
-          <Input type="tel" dir="ltr" value={form.phone_number} onChange={(e) => setForm({ ...form, phone_number: e.target.value })} aria-label="رقم الجوال" className="h-12 rounded-xl border-border-subtle font-medium" />
+          <Input
+            type="tel"
+            dir="ltr"
+            value={form.phone_number}
+            onChange={(e) => setForm({ ...form, phone_number: e.target.value })}
+            aria-label="رقم الجوال"
+            className="h-12 rounded-xl border-border-subtle font-medium"
+          />
         </div>
         <div className="space-y-1.5">
           <label className="block text-sm font-bold text-text-body">التخصص</label>
-          <Input value={form.specialization} onChange={(e) => setForm({ ...form, specialization: e.target.value })} aria-label="التخصص" className="h-12 rounded-xl border-border-subtle font-medium" />
+          <Input
+            value={form.specialization}
+            onChange={(e) => setForm({ ...form, specialization: e.target.value })}
+            aria-label="التخصص"
+            className="h-12 rounded-xl border-border-subtle font-medium"
+          />
         </div>
         <div className="space-y-1.5">
           <label className="block text-sm font-bold text-text-body">اسم الحلقة</label>
-          <Input value={form.ring_name} onChange={(e) => setForm({ ...form, ring_name: e.target.value })} aria-label="اسم الحلقة" className="h-12 rounded-xl border-border-subtle font-medium" />
+          <Input
+            value={form.ring_name}
+            onChange={(e) => setForm({ ...form, ring_name: e.target.value })}
+            aria-label="اسم الحلقة"
+            className="h-12 rounded-xl border-border-subtle font-medium"
+          />
         </div>
         <div className="space-y-1.5">
           <label className="block text-sm font-bold text-text-body">التباعية</label>
@@ -326,7 +563,7 @@ export function EditTeacherModal({
             value={form.affiliation}
             onChange={(e) => setForm({ ...form, affiliation: e.target.value })}
             aria-label="التباعية"
-            className="w-full h-12 rounded-xl border border-border-subtle px-3 bg-white text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/20"
+            className="h-12 w-full rounded-xl border border-border-subtle bg-white px-3 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/20"
           >
             <option value="">اختر التباعية...</option>
             <option value="dar_quran">دار القرآن</option>
@@ -334,6 +571,28 @@ export function EditTeacherModal({
             <option value="sheikh_tabaea">شيخ التباعية</option>
           </select>
         </div>
+
+        <div className="space-y-2">
+          <label className="block text-sm font-bold text-text-body">أيام الحلقة</label>
+          <DaysPicker
+            value={form.session_days}
+            onChange={(next) => setForm({ ...form, session_days: next })}
+          />
+          <p className="text-[11px] text-text-muted">
+            اختر الأيام التي تُقام فيها الحلقة خلال الأسبوع.
+          </p>
+        </div>
+
+        <div className="space-y-2">
+          <label className="block text-sm font-bold text-text-body">
+            الحد الأقصى للطلاب
+          </label>
+          <MaxStudentsStepper
+            value={form.max_students}
+            onChange={(n) => setForm({ ...form, max_students: n })}
+          />
+        </div>
+
         <div className="space-y-1.5">
           <label className="block text-sm font-bold text-text-body">الدورات</label>
           <CoursesCheckboxList
@@ -345,14 +604,26 @@ export function EditTeacherModal({
         </div>
       </div>
 
-      {error && <p className="text-sm text-red-500 mb-4">{error}</p>}
+      {error && <p className="mb-4 text-sm text-red-500">{error}</p>}
 
       <div className="flex items-center gap-3">
-        <Button variant="ghost" onClick={onClose} className="flex-1 bg-border-card/80 text-text-body hover:bg-border-subtle h-12 rounded-xl font-bold">
+        <Button
+          variant="ghost"
+          onClick={onClose}
+          className="h-12 flex-1 rounded-xl bg-border-card/80 font-bold text-text-body hover:bg-border-subtle"
+        >
           إلغاء
         </Button>
-        <Button onClick={handleSubmit} disabled={isSubmitting} className="flex-[1.5] h-12 rounded-xl font-bold gap-2">
-          {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+        <Button
+          onClick={handleSubmit}
+          disabled={isSubmitting}
+          className="h-12 flex-[1.5] gap-2 rounded-xl font-bold"
+        >
+          {isSubmitting ? (
+            <Loader2 className="h-5 w-5 animate-spin" />
+          ) : (
+            <Save className="h-5 w-5" />
+          )}
           حفظ التعديلات
         </Button>
       </div>

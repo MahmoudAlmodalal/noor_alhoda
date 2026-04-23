@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNotifications } from "@/contexts/NotificationsContext";
+import { SyncStatusBadge } from "@/components/offline/SyncStatusBadge";
 import type { UserProfile } from "@/types/api";
 
 type Role = UserProfile["role"];
@@ -124,7 +125,10 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
                     </div>
 
                     <div className="px-4 mt-auto">
-                        <div className="border-t border-border-subtle mb-4 px-2" />
+                        <div className="border-t border-border-subtle mb-3 px-2" />
+                        <div className="mb-2">
+                            <SyncStatusBadge />
+                        </div>
                         <button
                             onClick={() => logout()}
                             className="flex w-full items-center space-x-reverse space-x-3 px-4 py-3 rounded-[14px] text-red-600 hover:bg-red-50 font-medium transition-colors"

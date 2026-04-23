@@ -1,142 +1,210 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Search, UserPlus, Edit, Trash2, UserCog } from "lucide-react";
-import { Input } from "@/components/ui/Input";
+import { ChevronLeft, ChevronRight, Search, UserPlus, UserX } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { Card, CardContent } from "@/components/ui/Card";
+import { Input } from "@/components/ui/Input";
 import { PageLoading } from "@/components/ui/LoadingSpinner";
 import { useQuery } from "@/hooks/useApi";
 import { useDebounce } from "@/hooks/useDebounce";
-import type { TeacherWithUser } from "@/hooks/queries";
+import type { StudentWithTeacher, TeacherWithUser } from "@/hooks/queries";
+import { TeachersHeroStats } from "@/components/teachers/TeachersHeroStats";
+import { TeacherCard } from "@/components/teachers/TeacherCard";
 import {
   AddTeacherModal,
-  EditTeacherModal,
   ConfirmDeleteModal,
+  EditTeacherModal,
 } from "@/components/modals/TeacherModals";
 import { RoleGate } from "@/components/auth/RoleGate";
 
+const PAGE_SIZE = 12;
+
+const DAY_FILTER_OPTIONS: { value: string; label: string }[] = [
+  { value: "", label: "كل الأيام" },
+  { value: "sat", label: "السبت" },
+  { value: "sun", label: "الأحد" },
+  { value: "mon", label: "الاثنين" },
+  { value: "tue", label: "الثلاثاء" },
+  { value: "wed", label: "الأربعاء" },
+  { value: "thu", label: "الخميس" },
+];
+
+const ARABIC_DAY_TO_CODE: Record<string, string> = {
+  السبت: "sat",
+  الأحد: "sun",
+  الاثنين: "mon",
+  الإثنين: "mon",
+  الثلاثاء: "tue",
+  الأربعاء: "wed",
+  الخميس: "thu",
+};
+
+function matchesDay(sessionDays: string[] | undefined, dayCode: string): boolean {
+  if (!dayCode) return true;
+  if (!sessionDays?.length) return false;
+  return sessionDays.some((d) => {
+    const trimmed = d.trim();
+    if (trimmed.toLowerCase() === dayCode) return true;
+    if (ARABIC_DAY_TO_CODE[trimmed] === dayCode) return true;
+    return false;
+  });
+}
+
 function TeachersPageInner() {
   const [search, setSearch] = useState("");
+  const [dayFilter, setDayFilter] = useState("");
+  const [page, setPage] = useState(1);
   const debouncedSearch = useDebounce(search);
+
   const { data: teachers, isLoading } = useQuery<TeacherWithUser[]>("teachers");
+  const { data: students } = useQuery<StudentWithTeacher[]>("students_with_teacher");
 
   const [showAdd, setShowAdd] = useState(false);
   const [editTeacher, setEditTeacher] = useState<TeacherWithUser | null>(null);
   const [deleteTeacher, setDeleteTeacher] = useState<TeacherWithUser | null>(null);
 
-  const teacherList = useMemo(() => {
+  const studentsByTeacher = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const s of students ?? []) {
+      if (!s.teacher_id) continue;
+      map.set(s.teacher_id, (map.get(s.teacher_id) ?? 0) + 1);
+    }
+    return map;
+  }, [students]);
+
+  const totalAssignedStudents = useMemo(() => {
+    return (students ?? []).filter((s) => Boolean(s.teacher_id)).length;
+  }, [students]);
+
+  const activeHalaqas = useMemo(() => {
+    const set = new Set<string>();
+    for (const t of teachers ?? []) {
+      const name = (t.ring_name ?? "").trim();
+      if (name) set.add(name);
+    }
+    return set.size;
+  }, [teachers]);
+
+  const filtered = useMemo(() => {
     const all = teachers ?? [];
     const q = debouncedSearch.trim().toLowerCase();
-    if (!q) return all;
-    return all.filter(
-      (t) =>
-        t.full_name.toLowerCase().includes(q) ||
-        (t.national_id ?? "").toLowerCase().includes(q)
-    );
-  }, [teachers, debouncedSearch]);
+    let result = all;
+    if (q) {
+      result = result.filter(
+        (t) =>
+          t.full_name.toLowerCase().includes(q) ||
+          (t.national_id ?? "").toLowerCase().includes(q) ||
+          (t.ring_name ?? "").toLowerCase().includes(q)
+      );
+    }
+    if (dayFilter) {
+      result = result.filter((t) => matchesDay(t.session_days, dayFilter));
+    }
+    return result
+      .slice()
+      .sort((a, b) => a.full_name.localeCompare(b.full_name, "ar"));
+  }, [teachers, debouncedSearch, dayFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(Math.max(1, page), totalPages);
+  const visible = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   if (isLoading && !teachers) return <PageLoading />;
 
-  return (
-    <div className="space-y-6 max-w-lg mx-auto">
-      <div className="text-center space-y-1 mb-6">
-        <h1 className="text-2xl font-bold text-primary">إدارة المحفظين</h1>
-        <p className="text-sm text-text-muted">إضافة وتعيين الحلقات لمعلمي التحفيظ</p>
-      </div>
+  const hasAnyTeachers = (teachers ?? []).length > 0;
 
-      <div className="space-y-4">
-        <Input
-          icon={<Search className="w-5 h-5" />}
-          placeholder="البحث بالاسم..."
-          className="rounded-2xl h-14"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
+  return (
+    <div className="mx-auto max-w-7xl space-y-6 pb-10">
+      <TeachersHeroStats
+        teachersCount={(teachers ?? []).length}
+        assignedStudentsCount={totalAssignedStudents}
+        activeHalaqasCount={activeHalaqas}
+      />
+
+      <div className="flex flex-col gap-3 rounded-[24px] border border-border-card bg-white p-4 shadow-sm md:flex-row md:items-center md:gap-3">
+        <div className="flex-1">
+          <Input
+            icon={<Search className="h-5 w-5" />}
+            placeholder="ابحث بالاسم أو رقم الهوية أو اسم الحلقة..."
+            className="h-12 rounded-[14px] bg-surface-subtle"
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            aria-label="البحث عن محفظ"
+          />
+        </div>
+        <select
+          value={dayFilter}
+          onChange={(e) => {
+            setDayFilter(e.target.value);
+            setPage(1);
+          }}
+          aria-label="فلترة حسب يوم الحلقة"
+          className="h-12 rounded-[14px] border border-[#e5e7eb] bg-surface-subtle px-4 text-sm font-medium text-text-body focus:outline-none focus:ring-2 focus:ring-primary/20 md:w-48"
+        >
+          {DAY_FILTER_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
         <Button
           onClick={() => setShowAdd(true)}
-          className="w-full h-14 rounded-2xl gap-2 font-bold text-base shadow-md shadow-primary/20"
+          className="h-12 gap-2 rounded-[14px] px-5 font-bold"
         >
-          إضافة محفظ جديد
-          <UserPlus className="w-5 h-5" />
+          <UserPlus className="h-5 w-5" />
+          إضافة محفظ
         </Button>
       </div>
 
-      <div className="space-y-4">
-        {teacherList.length === 0 ? (
-          <div className="text-center py-12">
-            <UserCog className="w-12 h-12 text-text-muted mx-auto mb-3" />
-            <p className="text-sm text-text-muted font-medium">لا يوجد محفظون مسجلون</p>
-          </div>
-        ) : (
-          teacherList.map((teacher) => (
-            <Card key={teacher.id} className="rounded-[24px] border-border-card shadow-sm overflow-hidden pt-4 relative">
-              <CardContent className="p-5">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="bg-[#eef3f8] w-12 h-12 rounded-full flex items-center justify-center shrink-0">
-                    <UserCog className="w-6 h-6 text-primary" />
-                  </div>
-                  <h3 className="font-bold text-text-title text-lg">{teacher.full_name}</h3>
-                </div>
+      {hasAnyTeachers ? (
+        <div className="flex items-center justify-between rounded-[16px] border border-border-card bg-white px-4 py-2.5 text-sm text-text-muted shadow-sm">
+          <span>
+            عرض <span className="font-bold text-text-title">{visible.length}</span> من{" "}
+            <span className="font-bold text-text-title">{filtered.length}</span> محفظ
+          </span>
+          {totalPages > 1 ? (
+            <span className="text-xs">
+              الصفحة {safePage} من {totalPages}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
 
-                <div className="space-y-3 mb-6">
-                  <div className="flex justify-between items-center bg-surface-subtle p-2.5 rounded-lg px-4">
-                    <span className="text-sm text-text-muted font-medium">رقم الهوية:</span>
-                    <span className="text-sm font-semibold text-text-body" dir="ltr">{teacher.national_id || "—"}</span>
-                  </div>
+      {visible.length === 0 ? (
+        <EmptyState
+          hasFilters={Boolean(debouncedSearch || dayFilter)}
+          onClearFilters={() => {
+            setSearch("");
+            setDayFilter("");
+            setPage(1);
+          }}
+          onAdd={() => setShowAdd(true)}
+        />
+      ) : (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {visible.map((teacher, idx) => (
+            <TeacherCard
+              key={teacher.id}
+              teacher={teacher}
+              studentsCount={studentsByTeacher.get(teacher.id) ?? 0}
+              onEdit={() => setEditTeacher(teacher)}
+              onDelete={() => setDeleteTeacher(teacher)}
+              animationDelay={idx * 40}
+            />
+          ))}
+        </div>
+      )}
 
-                  <div className="flex justify-between items-center bg-surface-subtle p-2.5 rounded-lg px-4">
-                    <span className="text-sm text-text-muted font-medium">التخصص:</span>
-                    <span className="text-sm font-semibold text-text-body">{teacher.specialization || "—"}</span>
-                  </div>
-
-                  <div className="flex justify-between items-center bg-surface-subtle p-2.5 rounded-lg px-4">
-                    <span className="text-sm text-text-muted font-medium">التباعية:</span>
-                    <span className="text-sm font-semibold text-text-body">
-                      {teacher.affiliation === "dar_quran" ? "دار القرآن" :
-                       teacher.affiliation === "awqaf" ? "أوقاف" :
-                       teacher.affiliation === "sheikh_tabaea" ? "شيخ التباعية" :
-                       teacher.affiliation || "—"}
-                    </span>
-                  </div>
-
-                  <div className="flex justify-between items-center bg-surface-subtle p-2.5 rounded-lg px-4">
-                    <span className="text-sm text-text-muted font-medium">اسم الحلقة:</span>
-                    <span className="text-sm font-semibold text-text-body">{teacher.ring_name || "—"}</span>
-                  </div>
-
-                  <div className="flex justify-between items-center bg-surface-subtle p-2.5 rounded-lg px-4">
-                    <span className="text-sm text-text-muted font-medium">أيام الحلقة:</span>
-                    <span className="text-sm font-semibold text-text-body">
-                      {teacher.session_days?.length ? teacher.session_days.join(", ") : "غير محدد"}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 pt-4 border-t border-border-card">
-                  <Button
-                    variant="ghost" size="icon"
-                    className="text-text-muted hover:text-primary hover:bg-surface-subtle"
-                    onClick={() => setEditTeacher(teacher)}
-                    aria-label={`تعديل المحفظ ${teacher.full_name}`}
-                  >
-                    <Edit className="w-4 h-4" />
-                  </Button>
-                  <div className="w-px h-6 bg-border-card" />
-                  <Button
-                    variant="ghost" size="icon"
-                    className="text-text-muted hover:text-red-600 hover:bg-red-50"
-                    onClick={() => setDeleteTeacher(teacher)}
-                    aria-label={`حذف المحفظ ${teacher.full_name}`}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))
-        )}
-      </div>
+      {totalPages > 1 ? (
+        <PaginationBar
+          page={safePage}
+          totalPages={totalPages}
+          onPageChange={setPage}
+        />
+      ) : null}
 
       <AddTeacherModal
         isOpen={showAdd}
@@ -144,16 +212,16 @@ function TeachersPageInner() {
         onSuccess={() => setShowAdd(false)}
       />
 
-      {editTeacher && (
+      {editTeacher ? (
         <EditTeacherModal
           isOpen={!!editTeacher}
           onClose={() => setEditTeacher(null)}
           teacher={editTeacher}
           onSuccess={() => setEditTeacher(null)}
         />
-      )}
+      ) : null}
 
-      {deleteTeacher && (
+      {deleteTeacher ? (
         <ConfirmDeleteModal
           isOpen={!!deleteTeacher}
           onClose={() => setDeleteTeacher(null)}
@@ -162,7 +230,87 @@ function TeachersPageInner() {
           targetId={deleteTeacher.id}
           onSuccess={() => setDeleteTeacher(null)}
         />
-      )}
+      ) : null}
+    </div>
+  );
+}
+
+function EmptyState({
+  hasFilters,
+  onClearFilters,
+  onAdd,
+}: {
+  hasFilters: boolean;
+  onClearFilters: () => void;
+  onAdd: () => void;
+}) {
+  return (
+    <div className="rounded-[24px] border border-dashed border-border-card bg-white p-10 text-center shadow-sm">
+      <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-tile-blue">
+        <UserX className="h-8 w-8 text-primary" />
+      </div>
+      <h3 className="mb-1 text-lg font-bold text-text-title">
+        {hasFilters ? "لا توجد نتائج مطابقة" : "لا يوجد محفظون بعد"}
+      </h3>
+      <p className="mb-5 text-sm text-text-muted">
+        {hasFilters
+          ? "جرّب تعديل كلمة البحث أو إزالة الفلاتر لرؤية المزيد."
+          : "ابدأ بإضافة أول محفظ لإدارة الحلقات."}
+      </p>
+      <div className="flex items-center justify-center gap-2">
+        {hasFilters ? (
+          <Button
+            variant="outline"
+            onClick={onClearFilters}
+            className="h-11 rounded-[12px] px-5 font-bold"
+          >
+            مسح الفلاتر
+          </Button>
+        ) : null}
+        <Button
+          onClick={onAdd}
+          className="h-11 gap-2 rounded-[12px] px-5 font-bold"
+        >
+          <UserPlus className="h-4 w-4" />
+          إضافة محفظ جديد
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function PaginationBar({
+  page,
+  totalPages,
+  onPageChange,
+}: {
+  page: number;
+  totalPages: number;
+  onPageChange: (next: number) => void;
+}) {
+  return (
+    <div className="flex items-center justify-between rounded-[16px] border border-border-card bg-white px-4 py-3 shadow-sm">
+      <button
+        type="button"
+        onClick={() => onPageChange(page - 1)}
+        disabled={page <= 1}
+        className="inline-flex items-center gap-1 rounded-[10px] border border-border-subtle px-3 py-2 text-sm font-semibold text-text-body transition-colors hover:bg-surface-subtle disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        <ChevronRight className="h-4 w-4" />
+        السابق
+      </button>
+      <span className="text-sm font-bold text-text-title">
+        صفحة {page} من {totalPages}
+      </span>
+      <button
+        type="button"
+        onClick={() => onPageChange(page + 1)}
+        disabled={page >= totalPages}
+        className="inline-flex items-center gap-1 rounded-[10px] border border-border-subtle px-3 py-2 text-sm font-semibold text-text-body transition-colors hover:bg-surface-subtle disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        التالي
+        <ChevronLeft className="h-4 w-4" />
+      </button>
     </div>
   );
 }

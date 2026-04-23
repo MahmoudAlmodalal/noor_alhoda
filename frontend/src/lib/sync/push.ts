@@ -8,8 +8,7 @@
 import { api } from "@/lib/api";
 
 import { hasSessionKey } from "../db/auth";
-import { emitChange, emitChanges, type ResourceName } from "../db/events";
-import { getDb } from "../db/schema";
+import { emitChanges, type ResourceName } from "../db/events";
 import {
   upsertCourses,
   upsertEvaluations,
@@ -18,7 +17,6 @@ import {
   upsertParentStudentLinks,
   upsertStudentCourses,
   upsertTeachers,
-  upsertUsers,
 } from "../db/repos/misc";
 import {
   upsertDailyRecords,
@@ -132,25 +130,16 @@ async function applyResult(
   r: PerOpResult,
   touched: Set<ResourceName>
 ): Promise<void> {
-  const db = getDb();
-
-  if (r.status === "synced") {
+  if (r.status === "synced" || r.status === "conflict") {
     if (r.row) {
-      const resource = (r.row as { _resource?: string })._resource as
-        | ResourceName
-        | undefined;
-      await applyServerRow(r.row);
+      const resource = await applyServerRow(r.row);
       if (resource) touched.add(resource);
     }
-    await markSynced(r.client_id);
-    return;
-  }
-
-  if (r.status === "conflict") {
-    if (r.row) {
-      await applyServerRow(r.row);
+    if (r.status === "synced") {
+      await markSynced(r.client_id);
+    } else {
+      await markConflict(r.client_id, r.error?.message ?? "");
     }
-    await markConflict(r.client_id, r.error?.message ?? "");
     return;
   }
 
@@ -159,63 +148,53 @@ async function applyResult(
 }
 
 /**
- * Applies a server-authoritative row to the local DB. The row doesn't
- * carry an explicit resource tag; infer it from the shape.
+ * Applies a server-authoritative row to the local DB, dispatching on the
+ * `_resource` tag that the backend injects in `push_services._conflict_row`.
+ * Returns the resource name so the caller can emit the right change event.
  */
-async function applyServerRow(row: Record<string, unknown>): Promise<void> {
-  // Resource discrimination — mirror the shape checks in each repo.
-  if ("teacher_id" in row && "guardian_mobile" in row) {
-    await upsertStudents([row as never]);
-    return;
-  }
-  if ("weekly_plan_id" in row && "day" in row) {
-    await upsertDailyRecords([row as never]);
-    return;
-  }
-  if ("student_id" in row && "week_start" in row) {
-    await upsertWeeklyPlans([row as never]);
-    return;
-  }
-  if ("student_id" in row && "reviewed_date" in row) {
-    await upsertReviewRecords([row as never]);
-    return;
-  }
-  if ("student_id" in row && "scheduled_date" in row) {
-    await upsertEvaluations([row as never]);
-    return;
-  }
-  if ("recipient_id" in row && "is_read" in row) {
-    await upsertNotifications([row as never]);
-    return;
-  }
-  if ("name" in row && "description" in row && !("student_id" in row)) {
-    await upsertCourses([row as never]);
-    return;
-  }
-  if ("student_id" in row && "course_id" in row) {
-    await upsertStudentCourses([row as never]);
-    return;
-  }
-  if ("parent_id" in row && "student_id" in row) {
-    await upsertParentStudentLinks([row as never]);
-    return;
-  }
-  if ("specialization" in row || "ring_name" in row) {
-    await upsertTeachers([row as never]);
-    return;
-  }
-  if ("user_id" in row && !("full_name" in row)) {
-    await upsertParents([row as never]);
-    return;
-  }
-  if ("national_id" in row && "role" in row) {
-    await upsertUsers([row as never]);
-    return;
-  }
-  // Last-ditch: still try parents (has full_name + user_id but little else).
-  if ("user_id" in row && "full_name" in row) {
-    await upsertParents([row as never]);
-    return;
+async function applyServerRow(
+  row: Record<string, unknown>
+): Promise<ResourceName | undefined> {
+  const resource = (row as { _resource?: string })._resource;
+  switch (resource) {
+    case "student":
+      await upsertStudents([row as never]);
+      return "student";
+    case "teacher":
+      await upsertTeachers([row as never]);
+      return "teacher";
+    case "parent":
+      await upsertParents([row as never]);
+      return "parent";
+    case "parent_student_link":
+      await upsertParentStudentLinks([row as never]);
+      return "parent_student_link";
+    case "weekly_plan":
+      await upsertWeeklyPlans([row as never]);
+      return "weekly_plan";
+    case "daily_record":
+      await upsertDailyRecords([row as never]);
+      return "daily_record";
+    case "review_record":
+      await upsertReviewRecords([row as never]);
+      return "review_record";
+    case "evaluation":
+      await upsertEvaluations([row as never]);
+      return "evaluation";
+    case "notification":
+      await upsertNotifications([row as never]);
+      return "notification";
+    case "course":
+      await upsertCourses([row as never]);
+      return "course";
+    case "student_course":
+      await upsertStudentCourses([row as never]);
+      return "student_course";
+    default:
+      if (typeof console !== "undefined") {
+        console.warn("[sync] push response row missing _resource tag:", resource);
+      }
+      return undefined;
   }
 }
 

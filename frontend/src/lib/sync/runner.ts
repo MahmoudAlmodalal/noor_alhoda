@@ -52,6 +52,15 @@ export function startSyncRunner(): void {
   }
 }
 
+/**
+ * Trigger an immediate push → pull cycle. Exposed for the manual "Sync
+ * Now" button. Coalesces with in-flight sync via `pullInFlight` and the
+ * push-side guard.
+ */
+export async function runSyncNow(): Promise<void> {
+  await maybeSync();
+}
+
 export function stopSyncRunner(): void {
   if (heartbeat !== null) clearInterval(heartbeat);
   heartbeat = null;

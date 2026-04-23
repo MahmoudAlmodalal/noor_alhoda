@@ -76,6 +76,28 @@
   --color-role-student-text: #008236;
   --color-role-parent-bg:  #e0e7ff;
   --color-role-parent-text:  #4338ca;
+
+  /* Quality pill palette */
+  --color-quality-excellent-bg:  #dcfce7; --color-quality-excellent-text:  #008236;
+  --color-quality-good-bg:       #fef9c3; --color-quality-good-text:       #854d0e;
+  --color-quality-acceptable-bg: #fed7aa; --color-quality-acceptable-text: #9a3412;
+  --color-quality-weak-bg:       #ffe2e2; --color-quality-weak-text:       #c10007;
+  --color-quality-none-bg:       #f3f4f6; --color-quality-none-text:       #6a7282;
+
+  /* Typography scale — from Foundations · Typography (PDF page 5) */
+  --text-display: 32px;  --text-display--line-height: 38px;  --text-display--font-weight: 800;
+  --text-h1:      24px;  --text-h1--line-height:      31px;  --text-h1--font-weight:      700;
+  --text-h2:      20px;  --text-h2--line-height:      27px;  --text-h2--font-weight:      700;
+  --text-h3:      18px;  --text-h3--line-height:      25px;  --text-h3--font-weight:      700;
+  --text-large:   16px;  --text-large--line-height:   24px;  --text-large--font-weight:   600;
+  --text-body:    14px;  --text-body--line-height:    22px;  --text-body--font-weight:    400;
+  --text-small:   13px;  --text-small--line-height:   20px;  --text-small--font-weight:   400;
+  --text-micro:   12px;  --text-micro--line-height:   17px;  --text-micro--font-weight:   500;
+  --text-tiny:    11px;  --text-tiny--line-height:    15px;  --text-tiny--font-weight:    700;
+
+  /* Motion easing — from Foundations · Motion (PDF page 6) */
+  --ease-quranic: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-drawer:  cubic-bezier(0.65, 0, 0.35, 1);
 }
 
 body {
