@@ -30,7 +30,7 @@ export function StaleDataBanner() {
       const row = await readAuth();
       if (!alive) return;
       if (!row?.last_sync_at) {
-        // No sync yet — DownloadScreen handles that case.
+        // No sync yet — InitialDownloadBanner handles that case.
         setStale(false);
         return;
       }

@@ -13,11 +13,13 @@ from students.views.student_views import (
     StudentReviewCompleteApi,
     StudentReviewIntervalApi,
 )
+from students.views.student_export_views import StudentExportApi
 
 urlpatterns = [
     path("", StudentListApi.as_view(), name="student-list"),
     path("create/", StudentCreateApi.as_view(), name="student-create"),
     path("bulk-create/", StudentBulkCreateApi.as_view(), name="student-bulk-create"),
+    path("export/", StudentExportApi.as_view(), name="student-export"),
     path("<uuid:student_id>/", StudentDetailApi.as_view(), name="student-detail"),
     path("<uuid:student_id>/history/", StudentHistoryApi.as_view(), name="student-history"),
     path("<uuid:student_id>/stats/", StudentStatsApi.as_view(), name="student-stats"),

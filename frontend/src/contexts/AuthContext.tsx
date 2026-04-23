@@ -6,6 +6,7 @@ import {
   useState,
   useEffect,
   useCallback,
+  useRef,
   type ReactNode,
 } from "react";
 import { api } from "@/lib/api";
@@ -18,8 +19,17 @@ import {
   unlockOffline,
 } from "@/lib/db/auth";
 import { wipeDb } from "@/lib/db/schema";
+import { downloadFullDb, type DownloadProgress } from "@/lib/sync/download";
 import { startSyncRunner, stopSyncRunner } from "@/lib/sync/runner";
 import type { UserProfile } from "@/types/api";
+
+// Auto-retry for the initial background download. Manual retry resets
+// the counter; the watchdog inside downloadFullDb handles per-request
+// timeouts, so these values only govern how quickly we recover from a
+// server that bounces between up/down.
+const MAX_AUTO_RETRIES = 4;
+const RETRY_BASE_MS = 2_000;
+const RETRY_CAP_MS = 30_000;
 
 // Logout keeps the encrypted local DB on-device so the same user can
 // re-login offline. A different user on the same device triggers a wipe
@@ -37,13 +47,19 @@ interface AuthContextValue {
   dbUnlocked: boolean;
   isOfflineSession: boolean;
   /**
-   * True when we just logged this user in online AND no prior sync has
-   * landed on this device (`auth.last_sync_at === null`). The dashboard
-   * should render `<DownloadScreen />` until `markInitialDownloadComplete`
-   * fires, which then starts the sync runner.
+   * True when we just logged this user in AND no prior sync has landed on
+   * this device (`auth.last_sync_at === null`). While true, a background
+   * download is in flight (see `isDownloading`) and `InitialDownloadBanner`
+   * shows progress without blocking the dashboard.
    */
   needsInitialDownload: boolean;
   markInitialDownloadComplete: () => void;
+  /** True while `downloadFullDb()` is actively running in the background. */
+  isDownloading: boolean;
+  downloadProgress: DownloadProgress | null;
+  downloadError: string | null;
+  /** User-initiated retry from the banner; resets the auto-retry counter. */
+  retryInitialDownload: () => void;
   login: (
     national_id: string,
     password: string
@@ -61,6 +77,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [dbUnlocked, setDbUnlocked] = useState(false);
   const [isOfflineSession, setIsOfflineSession] = useState(false);
   const [needsInitialDownload, setNeedsInitialDownload] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState<DownloadProgress | null>(null);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+  // Bumping `runToken` re-arms the initial-download effect. Used by both
+  // the auto-retry scheduler and the manual retry button.
+  const [runToken, setRunToken] = useState(0);
+  const autoAttemptRef = useRef(0);
+  const inFlightRef = useRef(false);
 
   // Fetch server profile and hydrate user state.
   const fetchMe = useCallback(async (): Promise<boolean> => {
@@ -91,6 +115,82 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const markInitialDownloadComplete = useCallback(() => {
     setNeedsInitialDownload(false);
     startSyncRunner();
+  }, []);
+
+  // Kick off the initial full-DB download as a background task whenever
+  // the app determines this is the first login on this device and the DB
+  // is unlocked. Pages render with their existing empty states and
+  // populate via `emitChanges` → `useQuery` as tables are upserted. The
+  // banner component (`InitialDownloadBanner`) reads download state from
+  // this context and renders a non-blocking progress strip.
+  useEffect(() => {
+    if (!needsInitialDownload || !dbUnlocked || isOfflineSession) return;
+    if (inFlightRef.current) return;
+
+    inFlightRef.current = true;
+    let cancelled = false;
+    setIsDownloading(true);
+    setDownloadError(null);
+    setDownloadProgress({ phase: "downloading", percent: 0 });
+
+    void (async () => {
+      try {
+        const result = await downloadFullDb((p) => {
+          if (!cancelled) setDownloadProgress(p);
+        });
+        if (cancelled) return;
+        if (result.ok) {
+          autoAttemptRef.current = 0;
+          setDownloadError(null);
+          setIsDownloading(false);
+          setDownloadProgress(null);
+          markInitialDownloadComplete();
+        } else {
+          setDownloadError(result.error ?? "فشل التنزيل.");
+          setIsDownloading(false);
+        }
+      } catch (err) {
+        if (cancelled) return;
+        console.error("[AuthContext] initial download threw:", err);
+        setDownloadError(err instanceof Error ? err.message : String(err));
+        setIsDownloading(false);
+      } finally {
+        inFlightRef.current = false;
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    needsInitialDownload,
+    dbUnlocked,
+    isOfflineSession,
+    runToken,
+    markInitialDownloadComplete,
+  ]);
+
+  // Auto-retry on error with exponential backoff, capped at MAX_AUTO_RETRIES.
+  // After the cap, only `retryInitialDownload` (manual button) re-arms.
+  useEffect(() => {
+    if (!downloadError || isOfflineSession) return;
+    if (autoAttemptRef.current >= MAX_AUTO_RETRIES) return;
+    const delay = Math.min(
+      RETRY_BASE_MS * 2 ** autoAttemptRef.current,
+      RETRY_CAP_MS
+    );
+    autoAttemptRef.current += 1;
+    const id = setTimeout(() => {
+      setDownloadError(null);
+      setRunToken((t) => t + 1);
+    }, delay);
+    return () => clearTimeout(id);
+  }, [downloadError, isOfflineSession]);
+
+  const retryInitialDownload = useCallback(() => {
+    autoAttemptRef.current = 0;
+    setDownloadError(null);
+    setRunToken((t) => t + 1);
   }, []);
 
   // On boot: if tokens exist and network is available, refresh user from
@@ -222,7 +322,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setIsOfflineSession(true);
           // Offline session with no prior sync = nothing to show; force a
           // user-visible message by flagging the download requirement. The
-          // DownloadScreen will show an offline error until they reconnect.
+          // InitialDownloadBanner will show an offline hint until they reconnect.
           if (row.last_sync_at === null) {
             setNeedsInitialDownload(true);
           } else {
@@ -265,6 +365,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setDbUnlocked(false);
     setIsOfflineSession(false);
     setNeedsInitialDownload(false);
+    setIsDownloading(false);
+    setDownloadProgress(null);
+    setDownloadError(null);
+    autoAttemptRef.current = 0;
     setUser(null);
     // Keep the encrypted IndexedDB so the same user can re-login offline.
     // A different user triggers a wipe via initializeOrUnlockSession.
@@ -282,6 +386,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setDbUnlocked(false);
     setIsOfflineSession(false);
     setNeedsInitialDownload(false);
+    setIsDownloading(false);
+    setDownloadProgress(null);
+    setDownloadError(null);
+    autoAttemptRef.current = 0;
     setUser(null);
     try {
       await wipeDb();
@@ -301,6 +409,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isOfflineSession,
         needsInitialDownload,
         markInitialDownloadComplete,
+        isDownloading,
+        downloadProgress,
+        downloadError,
+        retryInitialDownload,
         login,
         logout,
         wipeDeviceData,

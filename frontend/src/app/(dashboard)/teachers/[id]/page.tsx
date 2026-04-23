@@ -1,6 +1,7 @@
 "use client";
 
 import { use, useMemo, useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -133,7 +134,9 @@ function TeacherDetailInner({ id }: { id: string }) {
     return map;
   }, [todayRecords]);
 
-  if (teachersLoading && !teachers) return <PageLoading />;
+  const { isDownloading } = useAuth();
+
+  if ((teachersLoading || isDownloading) && !teacher) return <PageLoading />;
 
   if (!teacher) {
     return (

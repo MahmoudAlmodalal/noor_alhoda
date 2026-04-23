@@ -10,8 +10,7 @@ import { OfflineBanner } from "@/components/offline/OfflineBanner";
 import { InstallPrompt } from "@/components/offline/InstallPrompt";
 import { CacheWarmer } from "@/components/offline/CacheWarmer";
 import { StaleDataBanner } from "@/components/offline/StaleDataBanner";
-import { DownloadScreen } from "@/components/offline/DownloadScreen";
-import { useAuth } from "@/contexts/AuthContext";
+import { InitialDownloadBanner } from "@/components/offline/InitialDownloadBanner";
 
 async function hardReload() {
     try {
@@ -27,7 +26,6 @@ async function hardReload() {
 export function LayoutWrapper({ children }: { children: React.ReactNode }) {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [reloading, setReloading] = useState(false);
-    const { needsInitialDownload } = useAuth();
 
     return (
         <NotificationsProvider>
@@ -68,6 +66,7 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
                         </div>
                     </header>
 
+                    <InitialDownloadBanner />
                     <StaleDataBanner />
                     <OfflineBanner />
 
@@ -82,7 +81,6 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
 
             <InstallPrompt />
             <CacheWarmer />
-            {needsInitialDownload && <DownloadScreen />}
         </NotificationsProvider>
     );
 }

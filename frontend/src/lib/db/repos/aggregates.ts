@@ -108,6 +108,41 @@ export async function dashboardStats(): Promise<DashboardStats> {
 }
 
 // ---------------------------------------------------------------------------
+// Students overview (students list hero)
+// ---------------------------------------------------------------------------
+
+export interface StudentsOverviewStats {
+  total: number;
+  present_today: number;
+  unassigned: number;
+}
+
+export async function studentsOverviewStats(): Promise<StudentsOverviewStats> {
+  const [students, todayRecords, plans] = await Promise.all([
+    listStudents(),
+    listDailyRecordsForDate(todayIso()),
+    listWeeklyPlans(),
+  ]);
+
+  const planToStudent = new Map<string, string>();
+  for (const p of plans) planToStudent.set(p.id, p.student_id);
+
+  const presentToday = new Set<string>();
+  for (const r of todayRecords) {
+    if (r.attendance === "present") {
+      const sid = planToStudent.get(r.weekly_plan_id);
+      if (sid) presentToday.add(sid);
+    }
+  }
+
+  return {
+    total: students.length,
+    present_today: presentToday.size,
+    unassigned: students.filter((s) => !s.teacher_id).length,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Student stats
 // ---------------------------------------------------------------------------
 

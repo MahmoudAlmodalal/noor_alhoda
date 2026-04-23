@@ -17,6 +17,7 @@ import {
   studentCoursesForStudent,
   studentHistory,
   studentStats,
+  studentsOverviewStats,
   tasksToday,
   weeklySummary,
 } from "@/lib/db/repos/aggregates";
@@ -43,6 +44,10 @@ import {
   type ReviewRecordRecord,
   type WeeklyPlanRecord,
 } from "@/lib/db/repos/records";
+
+function todayIsoString(): string {
+  return new Date().toISOString().slice(0, 10);
+}
 import { getStudent, listStudents, type StudentRecord } from "@/lib/db/repos/students";
 
 export type QueryParams = Record<string, string | number | boolean | undefined>;
@@ -51,6 +56,7 @@ export type QueryKey =
   | "students"
   | "student"
   | "students_with_teacher"
+  | "students_overview_stats"
   | "teachers"
   | "courses"
   | "weekly_plans"
@@ -87,6 +93,8 @@ export interface StudentWithTeacher extends StudentRecord {
   bank_account_name: string | null;
   bank_account_type: string | null;
   affiliation: string;
+  today_attendance_status: "present" | "absent" | "late" | "excused" | null;
+  memorized_ajza_count: number;
 }
 
 export interface TeacherWithUser extends TeacherRecord {
@@ -113,11 +121,20 @@ async function listStudentsWithTeacher(
   const filter: { teacher_id?: string; search?: string } = {};
   if (typeof params.teacher_id === "string") filter.teacher_id = params.teacher_id;
   if (typeof params.search === "string") filter.search = params.search;
-  const [students, teachers] = await Promise.all([
+
+  const [students, teachers, allPlans, todayRecords] = await Promise.all([
     listStudents(filter),
     listTeachers(),
+    listWeeklyPlans(),
+    listDailyRecordsForDate(todayIsoString()),
   ]);
+
   let filtered = students;
+
+  if (typeof params.grade === "string" && params.grade) {
+    filtered = filtered.filter((s) => s.grade === params.grade);
+  }
+
   if (typeof params.course_id === "string" && params.course_id) {
     // student_id is a cleartext indexed column on the encrypted student_courses
     // table, so we can filter without decrypting.
@@ -127,9 +144,35 @@ async function listStudentsWithTeacher(
       .equals(params.course_id)
       .toArray();
     const allowed = new Set(scRows.map((r) => r.student_id));
-    filtered = students.filter((s) => allowed.has(s.id));
+    filtered = filtered.filter((s) => allowed.has(s.id));
   }
+
   const teacherById = new Map(teachers.map((t) => [t.id, t.full_name]));
+
+  const planToStudent = new Map<string, string>();
+  for (const p of allPlans) planToStudent.set(p.id, p.student_id);
+
+  const todayByStudent = new Map<
+    string,
+    StudentWithTeacher["today_attendance_status"]
+  >();
+  for (const r of todayRecords) {
+    const sid = planToStudent.get(r.weekly_plan_id);
+    if (!sid) continue;
+    const a = r.attendance;
+    if (a === "present" || a === "absent" || a === "late" || a === "excused") {
+      todayByStudent.set(sid, a);
+    }
+  }
+
+  const achievedByStudent = new Map<string, number>();
+  for (const p of allPlans) {
+    achievedByStudent.set(
+      p.student_id,
+      (achievedByStudent.get(p.student_id) ?? 0) + (p.total_achieved || 0)
+    );
+  }
+
   return filtered.map((s) => ({
     ...s,
     teacher_name: s.teacher_id ? teacherById.get(s.teacher_id) ?? null : null,
@@ -138,6 +181,8 @@ async function listStudentsWithTeacher(
     bank_account_name: null,
     bank_account_type: null,
     affiliation: "",
+    today_attendance_status: todayByStudent.get(s.id) ?? null,
+    memorized_ajza_count: Math.floor((achievedByStudent.get(s.id) ?? 0) / 600),
   }));
 }
 
@@ -152,7 +197,11 @@ const QUERIES: Record<QueryKey, QueryDef> = {
   },
   students_with_teacher: {
     fn: (p) => listStudentsWithTeacher(p),
-    depends: ["student", "teacher"],
+    depends: ["student", "teacher", "daily_record", "weekly_plan"],
+  },
+  students_overview_stats: {
+    fn: () => studentsOverviewStats(),
+    depends: ["student", "daily_record", "weekly_plan"],
   },
   student: {
     fn: async (p) => {
@@ -169,6 +218,8 @@ const QUERIES: Record<QueryKey, QueryDef> = {
         bank_account_name: null,
         bank_account_type: null,
         affiliation: "",
+        today_attendance_status: null,
+        memorized_ajza_count: 0,
       };
       return enriched;
     },

@@ -1,89 +1,75 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Edit, FileText, Search, Trash2, User, UserCog } from "lucide-react";
-import { Avatar } from "@/components/ui/Avatar";
-import { Badge } from "@/components/ui/Badge";
+import { useRouter } from "next/navigation";
+import { FileSpreadsheet, Search, UserPlus, UserX } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { Card, CardContent } from "@/components/ui/Card";
-import { PageLoading } from "@/components/ui/LoadingSpinner";
 import { Input } from "@/components/ui/Input";
+import { PageLoading } from "@/components/ui/LoadingSpinner";
+import { PaginationBar } from "@/components/ui/PaginationBar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@/hooks/useApi";
 import { useDebounce } from "@/hooks/useDebounce";
-import type { CourseRecord, StudentWithTeacher, TeacherWithUser } from "@/hooks/queries";
+import type {
+  CourseRecord,
+  StudentWithTeacher,
+  TeacherWithUser,
+} from "@/hooks/queries";
+import type { StudentsOverviewStats } from "@/lib/db/repos/aggregates";
 import { api } from "@/lib/api";
+import { StudentsHeroStats } from "@/components/students/StudentsHeroStats";
+import { StudentCard } from "@/components/students/StudentCard";
 import {
   AssignStudentModal,
   EditStudentModal,
 } from "@/components/modals/StudentModals";
 import { ConfirmDeleteModal } from "@/components/modals/TeacherModals";
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 12;
 
-function PaginationBar({
-  page,
-  totalPages,
-  count,
-  onPageChange,
-}: {
-  page: number;
-  totalPages: number;
-  count: number;
-  onPageChange: (nextPage: number) => void;
-}) {
-  return (
-    <div className="flex flex-col gap-3 rounded-[16px] border border-border-card bg-white px-4 py-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-      <p className="text-sm text-text-muted">
-        إجمالي الطلاب: <span className="font-bold text-text-title">{count}</span>
-      </p>
-      <div className="flex items-center gap-2 self-start sm:self-auto">
-        <button
-          type="button"
-          onClick={() => onPageChange(page - 1)}
-          disabled={page <= 1}
-          className="rounded-[10px] border border-border-subtle px-3 py-2 text-sm font-semibold text-text-body disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          السابق
-        </button>
-        <span className="text-sm font-semibold text-text-body">
-          صفحة {page} من {totalPages}
-        </span>
-        <button
-          type="button"
-          onClick={() => onPageChange(page + 1)}
-          disabled={page >= totalPages}
-          className="rounded-[10px] border border-border-subtle px-3 py-2 text-sm font-semibold text-text-body disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          التالي
-        </button>
-      </div>
-    </div>
-  );
-}
+const GRADE_OPTIONS = Array.from({ length: 12 }, (_, i) => ({
+  value: String(i + 1),
+  label: `الصف ${i + 1}`,
+}));
 
 export default function StudentsPage() {
   const { user } = useAuth();
+  const router = useRouter();
   const isAdmin = user?.role === "admin";
   const canFilterByCourse = user?.role === "admin" || user?.role === "teacher";
 
-  const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [teacherFilter, setTeacherFilter] = useState("");
   const [courseFilter, setCourseFilter] = useState("");
-
+  const [gradeFilter, setGradeFilter] = useState("");
+  const [page, setPage] = useState(1);
   const debouncedSearch = useDebounce(search);
 
-  const { data: teachers } = useQuery<TeacherWithUser[]>(isAdmin ? "teachers" : null);
-  const { data: courses } = useQuery<CourseRecord[]>(canFilterByCourse ? "courses" : null);
+  const { data: teachers } = useQuery<TeacherWithUser[]>(
+    isAdmin ? "teachers" : null
+  );
+  const { data: courses } = useQuery<CourseRecord[]>(
+    canFilterByCourse ? "courses" : null
+  );
+  const { data: overviewStats } = useQuery<StudentsOverviewStats>(
+    "students_overview_stats"
+  );
 
   const queryParams = useMemo(() => {
     const p: Record<string, string | undefined> = {};
     if (debouncedSearch) p.search = debouncedSearch;
     if (isAdmin && teacherFilter) p.teacher_id = teacherFilter;
     if (canFilterByCourse && courseFilter) p.course_id = courseFilter;
+    if (gradeFilter) p.grade = gradeFilter;
     return p;
-  }, [debouncedSearch, isAdmin, teacherFilter, canFilterByCourse, courseFilter]);
+  }, [
+    debouncedSearch,
+    isAdmin,
+    teacherFilter,
+    canFilterByCourse,
+    courseFilter,
+    gradeFilter,
+  ]);
 
   const { data: allStudents, isLoading } = useQuery<StudentWithTeacher[]>(
     "students_with_teacher",
@@ -98,238 +84,276 @@ export default function StudentsPage() {
 
   const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
   const safePage = Math.min(Math.max(1, page), totalPages);
-  const studentList = sorted.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+  const visible = sorted.slice(
+    (safePage - 1) * PAGE_SIZE,
+    safePage * PAGE_SIZE
+  );
 
-  const [assignModal, setAssignModal] = useState<{ open: boolean; student: StudentWithTeacher | null }>({
-    open: false,
-    student: null,
-  });
-  const [editModal, setEditModal] = useState<{ open: boolean; student: StudentWithTeacher | null }>({
-    open: false,
-    student: null,
-  });
-  const [deleteModal, setDeleteModal] = useState<{ open: boolean; student: StudentWithTeacher | null }>({
-    open: false,
-    student: null,
-  });
+  const [assignStudent, setAssignStudent] =
+    useState<StudentWithTeacher | null>(null);
+  const [editStudent, setEditStudent] = useState<StudentWithTeacher | null>(null);
+  const [deleteStudent, setDeleteStudent] =
+    useState<StudentWithTeacher | null>(null);
+
+  const hasFilters = Boolean(
+    debouncedSearch || teacherFilter || courseFilter || gradeFilter
+  );
+
+  const handleClearFilters = () => {
+    setSearch("");
+    setTeacherFilter("");
+    setCourseFilter("");
+    setGradeFilter("");
+    setPage(1);
+  };
+
+  const handleExportXlsx = async () => {
+    const params = new URLSearchParams();
+    if (queryParams.search) params.set("search", queryParams.search);
+    if (queryParams.teacher_id) params.set("teacher_id", queryParams.teacher_id);
+    if (queryParams.course_id) params.set("course_id", queryParams.course_id);
+    if (queryParams.grade) params.set("grade", queryParams.grade);
+    const qs = params.toString() ? `?${params.toString()}` : "";
+    const blob = await api.downloadBlob(`/api/students/export/${qs}`);
+    if (!blob) return;
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    const today = new Date().toISOString().slice(0, 10);
+    a.download = `students-${today}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadPdf = async (student: StudentWithTeacher) => {
+    const blob = await api.downloadBlob(
+      `/api/reports/student/${student.id}/pdf/`
+    );
+    if (!blob) return;
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `تقرير_${student.full_name}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  };
 
   if (isLoading && !allStudents) {
     return <PageLoading />;
   }
 
   return (
-    <div className="mx-auto max-w-lg space-y-6">
-      <div className="mb-6 space-y-1 text-center">
-        <h1 className="text-2xl font-bold text-primary">سجل الطلاب</h1>
-        <p className="text-sm text-text-muted">إدارة ومتابعة جميع الطلاب المسجلين بالمركز</p>
-      </div>
+    <div className="mx-auto max-w-7xl space-y-6 pb-10">
+      <StudentsHeroStats
+        totalCount={overviewStats?.total ?? sorted.length}
+        presentTodayCount={overviewStats?.present_today ?? 0}
+        unassignedCount={overviewStats?.unassigned ?? 0}
+      />
 
-      <div className="space-y-3 rounded-[24px] border border-border-card bg-white p-4 shadow-sm">
-        <Input
-          icon={<Search className="h-5 w-5" />}
-          placeholder="البحث بالاسم أو الهوية..."
-          className="h-14 rounded-[16px] bg-surface-subtle"
-          value={search}
-          onChange={(event) => {
-            setSearch(event.target.value);
-            setPage(1);
-          }}
-        />
-
-        {isAdmin ? (
-          <select
-            value={teacherFilter}
-            onChange={(event) => {
-              setTeacherFilter(event.target.value);
+      <div className="flex flex-col gap-3 rounded-[24px] border border-border-card bg-white p-4 shadow-sm md:flex-row md:flex-wrap md:items-center md:gap-3">
+        <div className="min-w-[220px] flex-1">
+          <Input
+            icon={<Search className="h-5 w-5" />}
+            placeholder="ابحث بالاسم أو رقم الهوية..."
+            className="h-12 rounded-[14px] bg-surface-subtle"
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
               setPage(1);
             }}
-            className="h-12 w-full rounded-[16px] border border-border-subtle bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-          >
-            <option value="">كل المحفظين</option>
-            {(teachers ?? []).map((teacher) => (
-              <option key={teacher.id} value={teacher.id}>
-                {teacher.full_name}
-              </option>
-            ))}
-          </select>
-        ) : null}
+            aria-label="البحث عن طالب"
+          />
+        </div>
 
         {canFilterByCourse ? (
           <select
             value={courseFilter}
-            onChange={(event) => {
-              setCourseFilter(event.target.value);
+            onChange={(e) => {
+              setCourseFilter(e.target.value);
               setPage(1);
             }}
-            className="h-12 w-full rounded-[16px] border border-border-subtle bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+            aria-label="فلترة حسب الدورة"
+            className="h-12 rounded-[14px] border border-[#e5e7eb] bg-surface-subtle px-4 text-sm font-medium text-text-body focus:outline-none focus:ring-2 focus:ring-primary/20 md:w-44"
           >
             <option value="">كل الدورات</option>
-            {(courses ?? []).map((course) => (
-              <option key={course.id} value={course.id}>
-                {course.name}
+            {(courses ?? []).map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
               </option>
             ))}
           </select>
         ) : null}
-      </div>
 
-      <PaginationBar
-        page={safePage}
-        totalPages={totalPages}
-        count={sorted.length}
-        onPageChange={setPage}
-      />
+        {isAdmin ? (
+          <select
+            value={teacherFilter}
+            onChange={(e) => {
+              setTeacherFilter(e.target.value);
+              setPage(1);
+            }}
+            aria-label="فلترة حسب المحفظ"
+            className="h-12 rounded-[14px] border border-[#e5e7eb] bg-surface-subtle px-4 text-sm font-medium text-text-body focus:outline-none focus:ring-2 focus:ring-primary/20 md:w-44"
+          >
+            <option value="">كل المحفظين</option>
+            {(teachers ?? []).map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.full_name}
+              </option>
+            ))}
+          </select>
+        ) : null}
 
-      <div className="space-y-4">
-        {studentList.length === 0 ? (
-          <div className="py-12 text-center">
-            <User className="mx-auto mb-3 h-12 w-12 text-text-muted" />
-            <p className="text-sm font-medium text-text-muted">لا يوجد طلاب مطابقون للفلاتر الحالية</p>
-          </div>
-        ) : (
-          studentList.map((student) => (
-            <Card
-              key={student.id}
-              className="relative overflow-hidden rounded-[24px] border-border-card bg-white pt-4 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)]"
+        <select
+          value={gradeFilter}
+          onChange={(e) => {
+            setGradeFilter(e.target.value);
+            setPage(1);
+          }}
+          aria-label="فلترة حسب الصف"
+          className="h-12 rounded-[14px] border border-[#e5e7eb] bg-surface-subtle px-4 text-sm font-medium text-text-body focus:outline-none focus:ring-2 focus:ring-primary/20 md:w-36"
+        >
+          <option value="">كل الصفوف</option>
+          {GRADE_OPTIONS.map((g) => (
+            <option key={g.value} value={g.value}>
+              {g.label}
+            </option>
+          ))}
+        </select>
+
+        {isAdmin ? (
+          <>
+            <Button
+              onClick={handleExportXlsx}
+              variant="outline"
+              className="h-12 gap-2 rounded-[14px] px-4 font-bold"
             >
-              <CardContent className="p-5">
-                <div className="mb-6 flex items-center gap-3">
-                  <Avatar name={student.full_name} size={48} />
-                  <div>
-                    <h3 className="text-lg font-bold leading-tight text-text-title">{student.full_name}</h3>
-                    <p className="mt-0.5 text-xs text-text-muted">{student.national_id}</p>
-                  </div>
-                </div>
-
-                <div className="mb-6 grid grid-cols-2 gap-x-2 gap-y-3">
-                  <div className="rounded-[12px] bg-surface-subtle p-3">
-                    <span className="mb-1 block text-[11px] font-medium text-text-muted">الصف الدراسي:</span>
-                    <span className="block text-sm font-bold text-text-body">{student.grade}</span>
-                  </div>
-
-                  <div className="rounded-[12px] bg-surface-subtle p-3">
-                    <span className="mb-1 block text-[11px] font-medium text-text-muted">المحفظ:</span>
-                    <Badge
-                      variant={student.teacher_name ? "secondary" : "destructive"}
-                      className={
-                        student.teacher_name
-                          ? "rounded-md bg-role-admin-bg px-2.5 py-0.5 font-normal text-primary hover:bg-role-admin-bg"
-                          : "rounded-md bg-tile-red px-2.5 py-0.5 font-normal text-danger-text"
-                      }
-                    >
-                      {student.teacher_name || "غير معين"}
-                    </Badge>
-                  </div>
-
-                  <div className="rounded-[12px] bg-surface-subtle p-3">
-                    <span className="mb-1 block text-[11px] font-medium text-text-muted">ولي الأمر:</span>
-                    <span className="line-clamp-1 block text-sm font-bold text-text-body">
-                      {student.guardian_name || "—"}
-                    </span>
-                  </div>
-
-                  <div className="rounded-[12px] bg-surface-subtle p-3">
-                    <span className="mb-1 block text-[11px] font-medium text-text-muted">رقم الجوال:</span>
-                    <span className="block text-sm font-bold text-text-body">{student.mobile || "—"}</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between border-t border-border-card px-2 pt-4">
-                  <div className="flex gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-10 w-10 rounded-[10px] text-text-muted hover:bg-surface-subtle hover:text-primary"
-                      onClick={() => setAssignModal({ open: true, student })}
-                      aria-label={`تعيين محفظ للطالب ${student.full_name}`}
-                    >
-                      <UserCog className="h-[18px] w-[18px]" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-10 w-10 rounded-[10px] text-text-muted hover:bg-surface-subtle hover:text-primary"
-                      onClick={async () => {
-                        const blob = await api.downloadBlob(`/api/reports/student/${student.id}/pdf/`);
-                        if (!blob) return;
-                        const url = window.URL.createObjectURL(blob);
-                        const link = document.createElement("a");
-                        link.href = url;
-                        link.download = `تقرير_${student.full_name}.pdf`;
-                        document.body.appendChild(link);
-                        link.click();
-                        link.remove();
-                        window.URL.revokeObjectURL(url);
-                      }}
-                      disabled={!student.id}
-                      aria-label={`تحميل تقرير الطالب ${student.full_name}`}
-                    >
-                      <FileText className="h-[18px] w-[18px]" />
-                    </Button>
-                  </div>
-
-                  <div className="flex gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-10 w-10 rounded-[10px] text-text-muted hover:bg-surface-subtle hover:text-primary"
-                      onClick={() => setEditModal({ open: true, student })}
-                      aria-label={`تعديل الطالب ${student.full_name}`}
-                    >
-                      <Edit className="h-[18px] w-[18px]" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-10 w-10 rounded-[10px] text-text-muted hover:bg-tile-red hover:text-danger-text"
-                      onClick={() => setDeleteModal({ open: true, student })}
-                      aria-label={`حذف الطالب ${student.full_name}`}
-                    >
-                      <Trash2 className="h-[18px] w-[18px]" />
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))
-        )}
+              <FileSpreadsheet className="h-5 w-5" />
+              تصدير Excel
+            </Button>
+            <Button
+              onClick={() => router.push("/students/register")}
+              className="h-12 gap-2 rounded-[14px] px-5 font-bold"
+            >
+              <UserPlus className="h-5 w-5" />
+              إضافة طالب
+            </Button>
+          </>
+        ) : null}
       </div>
 
-      <PaginationBar
-        page={safePage}
-        totalPages={totalPages}
-        count={sorted.length}
-        onPageChange={setPage}
-      />
+      {sorted.length > 0 ? (
+        <div className="flex items-center justify-between rounded-[16px] border border-border-card bg-white px-4 py-2.5 text-sm text-text-muted shadow-sm">
+          <span>
+            عرض{" "}
+            <span className="font-bold text-text-title">{visible.length}</span> من{" "}
+            <span className="font-bold text-text-title">{sorted.length}</span>{" "}
+            طالب
+          </span>
+          {totalPages > 1 ? (
+            <span className="text-xs">
+              الصفحة {safePage} من {totalPages}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
 
-      {assignModal.student ? (
+      {visible.length === 0 ? (
+        <EmptyState
+          hasFilters={hasFilters}
+          onClearFilters={handleClearFilters}
+        />
+      ) : (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {visible.map((student, idx) => (
+            <StudentCard
+              key={student.id}
+              student={student}
+              canEdit={isAdmin}
+              onAssignTeacher={
+                isAdmin ? () => setAssignStudent(student) : undefined
+              }
+              onEdit={() => setEditStudent(student)}
+              onDelete={() => setDeleteStudent(student)}
+              onDownloadPdf={() => handleDownloadPdf(student)}
+              animationDelay={idx * 40}
+            />
+          ))}
+        </div>
+      )}
+
+      {totalPages > 1 ? (
+        <PaginationBar
+          page={safePage}
+          totalPages={totalPages}
+          onPageChange={setPage}
+        />
+      ) : null}
+
+      {assignStudent ? (
         <AssignStudentModal
-          isOpen={assignModal.open}
-          onClose={() => setAssignModal({ open: false, student: null })}
-          studentId={assignModal.student.id}
-          studentName={assignModal.student.full_name}
-          onSuccess={() => setAssignModal({ open: false, student: null })}
+          isOpen={!!assignStudent}
+          onClose={() => setAssignStudent(null)}
+          studentId={assignStudent.id}
+          studentName={assignStudent.full_name}
+          onSuccess={() => setAssignStudent(null)}
         />
       ) : null}
 
-      {editModal.student ? (
+      {editStudent ? (
         <EditStudentModal
-          isOpen={editModal.open}
-          onClose={() => setEditModal({ open: false, student: null })}
-          student={editModal.student}
-          onSuccess={() => setEditModal({ open: false, student: null })}
+          isOpen={!!editStudent}
+          onClose={() => setEditStudent(null)}
+          student={editStudent}
+          onSuccess={() => setEditStudent(null)}
         />
       ) : null}
 
-      {deleteModal.student ? (
+      {deleteStudent ? (
         <ConfirmDeleteModal
-          isOpen={deleteModal.open}
-          onClose={() => setDeleteModal({ open: false, student: null })}
-          targetName={deleteModal.student.full_name}
+          isOpen={!!deleteStudent}
+          onClose={() => setDeleteStudent(null)}
+          targetName={deleteStudent.full_name}
           resource="student"
-          targetId={deleteModal.student.id}
-          onSuccess={() => setDeleteModal({ open: false, student: null })}
+          targetId={deleteStudent.id}
+          onSuccess={() => setDeleteStudent(null)}
         />
+      ) : null}
+    </div>
+  );
+}
+
+function EmptyState({
+  hasFilters,
+  onClearFilters,
+}: {
+  hasFilters: boolean;
+  onClearFilters: () => void;
+}) {
+  return (
+    <div className="rounded-[24px] border border-dashed border-border-card bg-white p-10 text-center shadow-sm">
+      <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-tile-blue">
+        <UserX className="h-8 w-8 text-primary" />
+      </div>
+      <h3 className="mb-1 text-lg font-bold text-text-title">
+        {hasFilters ? "لا توجد نتائج مطابقة" : "لا يوجد طلاب بعد"}
+      </h3>
+      <p className="mb-5 text-sm text-text-muted">
+        {hasFilters
+          ? "جرّب تعديل كلمة البحث أو إزالة الفلاتر لرؤية المزيد."
+          : "سيظهر الطلاب هنا فور تسجيلهم."}
+      </p>
+      {hasFilters ? (
+        <Button
+          variant="outline"
+          onClick={onClearFilters}
+          className="h-11 rounded-[12px] px-5 font-bold"
+        >
+          مسح الفلاتر
+        </Button>
       ) : null}
     </div>
   );
