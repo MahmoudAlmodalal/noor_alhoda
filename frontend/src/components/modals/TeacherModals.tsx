@@ -264,10 +264,15 @@ export function AddTeacherModal({
         <div className="space-y-1.5">
           <label className="block text-sm font-bold text-text-body">رقم الهوية</label>
           <Input
-            type="number"
+            type="text"
+            inputMode="numeric"
+            pattern="\d*"
+            maxLength={20}
             dir="ltr"
             value={form.national_id}
-            onChange={(e) => setForm({ ...form, national_id: e.target.value })}
+            onChange={(e) =>
+              setForm({ ...form, national_id: e.target.value.replace(/\D/g, "") })
+            }
             aria-label="رقم الهوية"
             className="h-12 rounded-xl border-border-subtle"
           />
@@ -520,10 +525,15 @@ export function EditTeacherModal({
         <div className="space-y-1.5">
           <label className="block text-sm font-bold text-text-body">رقم الهوية</label>
           <Input
-            type="number"
+            type="text"
+            inputMode="numeric"
+            pattern="\d*"
+            maxLength={20}
             dir="ltr"
             value={form.national_id}
-            onChange={(e) => setForm({ ...form, national_id: e.target.value })}
+            onChange={(e) =>
+              setForm({ ...form, national_id: e.target.value.replace(/\D/g, "") })
+            }
             aria-label="رقم الهوية"
             className="h-12 rounded-xl border-border-subtle font-medium"
           />

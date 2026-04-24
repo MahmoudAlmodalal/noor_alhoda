@@ -2,9 +2,12 @@ from django.db import transaction
 from rest_framework.exceptions import PermissionDenied
 
 from accounts.models import User
-from accounts.services.user_services import user_create
+from accounts.services.user_services import user_create, user_update
 from core.permissions import is_admin_user
 from teacher.models import Teacher
+
+
+_USER_FIELDS = {"first_name", "last_name", "phone_number", "national_id"}
 
 
 @transaction.atomic
@@ -46,6 +49,14 @@ def teacher_update(*, teacher: Teacher, actor: User, data: dict) -> Teacher:
     """Update a teacher profile. Admin only."""
     if not is_admin_user(actor):
         raise PermissionDenied("فقط المدير يمكنه تعديل المحفظ.")
+
+    # national_id / phone_number / first_name / last_name live on the related
+    # User (USERNAME_FIELD). Delegate to user_update so we reuse its admin
+    # allowlist, uniqueness/numeric validation, and password re-sync when
+    # national_id changes.
+    user_fields = {k: v for k, v in data.items() if k in _USER_FIELDS}
+    if user_fields:
+        user_update(user=teacher.user, actor=actor, data=user_fields)
 
     allowed = [
         "full_name", "specialization", "session_days",

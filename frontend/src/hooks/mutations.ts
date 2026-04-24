@@ -28,12 +28,14 @@ import {
   upsertParentStudentLinks,
   upsertStudentCourses,
   upsertTeachers,
+  upsertUsers,
   type CourseRecord,
   type EvaluationRecord,
   type NotificationRecord,
   type ParentStudentLinkRecord,
   type StudentCourseRecord,
   type TeacherRecord,
+  type UserRecord,
 } from "@/lib/db/repos/misc";
 import { decryptRow } from "@/lib/db/repos/index";
 import {
@@ -177,6 +179,43 @@ const handlers: Record<MutationResource, Handler> = {
     async upsertUpdate(id, merged, now) {
       const rec = { ...(merged as unknown as TeacherRecord), id, updated_at: now };
       await upsertTeachers([rec]);
+
+      // national_id / phone_number / first_name / last_name live on the
+      // related User row. TeacherWithUser reads them via listUsers()
+      // (see queries.ts::listTeachersWithUser), so mirror any user-level
+      // patch into the local users table for immediate UI feedback. The
+      // next pull reconciles against the server.
+      const patch = merged as Payload;
+      const userFieldKeys = ["national_id", "phone_number", "first_name", "last_name"] as const;
+      const hasUserPatch = userFieldKeys.some((k) => k in patch);
+      const userId = rec.user_id;
+      if (hasUserPatch && userId) {
+        const row = await getDb().users.get(userId);
+        if (row) {
+          const existing = await decryptRow<UserRecord>(row);
+          const next: UserRecord = {
+            ...existing,
+            national_id:
+              typeof patch.national_id === "string"
+                ? patch.national_id
+                : existing.national_id,
+            phone_number:
+              typeof patch.phone_number === "string"
+                ? patch.phone_number
+                : existing.phone_number,
+            first_name:
+              typeof patch.first_name === "string"
+                ? patch.first_name
+                : existing.first_name,
+            last_name:
+              typeof patch.last_name === "string"
+                ? patch.last_name
+                : existing.last_name,
+            updated_at: now,
+          };
+          await upsertUsers([next]);
+        }
+      }
     },
     async deleteLocal(id) {
       await getDb().teachers.delete(id);

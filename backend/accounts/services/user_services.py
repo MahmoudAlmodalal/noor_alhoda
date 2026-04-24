@@ -1,4 +1,6 @@
 import logging
+import re
+
 from django.db import transaction
 from rest_framework.exceptions import ValidationError, PermissionDenied
 
@@ -7,6 +9,23 @@ from accounts.utils import normalize_phone
 from core.permissions import is_admin_user
 
 logger = logging.getLogger(__name__)
+
+_NATIONAL_ID_RE = re.compile(r"^\d+$")
+
+
+def _validate_national_id(value: str, *, exclude_pk=None) -> str:
+    """Return the normalized national_id or raise a ValidationError."""
+    national_id = str(value or "").strip()
+    if not national_id:
+        raise ValidationError({"national_id": "رقم الهوية مطلوب."})
+    if not _NATIONAL_ID_RE.match(national_id):
+        raise ValidationError({"national_id": "رقم الهوية يجب أن يحتوي على أرقام فقط."})
+    qs = User.objects.filter(national_id=national_id)
+    if exclude_pk is not None:
+        qs = qs.exclude(pk=exclude_pk)
+    if qs.exists():
+        raise ValidationError({"national_id": "رقم الهوية مسجل مسبقاً."})
+    return national_id
 
 
 @transaction.atomic
@@ -17,12 +36,7 @@ def user_create(*, creator: User, **data) -> User:
     if not is_admin_user(creator):
         raise PermissionDenied("فقط المدير يمكنه إنشاء حسابات جديدة.")
 
-    national_id = str(data.get("national_id", "")).strip()
-    if not national_id:
-        raise ValidationError({"national_id": "رقم الهوية مطلوب."})
-
-    if User.objects.filter(national_id=national_id).exists():
-        raise ValidationError({"national_id": "رقم الهوية مسجل مسبقاً."})
+    national_id = _validate_national_id(data.get("national_id", ""))
 
     role = data.get("role", "student")
 
@@ -69,6 +83,12 @@ def user_update(*, user: User, actor: User, data: dict) -> User:
         allowed_fields += ["role", "national_id"]
 
     old_national_id = user.national_id
+
+    if "national_id" in data and is_admin_user(actor):
+        data = dict(data)
+        data["national_id"] = _validate_national_id(
+            data["national_id"], exclude_pk=user.pk
+        )
 
     for field_name, value in data.items():
         if field_name in allowed_fields:
