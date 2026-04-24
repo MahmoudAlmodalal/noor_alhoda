@@ -116,11 +116,16 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const [error, setError] = useState<string | null>(
-    searchParams.get("reason") === "session_expired"
+  const reason = searchParams.get("reason");
+  const initialError =
+    reason === "session_expired"
       ? "انتهت صلاحية الجلسة. يرجى تسجيل الدخول مجدداً."
-      : null
-  );
+      : reason === "install_failed"
+        ? "تعذّر تجهيز الوضع المحلي. يرجى تسجيل الدخول مرة أخرى."
+        : reason === "install_interrupted"
+          ? "لم يكتمل تجهيز التطبيق. يرجى تسجيل الدخول مرة أخرى."
+          : null;
+  const [error, setError] = useState<string | null>(initialError);
 
   const [nationalId, setNationalId] = useState("");
   const [password, setPassword] = useState("");

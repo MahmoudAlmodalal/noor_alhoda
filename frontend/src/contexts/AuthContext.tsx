@@ -45,6 +45,13 @@ interface AuthContextValue {
    * been unlocked in this tab. Repos throw when this is false.
    */
   dbUnlocked: boolean;
+  /**
+   * True while the offline DB key is being derived/unwrapped in the
+   * background after a successful online login. The dashboard renders
+   * normally; `useQuery` returns null until this flips to false and
+   * `dbUnlocked` becomes true.
+   */
+  isInstallingDb: boolean;
   isOfflineSession: boolean;
   /**
    * True when we just logged this user in AND no prior sync has landed on
@@ -75,6 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [dbUnlocked, setDbUnlocked] = useState(false);
+  const [isInstallingDb, setIsInstallingDb] = useState(false);
   const [isOfflineSession, setIsOfflineSession] = useState(false);
   const [needsInitialDownload, setNeedsInitialDownload] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -237,6 +245,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } else if (!row) {
           clearSessionKey();
         }
+      } else {
+        // Token exists but no session key could be restored. This happens if
+        // (a) the tab was closed and reopened (sessionStorage cleared), or
+        // (b) the page was reloaded mid-login before persistSessionKey() had
+        // run. Either way the DB is locked and we no longer have the password
+        // needed to unwrap it — force a fresh login.
+        localStorage.removeItem("access_token");
+        localStorage.removeItem("refresh_token");
+        if (isMounted) setIsLoading(false);
+        if (typeof window !== "undefined") {
+          window.location.href = "/login?reason=install_interrupted";
+        }
+        return;
       }
 
       // Refresh the user from /me (with retry for transient network errors).
@@ -268,6 +289,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [fetchMe]);
 
+  // Background DB install: derives/unwraps the encrypted-DB key after the
+  // online login has already resolved. Runs off the LoginForm's await, so
+  // PBKDF2 + bcrypt no longer hold up the redirect to the dashboard. Any
+  // failure here can't abort the redirect, so we clear state and bounce
+  // back to /login with a reason code instead.
+  const installDbInBackground = useCallback(
+    async (u: UserProfile, password: string) => {
+      try {
+        await initializeOrUnlockSession({
+          password,
+          userId: u.id,
+          userNationalId: u.national_id,
+          userRole: u.role,
+        });
+        setDbUnlocked(true);
+        setIsOfflineSession(false);
+
+        void fetchMe();
+
+        const row = await readAuth();
+        if (row?.last_sync_at === null) {
+          setNeedsInitialDownload(true);
+        } else {
+          startSyncRunner();
+        }
+      } catch (err) {
+        console.error("[AuthContext] background DB install failed:", err);
+        clearSessionKey();
+        localStorage.removeItem("access_token");
+        localStorage.removeItem("refresh_token");
+        setUser(null);
+        setDbUnlocked(false);
+        if (typeof window !== "undefined") {
+          window.location.href = "/login?reason=install_failed";
+        }
+      } finally {
+        setIsInstallingDb(false);
+      }
+    },
+    [fetchMe]
+  );
+
   const login = useCallback(
     async (
       national_id: string,
@@ -278,29 +341,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (res.success) {
         const u = res.data.user;
-        await initializeOrUnlockSession({
-          password,
-          userId: u.id,
-          userNationalId: u.national_id,
-          userRole: u.role,
-        });
-
-        const meSuccess = await fetchMe();
-        if (!meSuccess) setUser(u);
-
-        setDbUnlocked(true);
-        setIsOfflineSession(false);
-
-        // First-time on this device → block the dashboard on full download.
-        // Start the sync runner only after the download completes (see
-        // `markInitialDownloadComplete`). Otherwise the 30s heartbeat would
-        // race us and could partially populate IDB without progress UI.
-        const row = await readAuth();
-        if (row?.last_sync_at === null) {
-          setNeedsInitialDownload(true);
-        } else {
-          startSyncRunner();
-        }
+        // The login response already contains a full UserProfile (role +
+        // role-specific profile), so the dashboard shell and RoleGate can
+        // render with just this. Hand off the heavy crypto install to the
+        // background so the LoginForm's spinner clears in ~1 RTT.
+        setUser(u);
+        setIsInstallingDb(true);
+        void installDbInBackground(u, password);
         return { error: null, role: u.role, offline: false };
       }
 
@@ -351,7 +398,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       return { error: res.error.message, role: null, offline: false };
     },
-    [fetchMe]
+    [installDbInBackground]
   );
 
   const logout = useCallback(async () => {
@@ -406,6 +453,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isLoading,
         isAuthenticated: !!user,
         dbUnlocked,
+        isInstallingDb,
         isOfflineSession,
         needsInitialDownload,
         markInitialDownloadComplete,

@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, CheckCircle2, CloudDownload, WifiOff } from "lucide-react";
+import { AlertTriangle, CheckCircle2, CloudDownload, Loader2, WifiOff } from "lucide-react";
 
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -34,9 +34,27 @@ export function InitialDownloadBanner() {
     downloadProgress,
     downloadError,
     isOfflineSession,
+    isInstallingDb,
     needsInitialDownload,
     retryInitialDownload,
   } = useAuth();
+
+  // Phase 1: the encrypted-DB key is still being derived/unwrapped in the
+  // background after a successful online login. Show a compact strip so the
+  // user knows the app is still waking up; the download banner takes over
+  // once install finishes and the first-device download starts.
+  if (isInstallingDb) {
+    return (
+      <div role="status" className="border-b border-blue-300 bg-blue-50 text-blue-900">
+        <div className="flex items-center gap-2 px-4 py-2 text-sm">
+          <Loader2 className="h-4 w-4 shrink-0 animate-spin" aria-hidden />
+          <span className="flex-1 text-right leading-relaxed">
+            جاري تجهيز الوضع المحلي…
+          </span>
+        </div>
+      </div>
+    );
+  }
 
   let variant: Variant | null = null;
   if (downloadError) {
