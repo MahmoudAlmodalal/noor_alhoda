@@ -22,13 +22,19 @@ import type {
   WeeklySummary,
 } from "@/types/api";
 
-import { listCourses, listEvaluationsForStudent, listTeachers } from "./misc";
+import {
+  listCourses,
+  listEvaluationsForStudent,
+  listTeachers,
+  type EvaluationRecord,
+} from "./misc";
 import {
   listDailyRecordsForDate,
   listDailyRecordsInRange,
   listReviewRecordsForStudent,
   listWeeklyPlans,
   type DailyRecordRecord,
+  type ReviewRecordRecord,
   type WeeklyPlanRecord,
 } from "./records";
 import { getStudent, listStudents } from "./students";
@@ -673,22 +679,267 @@ export interface PlanForList extends WeeklyPlanRecord {
 export async function listPlansForUI(filters?: {
   student_id?: string;
   week_start?: string;
+  teacher_id?: string;
 }): Promise<PlanForList[]> {
   const [plans, students] = await Promise.all([
     listWeeklyPlans(filters?.student_id ? { student_id: filters.student_id } : undefined),
-    listStudents(),
+    listStudents(filters?.teacher_id ? { teacher_id: filters.teacher_id } : undefined),
   ]);
   const sById = new Map(students.map((s) => [s.id, s]));
-  const filtered = filters?.week_start
-    ? plans.filter((p) => p.week_start === filters.week_start)
+  const scopedPlans = filters?.teacher_id
+    ? plans.filter((p) => sById.has(p.student_id))
     : plans;
-  return filtered.map((p) => {
-    const s = sById.get(p.student_id);
+  const filtered = filters?.week_start
+    ? scopedPlans.filter((p) => p.week_start === filters.week_start)
+    : scopedPlans;
+  return filtered
+    .map((p) => {
+      const s = sById.get(p.student_id);
+      if (!s && filters?.teacher_id) return null;
+      return {
+        ...p,
+        student_name: s?.full_name ?? "",
+        completion_rate: completionRate(p.total_achieved, p.total_required),
+        review_interval_days: s?.review_interval_days ?? 14,
+      };
+    })
+    .filter((p): p is PlanForList => p !== null);
+}
+
+// ---------------------------------------------------------------------------
+// Teacher dashboard aggregates
+// ---------------------------------------------------------------------------
+
+export interface TeacherAggregateStats {
+  avgWeeklyCompletion: number;
+  avgQuality: string;
+  totalVersesThisWeek: number;
+  pendingReviews: number;
+  upcomingEvaluations: number;
+}
+
+export async function teacherAggregateStats(
+  teacher_id: string
+): Promise<TeacherAggregateStats> {
+  const students = await listStudents({ teacher_id });
+  if (students.length === 0) {
     return {
-      ...p,
-      student_name: s?.full_name ?? "",
-      completion_rate: completionRate(p.total_achieved, p.total_required),
-      review_interval_days: s?.review_interval_days ?? 14,
+      avgWeeklyCompletion: 0,
+      avgQuality: "—",
+      totalVersesThisWeek: 0,
+      pendingReviews: 0,
+      upcomingEvaluations: 0,
     };
-  });
+  }
+
+  const studentIds = new Set(students.map((s) => s.id));
+  const todayDate = new Date();
+  const ws = weekStartFor(todayDate);
+  const weekEnd = new Date(ws);
+  weekEnd.setDate(weekEnd.getDate() + 6);
+  const weekEndIso = weekEnd.toISOString().slice(0, 10);
+  const todayStr = todayIso();
+  const in14 = new Date(todayDate);
+  in14.setDate(in14.getDate() + 14);
+  const in14Iso = in14.toISOString().slice(0, 10);
+
+  const allPlans = await listWeeklyPlans();
+  const teacherPlans = allPlans.filter((p) => studentIds.has(p.student_id));
+  const thisWeekPlans = teacherPlans.filter((p) => p.week_start === ws);
+
+  const avgWeeklyCompletion =
+    thisWeekPlans.length === 0
+      ? 0
+      : Math.round(
+          thisWeekPlans.reduce(
+            (s, p) => s + completionRate(p.total_achieved, p.total_required),
+            0
+          ) / thisWeekPlans.length
+        );
+
+  const totalVersesThisWeek = thisWeekPlans.reduce(
+    (s, p) => s + (p.total_achieved || 0),
+    0
+  );
+
+  // Average quality from this week's daily records (teacher-scoped)
+  const planIdsThisWeek = new Set(thisWeekPlans.map((p) => p.id));
+  let avgQuality = "—";
+  if (planIdsThisWeek.size > 0) {
+    const weekDaily = await listDailyRecordsInRange(ws, weekEndIso);
+    const teacherDaily = weekDaily.filter((r) =>
+      planIdsThisWeek.has(r.weekly_plan_id)
+    );
+    const qualityScores = teacherDaily
+      .map((r) => QUALITY_GRADE[r.quality] ?? 0)
+      .filter((n) => n > 0);
+    if (qualityScores.length > 0) {
+      const avg =
+        qualityScores.reduce((a, b) => a + b, 0) / qualityScores.length;
+      avgQuality =
+        avg >= 90
+          ? "ممتاز"
+          : avg >= 80
+            ? "جيد جدًا"
+            : avg >= 70
+              ? "جيد"
+              : avg >= 50
+                ? "مقبول"
+                : "ضعيف";
+    }
+  }
+
+  // Upcoming evaluations within 14 days (scheduled) + pending reviews,
+  // parallelized across students to avoid N-round-trip latency on first load.
+  const [evalCounts, reviewCounts] = await Promise.all([
+    Promise.all(
+      students.map(async (s) => {
+        const evs = await listEvaluationsForStudent(s.id);
+        return evs.filter(
+          (e) =>
+            e.status === "scheduled" &&
+            e.scheduled_date >= todayStr &&
+            e.scheduled_date <= in14Iso
+        ).length;
+      })
+    ),
+    Promise.all(
+      students.map((s) => computeDueReviewsForStudent(s.id).then((r) => r.length))
+    ),
+  ]);
+  const upcomingEvaluations = evalCounts.reduce((a, b) => a + b, 0);
+  const pendingReviews = reviewCounts.reduce((a, b) => a + b, 0);
+
+  return {
+    avgWeeklyCompletion,
+    avgQuality,
+    totalVersesThisWeek,
+    pendingReviews,
+    upcomingEvaluations,
+  };
+}
+
+export interface EvaluationForTeacher extends EvaluationRecord {
+  student_name: string;
+}
+
+export async function listEvaluationsForTeacher(
+  teacher_id: string
+): Promise<EvaluationForTeacher[]> {
+  const students = await listStudents({ teacher_id });
+  const perStudent = await Promise.all(
+    students.map(async (s) => {
+      const evs = await listEvaluationsForStudent(s.id);
+      return evs.map((e) => ({ ...e, student_name: s.full_name }));
+    })
+  );
+  return perStudent
+    .flat()
+    .sort((a, b) => b.scheduled_date.localeCompare(a.scheduled_date));
+}
+
+export interface DueReviewRow {
+  student_id: string;
+  student_name: string;
+  surah_name: string;
+  last_memorized: string;
+  last_reviewed: string | null;
+  days_since_review: number;
+  review_interval_days: number;
+}
+
+export interface ReviewHistoryRow extends ReviewRecordRecord {
+  student_name: string;
+}
+
+export interface ReviewsForTeacher {
+  due: DueReviewRow[];
+  history: ReviewHistoryRow[];
+}
+
+async function computeDueReviewsForStudent(
+  student_id: string
+): Promise<Omit<DueReviewRow, "student_name">[]> {
+  const [student, plans, reviews] = await Promise.all([
+    getStudent(student_id),
+    listWeeklyPlans({ student_id }),
+    listReviewRecordsForStudent(student_id),
+  ]);
+  const reviewIntervalDays = student?.review_interval_days ?? 14;
+
+  const surahLast = new Map<
+    string,
+    { last_memorized: string; last_reviewed: string | null }
+  >();
+
+  for (const p of plans) {
+    const rows = await getDb()
+      .daily_records.where("weekly_plan_id")
+      .equals(p.id)
+      .toArray();
+    const dec = await decryptRows<DailyRecordRecord>(rows);
+    for (const r of dec) {
+      if (!r.surah_name || r.achieved_verses <= 0) continue;
+      const cur = surahLast.get(r.surah_name);
+      if (!cur || cur.last_memorized < r.date) {
+        surahLast.set(r.surah_name, {
+          last_memorized: r.date,
+          last_reviewed: cur?.last_reviewed ?? null,
+        });
+      }
+    }
+  }
+
+  for (const r of reviews) {
+    const cur = surahLast.get(r.surah_name);
+    if (!cur) continue;
+    if (!cur.last_reviewed || cur.last_reviewed < r.reviewed_date) {
+      cur.last_reviewed = r.reviewed_date;
+    }
+  }
+
+  const now = new Date();
+  return Array.from(surahLast.entries())
+    .map(([surah_name, v]) => {
+      const ref = v.last_reviewed ?? v.last_memorized;
+      const daysSince = Math.floor(
+        (now.getTime() - new Date(ref).getTime()) / 86_400_000
+      );
+      return {
+        student_id,
+        surah_name,
+        last_memorized: v.last_memorized,
+        last_reviewed: v.last_reviewed,
+        days_since_review: daysSince,
+        review_interval_days: reviewIntervalDays,
+      };
+    })
+    .filter((t) => t.days_since_review >= reviewIntervalDays);
+}
+
+export async function listReviewsForTeacher(
+  teacher_id: string
+): Promise<ReviewsForTeacher> {
+  const students = await listStudents({ teacher_id });
+
+  const perStudent = await Promise.all(
+    students.map(async (s) => {
+      const [dueRows, reviews] = await Promise.all([
+        computeDueReviewsForStudent(s.id),
+        listReviewRecordsForStudent(s.id),
+      ]);
+      return {
+        due: dueRows.map((r) => ({ ...r, student_name: s.full_name })),
+        history: reviews.map((r) => ({ ...r, student_name: s.full_name })),
+      };
+    })
+  );
+
+  const due = perStudent.flatMap((p) => p.due);
+  const history = perStudent.flatMap((p) => p.history);
+
+  due.sort((a, b) => b.days_since_review - a.days_since_review);
+  history.sort((a, b) => b.reviewed_date.localeCompare(a.reviewed_date));
+
+  return { due, history: history.slice(0, 50) };
 }

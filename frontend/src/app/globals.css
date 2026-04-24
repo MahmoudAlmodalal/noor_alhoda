@@ -98,10 +98,61 @@
   /* Motion easing — from Foundations · Motion (PDF page 6) */
   --ease-quranic: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-drawer:  cubic-bezier(0.65, 0, 0.35, 1);
+
+  /* Motion duration scale */
+  --motion-fast: 120ms;
+  --motion-base: 200ms;
+  --motion-slow: 360ms;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
+}
+
+@keyframes motion-fade-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes motion-pop {
+  0%   { opacity: 0; transform: scale(0.85); }
+  60%  { transform: scale(1.04); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes motion-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@keyframes motion-ring-fill {
+  from { stroke-dashoffset: var(--ring-empty, 1000); }
+  to   { stroke-dashoffset: var(--ring-filled, 0); }
+}
+
+.motion-fade-up { animation: motion-fade-up var(--motion-base) var(--ease-quranic) both; }
+.motion-pop     { animation: motion-pop     var(--motion-base) var(--ease-quranic) both; }
+
+.motion-skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(17, 21, 39, 0.04) 0%,
+    rgba(17, 21, 39, 0.10) 50%,
+    rgba(17, 21, 39, 0.04) 100%
+  );
+  background-size: 200% 100%;
+  animation: motion-shimmer 1.4s linear infinite;
+}
+
+.motion-ring-fill { animation: motion-ring-fill 700ms var(--ease-quranic) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .motion-fade-up,
+  .motion-pop,
+  .motion-skeleton,
+  .motion-ring-fill {
+    animation: none !important;
+  }
 }

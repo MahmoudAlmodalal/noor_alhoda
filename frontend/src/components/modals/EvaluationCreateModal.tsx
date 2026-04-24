@@ -5,6 +5,7 @@ import { Loader2, Save } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { StudentPicker } from "@/components/ui/StudentPicker";
 import { useMutation } from "@/hooks/useMutation";
 
 function tomorrowISO(): string {
@@ -16,33 +17,49 @@ function tomorrowISO(): string {
 interface Props {
   isOpen: boolean;
   onClose: () => void;
-  studentId: string;
+  studentId?: string;
   studentName?: string;
+  teacherId?: string;
   onCreated?: () => void;
 }
 
-export function EvaluationCreateModal({ isOpen, onClose, studentId, studentName, onCreated }: Props) {
+export function EvaluationCreateModal({
+  isOpen,
+  onClose,
+  studentId,
+  studentName,
+  teacherId,
+  onCreated,
+}: Props) {
+  const [selectedId, setSelectedId] = useState(studentId ?? "");
+  const [selectedName, setSelectedName] = useState(studentName ?? "");
   const [title, setTitle] = useState("");
   const [surahRange, setSurahRange] = useState("");
   const [scheduledDate, setScheduledDate] = useState(tomorrowISO());
 
-  const { mutate, isSubmitting, error, reset } = useMutation("evaluation", "create");
+  const { mutate, isSubmitting, error, reset } = useMutation(
+    "evaluation",
+    "create"
+  );
 
   useEffect(() => {
     if (!isOpen) return;
+    setSelectedId(studentId ?? "");
+    setSelectedName(studentName ?? "");
     setTitle("");
     setSurahRange("");
     setScheduledDate(tomorrowISO());
     reset();
-  }, [isOpen, reset]);
+  }, [isOpen, studentId, studentName, reset]);
 
   if (!isOpen) return null;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!selectedId) return;
     const result = await mutate(
       {
-        student_id: studentId,
+        student_id: selectedId,
         title: title.trim(),
         surah_range: surahRange.trim(),
         scheduled_date: scheduledDate,
@@ -60,10 +77,28 @@ export function EvaluationCreateModal({ isOpen, onClose, studentId, studentName,
       <form onSubmit={handleSubmit} className="space-y-4" dir="rtl">
         <div>
           <h2 className="text-lg font-bold text-primary">اختبار جديد</h2>
-          {studentName && <p className="text-xs text-text-muted mt-1">للطالب: {studentName}</p>}
+          {studentId && studentName ? (
+            <p className="text-xs text-text-muted mt-1">للطالب: {studentName}</p>
+          ) : null}
         </div>
 
         <div className="space-y-3">
+          {!studentId ? (
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-text-body">الطالب</label>
+              <StudentPicker
+                selectedId={selectedId}
+                selectedName={selectedName}
+                onSelect={(id, name) => {
+                  setSelectedId(id);
+                  setSelectedName(name);
+                }}
+                enabled={isOpen}
+                teacherId={teacherId}
+              />
+            </div>
+          ) : null}
+
           <div className="space-y-1.5">
             <label className="text-xs font-bold text-text-body">عنوان الاختبار</label>
             <Input
@@ -103,7 +138,7 @@ export function EvaluationCreateModal({ isOpen, onClose, studentId, studentName,
           <Button type="button" variant="ghost" onClick={onClose} disabled={isSubmitting}>
             إلغاء
           </Button>
-          <Button type="submit" disabled={isSubmitting || !title.trim()}>
+          <Button type="submit" disabled={isSubmitting || !title.trim() || !selectedId}>
             {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             <span className="mr-1">جدولة</span>
           </Button>

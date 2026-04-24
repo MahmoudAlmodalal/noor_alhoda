@@ -13,12 +13,15 @@ import {
   dashboardStats,
   leaderboard,
   listDailyRecordsWithStudentForDate,
+  listEvaluationsForTeacher,
   listPlansForUI,
+  listReviewsForTeacher,
   studentCoursesForStudent,
   studentHistory,
   studentStats,
   studentsOverviewStats,
   tasksToday,
+  teacherAggregateStats,
   weeklySummary,
 } from "@/lib/db/repos/aggregates";
 import {
@@ -74,7 +77,10 @@ export type QueryKey =
   | "student_history"
   | "weekly_summary"
   | "attendance_report"
-  | "leaderboard";
+  | "leaderboard"
+  | "teacher_aggregate_stats"
+  | "evaluations_for_teacher"
+  | "reviews_for_teacher";
 
 export interface QueryDef<TParams = QueryParams, TResult = unknown> {
   fn: (params: TParams) => Promise<TResult>;
@@ -254,6 +260,7 @@ const QUERIES: Record<QueryKey, QueryDef> = {
       listPlansForUI({
         student_id: typeof p?.student_id === "string" ? p.student_id : undefined,
         week_start: typeof p?.week_start === "string" ? p.week_start : undefined,
+        teacher_id: typeof p?.teacher_id === "string" ? p.teacher_id : undefined,
       }),
     depends: ["weekly_plan", "daily_record", "student"],
   },
@@ -367,6 +374,43 @@ const QUERIES: Record<QueryKey, QueryDef> = {
   leaderboard: {
     fn: () => leaderboard(),
     depends: ["student", "weekly_plan", "daily_record"],
+  },
+  teacher_aggregate_stats: {
+    fn: (p) => {
+      const tid = typeof p?.teacher_id === "string" ? p.teacher_id : "";
+      return tid
+        ? teacherAggregateStats(tid)
+        : Promise.resolve({
+            avgWeeklyCompletion: 0,
+            avgQuality: "—",
+            totalVersesThisWeek: 0,
+            pendingReviews: 0,
+            upcomingEvaluations: 0,
+          });
+    },
+    depends: [
+      "student",
+      "daily_record",
+      "weekly_plan",
+      "review_record",
+      "evaluation",
+    ],
+  },
+  evaluations_for_teacher: {
+    fn: (p) => {
+      const tid = typeof p?.teacher_id === "string" ? p.teacher_id : "";
+      return tid ? listEvaluationsForTeacher(tid) : Promise.resolve([]);
+    },
+    depends: ["evaluation", "student"],
+  },
+  reviews_for_teacher: {
+    fn: (p) => {
+      const tid = typeof p?.teacher_id === "string" ? p.teacher_id : "";
+      return tid
+        ? listReviewsForTeacher(tid)
+        : Promise.resolve({ due: [], history: [] });
+    },
+    depends: ["review_record", "daily_record", "student", "weekly_plan"],
   },
 };
 

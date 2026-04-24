@@ -1,14 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Loader2, Save } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { StudentPicker } from "@/components/ui/StudentPicker";
 import { useMutation } from "@/hooks/useMutation";
-import { useQuery } from "@/hooks/useApi";
-import { useDebounce } from "@/hooks/useDebounce";
-import type { StudentWithTeacher } from "@/hooks/queries";
 
 function nextSaturday(): string {
   const d = new Date();
@@ -50,19 +48,10 @@ export function WeeklyPlanModal({ isOpen, onClose, studentId, studentName, onCre
 function WeeklyPlanModalContent({ isOpen, onClose, studentId, studentName, onCreated }: Props) {
   const [selectedId, setSelectedId] = useState(studentId ?? "");
   const [selectedName, setSelectedName] = useState(studentName ?? "");
-  const [search, setSearch] = useState("");
-  const debouncedSearch = useDebounce(search);
   const [weekStart, setWeekStart] = useState<string>(nextSaturday());
   const [totalRequired, setTotalRequired] = useState<number>(20);
 
-  const { data: students } = useQuery<StudentWithTeacher[]>(
-    isOpen && !studentId ? "students_with_teacher" : null,
-    debouncedSearch ? { search: debouncedSearch } : undefined
-  );
-
   const { mutate, isSubmitting, error } = useMutation("weekly_plan", "create");
-
-  const filteredStudents = useMemo(() => (students ?? []).slice(0, 10), [students]);
 
   const handleSubmit = async () => {
     if (!selectedId) return;
@@ -96,36 +85,15 @@ function WeeklyPlanModalContent({ isOpen, onClose, studentId, studentName, onCre
         ) : (
           <div className="space-y-1.5">
             <label className="block text-sm font-bold text-text-body">الطالب</label>
-            <Input
-              placeholder="ابحث عن طالب..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              aria-label="ابحث عن طالب"
-              className="h-12 rounded-xl border-border-subtle"
+            <StudentPicker
+              selectedId={selectedId}
+              selectedName={selectedName}
+              onSelect={(id, name) => {
+                setSelectedId(id);
+                setSelectedName(name);
+              }}
+              enabled={isOpen}
             />
-            {filteredStudents.length > 0 && !selectedId && (
-              <div className="max-h-40 overflow-y-auto rounded-xl border border-border-card bg-surface-subtle/50">
-                {filteredStudents.map((s) => (
-                  <button
-                    key={s.id}
-                    type="button"
-                    onClick={() => {
-                      setSelectedId(s.id);
-                      setSelectedName(s.full_name);
-                      setSearch(s.full_name);
-                    }}
-                    className="w-full text-start px-3 py-2 text-sm hover:bg-white border-b border-border-card last:border-b-0"
-                  >
-                    {s.full_name}
-                  </button>
-                ))}
-              </div>
-            )}
-            {selectedId && (
-              <p className="text-xs text-primary font-bold mt-1">
-                تم اختيار: {selectedName}
-              </p>
-            )}
           </div>
         )}
 

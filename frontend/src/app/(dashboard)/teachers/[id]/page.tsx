@@ -6,28 +6,47 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ArrowRight,
+  Award,
   BookOpen,
+  Calendar,
+  ClipboardCheck,
   Edit,
   IdCard,
   Phone,
+  PlusCircle,
+  RotateCcw,
+  Target,
   Trash2,
   UserCheck,
+  UserCog,
   UserX,
   Users,
 } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
-import { Badge } from "@/components/ui/Badge";
-import { Button } from "@/components/ui/Button";
+import { Pattern } from "@/components/ui/Pattern";
+import { Segmented } from "@/components/ui/Segmented";
 import { PageLoading } from "@/components/ui/LoadingSpinner";
+import { WeeklyPlanModal } from "@/components/plans/WeeklyPlanModal";
+import { EvaluationCreateModal } from "@/components/modals/EvaluationCreateModal";
+import { TeacherStudentsTab } from "@/components/teachers/TeacherStudentsTab";
+import { TeacherRecitationTab } from "@/components/teachers/TeacherRecitationTab";
+import { TeacherPlansTab } from "@/components/teachers/TeacherPlansTab";
+import { TeacherEvaluationsTab } from "@/components/teachers/TeacherEvaluationsTab";
+import { TeacherReviewsTab } from "@/components/teachers/TeacherReviewsTab";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@/hooks/useApi";
 import type { StudentWithTeacher, TeacherWithUser } from "@/hooks/queries";
-import type { DailyRecordWithStudent } from "@/lib/db/repos/aggregates";
+import type {
+  DailyRecordWithStudent,
+  TeacherAggregateStats,
+} from "@/lib/db/repos/aggregates";
 import {
   ConfirmDeleteModal,
   EditTeacherModal,
 } from "@/components/modals/TeacherModals";
 import { RoleGate } from "@/components/auth/RoleGate";
+
+type TabKey = "students" | "recitation" | "plans" | "evaluations" | "reviews";
 
 const DAY_LABELS: Record<string, string> = {
   sat: "السبت",
@@ -82,6 +101,10 @@ function TeacherDetailInner({ id }: { id: string }) {
   const router = useRouter();
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [planOpen, setPlanOpen] = useState(false);
+  const [evalOpen, setEvalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<TabKey>("students");
+  const [focusStudentId, setFocusStudentId] = useState<string | null>(null);
 
   const { data: teachers, isLoading: teachersLoading } = useQuery<
     TeacherWithUser[]
@@ -93,6 +116,10 @@ function TeacherDetailInner({ id }: { id: string }) {
   const { data: todayRecords } = useQuery<DailyRecordWithStudent[]>(
     "daily_records_with_student",
     { date: todayIso(), teacher_id: id }
+  );
+  const { data: aggregate } = useQuery<TeacherAggregateStats>(
+    "teacher_aggregate_stats",
+    { teacher_id: id }
   );
 
   const teacher = useMemo(
@@ -110,21 +137,15 @@ function TeacherDetailInner({ id }: { id: string }) {
 
   const presentToday = useMemo(
     () =>
-      (todayRecords ?? []).filter((r) => r.attendance === "present").length,
-    [todayRecords]
-  );
-  const absentToday = useMemo(
-    () =>
       (todayRecords ?? []).filter(
-        (r) => r.attendance === "absent" || r.attendance === "late"
+        (r) => r.attendance === "present" || r.attendance === "late"
       ).length,
     [todayRecords]
   );
-  const recordedToday = (todayRecords ?? []).length;
-  const attendanceRate =
-    recordedToday === 0
-      ? null
-      : Math.round((presentToday / recordedToday) * 100);
+  const absentToday = useMemo(
+    () => (todayRecords ?? []).filter((r) => r.attendance === "absent").length,
+    [todayRecords]
+  );
 
   const recordByStudent = useMemo(() => {
     const map = new Map<string, DailyRecordWithStudent>();
@@ -157,8 +178,13 @@ function TeacherDetailInner({ id }: { id: string }) {
   const todayCode = JS_DAY_TO_CODE[new Date().getDay()];
   const hasAffiliation = Boolean(teacher.affiliation);
 
+  const handleJumpToRecitation = (student_id: string) => {
+    setFocusStudentId(student_id);
+    setActiveTab("recitation");
+  };
+
   return (
-    <div className="mx-auto max-w-5xl space-y-6 pb-10">
+    <div className="mx-auto max-w-6xl space-y-5 pb-10">
       <Link
         href="/teachers"
         className="inline-flex items-center gap-2 text-sm font-bold text-primary hover:underline"
@@ -167,273 +193,222 @@ function TeacherDetailInner({ id }: { id: string }) {
         الرجوع إلى قائمة المحفظين
       </Link>
 
-      <div className="relative overflow-hidden rounded-[24px] border border-border-card bg-white p-6 shadow-sm">
+      <div className="relative overflow-hidden rounded-[24px] bg-gradient-to-br from-primary via-[#0a4a85] to-[#083d73] p-6 text-white shadow-[0_10px_30px_-12px_rgba(11,83,148,0.45)]">
+        <Pattern kind="star8" color="#eabd5b" opacity={0.08} />
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute -end-10 -top-10 h-40 w-40 rounded-full bg-tile-blue opacity-60 blur-2xl"
+          className="pointer-events-none absolute -top-16 -start-16 h-56 w-56 rounded-full bg-white/10 blur-2xl"
         />
-        <div className="relative flex flex-col gap-6 sm:flex-row sm:items-start">
-          <Avatar name={teacher.full_name} size={80} className="shrink-0" />
-          <div className="flex-1 space-y-3">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -bottom-20 -end-10 h-64 w-64 rounded-full bg-[#eabd5b]/15 blur-3xl"
+        />
+
+        <div className="relative flex flex-col gap-5 md:flex-row md:items-start">
+          <Avatar name={teacher.full_name} size={88} className="shrink-0" />
+          <div className="min-w-0 flex-1 space-y-3">
             <div>
-              <h1 className="text-2xl font-black text-text-title">
+              <h1 className="text-2xl font-black leading-tight text-white">
                 {teacher.full_name}
               </h1>
-              <p className="mt-1 text-sm text-text-muted">
+              <p className="mt-1 text-xs text-white/70">
                 {teacher.specialization || "محفظ"}
               </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
               {hasAffiliation ? (
-                <Badge
-                  variant="secondary"
-                  className="mt-2 rounded-md bg-tile-amber px-2.5 py-0.5 font-bold text-[#92710e] hover:bg-tile-amber"
-                >
+                <span className="inline-flex items-center gap-1 rounded-md bg-white/15 px-2.5 py-0.5 text-[11px] font-bold text-white ring-1 ring-white/20 backdrop-blur-sm">
+                  <UserCog className="h-3 w-3" />
                   {formatAffiliation(teacher.affiliation)}
-                </Badge>
+                </span>
+              ) : null}
+              {teacher.ring_name ? (
+                <span className="inline-flex items-center gap-1 rounded-md bg-white/15 px-2.5 py-0.5 text-[11px] font-bold text-white ring-1 ring-white/20 backdrop-blur-sm">
+                  <BookOpen className="h-3 w-3" />
+                  {teacher.ring_name}
+                </span>
+              ) : null}
+              <span
+                className="inline-flex items-center gap-1 rounded-md bg-white/15 px-2.5 py-0.5 text-[11px] font-bold text-white ring-1 ring-white/20 backdrop-blur-sm"
+                dir="ltr"
+              >
+                <IdCard className="h-3 w-3" />
+                {teacher.national_id || "—"}
+              </span>
+              {teacher.phone_number ? (
+                <span
+                  className="inline-flex items-center gap-1 rounded-md bg-white/15 px-2.5 py-0.5 text-[11px] font-bold text-white ring-1 ring-white/20 backdrop-blur-sm"
+                  dir="ltr"
+                >
+                  <Phone className="h-3 w-3" />
+                  {teacher.phone_number}
+                </span>
               ) : null}
             </div>
 
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <InfoTile
-                icon={<IdCard className="h-4 w-4" />}
-                label="رقم الهوية"
-                value={teacher.national_id || "—"}
-                ltr
-              />
-              <InfoTile
-                icon={<Phone className="h-4 w-4" />}
-                label="رقم الجوال"
-                value={teacher.phone_number || "—"}
-                ltr
-              />
-              <InfoTile
-                icon={<BookOpen className="h-4 w-4" />}
-                label="اسم الحلقة"
-                value={teacher.ring_name || "—"}
-              />
-              <InfoTile
-                icon={<Users className="h-4 w-4" />}
-                label="الحد الأقصى"
-                value={`${capacity} طالب`}
-              />
-            </div>
-
             {teacher.session_days?.length ? (
-              <div>
-                <p className="mb-2 text-[11px] font-bold text-text-muted">
-                  أيام الحلقة
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {teacher.session_days.map((d, idx) => {
-                    const { code, label } = normalizeDay(d);
-                    const isToday = code === todayCode;
-                    return (
-                      <span
-                        key={`${code}-${idx}`}
-                        className={cn(
-                          "inline-flex h-7 items-center rounded-full px-3 text-[11px] font-bold",
-                          isToday
-                            ? "bg-emerald-500 text-white"
-                            : "bg-surface-subtle text-text-body"
-                        )}
-                      >
-                        {label}
-                      </span>
-                    );
-                  })}
-                </div>
+              <div className="flex flex-wrap gap-1.5">
+                {teacher.session_days.map((d, idx) => {
+                  const { code, label } = normalizeDay(d);
+                  const isToday = code === todayCode;
+                  return (
+                    <span
+                      key={`${code}-${idx}`}
+                      className={cn(
+                        "inline-flex h-6 items-center rounded-full px-2.5 text-[10px] font-bold",
+                        isToday
+                          ? "bg-emerald-400 text-emerald-950"
+                          : "bg-white/10 text-white/80 ring-1 ring-white/10"
+                      )}
+                    >
+                      {label}
+                    </span>
+                  );
+                })}
               </div>
             ) : null}
           </div>
         </div>
 
-        <div className="mt-6 flex flex-wrap items-center gap-2 border-t border-border-card pt-4">
-          <Button
-            variant="outline"
+        <div className="relative mt-5 flex flex-wrap items-center gap-2 border-t border-white/15 pt-4">
+          <button
+            type="button"
+            onClick={() => setPlanOpen(true)}
+            className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-xs font-bold text-primary transition-colors hover:bg-white/90"
+          >
+            <PlusCircle className="h-4 w-4" />
+            إنشاء خطة
+          </button>
+          <button
+            type="button"
+            onClick={() => setEvalOpen(true)}
+            className="inline-flex items-center gap-2 rounded-xl bg-[#eabd5b] px-4 py-2 text-xs font-bold text-[#5c4a20] transition-colors hover:bg-[#eabd5b]/90"
+          >
+            <ClipboardCheck className="h-4 w-4" />
+            جدولة اختبار
+          </button>
+          <button
+            type="button"
             onClick={() => setEditOpen(true)}
-            className="h-10 gap-2 rounded-[12px] font-bold"
+            className="inline-flex items-center gap-2 rounded-xl bg-white/15 px-4 py-2 text-xs font-bold text-white ring-1 ring-white/20 backdrop-blur-sm transition-colors hover:bg-white/20"
           >
             <Edit className="h-4 w-4" />
-            تعديل البيانات
-          </Button>
-          <Button
-            variant="ghost-danger"
+            تعديل
+          </button>
+          <button
+            type="button"
             onClick={() => setDeleteOpen(true)}
-            className="h-10 gap-2 rounded-[12px] font-bold"
+            className="inline-flex items-center gap-2 rounded-xl bg-red-500/80 px-4 py-2 text-xs font-bold text-white ring-1 ring-white/20 backdrop-blur-sm transition-colors hover:bg-red-500"
           >
             <Trash2 className="h-4 w-4" />
-            حذف المحفظ
-          </Button>
+            حذف
+          </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         <StatCard
           icon={<Users className="h-5 w-5" />}
           label="عدد الطلاب"
           value={studentsCount}
           tint="blue"
+          hint={`السعة ${capacityUsage}%`}
         />
         <StatCard
           icon={<UserCheck className="h-5 w-5" />}
-          label="الحاضرون اليوم"
+          label="حضور اليوم"
           value={presentToday}
           tint="green"
-          hint={
-            recordedToday > 0
-              ? `من أصل ${recordedToday} سجل اليوم`
-              : "لا يوجد تسجيل لليوم"
-          }
         />
         <StatCard
           icon={<UserX className="h-5 w-5" />}
-          label="الغائبون اليوم"
+          label="غياب اليوم"
           value={absentToday}
           tint="red"
         />
         <StatCard
-          icon={<BookOpen className="h-5 w-5" />}
-          label="نسبة الإشغال"
-          value={`${capacityUsage}%`}
+          icon={<Target className="h-5 w-5" />}
+          label="إنجاز الأسبوع"
+          value={aggregate ? `${aggregate.avgWeeklyCompletion}%` : "—"}
           tint={
-            capacityUsage >= 90 ? "red" : capacityUsage >= 60 ? "amber" : "green"
+            aggregate && aggregate.avgWeeklyCompletion >= 80
+              ? "green"
+              : aggregate && aggregate.avgWeeklyCompletion >= 50
+                ? "amber"
+                : "red"
           }
-          hint={`${studentsCount} / ${capacity}`}
+        />
+        <StatCard
+          icon={<Award className="h-5 w-5" />}
+          label="متوسط الجودة"
+          value={aggregate?.avgQuality ?? "—"}
+          tint="amber"
+        />
+        <StatCard
+          icon={<RotateCcw className="h-5 w-5" />}
+          label="مراجعات مستحقة"
+          value={aggregate?.pendingReviews ?? 0}
+          tint={
+            aggregate && aggregate.pendingReviews > 0 ? "red" : "green"
+          }
+          hint={
+            aggregate && aggregate.upcomingEvaluations > 0
+              ? `+${aggregate.upcomingEvaluations} اختبارات قادمة`
+              : undefined
+          }
         />
       </div>
 
-      <section className="overflow-hidden rounded-[24px] border border-border-card bg-white shadow-sm">
-        <div className="flex items-center justify-between border-b border-border-card px-5 py-4">
-          <div className="flex items-center gap-2">
-            <Users className="h-5 w-5 text-primary" />
-            <h2 className="text-base font-bold text-text-body">
-              طلاب المحفظ
-              {attendanceRate != null ? (
-                <span className="ms-2 text-xs font-medium text-text-muted">
-                  (حضور اليوم {attendanceRate}%)
-                </span>
-              ) : null}
-            </h2>
-          </div>
-          <span className="text-xs text-text-muted">
-            {studentsCount} {studentsCount === 1 ? "طالب" : "طلاب"}
-          </span>
-        </div>
+      <div className="flex justify-center overflow-x-auto">
+        <Segmented<TabKey>
+          options={[
+            { value: "students", label: "الطلاب", icon: <Users className="h-3.5 w-3.5" /> },
+            { value: "recitation", label: "التسميع", icon: <BookOpen className="h-3.5 w-3.5" /> },
+            { value: "plans", label: "الخطط", icon: <Calendar className="h-3.5 w-3.5" /> },
+            { value: "evaluations", label: "الاختبارات", icon: <ClipboardCheck className="h-3.5 w-3.5" /> },
+            { value: "reviews", label: "المراجعة", icon: <RotateCcw className="h-3.5 w-3.5" /> },
+          ]}
+          value={activeTab}
+          onChange={(v) => {
+            if (v !== "recitation") setFocusStudentId(null);
+            setActiveTab(v);
+          }}
+        />
+      </div>
 
-        {teacherStudents.length === 0 ? (
-          <div className="px-5 py-12 text-center">
-            <Users className="mx-auto mb-3 h-10 w-10 text-text-muted" />
-            <p className="text-sm font-medium text-text-muted">
-              لا يوجد طلاب معيّنون لهذا المحفظ بعد.
-            </p>
-          </div>
-        ) : (
-          <ul className="divide-y divide-border-card">
-            {teacherStudents
-              .slice()
-              .sort((a, b) => a.full_name.localeCompare(b.full_name, "ar"))
-              .map((student) => {
-                const rec = recordByStudent.get(student.id);
-                return (
-                  <li key={student.id}>
-                    <Link
-                      href={`/students/${student.id}`}
-                      className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-surface-subtle"
-                    >
-                      <Avatar name={student.full_name} size={40} />
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-bold text-text-title">
-                          {student.full_name}
-                        </p>
-                        <p
-                          className="mt-0.5 truncate text-[11px] text-text-muted"
-                          dir="ltr"
-                        >
-                          {student.national_id}
-                        </p>
-                      </div>
-                      <span className="hidden text-xs font-semibold text-text-muted sm:inline">
-                        {student.grade || "—"}
-                      </span>
-                      <AttendancePill record={rec} />
-                      <ArrowRight className="h-4 w-4 rotate-180 text-text-muted" />
-                    </Link>
-                  </li>
-                );
-              })}
-          </ul>
-        )}
-      </section>
+      {activeTab === "students" ? (
+        <TeacherStudentsTab
+          students={teacherStudents}
+          recordByStudent={recordByStudent}
+          onJumpToRecitation={handleJumpToRecitation}
+        />
+      ) : null}
+      {activeTab === "recitation" ? (
+        <TeacherRecitationTab
+          teacherId={id}
+          initialStudentId={focusStudentId}
+        />
+      ) : null}
+      {activeTab === "plans" ? <TeacherPlansTab teacherId={id} /> : null}
+      {activeTab === "evaluations" ? (
+        <TeacherEvaluationsTab teacherId={id} />
+      ) : null}
+      {activeTab === "reviews" ? <TeacherReviewsTab teacherId={id} /> : null}
 
-      {recordedToday > 0 ? (
-        <section className="overflow-hidden rounded-[24px] border border-border-card bg-white shadow-sm">
-          <div className="flex items-center gap-2 border-b border-border-card px-5 py-4">
-            <BookOpen className="h-5 w-5 text-primary" />
-            <h2 className="text-base font-bold text-text-body">
-              نشاط اليوم
-            </h2>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-right text-sm">
-              <thead className="bg-surface-subtle/80 text-xs text-text-muted">
-                <tr>
-                  <th className="px-4 py-3 font-bold">الطالب</th>
-                  <th className="px-4 py-3 font-bold">الحضور</th>
-                  <th className="px-4 py-3 font-bold">السورة</th>
-                  <th className="px-4 py-3 font-bold">الإنجاز</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(todayRecords ?? [])
-                  .slice()
-                  .sort((a, b) =>
-                    a.student_name.localeCompare(b.student_name, "ar")
-                  )
-                  .map((r) => {
-                    const rate =
-                      r.required_verses > 0
-                        ? Math.round(
-                            (r.achieved_verses / r.required_verses) * 100
-                          )
-                        : 0;
-                    return (
-                      <tr
-                        key={r.id}
-                        className="border-b border-border-card last:border-b-0"
-                      >
-                        <td className="px-4 py-3 font-semibold text-text-body">
-                          {r.student_name}
-                        </td>
-                        <td className="px-4 py-3">
-                          <AttendancePill record={r} />
-                        </td>
-                        <td className="px-4 py-3 text-text-label">
-                          {r.surah_name || "—"}
-                        </td>
-                        <td className="px-4 py-3">
-                          {r.required_verses > 0 ? (
-                            <span
-                              className={cn(
-                                "inline-flex rounded-md px-2 py-0.5 text-xs font-bold",
-                                rate >= 80
-                                  ? "bg-green-50 text-green-600"
-                                  : rate >= 50
-                                    ? "bg-orange-50 text-orange-600"
-                                    : "bg-red-50 text-red-600"
-                              )}
-                            >
-                              {r.achieved_verses} / {r.required_verses} ({rate}%)
-                            </span>
-                          ) : (
-                            <span className="text-xs text-text-muted">—</span>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-              </tbody>
-            </table>
-          </div>
-        </section>
+      {planOpen ? (
+        <WeeklyPlanModal
+          isOpen={planOpen}
+          onClose={() => setPlanOpen(false)}
+        />
+      ) : null}
+
+      {evalOpen ? (
+        <EvaluationCreateModal
+          isOpen={evalOpen}
+          onClose={() => setEvalOpen(false)}
+          teacherId={id}
+        />
       ) : null}
 
       {editOpen ? (
@@ -458,33 +433,6 @@ function TeacherDetailInner({ id }: { id: string }) {
           }}
         />
       ) : null}
-    </div>
-  );
-}
-
-function InfoTile({
-  icon,
-  label,
-  value,
-  ltr,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  ltr?: boolean;
-}) {
-  return (
-    <div className="rounded-[12px] bg-surface-subtle/80 p-3">
-      <div className="mb-1 flex items-center gap-1.5 text-[11px] font-medium text-text-muted">
-        <span className="text-primary">{icon}</span>
-        <span>{label}</span>
-      </div>
-      <p
-        className="truncate text-sm font-bold text-text-body"
-        dir={ltr ? "ltr" : undefined}
-      >
-        {value}
-      </p>
     </div>
   );
 }
@@ -523,50 +471,13 @@ function StatCard({
         {icon}
       </div>
       <p className="text-[11px] font-bold text-text-muted">{label}</p>
-      <p className="mt-1 text-2xl font-black leading-tight text-text-title">
+      <p className="mt-1 text-xl font-black leading-tight text-text-title sm:text-2xl">
         {value}
       </p>
       {hint ? (
         <p className="mt-1 text-[10px] text-text-muted">{hint}</p>
       ) : null}
     </div>
-  );
-}
-
-function AttendancePill({ record }: { record?: DailyRecordWithStudent }) {
-  if (!record) {
-    return (
-      <span className="inline-flex items-center rounded-md bg-surface-subtle px-2 py-0.5 text-[10px] font-bold text-text-muted">
-        لم يُسجَّل
-      </span>
-    );
-  }
-  const status = record.attendance;
-  if (status === "present") {
-    return (
-      <span className="inline-flex items-center rounded-md bg-green-50 px-2 py-0.5 text-[10px] font-bold text-green-600">
-        حاضر
-      </span>
-    );
-  }
-  if (status === "absent") {
-    return (
-      <span className="inline-flex items-center rounded-md bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-600">
-        غائب
-      </span>
-    );
-  }
-  if (status === "late") {
-    return (
-      <span className="inline-flex items-center rounded-md bg-orange-50 px-2 py-0.5 text-[10px] font-bold text-orange-600">
-        متأخر
-      </span>
-    );
-  }
-  return (
-    <span className="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700">
-      مُستأذن
-    </span>
   );
 }
 

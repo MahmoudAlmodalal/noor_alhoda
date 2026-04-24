@@ -49,18 +49,28 @@ export function AttendanceRow({ draft, onChange }: Props) {
         draft.dirty ? "border-primary/40" : "border-border-card"
       } shadow-sm overflow-hidden`}
     >
-      <div className="p-4 flex items-center gap-3 flex-wrap">
-        <div className="w-10 h-10 bg-tile-blue rounded-full flex items-center justify-center shrink-0">
-          <User className="w-5 h-5 text-primary" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <h3 className="font-bold text-sm text-text-body truncate">{draft.student_name}</h3>
-          {draft.dirty && (
-            <p className="text-[10px] text-primary font-bold mt-0.5">تغييرات غير محفوظة</p>
-          )}
+      <div className="p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:flex-wrap">
+        <div className="flex items-center gap-3 w-full min-w-0 sm:w-auto sm:flex-1">
+          <div className="w-10 h-10 bg-tile-blue rounded-full flex items-center justify-center shrink-0">
+            <User className="w-5 h-5 text-primary" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="font-bold text-sm text-text-body truncate">{draft.student_name}</h3>
+            {draft.dirty && (
+              <p className="text-[10px] text-primary font-bold mt-0.5">تغييرات غير محفوظة</p>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            className="p-2 rounded-[10px] text-text-muted hover:bg-surface-subtle hover:text-primary sm:hidden"
+            aria-label="تفاصيل الحفظ"
+          >
+            {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </button>
         </div>
 
-        <div className="flex items-center gap-1.5 flex-wrap">
+        <div className="flex items-center gap-1.5 flex-wrap w-full sm:w-auto">
           {STATUS_OPTIONS.map((opt) => {
             const active = draft.attendance === opt.value;
             return (
@@ -81,7 +91,7 @@ export function AttendanceRow({ draft, onChange }: Props) {
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
-          className="p-2 rounded-[10px] text-text-muted hover:bg-surface-subtle hover:text-primary"
+          className="hidden p-2 rounded-[10px] text-text-muted hover:bg-surface-subtle hover:text-primary sm:inline-flex"
           aria-label="تفاصيل الحفظ"
         >
           {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
