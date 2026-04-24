@@ -5,6 +5,7 @@ import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ToastProvider } from "@/contexts/ToastContext";
 import { ServiceWorkerRegistrar } from "@/components/ServiceWorkerRegistrar";
+import { UpdateNotifier } from "@/components/UpdateNotifier";
 
 const notoKufi = Noto_Kufi_Arabic({
   subsets: ["arabic"],
@@ -52,6 +53,7 @@ export default function RootLayout({
           </ToastProvider>
         </AuthProvider>
         <ServiceWorkerRegistrar />
+        <UpdateNotifier />
       </body>
     </html>
   );
