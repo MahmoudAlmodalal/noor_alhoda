@@ -1,4 +1,4 @@
-import type { ApiResponse, LoginRequest, LoginResponse } from "@/types/api";
+import type { ApiErrorResponse, ApiResponse, LoginRequest, LoginResponse } from "@/types/api";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
@@ -210,7 +210,7 @@ async function apiFetch<T>(
     // nginx/Render 502/504 HTML, empty body) surfaces as a real error with the
     // HTTP status, instead of the outer catch swallowing it as "network failed".
     const bodyText = await res.text().catch(() => "");
-    let data: any = null;
+    let data: unknown = null;
     if (bodyText) {
       try {
         data = JSON.parse(bodyText);
@@ -225,24 +225,31 @@ async function apiFetch<T>(
       }
     }
 
+    const dataObj = (data && typeof data === "object" ? data : null) as {
+      success?: unknown;
+      error?: { code?: number; message?: string };
+      detail?: string;
+      message?: string;
+    } | null;
+
     if (res.ok) {
-      if (data && data.success !== undefined) return data as ApiResponse<T>;
+      if (dataObj && dataObj.success !== undefined) return data as ApiResponse<T>;
       return { success: true, data: (data ?? {}) as T };
     }
 
     // ── أخطاء أخرى (400، 403، 404، 500...) ───────────────────────────────
-    if (data?.error) {
-      return { success: false, error: data.error };
+    if (dataObj?.error) {
+      return { success: false, error: dataObj.error as ApiErrorResponse["error"] };
     }
     return {
       success: false,
       error: {
         code: res.status,
-        message: data?.detail || data?.message || `حدث خطأ غير متوقع (${res.status}).`,
+        message: dataObj?.detail || dataObj?.message || `حدث خطأ غير متوقع (${res.status}).`,
       },
     };
-  } catch (err: any) {
-    if (err.name === 'AbortError') {
+  } catch (err: unknown) {
+    if (err instanceof Error && err.name === 'AbortError') {
       throw err;
     }
     // Provide more specific error messages for common issues

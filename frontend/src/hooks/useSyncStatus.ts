@@ -21,7 +21,9 @@ export function useSyncStatus(): { pending: number; errors: number } {
   }, []);
 
   useEffect(() => {
-    void refresh();
+    queueMicrotask(() => {
+      void refresh();
+    });
     const unsub = onChange("outbox", () => {
       void refresh();
     });
@@ -47,7 +49,9 @@ export function usePendingSync(
   }, [resource, id]);
 
   useEffect(() => {
-    void refresh();
+    queueMicrotask(() => {
+      void refresh();
+    });
     const unsub = onChange("outbox", () => {
       void refresh();
     });

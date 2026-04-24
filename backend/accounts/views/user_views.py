@@ -25,6 +25,7 @@ class UserFilterSerializer(serializers.Serializer):
 
 
 class UserInputSerializer(serializers.Serializer):
+    national_id = serializers.CharField()
     phone_number = serializers.CharField()
     first_name = serializers.CharField(required=False, default="")
     last_name = serializers.CharField(required=False, default="")

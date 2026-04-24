@@ -44,12 +44,14 @@ export function EvaluationCreateModal({
 
   useEffect(() => {
     if (!isOpen) return;
-    setSelectedId(studentId ?? "");
-    setSelectedName(studentName ?? "");
-    setTitle("");
-    setSurahRange("");
-    setScheduledDate(tomorrowISO());
-    reset();
+    queueMicrotask(() => {
+      setSelectedId(studentId ?? "");
+      setSelectedName(studentName ?? "");
+      setTitle("");
+      setSurahRange("");
+      setScheduledDate(tomorrowISO());
+      reset();
+    });
   }, [isOpen, studentId, studentName, reset]);
 
   if (!isOpen) return null;

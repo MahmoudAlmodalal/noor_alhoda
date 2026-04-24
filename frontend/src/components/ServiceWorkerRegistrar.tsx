@@ -22,7 +22,7 @@ export function ServiceWorkerRegistrar() {
         if (swWithSync.sync && typeof swWithSync.sync.register === "function") {
           try {
             await swWithSync.sync.register("noor-sync-push");
-          } catch (_err) {
+          } catch {
             /* permission denied or unsupported — fall back to online events */
           }
         }

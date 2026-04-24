@@ -17,6 +17,8 @@ import {
     Trophy,
     BarChart3,
     Database,
+    Calendar,
+    GraduationCap,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNotifications } from "@/contexts/NotificationsContext";
@@ -56,6 +58,8 @@ export const menuItems: NavItem[] = [
 
     // الطالب فقط
     { name: "مهامي اليومية", href: "/student/tasks", icon: ClipboardCheck, roles: ["student"] },
+    { name: "الخطة الأسبوعية", href: "/student/plan", icon: Calendar, roles: ["student"] },
+    { name: "الاختبارات", href: "/student/evaluations", icon: GraduationCap, roles: ["student"] },
     { name: "سجل الإنجاز", href: "/student/achievements", icon: Trophy, roles: ["student"] },
 ];
 
@@ -105,8 +109,9 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
                                     key={item.href}
                                     href={item.href}
                                     onClick={() => setIsOpen(false)}
+                                    aria-current={isActive ? "page" : undefined}
                                     className={cn(
-                                        "flex items-center space-x-reverse space-x-3 px-4 py-3 rounded-[14px] transition-colors",
+                                        "flex items-center space-x-reverse space-x-3 px-4 py-3 rounded-[14px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
                                         isActive
                                             ? "bg-primary text-white font-bold shadow-sm"
                                             : "text-primary/70 hover:bg-primary/5 hover:text-primary font-medium"

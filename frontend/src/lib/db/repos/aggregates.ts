@@ -335,15 +335,29 @@ export async function tasksToday(student_id: string): Promise<TodayTasks> {
       const daysSince = Math.floor(
         (todayDate.getTime() - new Date(ref).getTime()) / 86_400_000
       );
+      // Offline approximation of the adaptive schedule: without the
+      // SurahMastery table locally, we use the student's base interval.
+      // The server's pool (via push/pull) is authoritative.
+      const refDate = new Date(ref);
+      const nextDue = new Date(refDate);
+      nextDue.setDate(nextDue.getDate() + reviewIntervalDays);
+      const overdue = Math.max(
+        0,
+        Math.floor(
+          (todayDate.getTime() - nextDue.getTime()) / 86_400_000
+        )
+      );
       return {
         surah_name,
         last_memorized_date: v.last_memorized,
         last_review_date: v.last_review,
         days_since_review: daysSince,
+        next_due_date: nextDue.toISOString().slice(0, 10),
+        overdue_days: overdue,
       };
     })
     .filter((t) => t.days_since_review >= reviewIntervalDays)
-    .sort((a, b) => b.days_since_review - a.days_since_review);
+    .sort((a, b) => b.overdue_days - a.overdue_days);
 
   const upcoming = evals
     .filter((e) => e.scheduled_date >= today && e.status === "scheduled")
@@ -450,13 +464,100 @@ export async function weeklySummary(
     note: r.note,
   }));
 
+  const catchup = computeCatchup(daily);
+
   return {
     week_start: ws,
+    week_number: plan.week_number,
     total_required: plan.total_required,
     total_achieved: plan.total_achieved,
     completion_rate: completionRate(plan.total_achieved, plan.total_required),
     records,
+    catchup,
   };
+}
+
+/**
+ * Derive a non-mutating catch-up suggestion from the current week's daily
+ * records. Deficit = sum of (required - achieved) on past days where the
+ * student missed/partially achieved. Redistribution is proportional to each
+ * remaining day's required_verses — advisory only, never writes.
+ */
+function computeCatchup(daily: DailyRecordRecord[]): {
+  deficit: number;
+  suggested_per_day: { day: string; date: string; topup: number }[];
+  weak_surahs: { surah_name: string; quality: string }[];
+} | null {
+  const DAY_LABELS: Record<string, string> = {
+    sat: "السبت",
+    sun: "الأحد",
+    mon: "الاثنين",
+    tue: "الثلاثاء",
+    wed: "الأربعاء",
+    thu: "الخميس",
+  };
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  let deficit = 0;
+  const weakSurahs: { surah_name: string; quality: string }[] = [];
+  const seenWeak = new Set<string>();
+
+  for (const r of daily) {
+    const dayDate = new Date(r.date);
+    dayDate.setHours(0, 0, 0, 0);
+    if (dayDate >= today) continue;
+    if (!r.required_verses) continue;
+    const shortfall = Math.max(0, r.required_verses - r.achieved_verses);
+    if (shortfall > 0) deficit += shortfall;
+    if (
+      (r.quality === "weak" || r.quality === "none") &&
+      r.surah_name &&
+      !seenWeak.has(r.surah_name)
+    ) {
+      seenWeak.add(r.surah_name);
+      weakSurahs.push({ surah_name: r.surah_name, quality: r.quality });
+    }
+  }
+
+  if (deficit === 0) return null;
+
+  const remaining = daily
+    .filter((r) => {
+      const d = new Date(r.date);
+      d.setHours(0, 0, 0, 0);
+      return d >= today && r.required_verses > 0;
+    })
+    .map((r) => ({ day: r.day, date: r.date, required: r.required_verses }));
+
+  if (remaining.length === 0) {
+    return { deficit, suggested_per_day: [], weak_surahs: weakSurahs };
+  }
+
+  const totalRemainingRequired = remaining.reduce(
+    (sum, r) => sum + r.required,
+    0,
+  );
+
+  const suggested: { day: string; date: string; topup: number }[] = [];
+  let distributed = 0;
+  remaining.forEach((r, i) => {
+    const topup =
+      i === remaining.length - 1
+        ? deficit - distributed
+        : Math.round(
+              (deficit * r.required) / Math.max(1, totalRemainingRequired),
+          );
+    distributed += topup;
+    suggested.push({
+      day: DAY_LABELS[r.day] ?? r.day,
+      date: r.date,
+      topup: Math.max(0, topup),
+    });
+  });
+
+  return { deficit, suggested_per_day: suggested, weak_surahs: weakSurahs };
 }
 
 // ---------------------------------------------------------------------------

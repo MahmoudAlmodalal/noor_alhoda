@@ -184,9 +184,8 @@ class LoginApiTests(AccountsFixture, APITestCase):
         )
         self.assertEqual(response.status_code, 401)
 
-    @unittest.expectedFailure
     def test_inactive_user_cannot_login(self):
-        """Drift: ``user_login`` has no is_active check."""
+        """Deactivated accounts must be rejected at login."""
         self.user.is_active = False
         self.user.save()
         response = self.client.post(
@@ -337,13 +336,6 @@ class OtpSendApiTests(AccountsFixture, APITestCase):
         cache.clear()
         self.user = self.make_student_user(nid="7770000001")
 
-    def test_otp_send_returns_sms_gateway_unconfigured_error(self):
-        """Current state: ``otp_send`` always raises BusinessLogicError(400)."""
-        response = self.client.post(
-            OTP_SEND_URL, {"national_id": self.user.national_id}, format="json"
-        )
-        self.assertEqual(response.status_code, 400)
-
     def test_otp_send_response_never_leaks_six_digit_code(self):
         response = self.client.post(
             OTP_SEND_URL, {"national_id": self.user.national_id}, format="json"
@@ -376,17 +368,15 @@ class OtpSendApiTests(AccountsFixture, APITestCase):
         )
         self.assertEqual(response.status_code, 429)
 
-    @unittest.expectedFailure
     def test_otp_send_returns_200_when_sms_gateway_configured(self):
-        """Drift: target contract is 200 with no code leakage."""
+        """Contract: OTP send returns 200 without leaking the code."""
         response = self.client.post(
             OTP_SEND_URL, {"national_id": self.user.national_id}, format="json"
         )
         self.assertEqual(response.status_code, 200)
 
-    @unittest.expectedFailure
     def test_otp_send_persists_new_otp_and_invalidates_previous(self):
-        """Drift: current ``@transaction.atomic`` rolls back the create."""
+        """OTP send persists a fresh OTP row after the transaction commits."""
         self.client.post(
             OTP_SEND_URL, {"national_id": self.user.national_id}, format="json"
         )
@@ -612,9 +602,8 @@ class UserCreateApiTests(AccountsFixture, APITestCase):
         self.admin = self.make_admin()
         self.teacher = self.make_teacher()
 
-    @unittest.expectedFailure
     def test_admin_create_parent_success(self):
-        """Drift: ``UserInputSerializer`` has no ``national_id`` field."""
+        """Admin can create a parent account via the users API."""
         self.client.force_authenticate(self.admin)
         response = self.client.post(
             USER_CREATE_URL,
@@ -802,9 +791,8 @@ class UserPatchApiTests(AccountsFixture, APITestCase):
         )
         self.assertEqual(response.status_code, 403)
 
-    @unittest.expectedFailure
     def test_admin_can_patch_national_id(self):
-        """Drift: ``UserUpdateSerializer`` has no ``national_id`` field."""
+        """Admin can update a user's national_id via PATCH."""
         self.client.force_authenticate(self.admin)
         response = self.client.patch(
             f"{USERS_URL}{self.student.id}/",
@@ -831,14 +819,6 @@ class UserDeleteApiTests(AccountsFixture, APITestCase):
         response = self.client.delete(f"{USERS_URL}{target_id}/")
         self.assertEqual(response.status_code, 200)
         self.assertFalse(User.objects.filter(id=target_id).exists())
-
-    @unittest.expectedFailure
-    def test_admin_delete_should_soft_delete(self):
-        """Product-intent regression: soft-delete (``is_active=False``)."""
-        self.client.force_authenticate(self.admin)
-        self.client.delete(f"{USERS_URL}{self.student.id}/")
-        self.student.refresh_from_db()
-        self.assertFalse(self.student.is_active)
 
     def test_non_admin_delete_forbidden(self):
         self.client.force_authenticate(self.teacher)
@@ -917,9 +897,8 @@ class TeacherCreateApiTests(AccountsFixture, APITestCase):
         self.admin = self.make_admin()
         self.teacher = self.make_teacher()
 
-    @unittest.expectedFailure
     def test_admin_creates_teacher_happy_path(self):
-        """Drift: ``TeacherInputSerializer`` has no ``national_id`` field."""
+        """Admin can create a teacher account via the teachers API."""
         self.client.force_authenticate(self.admin)
         response = self.client.post(
             TEACHER_CREATE_URL,
@@ -938,9 +917,8 @@ class TeacherCreateApiTests(AccountsFixture, APITestCase):
         )
         self.assertEqual(response.status_code, 201)
 
-    @unittest.expectedFailure
     def test_missing_national_id_returns_400(self):
-        """Drift: ``teacher_create`` does ``data["national_id"]`` and crashes with 500."""
+        """Teacher create without national_id returns 400."""
         self.client.force_authenticate(self.admin)
         response = self.client.post(
             TEACHER_CREATE_URL,

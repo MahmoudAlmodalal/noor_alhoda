@@ -355,6 +355,11 @@ def tasks_today(*, student_id, actor: User) -> dict:
                 str(item["last_review_date"]) if item["last_review_date"] else None
             ),
             "days_since_review": item["days_since_review"],
+            "next_due_date": str(item["next_due_date"]) if item.get("next_due_date") else None,
+            "overdue_days": item.get("overdue_days", 0),
+            "ease_factor": item.get("ease_factor"),
+            "interval_days": item.get("interval_days"),
+            "streak": item.get("streak", 0),
         }
         for item in reviews_pool
     ]

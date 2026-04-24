@@ -10,6 +10,9 @@ from .base import *  # noqa: F401,F403
 
 DEBUG = False
 
+# In production, require a real SMS gateway — otherwise OTP requests raise.
+OTP_DEV_FALLBACK = False
+
 # Security
 SECURE_SSL_REDIRECT = True
 SECURE_HSTS_SECONDS = 31536000

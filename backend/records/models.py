@@ -1,4 +1,5 @@
 import uuid
+from decimal import Decimal
 
 from django.db import models
 
@@ -188,3 +189,54 @@ class ReviewRecord(models.Model):
 
     def __str__(self):
         return f"{self.student.full_name} - {self.surah_name} ({self.reviewed_date})"
+
+
+class SurahMastery(models.Model):
+    """
+    Adaptive spaced-repetition state per (student, surah).
+    Updated on each ReviewRecord write by review_services. Consumed by the
+    review pool selector to schedule the next review.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    student = models.ForeignKey(
+        Student,
+        on_delete=models.CASCADE,
+        related_name="surah_masteries",
+        verbose_name="الطالب",
+    )
+    surah_name = models.CharField(max_length=100, verbose_name="اسم السورة")
+    ease_factor = models.DecimalField(
+        max_digits=3,
+        decimal_places=2,
+        default=Decimal("2.50"),
+        verbose_name="معامل السهولة",
+    )
+    interval_days = models.PositiveIntegerField(
+        default=1,
+        verbose_name="الفاصل الزمني (أيام)",
+    )
+    next_due_date = models.DateField(
+        db_index=True,
+        verbose_name="تاريخ الاستحقاق القادم",
+    )
+    streak = models.PositiveIntegerField(default=0, verbose_name="التتابع")
+    lapses = models.PositiveIntegerField(default=0, verbose_name="مرات التعثّر")
+    last_reviewed_at = models.DateField(
+        null=True, blank=True, verbose_name="آخر مراجعة"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="آخر تحديث")
+
+    class Meta:
+        verbose_name = "إتقان سورة"
+        verbose_name_plural = "إتقان السور"
+        unique_together = ("student", "surah_name")
+        ordering = ["next_due_date", "ease_factor"]
+        indexes = [
+            models.Index(fields=["student", "next_due_date"]),
+            models.Index(fields=["student", "surah_name"]),
+        ]
+
+    def __str__(self):
+        return f"{self.student.full_name} - {self.surah_name}"

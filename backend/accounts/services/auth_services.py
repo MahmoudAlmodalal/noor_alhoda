@@ -1,7 +1,9 @@
+import logging
 import secrets
 import hashlib
 from datetime import timedelta
 
+from django.conf import settings
 from django.utils import timezone
 from django.db import transaction
 from rest_framework.exceptions import AuthenticationFailed
@@ -13,6 +15,8 @@ from rest_framework_simplejwt.token_blacklist.models import OutstandingToken, Bl
 from accounts.models import User, OTPCode
 from accounts.utils import normalize_phone
 from core.permissions import is_admin_user
+
+logger = logging.getLogger(__name__)
 
 
 def user_login(*, national_id: str, password: str) -> dict:
@@ -27,6 +31,9 @@ def user_login(*, national_id: str, password: str) -> dict:
         user = User.objects.get(national_id=national_id)
     except User.DoesNotExist:
         raise AuthenticationFailed("رقم الهوية أو كلمة المرور غير صحيحة.")
+
+    if not user.is_active:
+        raise AuthenticationFailed("تم تعطيل هذا الحساب. تواصل مع المدير.")
 
     # Account Lockout Logic
     if user.lockout_until and user.lockout_until > timezone.now():
@@ -97,7 +104,10 @@ def otp_send(*, national_id: str) -> None:
         expires_at=timezone.now() + timedelta(minutes=10),
     )
 
-    # TODO: Integrate SMS gateway to send `code` to the user's phone.
+    # TODO: Integrate SMS gateway (Twilio/Vonage) to send `code` to the user's phone.
+    if getattr(settings, "OTP_DEV_FALLBACK", False):
+        logger.info("[OTP dev-mode] national_id=%s code=%s", national_id, code)
+        return
     raise BusinessLogicError("SMS gateway not configured. Cannot send OTP.")
 
 

@@ -295,12 +295,31 @@ export interface HistoryEntry {
   note?: string;
 }
 
+export interface CatchupSuggestion {
+  day: string;
+  date: string;
+  topup: number;
+}
+
+export interface CatchupWeakSurah {
+  surah_name: string;
+  quality: string;
+}
+
+export interface Catchup {
+  deficit: number;
+  suggested_per_day: CatchupSuggestion[];
+  weak_surahs: CatchupWeakSurah[];
+}
+
 export interface WeeklySummary {
   week_start: string;
   total_required: number;
   total_achieved: number;
   completion_rate: number;
   records: HistoryEntry[];
+  catchup?: Catchup | null;
+  week_number?: number;
 }
 
 export interface WeeklyPlan {
@@ -400,6 +419,11 @@ export interface ReviewTask {
   last_memorized_date: string;
   last_review_date: string | null;
   days_since_review: number;
+  next_due_date: string | null;
+  overdue_days: number;
+  ease_factor?: number | null;
+  interval_days?: number | null;
+  streak?: number;
 }
 
 export interface UpcomingTest {

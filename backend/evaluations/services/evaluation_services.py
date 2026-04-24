@@ -1,3 +1,5 @@
+from datetime import date as date_cls
+
 from django.db import transaction
 from rest_framework.exceptions import ValidationError, PermissionDenied
 
@@ -5,6 +7,41 @@ from accounts.models import User
 from core.permissions import is_admin_user
 from evaluations.models import Evaluation
 from students.models import Student
+
+
+def _reset_mastery_for_failed_evaluation(evaluation: Evaluation) -> None:
+    """
+    When an evaluation transitions to 'failed', surahs in its range are
+    pushed to the top of the review queue: interval reset to 1 day,
+    streak cleared, lapses incremented, next_due_date = today.
+    """
+    # Imported lazily to avoid circular imports (records imports students).
+    from records.models import SurahMastery
+    from records.services.surah_range import surah_range_to_names
+
+    names = surah_range_to_names(evaluation.surah_range)
+    if not names:
+        return
+
+    today = date_cls.today()
+    masteries = SurahMastery.objects.filter(
+        student=evaluation.student,
+        surah_name__in=names,
+    )
+    for m in masteries:
+        m.interval_days = 1
+        m.streak = 0
+        m.lapses = (m.lapses or 0) + 1
+        m.next_due_date = today
+        m.save(
+            update_fields=[
+                "interval_days",
+                "streak",
+                "lapses",
+                "next_due_date",
+                "updated_at",
+            ]
+        )
 
 
 def _check_teacher_of_student(*, actor: User, student: Student) -> None:
@@ -75,12 +112,23 @@ def evaluation_update(
 
     _check_teacher_of_student(actor=actor, student=evaluation.student)
 
+    previous_status = evaluation.status
+
     allowed = ["title", "surah_range", "scheduled_date", "status", "result_note"]
     for field, value in (data or {}).items():
         if field in allowed:
             setattr(evaluation, field, value)
     evaluation.full_clean()
     evaluation.save()
+
+    # Feedback loop: failed evaluations feed their surahs back into the
+    # student's review queue as overdue, via SurahMastery.
+    if (
+        previous_status != "failed"
+        and evaluation.status == "failed"
+    ):
+        _reset_mastery_for_failed_evaluation(evaluation)
+
     return evaluation
 
 

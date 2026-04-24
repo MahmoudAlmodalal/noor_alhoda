@@ -173,6 +173,13 @@ REST_FRAMEWORK = {
 }
 
 # ---------------------------------------------------------------------------
+# OTP / SMS gateway
+# ---------------------------------------------------------------------------
+# When True (dev/test), otp_send logs the code instead of sending SMS, so the
+# service returns 200 and the OTP row persists. Production overrides to False.
+OTP_DEV_FALLBACK = config("OTP_DEV_FALLBACK", default=True, cast=_cast_bool)
+
+# ---------------------------------------------------------------------------
 # Simple JWT
 # ---------------------------------------------------------------------------
 SIMPLE_JWT = {
