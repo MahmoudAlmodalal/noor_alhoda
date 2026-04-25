@@ -466,7 +466,7 @@ export function EditTeacherModal({
       typeof teacher.max_students === "number" && teacher.max_students > 0
         ? teacher.max_students
         : 25,
-    course_ids: [] as string[],
+    course_ids: teacher.course_ids ?? [],
   });
 
   const { data: coursesData, isLoading: coursesLoading } = useQuery<CourseRecord[]>(

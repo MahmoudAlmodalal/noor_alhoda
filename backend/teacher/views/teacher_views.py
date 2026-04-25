@@ -22,7 +22,11 @@ class TeacherInputSerializer(serializers.Serializer):
     ring_name = serializers.CharField(required=False, allow_blank=True, default="")
     session_days = serializers.ListField(child=serializers.CharField(), required=False, default=[])
     max_students = serializers.IntegerField(required=False, default=25)
-    course_ids = serializers.ListField(child=serializers.UUIDField(), required=False, default=[])
+    # No default: when the key is absent the serializer leaves it out of
+    # validated_data, so `teacher_update` treats it as "leave the M2M
+    # untouched" (see teacher_services.teacher_update). Sending an explicit
+    # empty array remains a legitimate "unassign all" signal.
+    course_ids = serializers.ListField(child=serializers.UUIDField(), required=False)
 
 
 class TeacherOutputSerializer(serializers.Serializer):

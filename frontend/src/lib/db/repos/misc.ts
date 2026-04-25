@@ -38,6 +38,7 @@ export interface TeacherRecord {
   max_students: number;
   affiliation: string;
   ring_name: string;
+  course_ids: string[];
   created_at: string | null;
   updated_at: string | null;
 }

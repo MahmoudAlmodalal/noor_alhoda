@@ -50,6 +50,7 @@ def teacher_to_dict(t: Teacher) -> dict[str, Any]:
         "max_students": t.max_students,
         "affiliation": t.affiliation,
         "ring_name": t.ring_name,
+        "course_ids": [str(c.id) for c in t.courses.all()],
         "created_at": _iso(t.created_at),
         "updated_at": _iso(t.updated_at),
     }
@@ -209,6 +210,7 @@ def tombstone_to_dict(t: Tombstone) -> dict[str, Any]:
 
 # Resource name -> (model, to_dict) lookup for the push handlers
 RESOURCE_DICT_MAP: dict[str, Any] = {
+    "user": (User, user_to_dict),
     "student": (Student, student_to_dict),
     "teacher": (Teacher, teacher_to_dict),
     "parent": (Parent, parent_to_dict),

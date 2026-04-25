@@ -17,6 +17,7 @@ import {
   upsertParentStudentLinks,
   upsertStudentCourses,
   upsertTeachers,
+  upsertUsers,
 } from "../db/repos/misc";
 import {
   upsertDailyRecords,
@@ -54,6 +55,13 @@ interface PerOpResult {
   client_id: string;
   status: "synced" | "conflict" | "error";
   row?: Record<string, unknown>;
+  /**
+   * Additional server-authoritative rows from adjacent tables that the
+   * client should upsert alongside `row`. Currently used by
+   * `_push_teacher_create` to hand back the freshly-created user row so
+   * phone_number / national_id don't wait for the next pull.
+   */
+  extra_rows?: Record<string, unknown>[];
   error?: { code: string; message: string };
 }
 
@@ -135,6 +143,10 @@ async function applyResult(
       const resource = await applyServerRow(r.row);
       if (resource) touched.add(resource);
     }
+    for (const extra of r.extra_rows ?? []) {
+      const resource = await applyServerRow(extra);
+      if (resource) touched.add(resource);
+    }
     if (r.status === "synced") {
       await markSynced(r.client_id);
     } else {
@@ -190,6 +202,13 @@ async function applyServerRow(
     case "student_course":
       await upsertStudentCourses([row as never]);
       return "student_course";
+    case "user":
+      // The `users` table is not in the ResourceName enum — it piggybacks
+      // on "teacher"/"student"/"parent" change events via their list
+      // aggregates. Emitting "teacher" covers listTeachersWithUser, which
+      // is the consumer that reads user.phone_number / national_id today.
+      await upsertUsers([row as never]);
+      return "teacher";
     default:
       if (typeof console !== "undefined") {
         console.warn("[sync] push response row missing _resource tag:", resource);

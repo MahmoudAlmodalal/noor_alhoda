@@ -443,7 +443,11 @@ def _push_review_record_create(*, actor: User, op: dict) -> dict:
     from records.services.review_services import review_record_create
 
     data = dict(op.get("data") or {})
-    record = review_record_create(id=op.get("id"), actor=actor, **data)
+    # op.data carries an `id` copy from the frontend (mutations.ts:502).
+    # Overwrite with the authoritative target_id and splat once to avoid
+    # `got multiple values for keyword argument 'id'`.
+    data["id"] = op.get("id")
+    record = review_record_create(actor=actor, **data)
     return {
         "client_id": op.get("client_id"),
         "status": "synced",
@@ -499,7 +503,8 @@ def _push_evaluation_create(*, actor: User, op: dict) -> dict:
     from evaluations.services.evaluation_services import evaluation_create
 
     data = dict(op.get("data") or {})
-    ev = evaluation_create(id=op.get("id"), actor=actor, **data)
+    data["id"] = op.get("id")
+    ev = evaluation_create(actor=actor, **data)
     return {
         "client_id": op.get("client_id"),
         "status": "synced",
@@ -555,11 +560,16 @@ def _push_teacher_create(*, actor: User, op: dict) -> dict:
     from teacher.services.teacher_services import teacher_create
 
     data = dict(op.get("data") or {})
-    teacher = teacher_create(creator=actor, id=op.get("id"), **data)
+    data["id"] = op.get("id")
+    teacher = teacher_create(creator=actor, **data)
+    # Hand the freshly-minted user row back to the client in the same
+    # response so phone_number/national_id show up on the teachers list
+    # without waiting for the next pull heartbeat.
     return {
         "client_id": op.get("client_id"),
         "status": "synced",
         "row": _conflict_row("teacher", teacher),
+        "extra_rows": [_conflict_row("user", teacher.user)],
     }
 
 
@@ -611,7 +621,8 @@ def _push_parent_create(*, actor: User, op: dict) -> dict:
     from accounts.services.user_services import parent_create
 
     data = dict(op.get("data") or {})
-    parent = parent_create(creator=actor, id=op.get("id"), **data)
+    data["id"] = op.get("id")
+    parent = parent_create(creator=actor, **data)
     return {
         "client_id": op.get("client_id"),
         "status": "synced",
@@ -695,7 +706,8 @@ def _push_course_create(*, actor: User, op: dict) -> dict:
     from courses.services.course_services import course_create
 
     data = dict(op.get("data") or {})
-    course = course_create(actor=actor, id=op.get("id"), **data)
+    data["id"] = op.get("id")
+    course = course_create(actor=actor, **data)
     return {
         "client_id": op.get("client_id"),
         "status": "synced",

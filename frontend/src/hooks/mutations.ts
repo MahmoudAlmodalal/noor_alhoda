@@ -166,6 +166,7 @@ const handlers: Record<MutationResource, Handler> = {
         max_students: Number(payload.max_students ?? 25),
         affiliation: String(payload.affiliation ?? ""),
         ring_name: String(payload.ring_name ?? ""),
+        course_ids: (payload.course_ids as string[]) ?? [],
         created_at: now,
         updated_at: now,
       };
@@ -177,7 +178,15 @@ const handlers: Record<MutationResource, Handler> = {
       return (await decryptRow<TeacherRecord>(row)) as unknown as Payload;
     },
     async upsertUpdate(id, merged, now) {
-      const rec = { ...(merged as unknown as TeacherRecord), id, updated_at: now };
+      const patch = merged as Payload;
+      const rec: TeacherRecord = {
+        ...(merged as unknown as TeacherRecord),
+        id,
+        updated_at: now,
+        course_ids: Array.isArray(patch.course_ids)
+          ? (patch.course_ids as string[])
+          : ((merged as unknown as TeacherRecord).course_ids ?? []),
+      };
       await upsertTeachers([rec]);
 
       // national_id / phone_number / first_name / last_name live on the
@@ -185,7 +194,6 @@ const handlers: Record<MutationResource, Handler> = {
       // (see queries.ts::listTeachersWithUser), so mirror any user-level
       // patch into the local users table for immediate UI feedback. The
       // next pull reconciles against the server.
-      const patch = merged as Payload;
       const userFieldKeys = ["national_id", "phone_number", "first_name", "last_name"] as const;
       const hasUserPatch = userFieldKeys.some((k) => k in patch);
       const userId = rec.user_id;

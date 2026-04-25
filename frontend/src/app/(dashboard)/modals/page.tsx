@@ -62,6 +62,7 @@ export default function ModalsPlayground() {
                     ring_name: "",
                     session_days: [],
                     max_students: 25,
+                    course_ids: [],
                     created_at: "",
                     updated_at: "",
                 }}

@@ -34,14 +34,18 @@ def pull_visible_students(*, actor: User) -> QuerySet[Student]:
 
 def pull_visible_teachers(*, actor: User, student_ids: list) -> QuerySet[Teacher]:
     if actor.role in ("admin", "teacher") or actor.is_superuser:
-        return Teacher.objects.select_related("user").all()
+        return Teacher.objects.select_related("user").prefetch_related("courses").all()
 
     teacher_ids = (
         Student.objects.filter(id__in=student_ids)
         .exclude(teacher__isnull=True)
         .values_list("teacher_id", flat=True)
     )
-    return Teacher.objects.select_related("user").filter(id__in=teacher_ids)
+    return (
+        Teacher.objects.select_related("user")
+        .prefetch_related("courses")
+        .filter(id__in=teacher_ids)
+    )
 
 
 def pull_visible_parent_links(*, student_ids: list) -> QuerySet[ParentStudentLink]:
