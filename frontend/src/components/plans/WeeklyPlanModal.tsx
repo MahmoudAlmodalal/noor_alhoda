@@ -7,6 +7,12 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { StudentPicker } from "@/components/ui/StudentPicker";
 import { useMutation } from "@/hooks/useMutation";
+import {
+  all,
+  isSaturday,
+  positiveInt,
+  requiredString,
+} from "@/lib/validators";
 
 function nextSaturday(): string {
   const d = new Date();
@@ -50,11 +56,23 @@ function WeeklyPlanModalContent({ isOpen, onClose, studentId, studentName, onCre
   const [selectedName, setSelectedName] = useState(studentName ?? "");
   const [weekStart, setWeekStart] = useState<string>(nextSaturday());
   const [totalRequired, setTotalRequired] = useState<number>(20);
+  const [clientError, setClientError] = useState<string | null>(null);
 
   const { mutate, isSubmitting, error } = useMutation("weekly_plan", "create");
 
   const handleSubmit = async () => {
-    if (!selectedId) return;
+    setClientError(null);
+
+    const validation = all(
+      requiredString(selectedId, "الطالب"),
+      isSaturday(weekStart),
+      positiveInt(totalRequired, "عدد الآيات المطلوبة"),
+    );
+    if (!validation.ok) {
+      setClientError(validation.error);
+      return;
+    }
+
     const result = await mutate(
       {
         student_id: selectedId,
@@ -122,7 +140,9 @@ function WeeklyPlanModalContent({ isOpen, onClose, studentId, studentName, onCre
           />
         </div>
 
-        {error && <p className="text-sm text-red-500">{error}</p>}
+        {(clientError || error) && (
+          <p className="text-sm text-red-500">{clientError || error}</p>
+        )}
       </div>
 
       <div className="flex items-center gap-3">

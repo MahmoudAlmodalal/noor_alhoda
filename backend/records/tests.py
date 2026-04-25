@@ -276,6 +276,109 @@ class SignalAggregationTests(RecordTestSetup):
         self.assertEqual(self.plan.total_achieved, 10)
 
 
+class ResultInferenceTests(RecordTestSetup):
+    """REC-21: post_save signal infers DailyRecord.result from achieved/required."""
+
+    def test_present_high_ratio_becomes_pass(self):
+        record = DailyRecord.objects.create(
+            weekly_plan=self.plan, day="sat", date=date(2026, 4, 4),
+            attendance="present", required_verses=10, achieved_verses=9,
+            recorded_by=self.teacher_user,
+        )
+        record.refresh_from_db()
+        self.assertEqual(record.result, DailyRecord.Result.PASS)
+
+    def test_present_threshold_boundary_is_pass(self):
+        record = DailyRecord.objects.create(
+            weekly_plan=self.plan, day="sun", date=date(2026, 4, 5),
+            attendance="present", required_verses=10, achieved_verses=8,
+            recorded_by=self.teacher_user,
+        )
+        record.refresh_from_db()
+        # 8/10 = 0.8 == threshold → pass
+        self.assertEqual(record.result, DailyRecord.Result.PASS)
+
+    def test_present_low_ratio_becomes_fail(self):
+        record = DailyRecord.objects.create(
+            weekly_plan=self.plan, day="mon", date=date(2026, 4, 6),
+            attendance="present", required_verses=10, achieved_verses=5,
+            recorded_by=self.teacher_user,
+        )
+        record.refresh_from_db()
+        self.assertEqual(record.result, DailyRecord.Result.FAIL)
+
+    def test_late_ratio_inferred_same_as_present(self):
+        record = DailyRecord.objects.create(
+            weekly_plan=self.plan, day="tue", date=date(2026, 4, 7),
+            attendance="late", required_verses=10, achieved_verses=9,
+            recorded_by=self.teacher_user,
+        )
+        record.refresh_from_db()
+        self.assertEqual(record.result, DailyRecord.Result.PASS)
+
+    def test_explicit_pass_not_overridden(self):
+        record = DailyRecord.objects.create(
+            weekly_plan=self.plan, day="wed", date=date(2026, 4, 8),
+            attendance="present", required_verses=10, achieved_verses=2,
+            result="pass",
+            recorded_by=self.teacher_user,
+        )
+        record.refresh_from_db()
+        self.assertEqual(record.result, DailyRecord.Result.PASS)
+
+    def test_explicit_fail_not_overridden(self):
+        record = DailyRecord.objects.create(
+            weekly_plan=self.plan, day="thu", date=date(2026, 4, 9),
+            attendance="present", required_verses=10, achieved_verses=10,
+            result="fail",
+            recorded_by=self.teacher_user,
+        )
+        record.refresh_from_db()
+        self.assertEqual(record.result, DailyRecord.Result.FAIL)
+
+    def test_zero_required_stays_pending(self):
+        record = DailyRecord.objects.create(
+            weekly_plan=self.plan, day="sat", date=date(2026, 4, 4),
+            attendance="present", required_verses=0, achieved_verses=0,
+            recorded_by=self.teacher_user,
+        )
+        record.refresh_from_db()
+        self.assertEqual(record.result, DailyRecord.Result.PENDING)
+
+    def test_absent_stays_pending_even_with_target(self):
+        record = DailyRecord.objects.create(
+            weekly_plan=self.plan, day="sun", date=date(2026, 4, 5),
+            attendance="absent", required_verses=10, achieved_verses=0,
+            recorded_by=self.teacher_user,
+        )
+        record.refresh_from_db()
+        self.assertEqual(record.result, DailyRecord.Result.PENDING)
+
+    def test_excused_stays_pending(self):
+        record = DailyRecord.objects.create(
+            weekly_plan=self.plan, day="mon", date=date(2026, 4, 6),
+            attendance="excused", required_verses=10, achieved_verses=0,
+            recorded_by=self.teacher_user,
+        )
+        record.refresh_from_db()
+        self.assertEqual(record.result, DailyRecord.Result.PENDING)
+
+    def test_update_recomputes_when_result_pending(self):
+        record = DailyRecord.objects.create(
+            weekly_plan=self.plan, day="tue", date=date(2026, 4, 7),
+            attendance="present", required_verses=10, achieved_verses=2,
+            recorded_by=self.teacher_user,
+        )
+        record.refresh_from_db()
+        self.assertEqual(record.result, DailyRecord.Result.FAIL)
+        # Reset to pending and bump achieved — re-inference should flip to pass.
+        record.result = DailyRecord.Result.PENDING
+        record.achieved_verses = 9
+        record.save()
+        record.refresh_from_db()
+        self.assertEqual(record.result, DailyRecord.Result.PASS)
+
+
 class TeacherOwnershipTests(RecordTestSetup):
     def test_teacher_cannot_create_record_for_another_teachers_student(self):
         """REC-09 / FR-08: Teacher can't create record for other teacher's student."""

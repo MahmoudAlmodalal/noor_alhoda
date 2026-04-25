@@ -47,7 +47,7 @@ if DATABASE_URL:
     # dj_database_url.parse() usually handles this, but if the resulting 'NAME'
     # is still too long, we might need to ensure it's just the database name.
     db_config = dj_database_url.parse(DATABASE_URL, conn_max_age=600)
-    
+
     # If the name is still the long string from the error, we try to extract just the last part.
     # Render sometimes provides a name like 'user:pass@host/dbname' in the name field
     # if the URL is not parsed correctly or if it's a specific internal format.
@@ -56,7 +56,7 @@ if DATABASE_URL:
             db_config['NAME'] = db_config['NAME'].split('/')[-1]
         elif '@' in db_config['NAME']:
             db_config['NAME'] = db_config['NAME'].split('@')[-1]
-        
+
     DATABASES = {
         "default": db_config,
     }
@@ -75,7 +75,9 @@ else:
 # Django static files — use /django-static/ to avoid collision with Next.js /_next/static/
 STATIC_URL = "/django-static/"
 
-# CSRF trusted origins (required for admin behind Nginx proxy)
+
+# CSRF trusted origins (required for admin behind Nginx proxy).
+# No wildcards: any new frontend host must be added here explicitly via env var.
 def _normalize_origin(value: str) -> str:
     v = value.strip()
     if not v:
@@ -86,23 +88,22 @@ def _normalize_origin(value: str) -> str:
 
 CSRF_TRUSTED_ORIGINS = config(
     "CSRF_TRUSTED_ORIGINS",
-    default="https://noor-alhoda.onrender.com,https://noor-alhuda-backend.onrender.com,https://noor-alhoda.vercel.app,https://*.vercel.app,https://*.railway.app",
+    default="https://noor-alhoda.onrender.com,https://noor-alhuda-backend.onrender.com,https://noor-alhoda.vercel.app",
     cast=lambda v: [_normalize_origin(s) for s in v.split(",") if s.strip()],
 )
-# Always include both domains
+# Always include both deploy targets
 if "https://noor-alhoda.onrender.com" not in CSRF_TRUSTED_ORIGINS:
     CSRF_TRUSTED_ORIGINS.append("https://noor-alhoda.onrender.com")
 if "https://noor-alhuda-backend.onrender.com" not in CSRF_TRUSTED_ORIGINS:
     CSRF_TRUSTED_ORIGINS.append("https://noor-alhuda-backend.onrender.com")
 
-# Tighten CORS in production
+# Tighten CORS in production. No wildcards — explicit allowlist only.
 CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOWED_ORIGINS = config(
     "CORS_ALLOWED_ORIGINS",
-    default="https://noor-alhoda.onrender.com,https://noor-alhuda-backend.onrender.com,https://noor-alhoda.vercel.app,*.vercel.app,*.railway.app",
-    cast=lambda v: [s.strip() for s in v.split(",")],
+    default="https://noor-alhoda.onrender.com,https://noor-alhuda-backend.onrender.com,https://noor-alhoda.vercel.app",
+    cast=lambda v: [s.strip() for s in v.split(",") if s.strip()],
 )
-# Always include both domains
 if "https://noor-alhoda.onrender.com" not in CORS_ALLOWED_ORIGINS:
     CORS_ALLOWED_ORIGINS.append("https://noor-alhoda.onrender.com")
 if "https://noor-alhuda-backend.onrender.com" not in CORS_ALLOWED_ORIGINS:

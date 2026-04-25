@@ -7,15 +7,16 @@ See the root `CLAUDE.md` for project-wide rules (Arabic/RTL, `national_id` auth,
 
 | App | Owns |
 |---|---|
-| `accounts` | Custom `User`, JWT login, OTP password reset, lockout after 5 failed attempts |
-| `students` | `Student` profile (enrollment card fields), teacher assignment, parent link |
-| `teacher` | `Teacher` profile, specialization, ring name, course M2M |
+| `accounts` | Custom `User` (national_id login), `Parent` + `ParentStudentLink`, JWT auth, OTP password reset, lockout after 5 failed attempts |
+| `students` | `Student` profile (enrollment card fields), teacher assignment, parent link, student-self endpoints (today's tasks, review interval) |
+| `teacher` | `Teacher` profile (specialization, ring name, session days, course M2M, affiliation) |
 | `courses` | `Course` catalog + `StudentCourse` enrollments |
-| `records` | `WeeklyPlan` + `DailyRecord` (Sat–Thu memorization grid), `ReviewRecord` |
-| `evaluations` | Scheduled tests: pass/fail/missed |
-| `notifications` | In-app notifications, read/unread |
-| `reports` | Dashboards, attendance/achievement reports, PDF export, honor board |
-| `core` | Shared permission classes, custom DRF exception handler, health check |
+| `records` | `WeeklyPlan` + `DailyRecord` (Sat–Thu memorization grid), `ReviewRecord`, `SurahMastery` (spaced-repetition state) |
+| `evaluations` | `Evaluation` (scheduled tests: scheduled/passed/failed/missed) and `QuizQuestion` (admin-only authoring; student endpoints not yet exposed) |
+| `notifications` | In-app `Notification` (types: absence/announcement/reminder/report), read/unread, admin announcements |
+| `reports` | Dashboard stats, monthly attendance, leaderboard, per-student PDF export (RTL via `arabic-reshaper` + `python-bidi`) |
+| `sync` | Offline-client sync: `Tombstone` (delete trail), `IdempotencyKey` (push replay protection), pull/push endpoints |
+| `core` | `BaseModel` (UUID + timestamps), shared permission classes, custom DRF exception handler, health check, default-admin command |
 
 ## Layering (non-negotiable for new code)
 
@@ -27,18 +28,19 @@ See the root `CLAUDE.md` for project-wide rules (Arabic/RTL, `national_id` auth,
 
 ## Signals
 
-Used for auto-aggregation — don't duplicate the math in views or services.
+Used for auto-aggregation and inference — don't duplicate the math in views or services.
 
-- `records/signals.py`: `DailyRecord` `post_save` updates `WeeklyPlan.total_required` and `total_achieved`.
+- `records/signals.py` → `update_weekly_plan_totals`: `DailyRecord` `post_save` aggregates `WeeklyPlan.total_required` and `total_achieved`.
+- `records/signals.py` → `infer_daily_record_result`: when `result == "pending"` and attendance is `present` or `late`, auto-sets `result` to `pass` if `achieved/required ≥ RECORD_PASS_THRESHOLD` (default `0.8`, env-overridable), else `fail`. Uses `.update()` to avoid recursion. Teachers can override by explicitly setting `result`.
 
 ## Permissions
 
 Use the classes in `core/permissions.py`:
 
-- `IsAdmin`, `IsTeacher`, `IsStudent`
+- `IsAdmin`, `IsTeacher`, `IsStudent`, `IsParent`
 - `IsAdminOrTeacher`, `IsAdminOrTeacherOrSelf`
 
-Apply at the view (`permission_classes = [IsAdminOrTeacher]`), but always also enforce row-level access **inside the selector** — permission classes check role, selectors check ownership.
+Apply at the view (`permission_classes = [IsAdminOrTeacher]`), but always also enforce row-level access **inside the selector** — permission classes check role, selectors check ownership. The selector pattern is `can_access_<entity>(actor, obj)` (admin → full, teacher → assigned students, student → self, parent → linked children via `ParentStudentLink`).
 
 ## Response envelope
 
@@ -56,12 +58,24 @@ Error messages in responses are **Arabic**.
 - Acceptance criteria: `backend/TEST_CASES.md`.
 - Each app has `tests.py`. Integration tests hit a real test DB — **do not mock the ORM**.
 
+## Settings
+
+Four modules under `noor_alhuda/settings/`:
+
+- `base.py` — shared (apps, middleware, JWT, throttles, RTL/Arabic, `RECORD_PASS_THRESHOLD`).
+- `local.py` — `DEBUG=True`, SQLite, `CORS_ALLOW_ALL_ORIGINS=True`.
+- `production.py` — `DEBUG=False`, PostgreSQL via `DATABASE_URL`, HSTS, secure cookies, `OTP_DEV_FALLBACK=False`.
+- `docker.py` — used by `docker-compose.yml`.
+
+Selected via `DJANGO_SETTINGS_MODULE`. Key env vars: `SECRET_KEY`, `DATABASE_URL`, `ALLOWED_HOSTS`, `OTP_DEV_FALLBACK`, `RECORD_PASS_THRESHOLD`.
+
 ## Infra notes
 
-- Gunicorn + WhiteNoise static serving.
+- Gunicorn + WhiteNoise static serving (`start.sh` runs `migrate` and `create_default_admin` before launching gunicorn).
 - PDF export: `reportlab` + `arabic-reshaper` + `python-bidi` (RTL text shaping).
-- Rate limits: `django-ratelimit` — login 5/min, OTP 3/min.
-- API docs: `drf-spectacular` at `/api/schema/swagger-ui/`.
+- Rate limits: DRF `ScopedRateThrottle` — login 5/min, OTP 3/min (configured in `REST_FRAMEWORK`).
+- API docs: `drf-spectacular` at `/api/schema/swagger-ui/` and `/api/schema/redoc/`.
+- URL prefixes mounted in `noor_alhuda/urls.py`: `/api/{auth,users,students,records,notifications,reports,courses,evaluations,sync}/`.
 
 ## Anti-patterns — don't
 
@@ -74,8 +88,9 @@ Error messages in responses are **Arabic**.
 
 ## Canonical example files
 
-- Service shape: `accounts/services/auth_services.py`
-- Selector + RBAC: `students/selectors/student_selectors.py`
-- Aggregation signal: `records/signals.py`
+- Service shape (login, OTP, lockout): `accounts/services/auth_services.py`
+- Selector + row-level RBAC: `students/selectors/student_selectors.py`
+- Auto-aggregation + result inference signals: `records/signals.py`
 - Permission classes: `core/permissions.py`
 - API response envelope: `accounts/views/auth_views.py` (`LoginApi`)
+- Offline-sync server side: `sync/services/` (`Tombstone`, `IdempotencyKey`, pull/push)

@@ -1,6 +1,7 @@
 import logging
 import re
 
+from django.conf import settings
 from django.db import transaction
 from rest_framework.exceptions import ValidationError, PermissionDenied
 
@@ -9,6 +10,15 @@ from accounts.utils import normalize_phone
 from core.permissions import is_admin_user
 
 logger = logging.getLogger(__name__)
+
+
+def _safe_nid(national_id: str) -> str:
+    """Return the raw national_id only when DEBUG; otherwise mask to last 4 digits."""
+    nid = str(national_id or "")
+    if settings.DEBUG:
+        return nid
+    return f"***{nid[-4:]}" if len(nid) >= 4 else "***"
+
 
 _NATIONAL_ID_RE = re.compile(r"^\d+$")
 
@@ -48,7 +58,7 @@ def user_create(*, creator: User, **data) -> User:
     password = data.get("password")
     if not password:
         password = national_id[-4:]
-        logger.info("Created %s user %s with default password (last 4 digits of national_id).", role, national_id)
+        logger.info("Created %s user %s with default password (last 4 digits of national_id).", role, _safe_nid(national_id))
 
     phone_number = normalize_phone(data.get("phone_number", ""))
 
@@ -113,7 +123,7 @@ def user_update(*, user: User, actor: User, data: dict) -> User:
         user.set_password(data["password"])
     elif user.national_id != old_national_id:
         user.set_password(user.national_id[-4:])
-        logger.info("Resynced %s user %s password to last 4 digits of new national_id.", user.role, user.national_id)
+        logger.info("Resynced %s user %s password to last 4 digits of new national_id.", user.role, _safe_nid(user.national_id))
 
     user.full_clean()
     user.save()

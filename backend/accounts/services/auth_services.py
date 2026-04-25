@@ -106,7 +106,8 @@ def otp_send(*, national_id: str) -> None:
 
     # TODO: Integrate SMS gateway (Twilio/Vonage) to send `code` to the user's phone.
     if getattr(settings, "OTP_DEV_FALLBACK", False):
-        logger.info("[OTP dev-mode] national_id=%s code=%s", national_id, code)
+        masked = national_id if settings.DEBUG else f"***{national_id[-4:]}"
+        logger.info("[OTP dev-mode] national_id=%s code=%s", masked, code)
         return
     raise BusinessLogicError("SMS gateway not configured. Cannot send OTP.")
 

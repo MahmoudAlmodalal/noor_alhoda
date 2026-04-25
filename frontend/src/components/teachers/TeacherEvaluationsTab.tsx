@@ -5,11 +5,33 @@ import { ClipboardCheck, Inbox, PlusCircle } from "lucide-react";
 import { Segmented } from "@/components/ui/Segmented";
 import { EvaluationStatusBadge } from "@/components/ui/EvaluationStatusBadge";
 import { EvaluationCreateModal } from "@/components/modals/EvaluationCreateModal";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { useQuery } from "@/hooks/useApi";
 import { useMutation } from "@/hooks/useMutation";
 import type { EvaluationForTeacher } from "@/lib/db/repos/aggregates";
 
 type StatusFilter = "all" | "scheduled" | "passed" | "failed" | "missed";
+type ResultStatus = "passed" | "failed" | "missed";
+
+interface PendingAction {
+  id: string;
+  status: ResultStatus;
+  studentName: string;
+}
+
+const ACTION_TITLES: Record<ResultStatus, string> = {
+  passed: "تأكيد نجاح الطالب",
+  failed: "تأكيد رسوب الطالب",
+  missed: "تأكيد غياب الطالب",
+};
+
+const ACTION_MESSAGES: Record<ResultStatus, (name: string) => string> = {
+  passed: (name) => `هل تريد تسجيل نتيجة ${name} كناجح في هذا الاختبار؟`,
+  failed: (name) =>
+    `سيؤدي ذلك إلى تصفير حالة إتقان السور ذات الصلة لدى ${name}. هل أنت متأكد من تسجيل النتيجة كراسب؟`,
+  missed: (name) => `هل تريد تسجيل غياب ${name} عن هذا الاختبار؟`,
+};
 
 interface Props {
   teacherId: string;
@@ -18,6 +40,9 @@ interface Props {
 export function TeacherEvaluationsTab({ teacherId }: Props) {
   const [filter, setFilter] = useState<StatusFilter>("all");
   const [modalOpen, setModalOpen] = useState(false);
+  const [pendingAction, setPendingAction] = useState<PendingAction | null>(
+    null,
+  );
   const updateEval = useMutation("evaluation", "update");
 
   const { data: evals, isLoading } = useQuery<EvaluationForTeacher[]>(
@@ -42,14 +67,13 @@ export function TeacherEvaluationsTab({ teacherId }: Props) {
     };
   }, [evals]);
 
-  const handleUpdateStatus = async (
-    id: string,
-    status: "passed" | "failed" | "missed"
-  ) => {
+  const confirmPendingAction = async () => {
+    if (!pendingAction) return;
     await updateEval.mutate(
-      { id, status },
+      { id: pendingAction.id, status: pendingAction.status },
       { successMessage: "تم تحديث الاختبار" }
     );
+    setPendingAction(null);
   };
 
   return (
@@ -93,13 +117,21 @@ export function TeacherEvaluationsTab({ teacherId }: Props) {
           جارٍ التحميل...
         </div>
       ) : filtered.length === 0 ? (
-        <div className="px-5 py-12 text-center">
-          <Inbox className="mx-auto mb-3 h-10 w-10 text-text-muted" />
-          <p className="text-sm font-medium text-text-muted">
-            {counts.all === 0
-              ? "لا توجد اختبارات مجدولة بعد."
-              : "لا توجد اختبارات مطابقة لهذا التصفية."}
-          </p>
+        <div className="p-5">
+          <EmptyState
+            icon={<Inbox size={28} />}
+            tone="soft"
+            title={
+              counts.all === 0
+                ? "لا توجد اختبارات مجدولة بعد"
+                : "لا توجد اختبارات مطابقة"
+            }
+            description={
+              counts.all === 0
+                ? "ابدأ بجدولة اختبار جديد لطلاب حلقتك."
+                : "جرّب تغيير عامل التصفية لرؤية اختبارات أخرى."
+            }
+          />
         </div>
       ) : (
         <div className="overflow-x-auto">
@@ -138,7 +170,13 @@ export function TeacherEvaluationsTab({ teacherId }: Props) {
                       <div className="flex flex-wrap items-center gap-1">
                         <button
                           type="button"
-                          onClick={() => handleUpdateStatus(e.id, "passed")}
+                          onClick={() =>
+                            setPendingAction({
+                              id: e.id,
+                              status: "passed",
+                              studentName: e.student_name,
+                            })
+                          }
                           disabled={updateEval.isSubmitting}
                           className="inline-flex h-7 items-center rounded-md bg-emerald-50 px-2 text-[11px] font-bold text-emerald-600 transition-colors hover:bg-emerald-100 disabled:opacity-50"
                         >
@@ -146,7 +184,13 @@ export function TeacherEvaluationsTab({ teacherId }: Props) {
                         </button>
                         <button
                           type="button"
-                          onClick={() => handleUpdateStatus(e.id, "failed")}
+                          onClick={() =>
+                            setPendingAction({
+                              id: e.id,
+                              status: "failed",
+                              studentName: e.student_name,
+                            })
+                          }
                           disabled={updateEval.isSubmitting}
                           className="inline-flex h-7 items-center rounded-md bg-red-50 px-2 text-[11px] font-bold text-red-600 transition-colors hover:bg-red-100 disabled:opacity-50"
                         >
@@ -154,7 +198,13 @@ export function TeacherEvaluationsTab({ teacherId }: Props) {
                         </button>
                         <button
                           type="button"
-                          onClick={() => handleUpdateStatus(e.id, "missed")}
+                          onClick={() =>
+                            setPendingAction({
+                              id: e.id,
+                              status: "missed",
+                              studentName: e.student_name,
+                            })
+                          }
                           disabled={updateEval.isSubmitting}
                           className="inline-flex h-7 items-center rounded-md bg-amber-50 px-2 text-[11px] font-bold text-amber-700 transition-colors hover:bg-amber-100 disabled:opacity-50"
                         >
@@ -176,6 +226,20 @@ export function TeacherEvaluationsTab({ teacherId }: Props) {
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
         teacherId={teacherId}
+      />
+
+      <ConfirmDialog
+        isOpen={!!pendingAction}
+        onClose={() => setPendingAction(null)}
+        onConfirm={confirmPendingAction}
+        title={pendingAction ? ACTION_TITLES[pendingAction.status] : ""}
+        message={
+          pendingAction
+            ? ACTION_MESSAGES[pendingAction.status](pendingAction.studentName)
+            : ""
+        }
+        destructive={pendingAction?.status === "failed"}
+        isSubmitting={updateEval.isSubmitting}
       />
     </section>
   );

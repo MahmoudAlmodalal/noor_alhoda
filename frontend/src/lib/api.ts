@@ -1,8 +1,28 @@
 import type { ApiErrorResponse, ApiResponse, LoginRequest, LoginResponse } from "@/types/api";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "";
+const REQUEST_TIMEOUT_MS = 30_000;
+
+if (
+  !BASE_URL &&
+  typeof window !== "undefined" &&
+  process.env.NODE_ENV === "production"
+) {
+  console.error(
+    "[api] NEXT_PUBLIC_API_URL is not set. Cross-origin requests will fail. " +
+      "Set this env var in your deploy config."
+  );
+}
 
 // ─── Token helpers ────────────────────────────────────────────────────────────
+//
+// SECURITY NOTE: access + refresh tokens are stored in localStorage, which is
+// XSS-readable. This is a deliberate trade-off for the offline-first PWA flow.
+// Migrating to httpOnly cookies requires backend changes (set-cookie on
+// login/refresh/logout, CSRF strategy for cross-origin requests since SameSite
+// alone isn't enough) — tracked as a separate hardening PR. Until then:
+//   - never render untrusted user input via dangerouslySetInnerHTML
+//   - keep this token-touching surface confined to api.ts (per CLAUDE.md)
 
 function getAccessToken(): string | null {
   if (typeof window === "undefined") return null;
@@ -123,6 +143,17 @@ async function extractErrorMessage(res: Response): Promise<string> {
 
 // ─── Core fetch wrapper ───────────────────────────────────────────────────────
 
+function buildSignal(userSignal: AbortSignal | undefined): AbortSignal {
+  // AbortSignal.timeout / .any are available in Node 20+ and modern browsers,
+  // which is the supported runtime for Next.js 16.
+  const timeoutSignal = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
+  if (!userSignal) return timeoutSignal;
+  if (typeof AbortSignal.any === "function") {
+    return AbortSignal.any([userSignal, timeoutSignal]);
+  }
+  return userSignal;
+}
+
 async function apiFetch<T>(
   endpoint: string,
   options: RequestInit = {},
@@ -140,10 +171,13 @@ async function apiFetch<T>(
     headers["Authorization"] = `Bearer ${token}`;
   }
 
+  const signal = buildSignal(options.signal ?? undefined);
+
   try {
     const res = await fetch(`${BASE_URL}${endpoint}`, {
       ...options,
       headers,
+      signal,
     });
 
     // ── معالجة 401 ────────────────────────────────────────────────────────
@@ -249,6 +283,17 @@ async function apiFetch<T>(
       },
     };
   } catch (err: unknown) {
+    // Distinguish the timeout signal from a user-initiated abort. Timeout
+    // surfaces as DOMException name "TimeoutError"; user abort propagates.
+    if (err instanceof DOMException && err.name === "TimeoutError") {
+      return {
+        success: false,
+        error: {
+          code: 0,
+          message: "انتهت مهلة الطلب. الخادم بطيء أو غير متاح.",
+        },
+      };
+    }
     if (err instanceof Error && err.name === 'AbortError') {
       throw err;
     }

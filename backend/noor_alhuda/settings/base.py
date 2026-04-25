@@ -32,7 +32,7 @@ SECRET_KEY = config("SECRET_KEY", default="django-insecure-noor-alhuda-dev-key")
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config("DEBUG", default=True, cast=_cast_bool)
 
-ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="localhost,127.0.0.1,.railway.app,.vercel.app,.onrender.com", cast=Csv())
+ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="localhost,127.0.0.1", cast=Csv())
 
 # ---------------------------------------------------------------------------
 # Application definition
@@ -205,3 +205,12 @@ SPECTACULAR_SETTINGS = {
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
 }
+
+# ---------------------------------------------------------------------------
+# Domain settings
+# ---------------------------------------------------------------------------
+# Threshold (achieved/required) at which a DailyRecord with attendance
+# present|late and result=pending is auto-inferred to result=pass. Below
+# the threshold infers fail. Set as a string so the post_save signal can
+# parse it via Decimal without float drift. Admin can override per env.
+RECORD_PASS_THRESHOLD = config("RECORD_PASS_THRESHOLD", default="0.8")

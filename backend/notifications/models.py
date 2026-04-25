@@ -39,6 +39,10 @@ class Notification(models.Model):
         verbose_name = "إشعار"
         verbose_name_plural = "الإشعارات"
         ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["recipient", "-created_at"]),
+            models.Index(fields=["recipient", "is_read"]),
+        ]
 
     def __str__(self):
         return f"{self.title} → {self.recipient.phone_number}"

@@ -1,10 +1,12 @@
+import os
+import secrets
+
 from django.core.management.base import BaseCommand
 from django.contrib.auth import get_user_model
 
 User = get_user_model()
 
 NATIONAL_ID = "0590000000"
-PASSWORD = "0000"
 
 
 class Command(BaseCommand):
@@ -14,7 +16,6 @@ class Command(BaseCommand):
         user = User.objects.filter(national_id=NATIONAL_ID).first()
 
         if user:
-            # Ensure admin privileges are set
             changed = []
             if not user.is_superuser:
                 user.is_superuser = True
@@ -36,12 +37,35 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.WARNING(f"Default admin already exists: {NATIONAL_ID}"))
             return
 
-        user = User.objects.create_superuser(
+        password = (os.environ.get("DEFAULT_ADMIN_PASSWORD") or "").strip()
+        generated = False
+        if not password:
+            password = secrets.token_urlsafe(16)
+            generated = True
+
+        User.objects.create_superuser(
             national_id=NATIONAL_ID,
-            password=PASSWORD,
+            password=password,
             first_name="مدير",
             last_name="المركز",
             role="admin",
             is_active=True,
         )
-        self.stdout.write(self.style.SUCCESS(f"Default admin created: {NATIONAL_ID} / {PASSWORD}"))
+
+        if generated:
+            banner = "=" * 70
+            self.stdout.write(self.style.WARNING(banner))
+            self.stdout.write(self.style.WARNING(
+                f"DEFAULT ADMIN CREATED — national_id={NATIONAL_ID}"
+            ))
+            self.stdout.write(self.style.WARNING(
+                f"GENERATED PASSWORD (save now, will not appear again): {password}"
+            ))
+            self.stdout.write(self.style.WARNING(
+                "Set DEFAULT_ADMIN_PASSWORD env var to control this in future deploys."
+            ))
+            self.stdout.write(self.style.WARNING(banner))
+        else:
+            self.stdout.write(self.style.SUCCESS(
+                f"Default admin created: {NATIONAL_ID} (using DEFAULT_ADMIN_PASSWORD env)"
+            ))

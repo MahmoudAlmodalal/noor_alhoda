@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Calendar, Inbox, PlusCircle } from "lucide-react";
 import { Segmented } from "@/components/ui/Segmented";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { WeeklyPlanModal } from "@/components/plans/WeeklyPlanModal";
 import { useQuery } from "@/hooks/useApi";
 import type { PlanForList } from "@/lib/db/repos/aggregates";
@@ -121,11 +122,17 @@ export function TeacherPlansTab({ teacherId }: Props) {
           جارٍ التحميل...
         </div>
       ) : rows.length === 0 ? (
-        <div className="px-5 py-12 text-center">
-          <Inbox className="mx-auto mb-3 h-10 w-10 text-text-muted" />
-          <p className="text-sm font-medium text-text-muted">
-            لا توجد خطط للفترة المحددة.
-          </p>
+        <div className="p-5">
+          <EmptyState
+            icon={<Inbox size={28} />}
+            tone="soft"
+            title="لا توجد خطط للفترة المحددة"
+            description={
+              weekFilter === "current"
+                ? "أنشئ خطة جديدة لطلاب حلقتك لهذا الأسبوع."
+                : "غيّر عامل تصفية الأسبوع لعرض خطط أخرى."
+            }
+          />
         </div>
       ) : (
         <div className="overflow-x-auto">
