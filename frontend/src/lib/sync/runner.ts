@@ -6,6 +6,7 @@
  */
 import { hasSessionKey } from "../db/auth";
 
+import { requeueErroredOps } from "./outbox";
 import { pullSync } from "./pull";
 import { triggerPush } from "./push";
 
@@ -33,7 +34,11 @@ export function startSyncRunner(): void {
   void maybeSync();
 
   window.addEventListener("online", () => {
-    void maybeSync();
+    // Coming back online is the right boundary to rescue ops parked at
+    // status="error" by a transient failure (server restart, brief 502,
+    // intermittent network). Bounded by an attempts cap inside so a
+    // permanent error doesn't loop forever.
+    void requeueErroredOps().then(() => maybeSync());
   });
   window.addEventListener("focus", () => {
     void maybeSync();
