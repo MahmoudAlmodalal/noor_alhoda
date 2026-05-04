@@ -316,6 +316,116 @@ async function apiFetch<T>(
   }
 }
 
+// ─── Multipart upload ─────────────────────────────────────────────────────────
+//
+// Separate from apiFetch because the browser must set the multipart boundary
+// itself — we cannot send "Content-Type: application/json" the way apiFetch
+// always does. Reuses the same 401 → refresh → retry logic so an expired
+// access token doesn't drop the upload.
+
+async function apiUpload<T>(
+  endpoint: string,
+  formData: FormData,
+  retry = true
+): Promise<ApiResponse<T>> {
+  endpoint = normalizeEndpoint(endpoint);
+
+  const token = getAccessToken();
+  const headers: Record<string, string> = {};
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+
+  const signal = buildSignal(undefined);
+
+  try {
+    const res = await fetch(`${BASE_URL}${endpoint}`, {
+      method: "POST",
+      headers,
+      body: formData,
+      signal,
+    });
+
+    if (res.status === 401 && retry && token) {
+      const refreshed = await refreshAccessToken();
+      if (refreshed) return apiUpload<T>(endpoint, formData, false);
+      const tokensCleared = !getAccessToken();
+      if (tokensCleared) {
+        if (
+          typeof window !== "undefined" &&
+          !window.location.pathname.startsWith("/login")
+        ) {
+          window.location.href = "/login?reason=session_expired";
+        }
+        return {
+          success: false,
+          error: { code: 401, message: "انتهت صلاحية الجلسة. يرجى تسجيل الدخول مجدداً." },
+        };
+      }
+      return {
+        success: false,
+        error: { code: 0, message: "لا يمكن الاتصال بالخادم. تحقق من اتصال الإنترنت." },
+      };
+    }
+
+    if (res.status === 204) return { success: true, data: {} as T };
+
+    const bodyText = await res.text().catch(() => "");
+    let data: unknown = null;
+    if (bodyText) {
+      try {
+        data = JSON.parse(bodyText);
+      } catch {
+        return {
+          success: false,
+          error: {
+            code: res.status,
+            message: `الخادم أعاد استجابة غير صالحة (${res.status}). ${bodyText.slice(0, 200)}`.trim(),
+          },
+        };
+      }
+    }
+
+    const dataObj = (data && typeof data === "object" ? data : null) as {
+      success?: unknown;
+      error?: { code?: number; message?: string };
+      errors?: Record<string, string | string[]>;
+      detail?: string;
+      message?: string;
+    } | null;
+
+    if (res.ok) {
+      if (dataObj && dataObj.success !== undefined) return data as ApiResponse<T>;
+      return { success: true, data: (data ?? {}) as T };
+    }
+
+    if (dataObj?.error) {
+      return { success: false, error: dataObj.error as ApiErrorResponse["error"] };
+    }
+
+    // The teacher import view returns { success: false, errors: {...} } —
+    // surface the first field message so callers get something readable.
+    let message = dataObj?.detail || dataObj?.message;
+    if (!message && dataObj?.errors) {
+      const first = Object.values(dataObj.errors)[0];
+      message = Array.isArray(first) ? first[0] : (first as string | undefined);
+    }
+    return {
+      success: false,
+      error: { code: res.status, message: message || `حدث خطأ غير متوقع (${res.status}).` },
+    };
+  } catch (err: unknown) {
+    if (err instanceof DOMException && err.name === "TimeoutError") {
+      return {
+        success: false,
+        error: { code: 0, message: "انتهت مهلة الطلب. الخادم بطيء أو غير متاح." },
+      };
+    }
+    return {
+      success: false,
+      error: { code: 0, message: "فشل رفع الملف. تحقق من اتصال الإنترنت." },
+    };
+  }
+}
+
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 function buildQueryString(params?: Record<string, string | undefined>): string {
@@ -350,6 +460,16 @@ export const api = {
 
   delete<T>(endpoint: string, signal?: AbortSignal) {
     return apiFetch<T>(endpoint, { method: "DELETE", signal });
+  },
+
+  async uploadFile<T>(
+    endpoint: string,
+    file: File,
+    fieldName = "file"
+  ): Promise<ApiResponse<T>> {
+    const formData = new FormData();
+    formData.append(fieldName, file);
+    return apiUpload<T>(endpoint, formData);
   },
 
   async downloadBlob(endpoint: string): Promise<Blob | null> {

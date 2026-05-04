@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Search, UserPlus, UserX } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
+import { Download, FileDown, Search, Upload, UserPlus, UserX } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { PageLoading } from "@/components/ui/LoadingSpinner";
@@ -17,6 +17,23 @@ import {
   EditTeacherModal,
 } from "@/components/modals/TeacherModals";
 import { RoleGate } from "@/components/auth/RoleGate";
+import { api } from "@/lib/api";
+import { emitChanges } from "@/lib/db/events";
+import { pullSync } from "@/lib/sync/runner";
+import { useToast } from "@/contexts/ToastContext";
+
+interface TeacherImportError {
+  row: number;
+  national_id: string | null;
+  message: string;
+}
+
+interface TeacherImportResult {
+  created_count: number;
+  updated_count: number;
+  error_count: number;
+  errors: TeacherImportError[];
+}
 
 const PAGE_SIZE = 12;
 
@@ -63,6 +80,78 @@ function TeachersPageInner() {
   const [showAdd, setShowAdd] = useState(false);
   const [editTeacher, setEditTeacher] = useState<TeacherWithUser | null>(null);
   const [deleteTeacher, setDeleteTeacher] = useState<TeacherWithUser | null>(null);
+
+  const { showToast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importErrors, setImportErrors] = useState<TeacherImportError[] | null>(null);
+
+  const downloadXlsx = async (endpoint: string, filename: string) => {
+    const blob = await api.downloadBlob(endpoint);
+    if (!blob) {
+      showToast("تعذّر تنزيل الملف.", "error");
+      return;
+    }
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  };
+
+  const handleExportXlsx = async () => {
+    const today = new Date().toISOString().slice(0, 10);
+    await downloadXlsx("/api/users/teachers/export/", `teachers-${today}.xlsx`);
+  };
+
+  const handleDownloadTemplate = async () => {
+    await downloadXlsx("/api/users/teachers/template/", "teachers-template.xlsx");
+  };
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleImportFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    setIsImporting(true);
+    try {
+      const res = await api.uploadFile<TeacherImportResult>(
+        "/api/users/teachers/import-xlsx/",
+        file
+      );
+      if (!res.success) {
+        showToast(res.error.message || "فشل استيراد الملف.", "error");
+        return;
+      }
+      const result = res.data;
+      const created = result.created_count;
+      const updated = result.updated_count;
+      const errCount = result.error_count;
+
+      // Pull from server so the offline DB reflects the new rows, then ping
+      // change subscribers so the page refetches.
+      try {
+        await pullSync();
+      } catch {
+        // Pull failure is non-fatal — emitChanges below still triggers a
+        // refetch from the local DB next time it syncs.
+      }
+      emitChanges(["teacher", "course"]);
+
+      const summary = `تم: ${created} إضافة، ${updated} تحديث، ${errCount} خطأ.`;
+      showToast(summary, errCount > 0 ? "info" : "success");
+      if (errCount > 0) setImportErrors(result.errors);
+    } finally {
+      setIsImporting(false);
+    }
+  };
 
   const studentsByTeacher = useMemo(() => {
     const map = new Map<string, number>();
@@ -152,6 +241,41 @@ function TeachersPageInner() {
           ))}
         </select>
         <Button
+          variant="outline"
+          onClick={handleDownloadTemplate}
+          className="h-12 gap-2 rounded-[14px] px-4 font-bold"
+          aria-label="تحميل قالب Excel"
+        >
+          <FileDown className="h-5 w-5" />
+          تحميل القالب
+        </Button>
+        <Button
+          variant="outline"
+          onClick={handleExportXlsx}
+          className="h-12 gap-2 rounded-[14px] px-4 font-bold"
+          aria-label="تصدير قائمة المحفظين إلى Excel"
+        >
+          <Download className="h-5 w-5" />
+          تصدير
+        </Button>
+        <Button
+          variant="outline"
+          onClick={handleImportClick}
+          disabled={isImporting}
+          className="h-12 gap-2 rounded-[14px] px-4 font-bold"
+          aria-label="استيراد المحفظين من Excel"
+        >
+          <Upload className="h-5 w-5" />
+          {isImporting ? "جاري الاستيراد..." : "استيراد"}
+        </Button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+          className="hidden"
+          onChange={handleImportFile}
+        />
+        <Button
           onClick={() => setShowAdd(true)}
           className="h-12 gap-2 rounded-[14px] px-5 font-bold"
         >
@@ -159,6 +283,13 @@ function TeachersPageInner() {
           إضافة محفظ
         </Button>
       </div>
+
+      {importErrors ? (
+        <ImportErrorsModal
+          errors={importErrors}
+          onClose={() => setImportErrors(null)}
+        />
+      ) : null}
 
       {hasAnyTeachers ? (
         <div className="flex items-center justify-between rounded-[16px] border border-border-card bg-white px-4 py-2.5 text-sm text-text-muted shadow-sm">
@@ -275,6 +406,56 @@ function EmptyState({
           <UserPlus className="h-4 w-4" />
           إضافة محفظ جديد
         </Button>
+      </div>
+    </div>
+  );
+}
+
+function ImportErrorsModal({
+  errors,
+  onClose,
+}: {
+  errors: TeacherImportError[];
+  onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div
+        className="absolute inset-0 bg-black/20 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      <div className="relative z-10 w-full max-w-lg rounded-[2rem] bg-white p-6 shadow-2xl md:p-8">
+        <h3 className="mb-1 text-lg font-bold text-text-title">
+          صفوف لم يتم استيرادها
+        </h3>
+        <p className="mb-4 text-sm text-text-muted">
+          تم تخطي الصفوف التالية. يمكنك تصحيحها في الملف وإعادة الاستيراد.
+        </p>
+        <div className="max-h-80 overflow-auto rounded-[14px] border border-border-card">
+          <table className="w-full text-right text-sm">
+            <thead className="bg-surface-subtle text-text-muted">
+              <tr>
+                <th className="p-2 font-bold">الصف</th>
+                <th className="p-2 font-bold">رقم الهوية</th>
+                <th className="p-2 font-bold">الخطأ</th>
+              </tr>
+            </thead>
+            <tbody>
+              {errors.map((err) => (
+                <tr key={`${err.row}-${err.national_id ?? ""}`} className="border-t border-border-card">
+                  <td className="p-2 align-top">{err.row}</td>
+                  <td className="p-2 align-top">{err.national_id ?? "—"}</td>
+                  <td className="p-2 align-top text-text-body">{err.message}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="mt-4 flex justify-end">
+          <Button onClick={onClose} className="h-11 rounded-[12px] px-5 font-bold">
+            إغلاق
+          </Button>
+        </div>
       </div>
     </div>
   );
