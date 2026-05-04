@@ -505,8 +505,11 @@ class StudentBulkCreateTests(StudentTestSetup):
             STUDENT_BULK_CREATE_URL, {"rows": [row]}, format="json"
         )
         self.assertEqual(response.status_code, 201)
+        # Synthetic IDs use a 97-prefix + 10 digits so they survive the
+        # digit-only `_validate_national_id` regex (real Palestinian IDs
+        # never start with 97).
         self.assertTrue(
-            Student.objects.filter(user__national_id__startswith="NOID-").exists()
+            Student.objects.filter(user__national_id__startswith="97").exists()
         )
 
     def test_teacher_auto_resolve_existing_by_name(self):
@@ -649,6 +652,55 @@ class StudentBulkCreateTests(StudentTestSetup):
         )
         self.assertEqual(response.status_code, 201)
         self.assertFalse(Course.objects.filter(name__iexact="لايوجد").exists())
+
+    def test_missing_guardian_id_creates_parent_with_synthetic_98_prefix(self):
+        """When the Excel row has no guardian_national_id, the resolver
+        synthesises one starting with '98' (digit-only so it survives
+        `_validate_national_id`'s regex). The parent must be created and
+        linked to the student rather than failing silently as before."""
+        self.client.force_authenticate(self.admin)
+
+        # Use a digit-only student national_id so the student row itself
+        # passes validation; the guardian id is intentionally blank to
+        # exercise the synthetic-id branch.
+        digit_student_nid = "9700000123456"
+        response = self.client.post(
+            STUDENT_BULK_CREATE_URL,
+            {
+                "rows": [
+                    self._row(
+                        national_id=digit_student_nid,
+                        guardian_national_id="",
+                        guardian_name="Synthetic Parent",
+                        guardian_mobile="0599888777",
+                    )
+                ]
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        data = response.data["data"]
+        self.assertEqual(data["created_count"], 1)
+        # No "تنبيه: فشل ربط ولي الأمر" warning, because the parent linked
+        # successfully through the new 98-prefixed synthetic id path.
+        guardian_link_failures = [
+            err for err in data["errors"]
+            if "ولي الأمر" in err.get("message", "")
+        ]
+        self.assertEqual(guardian_link_failures, [])
+
+        student = Student.objects.get(user__national_id=digit_student_nid)
+        self.assertTrue(
+            ParentStudentLink.objects.filter(student=student).exists(),
+            "Parent must be linked to the student via the synthetic id branch",
+        )
+
+        parent = ParentStudentLink.objects.get(student=student).parent
+        self.assertTrue(
+            parent.user.national_id.startswith("98"),
+            f"expected 98-prefixed synthetic, got {parent.user.national_id}",
+        )
 
 
 class StudentDetailGetTests(StudentTestSetup):

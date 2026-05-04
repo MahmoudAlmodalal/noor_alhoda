@@ -45,7 +45,7 @@ function LeaderboardContent() {
       ) : (
         <>
           {top3.length > 0 && (
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-3 gap-2 sm:gap-3">
               {top3.map((entry, idx) => {
                 const style = PODIUM_STYLES[idx];
                 return (
@@ -53,18 +53,18 @@ function LeaderboardContent() {
                     key={entry.student_id}
                     type="button"
                     onClick={() => router.push(`/students/${entry.student_id}`)}
-                    className="bg-white rounded-[16px] p-5 border border-border-card shadow-sm text-center hover:border-primary/30 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
+                    className="bg-white rounded-[16px] p-3 sm:p-5 border border-border-card shadow-sm text-center hover:border-primary/30 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
                   >
-                    <div className={`w-14 h-14 rounded-[14px] flex items-center justify-center mx-auto mb-3 ${style.tile}`}>
-                      <Medal className={`w-6 h-6 ${style.icon}`} />
+                    <div className={`w-10 h-10 sm:w-14 sm:h-14 rounded-[14px] flex items-center justify-center mx-auto mb-2 sm:mb-3 ${style.tile}`}>
+                      <Medal className={`w-5 h-5 sm:w-6 sm:h-6 ${style.icon}`} />
                     </div>
-                    <h3 className="font-bold text-sm text-text-body mb-1 line-clamp-1">{entry.student_name}</h3>
-                    <p className="text-[30px] font-bold leading-9 text-primary">{entry.total_achieved}</p>
+                    <h3 className="font-bold text-sm sm:text-base text-text-body leading-tight break-words mb-1 min-h-[2.5rem] sm:min-h-0">{entry.student_name}</h3>
+                    <p className="text-2xl sm:text-[30px] font-bold leading-tight sm:leading-9 text-primary">{entry.score}</p>
                     <p className="text-[11px] text-text-muted mt-1">
-                      {entry.total_required > 0 ? `${entry.total_required} مطلوب` : `${entry.present_days} يوم حضور`}
+                      {entry.total_achieved} آية · {entry.present_days} يوم
                     </p>
                     {entry.ring_name && (
-                      <p className="text-[11px] text-text-muted mt-1">{entry.ring_name}</p>
+                      <p className="text-[11px] text-text-muted mt-1 line-clamp-1">{entry.ring_name}</p>
                     )}
                   </button>
                 );
@@ -98,7 +98,7 @@ function LeaderboardContent() {
                         </div>
                       </td>
                       <td className="px-4 py-3 text-text-label">{entry.ring_name || "—"}</td>
-                      <td className="px-4 py-3 font-bold text-primary">{entry.total_achieved}</td>
+                      <td className="px-4 py-3 font-bold text-primary">{entry.score}</td>
                     </tr>
                   ))}
                 </tbody>

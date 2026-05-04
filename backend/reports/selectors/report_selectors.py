@@ -1,4 +1,4 @@
-from django.db.models import Sum, Count, Avg, Q, QuerySet
+from django.db.models import Sum, Count, Avg, Q, QuerySet, F, IntegerField, ExpressionWrapper
 from django.utils import timezone
 from rest_framework.exceptions import PermissionDenied
 
@@ -175,7 +175,13 @@ def leaderboard(*, month: int, year: int, actor: User) -> list:
             total_required=Sum("required_verses"),
             present_days=Count("id", filter=Q(attendance__in=["present", "late"])),
         )
-        .order_by("-total_achieved")[:10]
+        .annotate(
+            score=ExpressionWrapper(
+                F("total_achieved") + F("present_days") * 5,
+                output_field=IntegerField(),
+            ),
+        )
+        .order_by("-score", "-total_achieved")[:10]
     )
 
     return [
@@ -186,6 +192,7 @@ def leaderboard(*, month: int, year: int, actor: User) -> list:
             "total_achieved": s["total_achieved"] or 0,
             "total_required": s["total_required"] or 0,
             "present_days": s["present_days"],
+            "score": s["score"] or 0,
         }
         for idx, s in enumerate(top_students)
     ]

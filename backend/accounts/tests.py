@@ -45,6 +45,8 @@ USERS_URL = "/api/users/"
 USER_CREATE_URL = "/api/users/create/"
 TEACHERS_URL = "/api/users/teachers/"
 TEACHER_CREATE_URL = "/api/users/teachers/create/"
+TEACHER_BULK_CREATE_URL = "/api/users/teachers/bulk-create/"
+STAFF_LIST_URL = "/api/users/staff-members/"
 
 
 # ==========================================================================
@@ -949,3 +951,131 @@ class TeacherCreateApiTests(AccountsFixture, APITestCase):
             format="json",
         )
         self.assertEqual(response.status_code, 401)
+
+
+# ==========================================================================
+# Teacher bulk-create (هيكلية) — POST /api/users/teachers/bulk-create/
+# ==========================================================================
+class TeacherBulkCreateApiTests(AccountsFixture, APITestCase):
+    def setUp(self):
+        self.admin = self.make_admin()
+        self.teacher = self.make_teacher()
+
+    def _staff_row(self, **overrides):
+        base = {
+            "full_name": "تجريبي محفظ جديد",
+            "national_id": "5000000001",
+            "phone_number": "0597000010",
+            "birthdate": "01/01/1995",
+            "wallet_name": "اسم المحفظة",
+            "wallet_number": "0597000010",
+            "marital_status": "أعزب",
+            "education_qualification": "بكالوريوس",
+            "last_tajweed_course": "سند",
+            "family_members_count": "",
+            "job_title": "محفظ",
+        }
+        base.update(overrides)
+        return base
+
+    def test_non_admin_teacher_gets_403(self):
+        self.client.force_authenticate(self.teacher)
+        response = self.client.post(
+            TEACHER_BULK_CREATE_URL,
+            {"rows": [self._staff_row()]},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_unauthenticated_gets_401(self):
+        response = self.client.post(
+            TEACHER_BULK_CREATE_URL,
+            {"rows": [self._staff_row()]},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 401)
+
+    def test_rows_not_a_list_returns_400(self):
+        self.client.force_authenticate(self.admin)
+        response = self.client.post(
+            TEACHER_BULK_CREATE_URL,
+            {"rows": "not-a-list"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.data["success"], False)
+
+    def test_admin_imports_teacher_and_director_in_one_batch(self):
+        from accounts.models import StaffMember
+        from teacher.models import Teacher
+
+        self.client.force_authenticate(self.admin)
+        response = self.client.post(
+            TEACHER_BULK_CREATE_URL,
+            {
+                "rows": [
+                    self._staff_row(),
+                    self._staff_row(
+                        full_name="مدير المركز التجريبي",
+                        national_id="5000000002",
+                        phone_number="0597000011",
+                        job_title="مدير المركز",
+                        marital_status="متزوج",
+                        family_members_count="6",
+                    ),
+                ]
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        data = response.data["data"]
+        self.assertEqual(data["created_count"], 2)
+        self.assertEqual(data["error_count"], 0)
+        self.assertTrue(Teacher.objects.filter(full_name="تجريبي محفظ جديد").exists())
+        self.assertTrue(StaffMember.objects.filter(job_title="director").exists())
+
+
+# ==========================================================================
+# StaffMember list — GET /api/users/staff-members/
+# ==========================================================================
+class StaffMemberListApiTests(AccountsFixture, APITestCase):
+    def setUp(self):
+        from accounts.models import StaffMember
+
+        self.admin = self.make_admin()
+        self.teacher = self.make_teacher()
+        self.director = StaffMember.objects.create(
+            full_name="مدير الإختبار",
+            national_id="5000000900",
+            phone_number="0599000900",
+            marital_status="married",
+            education_qualification="بكالوريوس",
+            family_members_count=5,
+            wallet_name="مدير",
+            wallet_number="0599000900",
+            job_title="director",
+        )
+
+    def test_unauthenticated_gets_401(self):
+        response = self.client.get(STAFF_LIST_URL)
+        self.assertEqual(response.status_code, 401)
+
+    def test_non_admin_gets_403(self):
+        self.client.force_authenticate(self.teacher)
+        response = self.client.get(STAFF_LIST_URL)
+        self.assertEqual(response.status_code, 403)
+
+    def test_admin_lists_staff_members(self):
+        self.client.force_authenticate(self.admin)
+        response = self.client.get(STAFF_LIST_URL)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.data["success"])
+        items = response.data["data"]
+        self.assertEqual(len(items), 1)
+        item = items[0]
+        self.assertEqual(item["full_name"], "مدير الإختبار")
+        self.assertEqual(item["job_title"], "director")
+        self.assertEqual(item["job_title_display"], "مدير المركز")
+        self.assertEqual(item["family_members_count"], 5)

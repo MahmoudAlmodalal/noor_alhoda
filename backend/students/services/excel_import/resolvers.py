@@ -17,6 +17,7 @@ from students.selectors.import_selectors import (
     parent_find_by_nid,
     parent_find_by_phone,
     parent_find_by_user,
+    teacher_find_by_loose_name,
     teacher_find_by_name,
     user_find_by_national_id,
     user_find_parent_by_phone,
@@ -47,9 +48,11 @@ def _resolve_teacher(
     else:
         teacher = teacher_find_by_name(name=teacher_name)
         if not teacher:
-            name_hash = hashlib.md5(teacher_name.encode("utf-8")).hexdigest()[:10]
-            synthetic_national_id = f"T{name_hash}"
-            phone_number = _synthetic_phone(name_hash)
+            teacher = teacher_find_by_loose_name(name=teacher_name)
+        if not teacher:
+            name_hash = hashlib.md5(teacher_name.encode("utf-8")).hexdigest()
+            synthetic_national_id = f"99{int(name_hash, 16) % 10**10:010d}"
+            phone_number = _synthetic_phone(name_hash[:10])
             name_parts = teacher_name.split()
             try:
                 teacher = teacher_create(
@@ -107,7 +110,8 @@ def _resolve_parent(
 
     parent_nid = _clean_text(guardian_national_id)
     if _is_placeholder_text(parent_nid):
-        parent_nid = f"P{hashlib.md5(guardian_mobile.encode('utf-8')).hexdigest()[:10]}"
+        digest = int(hashlib.md5(guardian_mobile.encode("utf-8")).hexdigest(), 16)
+        parent_nid = f"98{digest % 10**10:010d}"
 
     cache_key = f"{parent_nid}|{guardian_mobile}"
     if cache_key in parent_cache:

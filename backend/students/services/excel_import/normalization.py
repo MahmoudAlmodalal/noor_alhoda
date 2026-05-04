@@ -373,7 +373,8 @@ def _build_missing_national_id(row: dict) -> str:
             _clean_text(row.get("birthdate")),
         ]
     )
-    return f"NOID-{hashlib.md5(seed.encode('utf-8')).hexdigest()[:10]}"
+    digest = int(hashlib.md5(seed.encode("utf-8")).hexdigest(), 16)
+    return f"97{digest % 10**10:010d}"
 
 
 def _normalize_row(row: dict) -> dict:

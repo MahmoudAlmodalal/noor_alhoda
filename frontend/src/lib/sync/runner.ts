@@ -6,6 +6,7 @@
  */
 import { hasSessionKey } from "../db/auth";
 
+import { revertStaleInFlight } from "./outbox";
 import { pullSync } from "./pull";
 import { triggerPush } from "./push";
 
@@ -30,7 +31,18 @@ export function startSyncRunner(): void {
   if (typeof window === "undefined") return;
   started = true;
 
-  void maybeSync();
+  // Recover ops left in `in_flight` by a previous tab/crash before the
+  // first sync — otherwise listPending skips them and they're stuck.
+  void (async () => {
+    if (hasSessionKey()) {
+      try {
+        await revertStaleInFlight();
+      } catch {
+        // best-effort; the next push will still drain new pending ops
+      }
+    }
+    await maybeSync();
+  })();
 
   window.addEventListener("online", () => {
     void maybeSync();

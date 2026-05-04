@@ -147,14 +147,14 @@ class AttendanceReportEdgeCases(ReportTestSetup):
 
 class LeaderboardTests(ReportTestSetup):
     def test_leaderboard_returns_top_students_ordered(self):
-        """REP-07 / Feature 5.4: Leaderboard ordered by achieved verses."""
+        """REP-07 / Feature 5.4: Leaderboard ordered by combined score (verses + attendance)."""
         self.client.force_authenticate(self.admin)
         response = self.client.get("/api/reports/leaderboard/?month=4&year=2026")
         self.assertEqual(response.status_code, 200)
         data = response.data["data"]
         self.assertTrue(len(data) <= 10)
         if len(data) >= 2:
-            self.assertGreaterEqual(data[0]["total_achieved"], data[1]["total_achieved"])
+            self.assertGreaterEqual(data[0]["score"], data[1]["score"])
 
 
 class PDFReportTests(ReportTestSetup):
@@ -275,8 +275,8 @@ class LeaderboardExtendedTests(ReportTestSetup):
         self.client.force_authenticate(self.admin)
         response = self.client.get(LEADERBOARD_URL + "?month=4&year=2026")
         data = response.data["data"]
-        totals = [row["total_achieved"] for row in data]
-        self.assertEqual(totals, sorted(totals, reverse=True))
+        scores = [row["score"] for row in data]
+        self.assertEqual(scores, sorted(scores, reverse=True))
 
     def test_leaderboard_caps_at_ten_entries(self):
         self.client.force_authenticate(self.admin)

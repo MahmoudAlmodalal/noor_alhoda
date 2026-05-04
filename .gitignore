@@ -42,7 +42,8 @@ logs/
 *.backup
 *.dump
 *.sql.gz
-
+*.pdf
+*.xlsx
 # OS / editor
 .DS_Store
 Thumbs.db

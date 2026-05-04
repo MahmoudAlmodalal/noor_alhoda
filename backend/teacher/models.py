@@ -13,6 +13,19 @@ class Teacher(models.Model):
         AWQAF = "awqaf", "أوقاف"
         SHEIKH_TABAEA = "sheikh_tabaea", "شيخ التباعية"
 
+    class MaritalStatus(models.TextChoices):
+        SINGLE = "single", "أعزب"
+        MARRIED = "married", "متزوج"
+
+    class JobTitle(models.TextChoices):
+        TEACHER = "teacher", "محفظ"
+        TEACHER_RECEPTION = "teacher_reception", "محفظ استقبال"
+        TEACHER_YEAR_CIRCLE = "teacher_year_circle", "محفظ حلقة سنة"
+        TEACHER_FORUM_CIRCLE = "teacher_forum_circle", "محفظ حلقة منتدى"
+        TEACHER_ASSISTANT = "teacher_assistant", "مساعد محفظ"
+        COURSE_INSTRUCTOR = "course_instructor", "معلم دورات"
+        ADMIN_TEACHER = "admin_teacher", "مساعد إداري + محفظ"
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.OneToOneField(
         User,
@@ -56,6 +69,54 @@ class Teacher(models.Model):
         blank=True,
         verbose_name="الدورات",
         db_table="accounts_teacher_courses",
+    )
+    birthdate = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name="تاريخ الميلاد",
+    )
+    marital_status = models.CharField(
+        max_length=10,
+        choices=MaritalStatus.choices,
+        blank=True,
+        default="",
+        verbose_name="الحالة الاجتماعية",
+    )
+    education_qualification = models.CharField(
+        max_length=100,
+        blank=True,
+        default="",
+        verbose_name="المؤهل العلمي",
+    )
+    last_tajweed_course = models.CharField(
+        max_length=100,
+        blank=True,
+        default="",
+        verbose_name="آخر دورة تجويد",
+    )
+    family_members_count = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="عدد أفراد الأسرة",
+    )
+    wallet_name = models.CharField(
+        max_length=100,
+        blank=True,
+        default="",
+        verbose_name="اسم المحفظة",
+    )
+    wallet_number = models.CharField(
+        max_length=30,
+        blank=True,
+        default="",
+        verbose_name="رقم المحفظة",
+    )
+    job_title = models.CharField(
+        max_length=30,
+        choices=JobTitle.choices,
+        blank=True,
+        default=JobTitle.TEACHER,
+        verbose_name="المسمى الوظيفي",
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True, verbose_name="آخر تحديث")

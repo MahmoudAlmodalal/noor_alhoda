@@ -672,37 +672,62 @@ export async function attendanceReport(params: {
 export async function leaderboard(): Promise<LeaderboardEntry[]> {
   const [students, teachers] = await Promise.all([listStudents(), listTeachers()]);
   const teacherById = new Map(teachers.map((t) => [t.id, t]));
-  const ws = weekStartFor(new Date());
+
+  const today = new Date();
+  const monthFrom = new Date(today.getFullYear(), today.getMonth(), 1)
+    .toISOString()
+    .slice(0, 10);
+  const monthTo = new Date(today.getFullYear(), today.getMonth() + 1, 0)
+    .toISOString()
+    .slice(0, 10);
+
+  const daily = await listDailyRecordsInRange(monthFrom, monthTo);
+
+  const planToStudent = new Map<string, string>();
+  for (const s of students) {
+    const plans = await listWeeklyPlans({ student_id: s.id });
+    for (const p of plans) planToStudent.set(p.id, s.id);
+  }
+
+  const byStudent = new Map<
+    string,
+    { total_achieved: number; total_required: number; present_days: number }
+  >();
+  for (const r of daily) {
+    const sid = planToStudent.get(r.weekly_plan_id);
+    if (!sid) continue;
+    const v = byStudent.get(sid) ?? { total_achieved: 0, total_required: 0, present_days: 0 };
+    v.total_achieved += r.achieved_verses ?? 0;
+    v.total_required += r.required_verses ?? 0;
+    if (r.attendance === "present" || r.attendance === "late") v.present_days += 1;
+    byStudent.set(sid, v);
+  }
 
   const rows: LeaderboardEntry[] = [];
   for (const s of students) {
-    const plans = await listWeeklyPlans({ student_id: s.id });
-    const week = plans.find((p) => p.week_start === ws);
-    if (!week) continue;
-    const planRows = await getDb()
-      .daily_records.where("weekly_plan_id")
-      .equals(week.id)
-      .toArray();
-    const daily = await decryptRows<DailyRecordRecord>(planRows);
-    const present = daily.filter((r) => r.attendance === "present").length;
+    const v = byStudent.get(s.id);
+    if (!v) continue;
+    const score = v.total_achieved + v.present_days * 5;
+    if (score === 0) continue;
     rows.push({
       rank: 0,
       student_id: s.id,
       student_name: s.full_name,
-      total_achieved: week.total_achieved,
-      total_required: week.total_required,
-      present_days: present,
+      total_achieved: v.total_achieved,
+      total_required: v.total_required,
+      present_days: v.present_days,
+      score,
       ring_name: s.teacher_id ? teacherById.get(s.teacher_id)?.ring_name : undefined,
     });
   }
 
   rows.sort((a, b) => {
-    if (b.total_achieved !== a.total_achieved) return b.total_achieved - a.total_achieved;
-    return b.present_days - a.present_days;
+    if (b.score !== a.score) return b.score - a.score;
+    return b.total_achieved - a.total_achieved;
   });
   rows.forEach((r, i) => (r.rank = i + 1));
 
-  return rows;
+  return rows.slice(0, 10);
 }
 
 // ---------------------------------------------------------------------------

@@ -28,6 +28,7 @@ import { upsertStudents } from "../db/repos/students";
 import {
   decryptPayload,
   listPending,
+  listRetriableErrored,
   markConflict,
   markError,
   markInFlight,
@@ -87,11 +88,20 @@ export async function triggerPush(): Promise<PushResult> {
 
       // Drain loop — if one batch finishes and there's more pending, go again.
       for (let iteration = 0; iteration < 20; iteration++) {
+        // Fetch pending ops first; if room remains in the batch, top up
+        // with errored ops whose backoff window has elapsed so transient
+        // failures auto-recover without manual intervention.
         const pending = await listPending(BATCH_SIZE);
-        if (pending.length === 0) return { ok: true };
+        const remaining = BATCH_SIZE - pending.length;
+        const retriable =
+          remaining > 0
+            ? await listRetriableErrored(new Date().toISOString(), remaining)
+            : [];
+        const batch = [...pending, ...retriable];
+        if (batch.length === 0) return { ok: true };
 
         const ops: PushWireOp[] = [];
-        for (const row of pending) {
+        for (const row of batch) {
           const payload = await decryptPayload<Record<string, unknown>>(row);
           ops.push({
             client_id: row.op_id,
@@ -103,23 +113,39 @@ export async function triggerPush(): Promise<PushResult> {
           });
         }
 
-        const opIds = pending.map((r) => r.op_id);
+        const opIds = batch.map((r) => r.op_id);
         await markInFlight(opIds);
 
-        const res = await api.post<PushResponseData>("/api/sync/push/", { ops });
+        // Inner try/finally guarantees that if anything between
+        // markInFlight and the per-op resolution throws — malformed
+        // server response, Dexie write failure inside applyResult, etc.
+        // — the batch is reverted to pending so the next sync retries.
+        // Without this, ops were stranded in `in_flight` and invisible to
+        // listPending forever (the "stuck unsync" bug).
+        let batchSettled = false;
+        try {
+          const res = await api.post<PushResponseData>("/api/sync/push/", { ops });
 
-        if (!res.success) {
-          await revertInFlight(opIds);
-          return { ok: false, reason: res.error.message };
+          if (!res.success) {
+            await revertInFlight(opIds);
+            batchSettled = true;
+            return { ok: false, reason: res.error.message };
+          }
+
+          const touched = new Set<ResourceName>();
+          for (const r of res.data.results) {
+            await applyResult(r, touched);
+          }
+          // applyResult deletes synced/conflict ops and marks errors —
+          // every op in the batch is now in a terminal state (deleted or
+          // status === "error"). Safe to leave the loop.
+          batchSettled = true;
+          if (touched.size > 0) emitChanges(Array.from(touched));
+
+          if (batch.length < BATCH_SIZE) return { ok: true };
+        } finally {
+          if (!batchSettled) await revertInFlight(opIds);
         }
-
-        const touched = new Set<ResourceName>();
-        for (const r of res.data.results) {
-          await applyResult(r, touched);
-        }
-        if (touched.size > 0) emitChanges(Array.from(touched));
-
-        if (pending.length < BATCH_SIZE) return { ok: true };
       }
       return { ok: true };
     } catch (err) {

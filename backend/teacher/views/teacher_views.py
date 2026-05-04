@@ -4,6 +4,7 @@ from rest_framework.views import APIView
 
 from core.permissions import IsAdmin, IsAdminOrTeacher
 from teacher.selectors.teacher_selectors import teacher_list
+from teacher.services.excel_import.orchestrator import staff_excel_bulk_import
 from teacher.services.teacher_services import teacher_create
 
 
@@ -78,4 +79,30 @@ class TeacherCreateApi(APIView):
         return Response(
             {"success": True, "data": TeacherOutputSerializer(teacher).data},
             status=status.HTTP_201_CREATED,
+        )
+
+
+class TeacherBulkCreateApi(APIView):
+    """POST /api/users/teachers/bulk-create/ — استيراد هيكلية المركز.
+
+    Each row is dispatched by job_title:
+    - non-teaching titles → StaffMember
+    - teaching titles → Teacher (+ User account)
+    """
+
+    permission_classes = [IsAdmin]
+
+    def post(self, request):
+        rows = request.data.get("rows")
+        if not isinstance(rows, list):
+            return Response(
+                {"success": False, "errors": {"rows": "يجب إرسال قائمة الصفوف."}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        result = staff_excel_bulk_import(creator=request.user, rows=rows)
+
+        return Response(
+            {"success": True, "data": result},
+            status=status.HTTP_200_OK,
         )

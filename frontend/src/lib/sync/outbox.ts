@@ -10,6 +10,15 @@ import { emitChange, type ResourceName } from "@/lib/db/events";
 
 export type OutboxAction = "create" | "update" | "delete";
 
+// Auto-retry policy for errored ops. After MAX_ATTEMPTS the op stops
+// auto-retrying (next_retry_at = null) and remains visible for manual
+// dropErroredOp / retryErroredOps. Backoff is `2^attempts * 1000 ms`,
+// capped at 5 minutes — keeps client polite to a sick server while
+// still recovering quickly from a one-off transient failure.
+const MAX_ATTEMPTS = 5;
+const BACKOFF_BASE_MS = 1_000;
+const BACKOFF_CAP_MS = 5 * 60_000;
+
 export interface EnqueueParams {
   resource: ResourceName;
   action: OutboxAction;
@@ -46,6 +55,7 @@ export async function enqueueOp(params: EnqueueParams): Promise<OutboxRow> {
     status: "pending",
     attempts: 0,
     last_error: null,
+    next_retry_at: null,
   };
 
   await getDb().outbox.put(row);
@@ -107,10 +117,18 @@ export async function markError(opId: string, message: string): Promise<void> {
   const db = getDb();
   const row = await db.outbox.get(opId);
   if (!row) return;
+  const attempts = (row.attempts || 0) + 1;
+  const next_retry_at =
+    attempts >= MAX_ATTEMPTS
+      ? null
+      : new Date(
+          Date.now() + Math.min(2 ** attempts * BACKOFF_BASE_MS, BACKOFF_CAP_MS)
+        ).toISOString();
   await db.outbox.update(opId, {
     status: "error",
     last_error: message,
-    attempts: (row.attempts || 0) + 1,
+    attempts,
+    next_retry_at,
   });
   emitChange("outbox");
 }
@@ -153,6 +171,8 @@ export async function retryErroredOps(): Promise<void> {
       await db.outbox.update(row.op_id, {
         status: "pending",
         last_error: null,
+        next_retry_at: null,
+        attempts: 0,
       });
     }
   });
@@ -162,4 +182,51 @@ export async function retryErroredOps(): Promise<void> {
 export async function dropErroredOp(opId: string): Promise<void> {
   await getDb().outbox.delete(opId);
   emitChange("outbox");
+}
+
+/**
+ * Errored ops whose backoff window has elapsed. Combined with `listPending`
+ * by `triggerPush` so transient failures auto-recover without UI interaction.
+ */
+export async function listRetriableErrored(
+  nowIso: string,
+  limit = 50
+): Promise<OutboxRow[]> {
+  const rows = await getDb()
+    .outbox.where("status")
+    .equals("error")
+    .filter(
+      (row) =>
+        row.next_retry_at !== null && row.next_retry_at !== undefined && row.next_retry_at <= nowIso
+    )
+    .limit(limit)
+    .toArray();
+  return rows.sort((a, b) => a.created_at.localeCompare(b.created_at));
+}
+
+/**
+ * Recover ops left in `in_flight` status by a crashed or closed tab. Without
+ * this, those ops are invisible to `listPending` and never retry — the
+ * "stuck unsync" symptom. Called once at sync-runner startup.
+ *
+ * Safe to revert unconditionally at startup: this runs before the local
+ * push loop starts in this session, so no in-process push owns these
+ * rows. A concurrent push from another tab is also fine — server-side
+ * idempotency keys reject duplicate ops.
+ *
+ * `attempts` is intentionally NOT incremented here: a closed tab is a
+ * recovery signal, not a failure signal, and it shouldn't consume the
+ * retry budget that bounds real server-side failures.
+ */
+export async function revertStaleInFlight(): Promise<void> {
+  const db = getDb();
+  let touched = false;
+  await db.transaction("rw", db.outbox, async () => {
+    const stuck = await db.outbox.where("status").equals("in_flight").toArray();
+    for (const row of stuck) {
+      await db.outbox.update(row.op_id, { status: "pending" });
+      touched = true;
+    }
+  });
+  if (touched) emitChange("outbox");
 }

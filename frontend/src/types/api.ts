@@ -121,6 +121,48 @@ export interface BulkStudentImportResult {
   errors: { row: number; national_id: string | null; message: string }[];
 }
 
+// ─── Staff (هيكلية المركز) ──────────────────────────────────────────────────
+
+export type StaffJobTitle =
+  // Non-teaching (StaffMember)
+  | "director"
+  | "deputy_director"
+  | "admin"
+  | "media"
+  // Teaching (Teacher)
+  | "teacher"
+  | "teacher_reception"
+  | "teacher_year_circle"
+  | "teacher_forum_circle"
+  | "teacher_assistant"
+  | "course_instructor"
+  | "admin_teacher";
+
+export interface StaffMember {
+  id: string;
+  full_name: string;
+  national_id: string;
+  phone_number: string;
+  birthdate: string | null;
+  marital_status: string;
+  education_qualification: string;
+  last_tajweed_course: string;
+  family_members_count: number | null;
+  wallet_name: string;
+  wallet_number: string;
+  job_title: StaffJobTitle;
+  job_title_display: string;
+  user_id: string | null;
+  created_at: string;
+}
+
+export interface BulkStaffImportResult {
+  created_count: number;
+  updated_count: number;
+  error_count: number;
+  errors: { row: number; national_id: string | null; message: string }[];
+}
+
 export interface Student {
   id: string;
   full_name: string;
@@ -348,6 +390,7 @@ export interface LeaderboardEntry {
   total_achieved: number;
   total_required: number;
   present_days: number;
+  score: number;
   ring_name?: string;
 }
 

@@ -33,9 +33,20 @@ def pull_visible_students(*, actor: User) -> QuerySet[Student]:
 
 
 def pull_visible_teachers(*, actor: User, student_ids: list) -> QuerySet[Teacher]:
-    if actor.role in ("admin", "teacher") or actor.is_superuser:
+    # Admin/superuser see every teacher (full oversight).
+    if actor.is_superuser or actor.role == "admin":
         return Teacher.objects.select_related("user").prefetch_related("courses").all()
 
+    # A teacher's local DB only needs their own teacher row — they don't
+    # collaborate with peers' profiles offline.
+    if actor.role == "teacher" and hasattr(actor, "teacher_profile"):
+        return (
+            Teacher.objects.select_related("user")
+            .prefetch_related("courses")
+            .filter(id=actor.teacher_profile.id)
+        )
+
+    # Parent/student see the teachers of the students they can see.
     teacher_ids = (
         Student.objects.filter(id__in=student_ids)
         .exclude(teacher__isnull=True)

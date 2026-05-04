@@ -16,7 +16,7 @@ import Dexie, { type EntityTable } from "dexie";
 import type { EncryptedBlob } from "./crypto";
 
 export const DB_NAME = "noor_alhuda_local";
-export const DB_VERSION = 2;
+export const DB_VERSION = 3;
 
 export interface EncryptedRow extends EncryptedBlob {
   id: string; // UUID (server-assigned)
@@ -105,6 +105,10 @@ export interface OutboxRow {
   status: "pending" | "in_flight" | "synced" | "conflict" | "error";
   attempts: number;
   last_error: string | null;
+  // ISO timestamp when an errored op becomes eligible for auto-retry. null
+  // means either: never errored, or auto-retry has been exhausted (manual
+  // discard required).
+  next_retry_at: string | null;
 }
 
 export interface AuthRow {
@@ -187,6 +191,39 @@ export class LocalDb extends Dexie {
         await tx.table("outbox").toCollection().modify((row) => {
           if (row.target_id === undefined) row.target_id = "";
           if (row.base_updated_at === undefined) row.base_updated_at = null;
+        });
+      });
+
+    // v3 — outbox gains `next_retry_at` so errored ops can auto-retry with
+    // bounded backoff instead of being stranded until manual intervention.
+    this.version(3)
+      .stores({
+        users: "id, updated_at, national_id, role",
+        teachers: "id, updated_at, user_id",
+        parents: "id, updated_at, user_id",
+        parent_student_links: "id, updated_at, parent_id, student_id",
+        students: "id, updated_at, teacher_id, national_id",
+        weekly_plans: "id, updated_at, student_id, week_start",
+        daily_records:
+          "id, updated_at, weekly_plan_id, date, [weekly_plan_id+day]",
+        review_records: "id, updated_at, student_id, reviewed_date",
+        evaluations: "id, updated_at, student_id, scheduled_date, status",
+        notifications: "id, updated_at, recipient_id, is_read, created_at",
+        courses: "id, updated_at, name",
+        student_courses: "id, updated_at, student_id, course_id",
+        tombstones: "key, resource, deleted_at",
+        outbox:
+          "op_id, status, created_at, resource, target_id, [resource+target_id], next_retry_at",
+        auth: "id",
+      })
+      .upgrade(async (tx) => {
+        // Existing errored ops get a next_retry_at = now so they retry on
+        // the next sync without a backoff wait. New ops default to null.
+        const nowIso = new Date().toISOString();
+        await tx.table("outbox").toCollection().modify((row) => {
+          if (row.next_retry_at === undefined) {
+            row.next_retry_at = row.status === "error" ? nowIso : null;
+          }
         });
       });
   }

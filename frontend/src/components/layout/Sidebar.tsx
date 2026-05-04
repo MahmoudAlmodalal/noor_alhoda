@@ -19,6 +19,7 @@ import {
     Database,
     Calendar,
     GraduationCap,
+    Building2,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNotifications } from "@/contexts/NotificationsContext";
@@ -42,6 +43,7 @@ export const menuItems: NavItem[] = [
     // Admin فقط
     { name: "تسجيل طالب", href: "/students/register", icon: UserPlus, roles: ["admin"] },
     { name: "إدارة المحفظين", href: "/teachers", icon: UserCheck, roles: ["admin"] },
+    { name: "هيكلية المركز", href: "/staff-db", icon: Building2, roles: ["admin"] },
     { name: "سجل الطلاب", href: "/students", icon: Users, roles: ["admin"] },
     { name: "قاعدة بيانات الطلاب", href: "/students-db", icon: Database, roles: ["admin"] },
     { name: "إدارة الدورات", href: "/courses", icon: BookMarked, roles: ["admin"] },
