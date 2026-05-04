@@ -100,6 +100,33 @@ export async function revertInFlight(opIds: string[]): Promise<void> {
   emitChange("outbox");
 }
 
+/**
+ * Rescue every `in_flight` row by flipping it back to `pending`.
+ *
+ * Called at the top of `triggerPush` so a previous push that was killed
+ * mid-flight (tab close, browser crash, 401-induced navigation, async
+ * throw after `markInFlight`) doesn't permanently orphan its rows. Safe
+ * because `pushInFlight === null` is the entry condition of the caller —
+ * no concurrent push exists in this tab. Server-side `IdempotencyKey`
+ * dedupes if the prior request actually reached the server before the
+ * client died.
+ */
+export async function revertOrphanedInFlight(): Promise<number> {
+  const db = getDb();
+  const orphans = await db.outbox.where("status").equals("in_flight").toArray();
+  if (orphans.length === 0) return 0;
+  await db.transaction("rw", db.outbox, async () => {
+    for (const row of orphans) {
+      await db.outbox.update(row.op_id, {
+        status: "pending",
+        attempts: (row.attempts || 0) + 1,
+      });
+    }
+  });
+  emitChange("outbox");
+  return orphans.length;
+}
+
 export async function markSynced(opId: string): Promise<void> {
   // Fully synced ops are dropped immediately — no use keeping them.
   await getDb().outbox.delete(opId);
@@ -177,6 +204,32 @@ export async function retryErroredOps(): Promise<void> {
     }
   });
   emitChange("outbox");
+}
+
+/**
+ * Auto-retry policy for transient errors. The runner calls this on the
+ * `online` event so a brief 502 / server restart / DNS hiccup doesn't
+ * park an op until the user finds a manual retry button.
+ *
+ * Capped by `maxAttempts` (default 5) so a permanent failure (validation
+ * error, schema mismatch) eventually stops looping and surfaces to the
+ * user via the `error` badge for manual `dropErroredOp` / fix.
+ */
+export async function requeueErroredOps(maxAttempts = 5): Promise<number> {
+  const db = getDb();
+  const errored = await db.outbox.where("status").equals("error").toArray();
+  const eligible = errored.filter((r) => (r.attempts || 0) < maxAttempts);
+  if (eligible.length === 0) return 0;
+  await db.transaction("rw", db.outbox, async () => {
+    for (const row of eligible) {
+      await db.outbox.update(row.op_id, {
+        status: "pending",
+        last_error: null,
+      });
+    }
+  });
+  emitChange("outbox");
+  return eligible.length;
 }
 
 export async function dropErroredOp(opId: string): Promise<void> {

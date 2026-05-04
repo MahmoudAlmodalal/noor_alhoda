@@ -34,6 +34,7 @@ import {
   markInFlight,
   markSynced,
   revertInFlight,
+  revertOrphanedInFlight,
 } from "./outbox";
 
 const BATCH_SIZE = 50;
@@ -85,6 +86,12 @@ export async function triggerPush(): Promise<PushResult> {
       if (typeof navigator !== "undefined" && navigator.onLine === false) {
         return { ok: false, reason: "offline" };
       }
+
+      // Rescue any rows left in `in_flight` by a prior push that was
+      // killed mid-flight (tab close, crash, 401 → /login navigation).
+      // `pushInFlight === null` is our entry condition, so any in_flight
+      // row in IDB right now is by definition orphaned.
+      await revertOrphanedInFlight();
 
       // Drain loop — if one batch finishes and there's more pending, go again.
       for (let iteration = 0; iteration < 20; iteration++) {
