@@ -11,10 +11,15 @@ _USER_FIELDS = {"first_name", "last_name", "phone_number", "national_id"}
 
 
 @transaction.atomic
-def teacher_create(*, creator: User, id=None, **data) -> Teacher:
-    """Create a new teacher (User + Teacher profile)."""
+def teacher_create(*, creator: User, id=None, user_id=None, **data) -> Teacher:
+    """Create a new teacher (User + Teacher profile).
+
+    `user_id` is optional; the offline client mints a UUID for the user
+    so the local users row exists at the right key before sync.
+    """
     user = user_create(
         creator=creator,
+        id=user_id,
         national_id=data["national_id"],
         phone_number=data.get("phone_number", ""),
         first_name=data.get("first_name", ""),

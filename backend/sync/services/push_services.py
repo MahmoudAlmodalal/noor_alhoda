@@ -596,6 +596,9 @@ def _push_teacher_update(*, actor: User, op: dict) -> dict:
         "client_id": op.get("client_id"),
         "status": "synced",
         "row": _conflict_row("teacher", updated),
+        # Mirror create: hand back the user row so phone_number/national_id
+        # land on the client without waiting for the next pull.
+        "extra_rows": [_conflict_row("user", updated.user)],
     }
 
 

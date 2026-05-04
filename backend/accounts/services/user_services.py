@@ -39,9 +39,12 @@ def _validate_national_id(value: str, *, exclude_pk=None) -> str:
 
 
 @transaction.atomic
-def user_create(*, creator: User, **data) -> User:
+def user_create(*, creator: User, id=None, **data) -> User:
     """
     Create a new user. Only admins can create users.
+
+    `id` is optional; offline clients mint a UUID locally so the local
+    `users` row exists with the right key before the push round-trip.
     """
     if not is_admin_user(creator):
         raise PermissionDenied("فقط المدير يمكنه إنشاء حسابات جديدة.")
@@ -62,13 +65,16 @@ def user_create(*, creator: User, **data) -> User:
 
     phone_number = normalize_phone(data.get("phone_number", ""))
 
-    user = User(
+    user_kwargs = dict(
         national_id=national_id,
         phone_number=phone_number,
         first_name=data.get("first_name", ""),
         last_name=data.get("last_name", ""),
         role=role,
     )
+    if id is not None:
+        user_kwargs["id"] = id
+    user = User(**user_kwargs)
     user.set_password(password)
     user.full_clean()
     user.save()
