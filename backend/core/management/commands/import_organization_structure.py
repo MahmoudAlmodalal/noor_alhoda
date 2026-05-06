@@ -47,15 +47,19 @@ class Command(BaseCommand):
             if not header_row:
                 raise CommandError("Could not find header row in Excel file.")
 
-            # Map columns by position
+            # Map columns by enumerate index (0-based)
+            # Actual Excel layout: A(empty), B(#), C(name), D(id), E(phone),
+            # F(empty), G(wallet_name), H(wallet_number), I(student_count),
+            # J(marital_status), K(empty), L(empty), M(family_count), N(job_title)
             column_index_map = {
-                2: 'full_name',
-                3: 'national_id',
-                4: 'contact_number',
-                5: 'birthdate',
-                6: 'ring_name',
-                7: 'ring_number',
-                13: 'position',  # Job title
+                2: 'full_name',                     # Col C: الإسم
+                3: 'national_id',                   # Col D: رقم الهوية
+                4: 'contact_number',                # Col E: رقو التواصل
+                6: 'wallet_name',                   # Col G: اسم المحفظة
+                7: 'wallet_number',                 # Col H: رقم المحفظة
+                9: 'marital_status',                # Col J: الحالة
+                12: 'family_members_count',         # Col M: عدد أفراد الأسرة
+                13: 'job_title',                    # Col N: المسمى الوظيفي
             }
 
             # Get or create admin user
@@ -106,6 +110,42 @@ class Command(BaseCommand):
 
                             row_dict[field_name] = value
 
+                    # Convert family_members_count to int if present
+                    if row_dict.get('family_members_count'):
+                        try:
+                            row_dict['family_members_count'] = int(row_dict['family_members_count'])
+                        except (ValueError, TypeError):
+                            row_dict['family_members_count'] = None
+
+                    # Map marital status from Arabic to choice values
+                    marital_mapping = {
+                        'متزوج': 'married',
+                        'أعزب': 'single',
+                    }
+                    if row_dict.get('marital_status'):
+                        row_dict['marital_status'] = marital_mapping.get(
+                            str(row_dict['marital_status']).strip(),
+                            ''
+                        )
+
+                    # Map job title from Arabic to choice values
+                    job_mapping = {
+                        'محفظ': 'teacher',
+                        'محفظ استقبال': 'teacher_reception',
+                        'محفظ حلقة سنة': 'teacher_year_circle',
+                        'محفظ حلقة منتدى': 'teacher_forum_circle',
+                        'مساعد محفظ': 'teacher_assistant',
+                        'معلم دورات': 'course_instructor',
+                        'مساعد إداري + محفظ': 'admin_teacher',
+                        'مدير المركز': 'teacher',  # Default to teacher
+                        'نائب المدير': 'teacher',  # Default to teacher
+                    }
+                    if row_dict.get('job_title'):
+                        row_dict['job_title'] = job_mapping.get(
+                            str(row_dict['job_title']).strip(),
+                            'teacher'
+                        )
+
                     # Only process rows with a name or national ID
                     if not (row_dict.get('full_name') or row_dict.get('national_id')):
                         continue
@@ -129,18 +169,29 @@ class Command(BaseCommand):
                             user.phone_number = phone_number
                             user.save()
 
+                        # Prepare teacher defaults and updates
+                        teacher_data = {
+                            'full_name': full_name,
+                            'ring_name': row_dict.get('wallet_name') or full_name,  # Use wallet_name as ring_name
+                            'wallet_name': row_dict.get('wallet_name') or '',
+                            'wallet_number': row_dict.get('wallet_number') or '',
+                            'education_qualification': '',  # Not in Excel file
+                            'last_tajweed_course': '',  # Not in Excel file
+                            'marital_status': row_dict.get('marital_status') or '',
+                            'family_members_count': row_dict.get('family_members_count'),
+                            'job_title': row_dict.get('job_title') or 'teacher',
+                        }
+
                         # Create or update teacher profile
                         teacher, t_created = Teacher.objects.get_or_create(
                             user=user,
-                            defaults={
-                                'ring_name': row_dict.get('ring_name') or full_name,
-                                'birthdate': row_dict.get('birthdate'),
-                            }
+                            defaults=teacher_data
                         )
 
                         if not t_created:
-                            teacher.ring_name = row_dict.get('ring_name') or full_name
-                            teacher.birthdate = row_dict.get('birthdate')
+                            for field, value in teacher_data.items():
+                                if value is not None and value != '':
+                                    setattr(teacher, field, value)
                             teacher.save()
 
                         if t_created:
