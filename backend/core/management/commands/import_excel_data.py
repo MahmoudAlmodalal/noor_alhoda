@@ -1,14 +1,66 @@
 """
 Management command to import student data from an Excel file.
-Usage: python manage.py import_excel_data /path/to/file.xlsx
+Usage: python manage.py import_excel_data /path/to/file.xlsx [--verify]
 """
 import openpyxl
 from datetime import datetime, date
 from django.core.management.base import BaseCommand, CommandError
-from django.db import transaction
 
 from accounts.models import User
 from students.services.excel_import_service import excel_bulk_import
+
+
+def _verify_import(rows, stdout, style):
+    from students.models import Student
+
+    matched = 0
+    missing = []
+    mismatches = []
+
+    for row in rows:
+        raw_nid = str(row.get("national_id") or "").strip()
+        name = str(row.get("full_name") or "").strip()
+
+        student = (
+            Student.objects
+            .select_related("user", "teacher")
+            .filter(user__national_id=raw_nid)
+            .first()
+        ) if raw_nid else None
+
+        if student is None and name:
+            # Synthetic IDs: normalize_row() built a 97-prefix id — look up by name
+            student = Student.objects.select_related("user", "teacher").filter(
+                full_name=name
+            ).first()
+
+        if student is None:
+            missing.append(name or raw_nid or "—")
+            continue
+
+        matched += 1
+
+        # Field checks
+        if name and student.full_name != name:
+            mismatches.append(
+                f"  [{raw_nid or name}] الاسم: DB={student.full_name!r}  xlsx={name!r}"
+            )
+
+    stdout.write(style.SUCCESS(f"\n--- نتائج التحقق ---"))
+    stdout.write(style.SUCCESS(f"✓ مطابق في قاعدة البيانات: {matched} / {len(rows)}"))
+
+    if missing:
+        stdout.write(style.ERROR(f"✗ غير موجود في DB ({len(missing)}):"))
+        for label in missing[:20]:
+            stdout.write(style.ERROR(f"  {label}"))
+
+    if mismatches:
+        stdout.write(style.WARNING(f"⚠ اختلاف في الاسم ({len(mismatches)}):"))
+        for msg in mismatches[:20]:
+            stdout.write(style.WARNING(msg))
+
+    if not missing and not mismatches:
+        stdout.write(style.SUCCESS("✓ جميع البيانات صحيحة!"))
 
 
 class Command(BaseCommand):
@@ -16,6 +68,12 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument("file_path", type=str, help="Path to the Excel file")
+        parser.add_argument(
+            "--verify",
+            action="store_true",
+            default=False,
+            help="After import, cross-check each row against the database.",
+        )
 
     def handle(self, *args, **options):
         file_path = options["file_path"]
@@ -132,8 +190,7 @@ class Command(BaseCommand):
                 )
 
             # Import the data
-            with transaction.atomic():
-                result = excel_bulk_import(creator=admin_user, rows=rows)
+            result = excel_bulk_import(creator=admin_user, rows=rows)
 
             self.stdout.write(
                 self.style.SUCCESS(f"✓ Created: {result['created_count']} students")
@@ -156,6 +213,10 @@ class Command(BaseCommand):
                     )
             else:
                 self.stdout.write(self.style.SUCCESS("✓ No errors!"))
+
+            # Verify import if requested
+            if options.get("verify"):
+                _verify_import(rows, self.stdout, self.style)
 
         except FileNotFoundError:
             raise CommandError(f"File not found: {file_path}")
