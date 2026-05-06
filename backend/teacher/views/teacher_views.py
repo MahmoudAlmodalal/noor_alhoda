@@ -43,6 +43,14 @@ class TeacherOutputSerializer(serializers.Serializer):
     max_students = serializers.IntegerField()
     courses = serializers.SerializerMethodField()
     created_at = serializers.DateTimeField()
+    wallet_name = serializers.CharField(allow_blank=True)
+    wallet_number = serializers.CharField(allow_blank=True)
+    birthdate = serializers.DateField(allow_null=True)
+    marital_status = serializers.CharField(allow_blank=True)
+    education_qualification = serializers.CharField(allow_blank=True)
+    last_tajweed_course = serializers.CharField(allow_blank=True)
+    family_members_count = serializers.IntegerField(allow_null=True)
+    job_title = serializers.CharField(allow_blank=True)
 
     def get_courses(self, obj):
         return [{"id": str(c.id), "name": c.name} for c in obj.courses.all()]
