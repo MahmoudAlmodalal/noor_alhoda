@@ -14,6 +14,7 @@ from typing import Any
 from django.utils import timezone
 
 from accounts.models import User
+from sync.models import SyncGeneration
 from sync.selectors.pull_selectors import (
     pull_courses,
     pull_daily_records_for_students,
@@ -98,6 +99,8 @@ def sync_pull(*, actor: User, since: datetime | None = None) -> dict[str, Any]:
 
     tombstones_qs = pull_tombstones(actor=actor, since=since)
 
+    sync_generation = SyncGeneration.get_current()
+
     return {
         "resources": {
             "users": [user_to_dict(u) for u in users_qs],
@@ -121,4 +124,5 @@ def sync_pull(*, actor: User, since: datetime | None = None) -> dict[str, Any]:
         },
         "tombstones": [tombstone_to_dict(t) for t in tombstones_qs],
         "server_time": now.isoformat(),
+        "sync_generation": str(sync_generation),
     }

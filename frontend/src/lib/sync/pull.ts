@@ -6,9 +6,9 @@
  */
 import { api } from "@/lib/api";
 
-import { hasSessionKey, markSyncAt, readAuth } from "../db/auth";
+import { hasSessionKey, markSyncAt, readAuth, updateSyncGeneration } from "../db/auth";
 import { emitChanges, type ResourceName } from "../db/events";
-import { getDb } from "../db/schema";
+import { getDb, wipeDb } from "../db/schema";
 import {
   upsertCourses,
   upsertEvaluations,
@@ -57,6 +57,7 @@ export interface SyncPullResponse {
   };
   tombstones: { resource: string; uuid: string; deleted_at: string }[];
   server_time: string;
+  sync_generation: string;
 }
 
 let pullInFlight: Promise<PullResult> | null = null;
@@ -83,6 +84,17 @@ export async function pullSync(): Promise<PullResult> {
       if (!res.success) {
         return { ok: false, error: res.error.message };
       }
+
+      // Check if server's sync generation differs from client's stored generation.
+      // If so, the server DB was reset — wipe local IndexedDB and do a full re-sync.
+      const currentAuth = await readAuth();
+      const serverGeneration = res.data.sync_generation;
+      if (currentAuth && currentAuth.sync_generation !== null && currentAuth.sync_generation !== serverGeneration) {
+        // Server DB was reset. Wipe local DB and re-initialize for a fresh full pull.
+        await wipeDb();
+        return { ok: true, server_time: res.data.server_time };
+      }
+
       await applyPullResponse(res.data);
       return { ok: true, server_time: res.data.server_time };
     } catch (err) {
@@ -107,7 +119,7 @@ export async function applyPullResponse(
   data: SyncPullResponse,
   onTableProgress?: (table: string, done: number, total: number) => void
 ): Promise<void> {
-  const { resources, tombstones, server_time } = data;
+  const { resources, tombstones, server_time, sync_generation } = data;
 
   // Order matters for FK consistency: parents/users before links,
   // students before plans, plans before daily records, etc.
@@ -142,6 +154,7 @@ export async function applyPullResponse(
 
   if (touched.size > 0) emitChanges(Array.from(touched));
   await markSyncAt(server_time);
+  await updateSyncGeneration(sync_generation);
 }
 
 async function applyTombstones(

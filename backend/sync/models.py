@@ -1,8 +1,45 @@
 import uuid
 
 from django.db import models
+from django.core.cache import cache
 
 from accounts.models import User
+
+
+class SyncGeneration(models.Model):
+    """
+    Single-row model to track the current sync generation.
+    When the server database is wiped or reset, the generation ID changes.
+    Clients compare their stored generation against the server's current one;
+    if different, they wipe their local IndexedDB and do a full re-sync.
+    """
+
+    generation_id = models.UUIDField(
+        default=uuid.uuid4, verbose_name="معرّف الجيل الحالي للمزامنة"
+    )
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="آخر تحديث")
+
+    class Meta:
+        verbose_name = "جيل المزامنة"
+        verbose_name_plural = "أجيال المزامنة"
+
+    def save(self, *args, **kwargs):
+        self.pk = 1  # Enforce single row
+        cache.delete("sync_generation")  # Invalidate cache
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"SyncGeneration {self.generation_id}"
+
+    @classmethod
+    def get_current(cls):
+        """Get or create the current generation, with caching."""
+        cached = cache.get("sync_generation")
+        if cached:
+            return cached
+        obj, _ = cls.objects.get_or_create(pk=1)
+        cache.set("sync_generation", obj.generation_id, timeout=None)
+        return obj.generation_id
 
 
 class Tombstone(models.Model):

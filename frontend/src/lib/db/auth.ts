@@ -133,6 +133,7 @@ export async function initializeOrUnlockSession(params: {
       iterations: meta.iterations,
       verifier_hash: verifier,
       last_sync_at: null,
+      sync_generation: null,
       created_at: new Date().toISOString(),
     });
     sessionKey = dbKey;
@@ -172,6 +173,7 @@ export async function initializeOrUnlockSession(params: {
     iterations: meta.iterations,
     verifier_hash: verifier,
     last_sync_at: null,
+    sync_generation: null,
     created_at: new Date().toISOString(),
   });
   sessionKey = dbKey;
@@ -215,6 +217,10 @@ export async function unlockOffline(params: {
 
 export async function markSyncAt(iso: string): Promise<void> {
   await getDb().auth.update("current", { last_sync_at: iso });
+}
+
+export async function updateSyncGeneration(generation: string): Promise<void> {
+  await getDb().auth.update("current", { sync_generation: generation });
 }
 
 // Re-export crypto helpers so repos can `import { encryptRecord } from "./auth"`.
