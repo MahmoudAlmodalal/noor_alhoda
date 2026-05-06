@@ -439,6 +439,10 @@ export function AddTeacherModal({
             <option value="teacher_assistant">مساعد محفظ</option>
             <option value="course_instructor">معلم دورات</option>
             <option value="admin_teacher">مساعد إداري + محفظ</option>
+            <option value="director">مدير المركز</option>
+            <option value="deputy_director">نائب المدير</option>
+            <option value="admin">إداري</option>
+            <option value="media">إعلامي</option>
           </select>
         </div>
 
@@ -813,6 +817,10 @@ export function EditTeacherModal({
             <option value="teacher_assistant">مساعد محفظ</option>
             <option value="course_instructor">معلم دورات</option>
             <option value="admin_teacher">مساعد إداري + محفظ</option>
+            <option value="director">مدير المركز</option>
+            <option value="deputy_director">نائب المدير</option>
+            <option value="admin">إداري</option>
+            <option value="media">إعلامي</option>
           </select>
         </div>
 

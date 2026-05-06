@@ -50,15 +50,18 @@ class Command(BaseCommand):
 
             # Map columns by enumerate index (0-based)
             # Actual Excel layout: A(empty), B(#), C(name), D(id), E(phone),
-            # F(empty), G(wallet_name), H(wallet_number), I(student_count),
-            # J(marital_status), K(empty), L(empty), M(family_count), N(job_title)
+            # F(birthdate), G(wallet_name), H(wallet_number), I(student_count),
+            # J(marital_status), K(empty), L(education), M(family_count), N(job_title)
             column_index_map = {
                 2: 'full_name',                     # Col C: الإسم
                 3: 'national_id',                   # Col D: رقم الهوية
                 4: 'contact_number',                # Col E: رقو التواصل
+                5: 'birthdate',                     # Col F: تاريخ الميلاد
                 6: 'wallet_name',                   # Col G: اسم المحفظة
                 7: 'wallet_number',                 # Col H: رقم المحفظة
                 9: 'marital_status',                # Col J: الحالة
+                10: 'education_qualification',      # Col K: المؤهل العلمي
+                11: 'last_tajweed_course',          # Col L: آخر دورة تجويد
                 12: 'family_members_count',         # Col M: عدد أفراد الأسرة
                 13: 'job_title',                    # Col N: المسمى الوظيفي
             }
@@ -139,8 +142,12 @@ class Command(BaseCommand):
                         'مساعد محفظ': 'teacher_assistant',
                         'معلم دورات': 'course_instructor',
                         'مساعد إداري + محفظ': 'admin_teacher',
-                        'مدير المركز': 'teacher',  # Default to teacher
-                        'نائب المدير': 'teacher',  # Default to teacher
+                        'مدير المركز': 'director',
+                        'نائب المدير': 'deputy_director',
+                        'الإداري': 'admin',
+                        'اداري': 'admin',
+                        'الاعلامي': 'media',
+                        'اعلامي': 'media',
                     }
                     if row_dict.get('job_title'):
                         row_dict['job_title'] = job_mapping.get(

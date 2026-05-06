@@ -28,6 +28,14 @@ class TeacherInputSerializer(serializers.Serializer):
     # untouched" (see teacher_services.teacher_update). Sending an explicit
     # empty array remains a legitimate "unassign all" signal.
     course_ids = serializers.ListField(child=serializers.UUIDField(), required=False)
+    wallet_name = serializers.CharField(required=False, allow_blank=True, default="")
+    wallet_number = serializers.CharField(required=False, allow_blank=True, default="")
+    birthdate = serializers.DateField(required=False, allow_null=True)
+    marital_status = serializers.CharField(required=False, allow_blank=True, default="")
+    education_qualification = serializers.CharField(required=False, allow_blank=True, default="")
+    last_tajweed_course = serializers.CharField(required=False, allow_blank=True, default="")
+    family_members_count = serializers.IntegerField(required=False, allow_null=True)
+    job_title = serializers.CharField(required=False, allow_blank=True, default="teacher")
 
 
 class TeacherOutputSerializer(serializers.Serializer):

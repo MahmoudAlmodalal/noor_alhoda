@@ -25,6 +25,10 @@ class Teacher(models.Model):
         TEACHER_ASSISTANT = "teacher_assistant", "مساعد محفظ"
         COURSE_INSTRUCTOR = "course_instructor", "معلم دورات"
         ADMIN_TEACHER = "admin_teacher", "مساعد إداري + محفظ"
+        DIRECTOR = "director", "مدير المركز"
+        DEPUTY_DIRECTOR = "deputy_director", "نائب المدير"
+        ADMIN = "admin", "إداري"
+        MEDIA = "media", "إعلامي"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.OneToOneField(

@@ -109,6 +109,7 @@ def student_to_dict(s: Student) -> dict[str, Any]:
         "current_surah": s.current_surah or "",
         "current_juz": s.current_juz,
         "memorized_verses": s.memorized_verses,
+        "current_aya": s.current_aya,
         "enrollment_date": str(s.enrollment_date) if s.enrollment_date else None,
         "created_at": _iso(s.created_at),
         "updated_at": _iso(s.updated_at),

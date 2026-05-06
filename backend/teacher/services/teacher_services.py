@@ -36,6 +36,14 @@ def teacher_create(*, creator: User, id=None, user_id=None, **data) -> Teacher:
         max_students=data.get("max_students", 25),
         affiliation=data.get("affiliation", ""),
         ring_name=data.get("ring_name", ""),
+        wallet_name=data.get("wallet_name", ""),
+        wallet_number=data.get("wallet_number", ""),
+        birthdate=data.get("birthdate"),
+        marital_status=data.get("marital_status", ""),
+        education_qualification=data.get("education_qualification", ""),
+        last_tajweed_course=data.get("last_tajweed_course", ""),
+        family_members_count=data.get("family_members_count"),
+        job_title=data.get("job_title", Teacher.JobTitle.TEACHER),
     )
     if id is not None:
         teacher_kwargs["id"] = id
@@ -66,6 +74,9 @@ def teacher_update(*, teacher: Teacher, actor: User, data: dict) -> Teacher:
     allowed = [
         "full_name", "specialization", "session_days",
         "max_students", "affiliation", "ring_name",
+        "wallet_name", "wallet_number", "birthdate",
+        "marital_status", "education_qualification",
+        "last_tajweed_course", "family_members_count", "job_title",
     ]
     for field, value in data.items():
         if field in allowed:

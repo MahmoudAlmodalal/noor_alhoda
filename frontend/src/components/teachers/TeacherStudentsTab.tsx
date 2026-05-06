@@ -2,12 +2,14 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, BookOpen, Search, Users } from "lucide-react";
+import { ArrowRight, BookOpen, Search, Users, Edit2 } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import { AttendancePill, type AttendanceValue } from "@/components/ui/AttendancePill";
+import { UpdateMemorizationModal } from "@/components/modals/UpdateMemorizationModal";
 import { cn } from "@/lib/utils";
 import type { StudentWithTeacher } from "@/hooks/queries";
 import type { DailyRecordWithStudent } from "@/lib/db/repos/aggregates";
+import type { StudentRecord } from "@/lib/db/repos/students";
 
 type SortKey = "name" | "attendance" | "verses";
 
@@ -37,6 +39,7 @@ export function TeacherStudentsTab({
 }: Props) {
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortKey>("name");
+  const [memorizationTarget, setMemorizationTarget] = useState<StudentRecord | null>(null);
 
   const sorted = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -144,26 +147,43 @@ export function TeacherStudentsTab({
                     {student.national_id}
                   </p>
                   {(student.current_surah || student.current_juz != null || student.memorized_verses > 0) && (
-                    <p className="mt-0.5 flex flex-wrap gap-x-2 text-[10px] text-text-muted">
-                      {student.current_surah && (
-                        <span>
-                          <span className="font-semibold text-text-body">السورة:</span>{" "}
-                          {student.current_surah}
-                        </span>
-                      )}
-                      {student.current_juz != null && (
-                        <span>
-                          <span className="font-semibold text-text-body">الجزء:</span>{" "}
-                          {student.current_juz}
-                        </span>
-                      )}
-                      {student.memorized_verses > 0 && (
-                        <span>
-                          <span className="font-semibold text-text-body">الآيات:</span>{" "}
-                          {student.memorized_verses}
-                        </span>
-                      )}
-                    </p>
+                    <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[10px] text-text-muted">
+                      <p className="flex flex-wrap gap-x-2">
+                        {student.current_surah && (
+                          <span>
+                            <span className="font-semibold text-text-body">السورة:</span>{" "}
+                            {student.current_surah}
+                          </span>
+                        )}
+                        {student.current_aya != null && (
+                          <span>
+                            <span className="font-semibold text-text-body">الآية:</span>{" "}
+                            {student.current_aya}
+                          </span>
+                        )}
+                        {student.current_juz != null && (
+                          <span>
+                            <span className="font-semibold text-text-body">الجزء:</span>{" "}
+                            {student.current_juz}
+                          </span>
+                        )}
+                        {student.memorized_verses > 0 && (
+                          <span>
+                            <span className="font-semibold text-text-body">الآيات:</span>{" "}
+                            {student.memorized_verses}
+                          </span>
+                        )}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setMemorizationTarget(student)}
+                        className="ms-1 inline-flex items-center justify-center h-4 w-4 rounded text-text-muted hover:text-primary transition-colors"
+                        aria-label="تعديل موضع الحفظ"
+                        title="تعديل موضع الحفظ"
+                      >
+                        <Edit2 className="h-3 w-3" />
+                      </button>
+                    </div>
                   )}
                 </div>
                 {rec ? (
@@ -210,6 +230,15 @@ export function TeacherStudentsTab({
             );
           })}
         </ul>
+      )}
+
+      {memorizationTarget && (
+        <UpdateMemorizationModal
+          isOpen={true}
+          onClose={() => setMemorizationTarget(null)}
+          student={memorizationTarget}
+          onSuccess={() => setMemorizationTarget(null)}
+        />
       )}
     </section>
   );
