@@ -188,6 +188,9 @@ export interface Student {
   skills: StudentSkills | null;
   is_active: boolean;
   enrollment_date: string;
+  current_surah: string;
+  current_juz: number | null;
+  memorized_verses: number;
 }
 
 export interface CreateStudentRequest {
@@ -211,6 +214,9 @@ export interface CreateStudentRequest {
   skills?: StudentSkills;
   teacher_id?: string;
   password?: string;
+  current_surah?: string;
+  current_juz?: number | null;
+  memorized_verses?: number;
 }
 
 export interface AssignTeacherRequest {

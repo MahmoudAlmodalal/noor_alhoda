@@ -123,6 +123,22 @@ class Student(models.Model):
         verbose_name="فترة دوران المراجعة (أيام)",
     )
 
+    current_surah = models.CharField(
+        max_length=100,
+        blank=True,
+        default="",
+        verbose_name="السورة الحالية",
+    )
+    current_juz = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="الجزء الحالي",
+    )
+    memorized_verses = models.PositiveIntegerField(
+        default=0,
+        verbose_name="عدد الآيات",
+    )
+
     enrollment_date = models.DateField(auto_now_add=True, verbose_name="تاريخ الالتحاق")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

@@ -181,6 +181,9 @@ def student_create(*, creator: User, id=None, **data) -> Student:
         health_status=data.get("health_status", "normal"),
         health_note=data.get("health_note", ""),
         skills=data.get("skills", {}),
+        current_surah=data.get("current_surah", ""),
+        current_juz=data.get("current_juz"),
+        memorized_verses=data.get("memorized_verses", 0),
     )
     if id is not None:
         student_kwargs["id"] = id
@@ -211,10 +214,12 @@ def student_update(*, student: Student, actor: User, data: dict) -> Student:
             "guardian_name", "guardian_national_id", "guardian_mobile",
             # Health and Skills
             "health_status", "health_note", "skills",
+            # Quran Progress
+            "current_surah", "current_juz", "memorized_verses",
         ]
     elif actor.role == "teacher":
-        # Teachers can only update health and skills notes
-        allowed = ["health_note", "skills"]
+        # Teachers can only update health, skills, and Quran progress notes
+        allowed = ["health_note", "skills", "current_surah", "current_juz", "memorized_verses"]
     else:
         raise PermissionDenied("ليس لديك صلاحية لتعديل بيانات الطالب.")
 

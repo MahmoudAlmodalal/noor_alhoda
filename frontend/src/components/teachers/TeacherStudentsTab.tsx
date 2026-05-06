@@ -143,6 +143,28 @@ export function TeacherStudentsTab({
                   >
                     {student.national_id}
                   </p>
+                  {(student.current_surah || student.current_juz != null || student.memorized_verses > 0) && (
+                    <p className="mt-0.5 flex flex-wrap gap-x-2 text-[10px] text-text-muted">
+                      {student.current_surah && (
+                        <span>
+                          <span className="font-semibold text-text-body">السورة:</span>{" "}
+                          {student.current_surah}
+                        </span>
+                      )}
+                      {student.current_juz != null && (
+                        <span>
+                          <span className="font-semibold text-text-body">الجزء:</span>{" "}
+                          {student.current_juz}
+                        </span>
+                      )}
+                      {student.memorized_verses > 0 && (
+                        <span>
+                          <span className="font-semibold text-text-body">الآيات:</span>{" "}
+                          {student.memorized_verses}
+                        </span>
+                      )}
+                    </p>
+                  )}
                 </div>
                 {rec ? (
                   <AttendancePill value={rec.attendance as AttendanceValue} />

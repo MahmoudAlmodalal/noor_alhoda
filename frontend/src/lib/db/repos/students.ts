@@ -21,6 +21,9 @@ export interface StudentRecord {
   health_note: string;
   skills: Record<string, boolean | string>;
   review_interval_days: number;
+  current_surah: string;
+  current_juz: number | null;
+  memorized_verses: number;
   enrollment_date: string | null;
   created_at: string | null;
   updated_at: string | null;

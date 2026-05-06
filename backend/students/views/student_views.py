@@ -85,6 +85,9 @@ class StudentOutputSerializer(serializers.Serializer):
     affiliation = serializers.CharField(source="teacher.affiliation", default="")
     skills = serializers.JSONField()
     review_interval_days = serializers.IntegerField()
+    current_surah = serializers.CharField(default="")
+    current_juz = serializers.IntegerField(allow_null=True, default=None)
+    memorized_verses = serializers.IntegerField(default=0)
 
     enrollment_date = serializers.DateField()
 
@@ -126,6 +129,11 @@ class StudentUpdateSerializer(serializers.Serializer):
     health_status = serializers.CharField(required=False, allow_blank=True)
     health_note = serializers.CharField(required=False, allow_blank=True)
     skills = serializers.JSONField(required=False, allow_null=True)
+
+    # Quran Progress
+    current_surah = serializers.CharField(required=False, allow_blank=True)
+    current_juz = serializers.IntegerField(required=False, allow_null=True, min_value=1, max_value=30)
+    memorized_verses = serializers.IntegerField(required=False, min_value=0)
 
 
 class AssignTeacherSerializer(serializers.Serializer):
