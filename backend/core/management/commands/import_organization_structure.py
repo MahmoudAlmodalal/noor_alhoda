@@ -3,6 +3,7 @@ Management command to import organization structure (teachers/staff) from Excel 
 Usage: python manage.py import_organization_structure /path/to/file.xlsx
 """
 import openpyxl
+import hashlib
 from datetime import datetime, date
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
@@ -76,6 +77,7 @@ class Command(BaseCommand):
             created_count = 0
             updated_count = 0
             errors = []
+            processed_ids = set()  # Track IDs to handle duplicates
 
             with transaction.atomic():
                 for row_cells in sheet.iter_rows(min_row=header_row + 1, values_only=False):
@@ -151,9 +153,24 @@ class Command(BaseCommand):
                         continue
 
                     try:
-                        national_id = str(row_dict.get('national_id', '')).strip()
-                        phone_number = str(row_dict.get('contact_number', '')).strip()
-                        full_name = str(row_dict.get('full_name', '')).strip()
+                        full_name = str(row_dict.get('full_name') or '').strip()
+                        phone_number = str(row_dict.get('contact_number') or '').strip()
+                        national_id = row_dict.get('national_id')
+
+                        # Convert national_id to string and strip, or generate one if missing
+                        if national_id:
+                            national_id = str(national_id).strip()
+                        if not national_id:
+                            # Generate a synthetic ID from the name (hash-based)
+                            name_hash = hashlib.md5(full_name.encode()).hexdigest()[:10]
+                            national_id = name_hash
+
+                        # Handle duplicate national_ids by appending phone number
+                        if national_id in processed_ids:
+                            # Duplicate ID in this import - make it unique
+                            national_id = f"{national_id}_{phone_number[-4:]}"
+
+                        processed_ids.add(national_id)
 
                         # Create or update user for teacher
                         user, created = User.objects.get_or_create(

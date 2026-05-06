@@ -39,6 +39,14 @@ export interface TeacherRecord {
   affiliation: string;
   ring_name: string;
   course_ids: string[];
+  wallet_name: string;
+  wallet_number: string;
+  birthdate: string | null;
+  marital_status: string;
+  education_qualification: string;
+  last_tajweed_course: string;
+  family_members_count: number | null;
+  job_title: string;
   created_at: string | null;
   updated_at: string | null;
 }

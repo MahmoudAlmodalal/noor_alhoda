@@ -195,6 +195,14 @@ export function AddTeacherModal({
     session_days: [] as string[],
     max_students: 25,
     course_ids: [] as string[],
+    wallet_name: "",
+    wallet_number: "",
+    birthdate: "",
+    marital_status: "",
+    education_qualification: "",
+    last_tajweed_course: "",
+    family_members_count: "",
+    job_title: "teacher",
   });
 
   const { data: coursesData, isLoading: coursesLoading } = useQuery<CourseRecord[]>(
@@ -227,6 +235,14 @@ export function AddTeacherModal({
         session_days: form.session_days,
         max_students: form.max_students,
         course_ids: form.course_ids,
+        wallet_name: form.wallet_name,
+        wallet_number: form.wallet_number,
+        birthdate: form.birthdate,
+        marital_status: form.marital_status,
+        education_qualification: form.education_qualification,
+        last_tajweed_course: form.last_tajweed_course,
+        family_members_count: form.family_members_count ? Number(form.family_members_count) : null,
+        job_title: form.job_title,
       },
       { successMessage: "تم إضافة المحفظ بنجاح" }
     );
@@ -241,6 +257,14 @@ export function AddTeacherModal({
         session_days: [],
         max_students: 25,
         course_ids: [],
+        wallet_name: "",
+        wallet_number: "",
+        birthdate: "",
+        marital_status: "",
+        education_qualification: "",
+        last_tajweed_course: "",
+        family_members_count: "",
+        job_title: "teacher",
       });
       reset();
       onSuccess?.();
@@ -318,6 +342,103 @@ export function AddTeacherModal({
             <option value="dar_quran">دار القرآن</option>
             <option value="awqaf">أوقاف</option>
             <option value="sheikh_tabaea">شيخ التباعية</option>
+          </select>
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="block text-sm font-bold text-text-body">اسم المحفظة (اختياري)</label>
+          <Input
+            value={form.wallet_name}
+            onChange={(e) => setForm({ ...form, wallet_name: e.target.value })}
+            aria-label="اسم المحفظة"
+            className="h-12 rounded-xl border-border-subtle"
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="block text-sm font-bold text-text-body">رقم المحفظة (اختياري)</label>
+          <Input
+            value={form.wallet_number}
+            onChange={(e) => setForm({ ...form, wallet_number: e.target.value })}
+            aria-label="رقم المحفظة"
+            className="h-12 rounded-xl border-border-subtle"
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="block text-sm font-bold text-text-body">تاريخ الميلاد (اختياري)</label>
+          <Input
+            type="date"
+            dir="ltr"
+            value={form.birthdate}
+            onChange={(e) => setForm({ ...form, birthdate: e.target.value })}
+            aria-label="تاريخ الميلاد"
+            className="h-12 rounded-xl border-border-subtle"
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="block text-sm font-bold text-text-body">الحالة الاجتماعية (اختياري)</label>
+          <select
+            value={form.marital_status}
+            onChange={(e) => setForm({ ...form, marital_status: e.target.value })}
+            aria-label="الحالة الاجتماعية"
+            className="h-12 w-full rounded-xl border border-border-subtle bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+          >
+            <option value="">اختر الحالة...</option>
+            <option value="single">أعزب</option>
+            <option value="married">متزوج</option>
+          </select>
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="block text-sm font-bold text-text-body">المؤهل العلمي (اختياري)</label>
+          <Input
+            value={form.education_qualification}
+            onChange={(e) => setForm({ ...form, education_qualification: e.target.value })}
+            aria-label="المؤهل العلمي"
+            className="h-12 rounded-xl border-border-subtle"
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="block text-sm font-bold text-text-body">آخر دورة تجويد (اختياري)</label>
+          <Input
+            value={form.last_tajweed_course}
+            onChange={(e) => setForm({ ...form, last_tajweed_course: e.target.value })}
+            aria-label="آخر دورة تجويد"
+            className="h-12 rounded-xl border-border-subtle"
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="block text-sm font-bold text-text-body">عدد أفراد الأسرة (اختياري)</label>
+          <Input
+            type="number"
+            inputMode="numeric"
+            min="0"
+            value={form.family_members_count}
+            onChange={(e) => setForm({ ...form, family_members_count: e.target.value })}
+            aria-label="عدد أفراد الأسرة"
+            className="h-12 rounded-xl border-border-subtle"
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="block text-sm font-bold text-text-body">المسمى الوظيفي (اختياري)</label>
+          <select
+            value={form.job_title}
+            onChange={(e) => setForm({ ...form, job_title: e.target.value })}
+            aria-label="المسمى الوظيفي"
+            className="h-12 w-full rounded-xl border border-border-subtle bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+          >
+            <option value="teacher">محفظ</option>
+            <option value="teacher_reception">محفظ استقبال</option>
+            <option value="teacher_year_circle">محفظ حلقة سنة</option>
+            <option value="teacher_forum_circle">محفظ حلقة منتدى</option>
+            <option value="teacher_assistant">مساعد محفظ</option>
+            <option value="course_instructor">معلم دورات</option>
+            <option value="admin_teacher">مساعد إداري + محفظ</option>
           </select>
         </div>
 
@@ -467,6 +588,14 @@ export function EditTeacherModal({
         ? teacher.max_students
         : 25,
     course_ids: teacher.course_ids ?? [],
+    wallet_name: teacher.wallet_name || "",
+    wallet_number: teacher.wallet_number || "",
+    birthdate: teacher.birthdate || "",
+    marital_status: teacher.marital_status || "",
+    education_qualification: teacher.education_qualification || "",
+    last_tajweed_course: teacher.last_tajweed_course || "",
+    family_members_count: teacher.family_members_count ? String(teacher.family_members_count) : "",
+    job_title: teacher.job_title || "teacher",
   });
 
   const { data: coursesData, isLoading: coursesLoading } = useQuery<CourseRecord[]>(
@@ -499,6 +628,14 @@ export function EditTeacherModal({
       session_days: form.session_days,
       max_students: form.max_students,
       course_ids: form.course_ids,
+      wallet_name: form.wallet_name,
+      wallet_number: form.wallet_number,
+      birthdate: form.birthdate,
+      marital_status: form.marital_status,
+      education_qualification: form.education_qualification,
+      last_tajweed_course: form.last_tajweed_course,
+      family_members_count: form.family_members_count ? Number(form.family_members_count) : null,
+      job_title: form.job_title,
     };
     const result = await mutate(payload, {
       successMessage: "تم تحديث بيانات المحفظ بنجاح",
@@ -579,6 +716,103 @@ export function EditTeacherModal({
             <option value="dar_quran">دار القرآن</option>
             <option value="awqaf">أوقاف</option>
             <option value="sheikh_tabaea">شيخ التباعية</option>
+          </select>
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="block text-sm font-bold text-text-body">اسم المحفظة (اختياري)</label>
+          <Input
+            value={form.wallet_name}
+            onChange={(e) => setForm({ ...form, wallet_name: e.target.value })}
+            aria-label="اسم المحفظة"
+            className="h-12 rounded-xl border-border-subtle font-medium"
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="block text-sm font-bold text-text-body">رقم المحفظة (اختياري)</label>
+          <Input
+            value={form.wallet_number}
+            onChange={(e) => setForm({ ...form, wallet_number: e.target.value })}
+            aria-label="رقم المحفظة"
+            className="h-12 rounded-xl border-border-subtle font-medium"
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="block text-sm font-bold text-text-body">تاريخ الميلاد (اختياري)</label>
+          <Input
+            type="date"
+            dir="ltr"
+            value={form.birthdate}
+            onChange={(e) => setForm({ ...form, birthdate: e.target.value })}
+            aria-label="تاريخ الميلاد"
+            className="h-12 rounded-xl border-border-subtle font-medium"
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="block text-sm font-bold text-text-body">الحالة الاجتماعية (اختياري)</label>
+          <select
+            value={form.marital_status}
+            onChange={(e) => setForm({ ...form, marital_status: e.target.value })}
+            aria-label="الحالة الاجتماعية"
+            className="h-12 w-full rounded-xl border border-border-subtle bg-white px-3 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/20"
+          >
+            <option value="">اختر الحالة...</option>
+            <option value="single">أعزب</option>
+            <option value="married">متزوج</option>
+          </select>
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="block text-sm font-bold text-text-body">المؤهل العلمي (اختياري)</label>
+          <Input
+            value={form.education_qualification}
+            onChange={(e) => setForm({ ...form, education_qualification: e.target.value })}
+            aria-label="المؤهل العلمي"
+            className="h-12 rounded-xl border-border-subtle font-medium"
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="block text-sm font-bold text-text-body">آخر دورة تجويد (اختياري)</label>
+          <Input
+            value={form.last_tajweed_course}
+            onChange={(e) => setForm({ ...form, last_tajweed_course: e.target.value })}
+            aria-label="آخر دورة تجويد"
+            className="h-12 rounded-xl border-border-subtle font-medium"
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="block text-sm font-bold text-text-body">عدد أفراد الأسرة (اختياري)</label>
+          <Input
+            type="number"
+            inputMode="numeric"
+            min="0"
+            value={form.family_members_count}
+            onChange={(e) => setForm({ ...form, family_members_count: e.target.value })}
+            aria-label="عدد أفراد الأسرة"
+            className="h-12 rounded-xl border-border-subtle font-medium"
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="block text-sm font-bold text-text-body">المسمى الوظيفي (اختياري)</label>
+          <select
+            value={form.job_title}
+            onChange={(e) => setForm({ ...form, job_title: e.target.value })}
+            aria-label="المسمى الوظيفي"
+            className="h-12 w-full rounded-xl border border-border-subtle bg-white px-3 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/20"
+          >
+            <option value="teacher">محفظ</option>
+            <option value="teacher_reception">محفظ استقبال</option>
+            <option value="teacher_year_circle">محفظ حلقة سنة</option>
+            <option value="teacher_forum_circle">محفظ حلقة منتدى</option>
+            <option value="teacher_assistant">مساعد محفظ</option>
+            <option value="course_instructor">معلم دورات</option>
+            <option value="admin_teacher">مساعد إداري + محفظ</option>
           </select>
         </div>
 
