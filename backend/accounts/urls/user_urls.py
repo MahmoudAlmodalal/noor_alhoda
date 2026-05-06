@@ -6,6 +6,11 @@ from accounts.views.user_views import (
     UserCreateApi,
     UserDetailApi,
 )
+from teacher.views.teacher_excel_views import (
+    TeacherExportApi,
+    TeacherImportXlsxApi,
+    TeacherTemplateApi,
+)
 from teacher.views.teacher_views import (
     TeacherBulkCreateApi,
     TeacherCreateApi,
@@ -19,5 +24,8 @@ urlpatterns = [
     path("teachers/", TeacherListApi.as_view(), name="teacher-list"),
     path("teachers/create/", TeacherCreateApi.as_view(), name="teacher-create"),
     path("teachers/bulk-create/", TeacherBulkCreateApi.as_view(), name="teacher-bulk-create"),
+    path("teachers/export/", TeacherExportApi.as_view(), name="teacher-export"),
+    path("teachers/template/", TeacherTemplateApi.as_view(), name="teacher-template"),
+    path("teachers/import-xlsx/", TeacherImportXlsxApi.as_view(), name="teacher-import-xlsx"),
     path("staff-members/", StaffMemberListApi.as_view(), name="staff-list"),
 ]

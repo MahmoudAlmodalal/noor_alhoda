@@ -144,11 +144,22 @@ def _coerce_int(value) -> int | None:
 
 
 def _normalize_row(row: dict) -> dict:
+    # Imported lazily to keep this module ORM-light and avoid a circular
+    # import (excel_field_map → teacher.models, which is also pulled
+    # in by this module).
+    from teacher.services.excel_field_map import (
+        _normalize_affiliation,
+        _normalize_course_names,
+        _normalize_session_days,
+    )
+
     full_name = _clean_text(row.get("full_name"))
     job_title = _normalize_job_title(row.get("job_title"))
     national_id = _clean_national_id(row.get("national_id"))
     if not national_id:
         national_id = _synthetic_staff_national_id(full_name or job_title or "staff")
+
+    max_students = _coerce_int(row.get("max_students"))
 
     return {
         "full_name": full_name,
@@ -173,6 +184,20 @@ def _normalize_row(row: dict) -> dict:
             or ("" if _is_placeholder_text(row.get("wallet_number"))
                 else _clean_text(row.get("wallet_number"))),
         "job_title": job_title,
+        # Teacher-form fields (ignored by the staff orchestrator, used by
+        # the teacher orchestrator).
+        "specialization": (
+            "" if _is_placeholder_text(row.get("specialization"))
+            else _clean_text(row.get("specialization"))
+        ),
+        "affiliation": _normalize_affiliation(row.get("affiliation")),
+        "ring_name": (
+            "" if _is_placeholder_text(row.get("ring_name"))
+            else _clean_text(row.get("ring_name"))
+        ),
+        "session_days": _normalize_session_days(row.get("session_days")),
+        "max_students": max_students,
+        "course_names": _normalize_course_names(row.get("course_names")),
     }
 
 

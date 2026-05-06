@@ -160,9 +160,19 @@ const handlers: Record<MutationResource, Handler> = {
   teacher: {
     resource: "teacher",
     async upsertCreate(id, payload, now) {
+      // Mint the User UUID locally so listTeachersWithUser can resolve
+      // national_id / phone_number from the local users table immediately
+      // — without this the new teacher card flashes empty until the push
+      // round-trip completes (or stays empty forever if the user is offline
+      // or push fails). Threading it back into payload makes the wire op
+      // carry user_id so the server creates the User at the same key.
+      const userId =
+        typeof payload.user_id === "string" && payload.user_id
+          ? (payload.user_id as string)
+          : crypto.randomUUID();
       const rec: TeacherRecord = {
         id,
-        user_id: "",
+        user_id: userId,
         full_name: String(payload.full_name ?? ""),
         specialization: String(payload.specialization ?? ""),
         session_days: (payload.session_days as string[]) ?? [],
@@ -173,7 +183,20 @@ const handlers: Record<MutationResource, Handler> = {
         created_at: now,
         updated_at: now,
       };
+      const userRec: UserRecord = {
+        id: userId,
+        national_id: String(payload.national_id ?? ""),
+        phone_number: String(payload.phone_number ?? ""),
+        first_name: String(payload.first_name ?? ""),
+        last_name: String(payload.last_name ?? ""),
+        role: "teacher",
+        is_active: true,
+        date_joined: now,
+        updated_at: now,
+      };
+      (payload as Record<string, unknown>).user_id = userId;
       await upsertTeachers([rec]);
+      await upsertUsers([userRec]);
     },
     async readExisting(id) {
       const row = await getDb().teachers.get(id);
