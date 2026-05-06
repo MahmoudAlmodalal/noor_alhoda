@@ -17,6 +17,7 @@ from students.selectors.import_selectors import (
     parent_find_by_nid,
     parent_find_by_phone,
     parent_find_by_user,
+    teacher_find_by_first_last_name,
     teacher_find_by_loose_name,
     teacher_find_by_name,
     user_find_by_national_id,
@@ -49,6 +50,16 @@ def _resolve_teacher(
         teacher = teacher_find_by_name(name=teacher_name)
         if not teacher:
             teacher = teacher_find_by_loose_name(name=teacher_name)
+        if not teacher:
+            # Try matching by first and last name
+            name_parts = teacher_name.split()
+            if len(name_parts) >= 2:
+                first_name = name_parts[0]
+                last_name = " ".join(name_parts[1:])
+                teacher = teacher_find_by_first_last_name(
+                    first_name=first_name,
+                    last_name=last_name,
+                )
         if not teacher:
             name_hash = hashlib.md5(teacher_name.encode("utf-8")).hexdigest()
             synthetic_national_id = f"99{int(name_hash, 16) % 10**10:010d}"

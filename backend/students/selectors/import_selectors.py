@@ -36,12 +36,46 @@ def teacher_find_by_loose_name(*, name: str) -> Teacher | None:
 
     matches = []
     for teacher in Teacher.objects.select_related("user").only(
-        "id", "full_name", "user__national_id"
+        "id", "full_name", "user__national_id", "user__first_name", "user__last_name"
     ):
         candidate_tokens = (teacher.full_name or "").strip().split()
         if not candidate_tokens:
             continue
         if candidate_tokens[0] == short_first and candidate_tokens[-1] == short_last:
+            matches.append(teacher)
+            if len(matches) > 1:
+                return None
+
+    return matches[0] if len(matches) == 1 else None
+
+
+def teacher_find_by_first_last_name(*, first_name: str, last_name: str) -> Teacher | None:
+    """
+    Match a teacher by first_name and last_name from the User profile.
+    Useful when the imported name has a different structure than the stored full_name.
+
+    Example:
+    - imported: "احمد علي" (first: احمد, last: علي)
+    - stored: "احمد محمود علي" (first: احمد, last: محمود علي)
+
+    Returns the candidate only when exactly one Teacher matches.
+    """
+    if not first_name or not last_name:
+        return None
+
+    first_name = (first_name or "").strip()
+    last_name = (last_name or "").strip()
+
+    if not first_name or not last_name:
+        return None
+
+    matches = []
+    for teacher in Teacher.objects.select_related("user").only(
+        "id", "full_name", "user__first_name", "user__last_name"
+    ):
+        user = teacher.user
+        if (user.first_name and user.first_name.strip() == first_name and
+            user.last_name and user.last_name.strip() == last_name):
             matches.append(teacher)
             if len(matches) > 1:
                 return None
