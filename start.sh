@@ -14,6 +14,11 @@ python manage.py create_default_admin || echo "WARNING: admin creation skipped"
 echo "==> Resetting admin password..."
 python manage.py reset_admin_password --password "${DEFAULT_ADMIN_PASSWORD:-0000}" || echo "WARNING: password reset skipped"
 
+if [ "${IMPORT_TEACHERS:-false}" = "true" ]; then
+  echo "==> Importing teachers from Excel..."
+  python manage.py import_organization_structure /app/backend/data/teachers.xlsx || echo "WARNING: teacher import skipped"
+fi
+
 echo "==> Starting Gunicorn on 0.0.0.0:${PORT}..."
 exec gunicorn noor_alhuda.wsgi:application \
     --bind 0.0.0.0:${PORT} \
