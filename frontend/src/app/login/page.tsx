@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
-import { Eye, EyeOff, Loader2, Download } from "lucide-react";
+import { Eye, EyeOff, Loader2, Download, RefreshCw } from "lucide-react";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -241,6 +241,32 @@ function LoginForm() {
         </Button>
 
         <InstallButton />
+
+        <button
+          type="button"
+          onClick={async () => {
+            try {
+              // Unregister all service workers
+              if ("serviceWorker" in navigator) {
+                const registrations = await navigator.serviceWorker.getRegistrations();
+                await Promise.all(registrations.map((r) => r.unregister()));
+              }
+              // Clear all caches
+              if ("caches" in window) {
+                const keys = await caches.keys();
+                await Promise.all(keys.map((k) => caches.delete(k)));
+              }
+              // Hard reload (bypass cache)
+              window.location.reload();
+            } catch {
+              window.location.reload();
+            }
+          }}
+          className="w-full flex items-center justify-center gap-2 border border-dashed border-red-300 text-red-500 text-sm font-bold py-3 rounded-xl hover:bg-red-50 transition-colors"
+        >
+          <RefreshCw className="w-4 h-4" />
+          إعادة تحميل كاملة
+        </button>
       </form>
     </div>
   );
