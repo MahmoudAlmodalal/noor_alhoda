@@ -111,7 +111,7 @@ export function AttendanceRow({ draft, onChange }: Props) {
               />
             </div>
             <div className="space-y-1">
-              <label className="block text-[11px] font-bold text-text-label">الآيات المطلوبة</label>
+              <label className="block text-[11px] font-bold text-text-label">الصفحات المطلوبة</label>
               <input
                 type="number"
                 min={0}
@@ -122,7 +122,7 @@ export function AttendanceRow({ draft, onChange }: Props) {
               />
             </div>
             <div className="space-y-1">
-              <label className="block text-[11px] font-bold text-text-label">الآيات المنجزة</label>
+              <label className="block text-[11px] font-bold text-text-label">الصفحات المنجزة</label>
               <input
                 type="number"
                 min={0}

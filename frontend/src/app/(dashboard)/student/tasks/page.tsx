@@ -141,14 +141,14 @@ export default function StudentTasksPage() {
                                     <p className="mt-1 text-[20px] font-bold text-primary">
                                         {memorization.required_verses}
                                     </p>
-                                    <p className="text-[10px] text-text-muted">آية</p>
+                                    <p className="text-[10px] text-text-muted">صفحة</p>
                                 </div>
                                 <div className="rounded-[14px] bg-attend-present-bg p-3 text-center">
                                     <p className="text-[11px] text-text-muted">المنجز</p>
                                     <p className="mt-1 text-[20px] font-bold text-attend-present-text">
                                         {memorization.achieved_verses}
                                     </p>
-                                    <p className="text-[10px] text-text-muted">آية</p>
+                                    <p className="text-[10px] text-text-muted">صفحة</p>
                                 </div>
                             </div>
 
@@ -255,7 +255,7 @@ export default function StudentTasksPage() {
                     <span className="text-[14px] font-bold text-primary">{completionPct}%</span>
                 </div>
                 <p className="mb-3 text-[13px] text-text-muted">
-                    {weekly_progress.total_achieved} / {weekly_progress.total_required} آية هذا الأسبوع
+                    {weekly_progress.total_achieved} / {weekly_progress.total_required} صفحة هذا الأسبوع
                 </p>
                 <div className="h-2.5 w-full rounded-full bg-border-card">
                     <div

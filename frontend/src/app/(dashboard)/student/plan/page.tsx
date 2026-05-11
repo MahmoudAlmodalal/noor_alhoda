@@ -76,7 +76,7 @@ function CatchupBanner({ catchup }: { catchup: Catchup }) {
                 <AlertTriangle className="h-5 w-5 text-attend-late-text" />
                 <div className="flex-1">
                     <h3 className="text-[14px] font-bold text-text-body">
-                        يوجد عجز قدره {catchup.deficit} آية
+                        يوجد عجز قدره {catchup.deficit} صفحة
                     </h3>
                     <p className="text-[11px] text-text-muted">
                         اقتراح توزيع غير ملزم — المحفظ يحتفظ بصلاحية الخطة
@@ -197,7 +197,7 @@ function DayCard({
                 <>
                     <div className="mb-1 flex items-center justify-between text-[11px] text-text-muted">
                         <span>
-                            {achieved} / {required} آية
+                            {achieved} / {required} صفحة
                         </span>
                         <span className="font-bold">{dayPct}%</span>
                     </div>
@@ -430,7 +430,7 @@ export default function StudentPlanPage() {
                                     الإجمالي المطلوب
                                 </span>
                                 <span className="text-[14px] font-bold text-text-body">
-                                    {totalRequired} آية
+                                    {totalRequired} صفحة
                                 </span>
                             </div>
                             <div className="flex items-center justify-between">
@@ -438,7 +438,7 @@ export default function StudentPlanPage() {
                                     الإجمالي المنجز
                                 </span>
                                 <span className="text-[14px] font-bold text-success-text">
-                                    {totalAchieved} آية
+                                    {totalAchieved} صفحة
                                 </span>
                             </div>
                             {summary.week_number ? (

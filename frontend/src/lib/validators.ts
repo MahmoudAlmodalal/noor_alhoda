@@ -97,7 +97,7 @@ export function verseRange(
   const f = typeof from === "string" ? Number(from) : from;
   const t = typeof to === "string" ? Number(to) : to;
   if (f === undefined || t === undefined) {
-    return { ok: false, error: "نطاق الآيات مطلوب." };
+    return { ok: false, error: "نطاق الصفحات مطلوب." };
   }
   if (
     !Number.isInteger(f) ||
@@ -107,7 +107,7 @@ export function verseRange(
   ) {
     return {
       ok: false,
-      error: "نطاق الآيات يجب أن يكون أعداداً صحيحة موجبة.",
+      error: "نطاق الصفحات يجب أن يكون أعداداً صحيحة موجبة.",
     };
   }
   if (f > t) {

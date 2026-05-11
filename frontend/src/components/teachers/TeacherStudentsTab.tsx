@@ -169,7 +169,7 @@ export function TeacherStudentsTab({
                         )}
                         {student.memorized_verses > 0 && (
                           <span>
-                            <span className="font-semibold text-text-body">الآيات:</span>{" "}
+                            <span className="font-semibold text-text-body">الصفحات:</span>{" "}
                             {student.memorized_verses}
                           </span>
                         )}

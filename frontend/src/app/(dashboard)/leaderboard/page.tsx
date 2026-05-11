@@ -61,7 +61,7 @@ function LeaderboardContent() {
                     <h3 className="font-bold text-sm sm:text-base text-text-body leading-tight break-words mb-1 min-h-[2.5rem] sm:min-h-0">{entry.student_name}</h3>
                     <p className="text-2xl sm:text-[30px] font-bold leading-tight sm:leading-9 text-primary">{entry.score}</p>
                     <p className="text-[11px] text-text-muted mt-1">
-                      {entry.total_achieved} آية · {entry.present_days} يوم
+                      {entry.total_achieved} صفحة · {entry.present_days} يوم
                     </p>
                     {entry.ring_name && (
                       <p className="text-[11px] text-text-muted mt-1 line-clamp-1">{entry.ring_name}</p>

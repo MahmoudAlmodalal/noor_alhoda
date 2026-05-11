@@ -117,7 +117,7 @@ export function EvaluationCreateModal({
             <Input
               value={surahRange}
               onChange={(e) => setSurahRange(e.target.value)}
-              placeholder="مثال: سورة البقرة الآيات 1-50"
+              placeholder="مثال: سورة البقرة الصفحات 1-50"
             />
           </div>
 
