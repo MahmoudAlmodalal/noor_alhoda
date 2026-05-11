@@ -30,6 +30,7 @@ from evaluations.models import Evaluation
 from notifications.models import Notification
 from records.models import DailyRecord, ReviewRecord, WeeklyPlan
 from students.models import Student
+from progress.models import StudentProgress
 from sync.models import IdempotencyKey, Tombstone
 from sync.selectors.idempotency_selectors import idempotency_get
 from sync.services.resource_dicts import RESOURCE_DICT_MAP
@@ -848,6 +849,71 @@ def _push_notification_update(*, actor: User, op: dict) -> dict:
     }
 
 
+def _push_progress_create(*, actor: User, op: dict) -> dict:
+    from progress.services.progress_services import progress_create
+
+    data = dict(op.get("data") or {})
+    entry = progress_create(
+        id=op.get("id"),
+        actor=actor,
+        student_id=data.get("student_id"),
+        surah_number=int(data.get("surah_number", 1)),
+        juz_number=int(data.get("juz_number", 1)),
+        note=data.get("note", ""),
+        from_page=data.get("from_page"),
+        to_page=data.get("to_page"),
+    )
+    return {
+        "client_id": op.get("client_id"),
+        "status": "synced",
+        "row": _conflict_row("progress", entry),
+    }
+
+
+def _push_progress_update(*, actor: User, op: dict) -> dict:
+    from progress.services.progress_services import progress_update
+
+    target_id = op.get("id")
+    base = _parse_base(op.get("base_updated_at"))
+    entry = StudentProgress.objects.select_related("student").filter(id=target_id).first()
+    if entry is None:
+        return {
+            "client_id": op.get("client_id"),
+            "status": "error",
+            "error": {"code": "not_found", "message": "سجل التقدم غير موجود."},
+        }
+    if _server_newer_than_client(entry.updated_at, base):
+        return {
+            "client_id": op.get("client_id"),
+            "status": "conflict",
+            "row": _conflict_row("progress", entry),
+        }
+    updated = progress_update(progress=entry, actor=actor, data=op.get("data") or {})
+    return {
+        "client_id": op.get("client_id"),
+        "status": "synced",
+        "row": _conflict_row("progress", updated),
+    }
+
+
+def _push_progress_delete(*, actor: User, op: dict) -> dict:
+    from progress.services.progress_services import progress_delete
+
+    target_id = op.get("id")
+    base = _parse_base(op.get("base_updated_at"))
+    entry = StudentProgress.objects.select_related("student").filter(id=target_id).first()
+    if entry is None:
+        return {"client_id": op.get("client_id"), "status": "synced"}
+    if _server_newer_than_client(entry.updated_at, base):
+        return {
+            "client_id": op.get("client_id"),
+            "status": "conflict",
+            "row": _conflict_row("progress", entry),
+        }
+    progress_delete(progress=entry, actor=actor)
+    return {"client_id": op.get("client_id"), "status": "synced"}
+
+
 # ---------------------------------------------------------------------------
 # Dispatch table
 # ---------------------------------------------------------------------------
@@ -883,4 +949,7 @@ _DISPATCH: dict[tuple[str, str], Any] = {
     ("student_course", "update"): _push_student_course_update,
     ("student_course", "delete"): _push_student_course_delete,
     ("notification", "update"): _push_notification_update,
+    ("progress", "create"): _push_progress_create,
+    ("progress", "update"): _push_progress_update,
+    ("progress", "delete"): _push_progress_delete,
 }

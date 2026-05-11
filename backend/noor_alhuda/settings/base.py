@@ -66,6 +66,7 @@ LOCAL_APPS = [
     "courses",
     "evaluations",
     "sync",
+    "progress",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS

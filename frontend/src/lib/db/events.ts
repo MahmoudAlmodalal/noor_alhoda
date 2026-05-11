@@ -18,6 +18,7 @@ export type ResourceName =
   | "notification"
   | "course"
   | "student_course"
+  | "progress"
   | "outbox";
 
 const target: EventTarget =

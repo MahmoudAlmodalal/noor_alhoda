@@ -16,7 +16,7 @@ import Dexie, { type EntityTable } from "dexie";
 import type { EncryptedBlob } from "./crypto";
 
 export const DB_NAME = "noor_alhuda_local";
-export const DB_VERSION = 4;
+export const DB_VERSION = 5;
 
 export interface EncryptedRow extends EncryptedBlob {
   id: string; // UUID (server-assigned)
@@ -64,6 +64,11 @@ export interface ParentStudentLinkRow extends EncryptedRow {
 export interface StudentCourseRow extends EncryptedRow {
   student_id: string;
   course_id: string;
+}
+
+export interface ProgressRow extends EncryptedRow {
+  student_id: string;
+  recorded_at: string;
 }
 
 export interface UserRow extends EncryptedRow {
@@ -138,6 +143,7 @@ export class LocalDb extends Dexie {
   notifications!: EntityTable<NotificationRow, "id">;
   courses!: EntityTable<CourseRow, "id">;
   student_courses!: EntityTable<StudentCourseRow, "id">;
+  progress!: EntityTable<ProgressRow, "id">;
   tombstones!: EntityTable<TombstoneRow, "key">;
   outbox!: EntityTable<OutboxRow, "op_id">;
   auth!: EntityTable<AuthRow, "id">;
@@ -257,6 +263,29 @@ export class LocalDb extends Dexie {
             row.sync_generation = null;
           }
         });
+      });
+
+    // v5 — add `progress` table for student memorization progress tracking.
+    this.version(5)
+      .stores({
+        users: "id, updated_at, national_id, role",
+        teachers: "id, updated_at, user_id",
+        parents: "id, updated_at, user_id",
+        parent_student_links: "id, updated_at, parent_id, student_id",
+        students: "id, updated_at, teacher_id, national_id",
+        weekly_plans: "id, updated_at, student_id, week_start",
+        daily_records:
+          "id, updated_at, weekly_plan_id, date, [weekly_plan_id+day]",
+        review_records: "id, updated_at, student_id, reviewed_date",
+        evaluations: "id, updated_at, student_id, scheduled_date, status",
+        notifications: "id, updated_at, recipient_id, is_read, created_at",
+        courses: "id, updated_at, name",
+        student_courses: "id, updated_at, student_id, course_id",
+        progress: "id, updated_at, student_id, recorded_at",
+        tombstones: "key, resource, deleted_at",
+        outbox:
+          "op_id, status, created_at, resource, target_id, [resource+target_id], next_retry_at",
+        auth: "id",
       });
   }
 }

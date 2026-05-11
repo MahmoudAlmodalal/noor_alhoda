@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, BookOpen, Search, Users, Edit2 } from "lucide-react";
+import { ArrowRight, BookOpen, Search, Users, Edit2, TrendingUp } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import { AttendancePill, type AttendanceValue } from "@/components/ui/AttendancePill";
 import { UpdateMemorizationModal } from "@/components/modals/UpdateMemorizationModal";
@@ -218,6 +218,14 @@ export function TeacherStudentsTab({
                     <BookOpen className="h-3.5 w-3.5" />
                     تسميع
                   </button>
+                  <Link
+                    href={`/progress/${student.id}`}
+                    className="inline-flex h-8 items-center gap-1 rounded-[10px] bg-emerald-50 px-2.5 text-[11px] font-bold text-emerald-600 transition-colors hover:bg-emerald-100"
+                    title="تقدم الحفظ"
+                  >
+                    <TrendingUp className="h-3.5 w-3.5" />
+                    التقدم
+                  </Link>
                   <Link
                     href={`/students/${student.id}`}
                     className="inline-flex h-8 items-center gap-1 rounded-[10px] bg-surface-subtle px-2.5 text-[11px] font-bold text-text-body transition-colors hover:bg-border-card"

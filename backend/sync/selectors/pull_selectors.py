@@ -17,6 +17,7 @@ from notifications.models import Notification
 from records.models import DailyRecord, ReviewRecord, WeeklyPlan
 from students.models import Student
 from students.selectors.student_selectors import student_list
+from progress.models import StudentProgress
 from sync.models import Tombstone
 from teacher.models import Teacher
 
@@ -99,6 +100,10 @@ def pull_courses() -> QuerySet[Course]:
 
 def pull_student_courses_for_students(*, student_ids: list) -> QuerySet[StudentCourse]:
     return StudentCourse.objects.filter(student_id__in=student_ids)
+
+
+def pull_progress_for_students(*, student_ids: list) -> QuerySet[StudentProgress]:
+    return StudentProgress.objects.filter(student_id__in=student_ids)
 
 
 def pull_tombstones(*, actor: User, since: datetime | None = None) -> QuerySet[Tombstone]:

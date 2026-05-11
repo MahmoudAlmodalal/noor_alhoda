@@ -52,6 +52,7 @@ function todayIsoString(): string {
   return new Date().toISOString().slice(0, 10);
 }
 import { getStudent, listStudents, type StudentRecord } from "@/lib/db/repos/students";
+import { listProgressForStudent, type ProgressRecord } from "@/lib/db/repos/progress";
 
 export type QueryParams = Record<string, string | number | boolean | undefined>;
 
@@ -80,7 +81,8 @@ export type QueryKey =
   | "leaderboard"
   | "teacher_aggregate_stats"
   | "evaluations_for_teacher"
-  | "reviews_for_teacher";
+  | "reviews_for_teacher"
+  | "progress";
 
 export interface QueryDef<TParams = QueryParams, TResult = unknown> {
   fn: (params: TParams) => Promise<TResult>;
@@ -412,6 +414,13 @@ const QUERIES: Record<QueryKey, QueryDef> = {
     },
     depends: ["review_record", "daily_record", "student", "weekly_plan"],
   },
+  progress: {
+    fn: (p) => {
+      const sid = typeof p?.student_id === "string" ? p.student_id : "";
+      return sid ? listProgressForStudent(sid) : Promise.resolve([]);
+    },
+    depends: ["progress"],
+  },
 };
 
 export function getQueryDef(key: QueryKey): QueryDef {
@@ -424,6 +433,7 @@ export type {
   DailyRecordRecord,
   EvaluationRecord,
   NotificationRecord,
+  ProgressRecord,
   ReviewRecordRecord,
   StudentRecord,
   TeacherRecord,

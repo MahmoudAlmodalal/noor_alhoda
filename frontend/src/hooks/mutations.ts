@@ -52,6 +52,13 @@ import {
   upsertStudent,
   type StudentRecord,
 } from "@/lib/db/repos/students";
+import {
+  deleteProgressLocal,
+  getProgress,
+  upsertProgress,
+  type ProgressRecord,
+} from "@/lib/db/repos/progress";
+import { SURAH_BY_NUMBER } from "@/lib/data/surahs";
 
 export type MutationResource =
   | "student"
@@ -63,7 +70,8 @@ export type MutationResource =
   | "evaluation"
   | "notification"
   | "student_course"
-  | "parent_student_link";
+  | "parent_student_link"
+  | "progress";
 
 export type MutationAction = OutboxAction;
 
@@ -98,7 +106,8 @@ async function readCleartextUpdatedAt(
     | "evaluations"
     | "notifications"
     | "student_courses"
-    | "parent_student_links",
+    | "parent_student_links"
+    | "progress",
   id: string
 ): Promise<string | null> {
   const row = await getDb()[table].get(id);
@@ -181,6 +190,14 @@ const handlers: Record<MutationResource, Handler> = {
         affiliation: String(payload.affiliation ?? ""),
         ring_name: String(payload.ring_name ?? ""),
         course_ids: (payload.course_ids as string[]) ?? [],
+        wallet_name: String(payload.wallet_name ?? ""),
+        wallet_number: String(payload.wallet_number ?? ""),
+        birthdate: (payload.birthdate as string) ?? null,
+        marital_status: String(payload.marital_status ?? ""),
+        education_qualification: String(payload.education_qualification ?? ""),
+        last_tajweed_course: String(payload.last_tajweed_course ?? ""),
+        family_members_count: Number(payload.family_members_count ?? 0),
+        job_title: String(payload.job_title ?? ""),
         created_at: now,
         updated_at: now,
       };
@@ -484,6 +501,56 @@ const handlers: Record<MutationResource, Handler> = {
       await getDb().parent_student_links.delete(id);
     },
     readBaseUpdatedAt: (id) => readCleartextUpdatedAt("parent_student_links", id),
+    serverPayload: (_id, payload) => payload,
+  },
+
+  progress: {
+    resource: "progress",
+    async upsertCreate(id, payload, now) {
+      const surahNum = Number(payload.surah_number ?? 1);
+      const surahData = SURAH_BY_NUMBER.get(surahNum);
+      const rec: ProgressRecord = {
+        id,
+        student_id: String(payload.student_id ?? ""),
+        teacher_id: (payload.teacher_id as string) ?? null,
+        surah_number: surahNum,
+        surah_name: surahData?.name_ar ?? "",
+        juz_number: Number(payload.juz_number ?? 1),
+        from_page: payload.from_page != null ? Number(payload.from_page) : null,
+        to_page: payload.to_page != null ? Number(payload.to_page) : null,
+        note: String(payload.note ?? ""),
+        recorded_at: now,
+        created_at: now,
+        updated_at: now,
+      };
+      await upsertProgress(rec);
+    },
+    async readExisting(id) {
+      return (await getProgress(id)) as Payload | undefined;
+    },
+    async upsertUpdate(id, merged, now) {
+      const surahNum = Number(merged.surah_number ?? 1);
+      const surahData = SURAH_BY_NUMBER.get(surahNum);
+      const rec: ProgressRecord = {
+        id,
+        student_id: String(merged.student_id ?? ""),
+        teacher_id: (merged.teacher_id as string) ?? null,
+        surah_number: surahNum,
+        surah_name: surahData?.name_ar ?? String(merged.surah_name ?? ""),
+        juz_number: Number(merged.juz_number ?? 1),
+        from_page: merged.from_page != null ? Number(merged.from_page) : null,
+        to_page: merged.to_page != null ? Number(merged.to_page) : null,
+        note: String(merged.note ?? ""),
+        recorded_at: (merged.recorded_at as string) ?? now,
+        created_at: (merged.created_at as string) ?? now,
+        updated_at: now,
+      };
+      await upsertProgress(rec);
+    },
+    async deleteLocal(id) {
+      await deleteProgressLocal(id);
+    },
+    readBaseUpdatedAt: (id) => readCleartextUpdatedAt("progress", id),
     serverPayload: (_id, payload) => payload,
   },
 };

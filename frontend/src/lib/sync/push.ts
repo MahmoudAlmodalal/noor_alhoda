@@ -25,6 +25,7 @@ import {
   upsertWeeklyPlans,
 } from "../db/repos/records";
 import { upsertStudents } from "../db/repos/students";
+import { upsertProgressBulk } from "../db/repos/progress";
 import {
   decryptPayload,
   listPending,
@@ -235,6 +236,9 @@ async function applyServerRow(
     case "student_course":
       await upsertStudentCourses([row as never]);
       return "student_course";
+    case "progress":
+      await upsertProgressBulk([row as never]);
+      return "progress";
     case "user":
       // The `users` table is not in the ResourceName enum — it piggybacks
       // on "teacher"/"student"/"parent" change events via their list

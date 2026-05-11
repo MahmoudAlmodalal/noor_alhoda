@@ -33,6 +33,7 @@ urlpatterns = [
     path("api/courses/", include("courses.urls")),
     path("api/evaluations/", include("evaluations.urls")),
     path("api/sync/", include("sync.urls")),
+    path("api/progress/", include("progress.urls")),
 ]
 
 if settings.DEBUG:

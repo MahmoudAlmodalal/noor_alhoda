@@ -17,6 +17,7 @@ from evaluations.models import Evaluation
 from notifications.models import Notification
 from records.models import DailyRecord, ReviewRecord, WeeklyPlan
 from students.models import Student
+from progress.models import StudentProgress
 from sync.models import Tombstone
 
 
@@ -212,6 +213,23 @@ def student_course_to_dict(sc: StudentCourse) -> dict[str, Any]:
     }
 
 
+def progress_to_dict(p: StudentProgress) -> dict[str, Any]:
+    return {
+        "id": str(p.id),
+        "student_id": str(p.student_id),
+        "teacher_id": str(p.teacher_id) if p.teacher_id else None,
+        "surah_number": p.surah_number,
+        "surah_name": p.surah_name,
+        "juz_number": p.juz_number,
+        "from_page": p.from_page,
+        "to_page": p.to_page,
+        "note": p.note,
+        "recorded_at": _iso(p.recorded_at),
+        "created_at": _iso(p.created_at),
+        "updated_at": _iso(p.updated_at),
+    }
+
+
 def tombstone_to_dict(t: Tombstone) -> dict[str, Any]:
     return {
         "resource": t.resource,
@@ -234,4 +252,5 @@ RESOURCE_DICT_MAP: dict[str, Any] = {
     "notification": (Notification, notification_to_dict),
     "course": (Course, course_to_dict),
     "student_course": (StudentCourse, student_course_to_dict),
+    "progress": (StudentProgress, progress_to_dict),
 }

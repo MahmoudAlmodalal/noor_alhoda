@@ -20,6 +20,7 @@ from sync.selectors.pull_selectors import (
     pull_daily_records_for_students,
     pull_evaluations_for_students,
     pull_notifications_for,
+    pull_progress_for_students,
     pull_review_records_for_students,
     pull_student_courses_for_students,
     pull_tombstones,
@@ -38,6 +39,7 @@ from sync.services.resource_dicts import (
     notification_to_dict,
     parent_student_link_to_dict,
     parent_to_dict,
+    progress_to_dict,
     review_record_to_dict,
     student_course_to_dict,
     student_to_dict,
@@ -81,6 +83,7 @@ def sync_pull(*, actor: User, since: datetime | None = None) -> dict[str, Any]:
     notifications_qs = pull_notifications_for(actor=actor)
     courses_qs = pull_courses()
     student_courses_qs = pull_student_courses_for_students(student_ids=visible_student_ids)
+    progress_qs = pull_progress_for_students(student_ids=visible_student_ids)
 
     # Apply the `updated_at` delta everywhere.
     delta = since_q("updated_at", since)
@@ -96,6 +99,7 @@ def sync_pull(*, actor: User, since: datetime | None = None) -> dict[str, Any]:
     notifications_qs = notifications_qs.filter(delta)
     courses_qs = courses_qs.filter(delta)
     student_courses_qs = student_courses_qs.filter(delta)
+    progress_qs = progress_qs.filter(delta)
 
     tombstones_qs = pull_tombstones(actor=actor, since=since)
 
@@ -121,6 +125,7 @@ def sync_pull(*, actor: User, since: datetime | None = None) -> dict[str, Any]:
             "student_courses": [
                 student_course_to_dict(sc) for sc in student_courses_qs
             ],
+            "progress": [progress_to_dict(p) for p in progress_qs],
         },
         "tombstones": [tombstone_to_dict(t) for t in tombstones_qs],
         "server_time": now.isoformat(),

@@ -39,6 +39,10 @@ import {
   upsertStudents,
   type StudentRecord,
 } from "../db/repos/students";
+import {
+  upsertProgressBulk,
+  type ProgressRecord,
+} from "../db/repos/progress";
 
 export interface SyncPullResponse {
   resources: {
@@ -54,6 +58,7 @@ export interface SyncPullResponse {
     notifications: NotificationRecord[];
     courses: CourseRecord[];
     student_courses: StudentCourseRecord[];
+    progress: ProgressRecord[];
   };
   tombstones: { resource: string; uuid: string; deleted_at: string }[];
   server_time: string;
@@ -136,6 +141,7 @@ export async function applyPullResponse(
     { name: "notifications", resource: "notification", run: async () => { if (resources.notifications.length) await upsertNotifications(resources.notifications); } },
     { name: "courses", resource: "course", run: async () => { if (resources.courses.length) await upsertCourses(resources.courses); } },
     { name: "student_courses", resource: "student_course", run: async () => { if (resources.student_courses.length) await upsertStudentCourses(resources.student_courses); } },
+    { name: "progress", resource: "progress", run: async () => { if (resources.progress?.length) await upsertProgressBulk(resources.progress); } },
   ];
 
   const touched = new Set<ResourceName>();
@@ -195,6 +201,9 @@ async function applyTombstones(
         break;
       case "student_course":
         await db.student_courses.delete(t.uuid);
+        break;
+      case "progress":
+        await db.progress.delete(t.uuid);
         break;
     }
     await db.tombstones.put({

@@ -65,6 +65,7 @@ class Tombstone(models.Model):
         NOTIFICATION = "notification", "إشعار"
         COURSE = "course", "دورة"
         STUDENT_COURSE = "student_course", "تسجيل طالب بدورة"
+        PROGRESS = "progress", "تقدم الحفظ"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     resource = models.CharField(
