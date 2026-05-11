@@ -88,7 +88,7 @@ class StudentOutputSerializer(serializers.Serializer):
     current_surah = serializers.CharField(default="")
     current_juz = serializers.IntegerField(allow_null=True, default=None)
     memorized_verses = serializers.IntegerField(default=0)
-    current_aya = serializers.IntegerField(allow_null=True, default=None)
+    current_page = serializers.IntegerField(allow_null=True, default=None)
 
     enrollment_date = serializers.DateField()
 
@@ -135,7 +135,7 @@ class StudentUpdateSerializer(serializers.Serializer):
     current_surah = serializers.CharField(required=False, allow_blank=True)
     current_juz = serializers.IntegerField(required=False, allow_null=True, min_value=1, max_value=30)
     memorized_verses = serializers.IntegerField(required=False, min_value=0)
-    current_aya = serializers.IntegerField(required=False, allow_null=True, min_value=1)
+    current_page = serializers.IntegerField(required=False, allow_null=True, min_value=1, max_value=604)
 
 
 class AssignTeacherSerializer(serializers.Serializer):

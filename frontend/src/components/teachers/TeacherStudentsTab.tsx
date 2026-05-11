@@ -155,10 +155,10 @@ export function TeacherStudentsTab({
                             {student.current_surah}
                           </span>
                         )}
-                        {student.current_aya != null && (
+                        {student.current_page != null && (
                           <span>
-                            <span className="font-semibold text-text-body">الآية:</span>{" "}
-                            {student.current_aya}
+                            <span className="font-semibold text-text-body">الصفحة:</span>{" "}
+                            {student.current_page}
                           </span>
                         )}
                         {student.current_juz != null && (

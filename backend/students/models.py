@@ -138,10 +138,10 @@ class Student(models.Model):
         default=0,
         verbose_name="عدد الآيات",
     )
-    current_aya = models.PositiveIntegerField(
+    current_page = models.PositiveIntegerField(
         null=True,
         blank=True,
-        verbose_name="الآية الحالية",
+        verbose_name="الصفحة الحالية",
     )
 
     enrollment_date = models.DateField(auto_now_add=True, verbose_name="تاريخ الالتحاق")

@@ -191,7 +191,7 @@ export interface Student {
   current_surah: string;
   current_juz: number | null;
   memorized_verses: number;
-  current_aya: number | null;
+  current_page: number | null;
 }
 
 export interface CreateStudentRequest {
@@ -218,7 +218,7 @@ export interface CreateStudentRequest {
   current_surah?: string;
   current_juz?: number | null;
   memorized_verses?: number;
-  current_aya?: number | null;
+  current_page?: number | null;
 }
 
 export interface AssignTeacherRequest {

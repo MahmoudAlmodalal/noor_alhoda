@@ -21,7 +21,7 @@ export function UpdateMemorizationModal({
 }) {
   const [form, setForm] = useState({
     current_surah: student.current_surah,
-    current_aya: student.current_aya ? String(student.current_aya) : "",
+    current_page: student.current_page ? String(student.current_page) : "",
   });
 
   const { mutate, isSubmitting, error, reset } = useMutation("student", "update");
@@ -31,7 +31,7 @@ export function UpdateMemorizationModal({
       {
         id: student.id,
         current_surah: form.current_surah,
-        current_aya: form.current_aya ? Number(form.current_aya) : null,
+        current_page: form.current_page ? Number(form.current_page) : null,
       },
       { successMessage: "تم تحديث موضع الحفظ بنجاح" }
     );
@@ -56,14 +56,15 @@ export function UpdateMemorizationModal({
           />
         </div>
         <div className="space-y-1.5">
-          <label className="block text-sm font-bold text-text-body">رقم الآية</label>
+          <label className="block text-sm font-bold text-text-body">رقم الصفحة</label>
           <Input
             type="number"
-            value={form.current_aya}
-            onChange={(e) => setForm({ ...form, current_aya: e.target.value })}
-            aria-label="رقم الآية"
+            value={form.current_page}
+            onChange={(e) => setForm({ ...form, current_page: e.target.value })}
+            aria-label="رقم الصفحة"
             className="h-12 rounded-xl border-border-subtle"
             min="1"
+            max="604"
             dir="ltr"
           />
         </div>

@@ -136,7 +136,7 @@ const handlers: Record<MutationResource, Handler> = {
         current_surah: String(payload.current_surah ?? ""),
         current_juz: payload.current_juz != null ? Number(payload.current_juz) : null,
         memorized_verses: Number(payload.memorized_verses ?? 0),
-        current_aya: payload.current_aya != null ? Number(payload.current_aya) : null,
+        current_page: payload.current_page != null ? Number(payload.current_page) : null,
         enrollment_date: now.slice(0, 10),
         created_at: now,
         updated_at: now,

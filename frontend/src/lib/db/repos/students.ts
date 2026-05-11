@@ -24,7 +24,7 @@ export interface StudentRecord {
   current_surah: string;
   current_juz: number | null;
   memorized_verses: number;
-  current_aya: number | null;
+  current_page: number | null;
   enrollment_date: string | null;
   created_at: string | null;
   updated_at: string | null;
