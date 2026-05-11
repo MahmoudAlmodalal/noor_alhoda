@@ -447,6 +447,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     clearSessionKey();
     setDbUnlocked(false);
+    setIsInstallingDb(false);
     setIsOfflineSession(false);
     setNeedsInitialDownload(false);
     setIsDownloading(false);
@@ -454,10 +455,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setDownloadError(null);
     autoAttemptRef.current = 0;
     setUser(null);
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("refresh_token");
+
+    // Try Dexie's delete first (with a short timeout), then fall back to
+    // the raw IDB API which works even when a Dexie connection is stuck.
     try {
-      await wipeDb();
+      const dexieDelete = wipeDb();
+      const timeout = new Promise<void>((_, reject) =>
+        setTimeout(() => reject(new Error("wipe_timeout")), 3_000)
+      );
+      await Promise.race([dexieDelete, timeout]);
     } catch {
-      // non-fatal
+      // Dexie delete timed out or failed — use the raw IDB API.
+      console.warn("[wipeDeviceData] Dexie delete blocked, using raw IDB deleteDatabase");
+      try {
+        await new Promise<void>((resolve, reject) => {
+          const req = indexedDB.deleteDatabase("noor_alhuda_local");
+          req.onsuccess = () => resolve();
+          req.onerror = () => reject(req.error);
+          req.onblocked = () => {
+            // Force-close all connections by nulling the singleton
+            console.warn("[wipeDeviceData] IDB delete blocked, redirecting anyway");
+            resolve();
+          };
+        });
+      } catch {
+        // non-fatal
+      }
     }
     window.location.href = "/login";
   }, []);
