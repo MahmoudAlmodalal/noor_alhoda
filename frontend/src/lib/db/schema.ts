@@ -287,6 +287,29 @@ export class LocalDb extends Dexie {
           "op_id, status, created_at, resource, target_id, [resource+target_id], next_retry_at",
         auth: "id",
       });
+
+    // Handle IndexedDB version-upgrade blocks: if another tab holds an open
+    // connection to an older DB version, the upgrade transaction is blocked
+    // until all old connections close. Without this handler the app hangs on
+    // "جاري تجهيز الوضع المحلي" forever.
+    this.on("blocked", () => {
+      console.warn(
+        "[LocalDb] IndexedDB upgrade blocked — another tab may have the DB open. " +
+        "Close other tabs and reload."
+      );
+    });
+
+    // When *this* tab receives a versionchange event (another tab needs to
+    // upgrade the DB), close our connection so we don't block them.
+    this.on("versionchange", (event) => {
+      console.warn("[LocalDb] versionchange event received, closing connection.", event);
+      this.close();
+      if (typeof window !== "undefined") {
+        // Inform the user: their tab is stale; a simple reload picks up the
+        // new schema without data loss.
+        window.location.reload();
+      }
+    });
   }
 }
 

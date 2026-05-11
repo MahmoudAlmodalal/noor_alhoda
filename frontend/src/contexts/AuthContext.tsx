@@ -297,12 +297,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const installDbInBackground = useCallback(
     async (u: UserProfile, password: string) => {
       try {
-        await initializeOrUnlockSession({
+        console.time("[AuthContext] DB install");
+        console.log("[AuthContext] Starting DB install for user", u.national_id);
+
+        // Guard against a hung crypto/IDB operation with a timeout.
+        const DB_INSTALL_TIMEOUT_MS = 60_000;
+        const installPromise = initializeOrUnlockSession({
           password,
           userId: u.id,
           userNationalId: u.national_id,
           userRole: u.role,
         });
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(
+            () => reject(new Error("DB_INSTALL_TIMEOUT")),
+            DB_INSTALL_TIMEOUT_MS
+          )
+        );
+        await Promise.race([installPromise, timeoutPromise]);
+
+        console.timeEnd("[AuthContext] DB install");
+        console.log("[AuthContext] DB install succeeded, unlocking…");
         setDbUnlocked(true);
         setIsOfflineSession(false);
 
@@ -325,6 +340,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           window.location.href = "/login?reason=install_failed";
         }
       } finally {
+        console.timeEnd("[AuthContext] DB install");
         setIsInstallingDb(false);
       }
     },

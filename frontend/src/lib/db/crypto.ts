@@ -15,7 +15,7 @@
  * the DB remains queryable by primary key without decrypting everything.
  */
 
-const PBKDF2_ITERATIONS = 200_000;
+const PBKDF2_ITERATIONS = 100_000;
 const PBKDF2_SALT_LEN = 16;
 const DBKEY_BITS = 256;
 const GCM_IV_LEN = 12;

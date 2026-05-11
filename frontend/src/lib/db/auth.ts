@@ -112,17 +112,31 @@ export async function initializeOrUnlockSession(params: {
   userRole: string;
 }): Promise<void> {
   const { password, userId, userNationalId, userRole } = params;
+  console.log("[auth] initializeOrUnlockSession start");
+  console.time("[auth] getDb");
   const db = getDb();
+  console.timeEnd("[auth] getDb");
+
+  console.time("[auth] read existing auth row");
   const existing = await db.auth.get("current");
+  console.timeEnd("[auth] read existing auth row");
+  console.log("[auth] existing row:", existing ? "found" : "none", existing?.user_national_id);
 
   if (existing && existing.user_national_id !== userNationalId) {
     // Different user on this device — wipe all local state.
+    console.log("[auth] user mismatch — wiping DB");
+    console.time("[auth] db.delete");
     await db.delete();
+    console.timeEnd("[auth] db.delete");
     sessionKey = null;
     // Re-open the DB after delete.
     const freshDb = getDb();
+    console.time("[auth] createWrappedDbKey (fresh)");
     const { dbKey, meta } = await createWrappedDbKey(password);
+    console.timeEnd("[auth] createWrappedDbKey (fresh)");
+    console.time("[auth] hashVerifier (fresh)");
     const verifier = await hashVerifier(password);
+    console.timeEnd("[auth] hashVerifier (fresh)");
     await freshDb.auth.put({
       id: "current",
       user_national_id: userNationalId,
@@ -138,31 +152,44 @@ export async function initializeOrUnlockSession(params: {
     });
     sessionKey = dbKey;
     await persistSessionKey(dbKey);
+    console.log("[auth] initializeOrUnlockSession done (fresh after wipe)");
     return;
   }
 
   if (existing) {
     // Same user — re-unwrap existing DB key, optionally refresh verifier
     // (to cover password changes that happened on another device).
+    console.time("[auth] unwrapDbKey");
     const dbKey = await unwrapDbKey(password, {
       wrapped_dbk: existing.wrapped_dbk,
       salt: existing.salt,
       iterations: existing.iterations,
     });
+    console.timeEnd("[auth] unwrapDbKey");
     sessionKey = dbKey;
     await persistSessionKey(dbKey);
 
+    console.time("[auth] checkVerifier");
     const verifierOk = await checkVerifier(password, existing.verifier_hash);
+    console.timeEnd("[auth] checkVerifier");
     if (!verifierOk) {
+      console.time("[auth] hashVerifier (refresh)");
       const newVerifier = await hashVerifier(password);
+      console.timeEnd("[auth] hashVerifier (refresh)");
       await db.auth.update("current", { verifier_hash: newVerifier });
     }
+    console.log("[auth] initializeOrUnlockSession done (existing user)");
     return;
   }
 
   // Fresh install, first login.
+  console.time("[auth] createWrappedDbKey");
   const { dbKey, meta } = await createWrappedDbKey(password);
+  console.timeEnd("[auth] createWrappedDbKey");
+  console.time("[auth] hashVerifier");
   const verifier = await hashVerifier(password);
+  console.timeEnd("[auth] hashVerifier");
+  console.time("[auth] auth.put");
   await db.auth.put({
     id: "current",
     user_national_id: userNationalId,
@@ -176,8 +203,10 @@ export async function initializeOrUnlockSession(params: {
     sync_generation: null,
     created_at: new Date().toISOString(),
   });
+  console.timeEnd("[auth] auth.put");
   sessionKey = dbKey;
   await persistSessionKey(dbKey);
+  console.log("[auth] initializeOrUnlockSession done (fresh install)");
 }
 
 /**
