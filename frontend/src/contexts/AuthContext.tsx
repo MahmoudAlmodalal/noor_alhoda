@@ -255,7 +255,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.removeItem("refresh_token");
         if (isMounted) setIsLoading(false);
         if (typeof window !== "undefined") {
-          window.location.href = "/login?reason=install_interrupted";
+          window.location.href = "/login";
         }
         return;
       }
