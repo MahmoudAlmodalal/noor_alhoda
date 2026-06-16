@@ -100,6 +100,10 @@ def weekly_summary(*, student_id, week_start, actor: User) -> dict:
         recorded[r.day] = r
 
     today = date_cls.today()
+    # Even distribution of total_required across the 6 days, used as a
+    # placeholder share for days that have no daily_record yet.
+    base_share, remainder = divmod(plan.total_required, len(all_days))
+
     days_list = []
     for i, day_code in enumerate(all_days):
         day_date = saturday + timedelta(days=i)
@@ -119,11 +123,12 @@ def weekly_summary(*, student_id, week_start, actor: User) -> dict:
         else:
             # Upcoming or missed day
             attendance = "upcoming" if day_date > today else "absent"
+            share = base_share + (1 if i < remainder else 0)
             days_list.append({
                 "day": day_labels[day_code],
                 "date": str(day_date),
                 "attendance": attendance,
-                "required": "-",
+                "required": f"{share} صفحات" if share else "-",
                 "achieved": "-",
                 "evaluation": "none",
                 "result": "none",

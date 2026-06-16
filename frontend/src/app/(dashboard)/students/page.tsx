@@ -36,6 +36,7 @@ export default function StudentsPage() {
   const { user } = useAuth();
   const router = useRouter();
   const isAdmin = user?.role === "admin";
+  const isTeacher = user?.role === "teacher";
   const canFilterByCourse = user?.role === "admin" || user?.role === "teacher";
 
   const [search, setSearch] = useState("");
@@ -272,7 +273,8 @@ export default function StudentsPage() {
             <StudentCard
               key={student.id}
               student={student}
-              canEdit={isAdmin}
+              canEdit={isAdmin || isTeacher}
+              canDelete={isAdmin}
               onAssignTeacher={
                 isAdmin ? () => setAssignStudent(student) : undefined
               }

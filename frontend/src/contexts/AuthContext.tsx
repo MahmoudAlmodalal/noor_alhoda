@@ -11,6 +11,7 @@ import {
 } from "react";
 import { api } from "@/lib/api";
 import {
+  changeLocalPassword,
   clearSessionKey,
   hasCachedAuth,
   initializeOrUnlockSession,
@@ -74,6 +75,11 @@ interface AuthContextValue {
   logout: () => Promise<void>;
   /** Explicit, user-initiated wipe of the encrypted IndexedDB on this device. */
   wipeDeviceData: () => Promise<void>;
+  /** Self-service password change. Updates the server, then re-wraps the local DB key. */
+  changePassword: (
+    currentPassword: string,
+    newPassword: string
+  ) => Promise<{ error: string | null }>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -438,6 +444,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     window.location.href = "/login";
   }, []);
 
+  const changePassword = useCallback(
+    async (
+      currentPassword: string,
+      newPassword: string
+    ): Promise<{ error: string | null }> => {
+      if (!user) return { error: "يجب تسجيل الدخول أولاً." };
+
+      const res = await api.patch<Record<string, unknown>>(
+        `/api/users/${user.id}/`,
+        { password: newPassword }
+      );
+      if (!res.success) {
+        return { error: res.error.message };
+      }
+
+      try {
+        await changeLocalPassword(currentPassword, newPassword);
+      } catch {
+        // Server-side change already succeeded; the local re-wrap only
+        // affects offline unlock on this device and can be retried by
+        // logging out and back in with the new password.
+      }
+
+      return { error: null };
+    },
+    [user]
+  );
+
   const wipeDeviceData = useCallback(async () => {
     stopSyncRunner();
     try {
@@ -505,6 +539,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         login,
         logout,
         wipeDeviceData,
+        changePassword,
       }}
     >
       {children}

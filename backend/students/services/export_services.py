@@ -57,7 +57,7 @@ def _skills_to_ar(skills) -> str:
 
 
 def _memorized_ajza_for(student) -> int:
-    """Rough heuristic matching ``student_stats``: ~604 verses per juz."""
+    """Rough heuristic matching ``student_stats``: 604 pages across 30 juz."""
     from records.models import WeeklyPlan
 
     total = (
@@ -66,7 +66,8 @@ def _memorized_ajza_for(student) -> int:
         )["total"]
         or 0
     )
-    return total // 604 if total > 0 else 0
+    pages_per_juz = 604 // 30
+    return total // pages_per_juz if total > 0 else 0
 
 
 def generate_students_xlsx(students) -> bytes:
