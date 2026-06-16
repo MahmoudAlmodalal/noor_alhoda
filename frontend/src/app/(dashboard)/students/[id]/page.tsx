@@ -156,7 +156,7 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
               </span>
               <span className="inline-flex items-center gap-1 rounded-md bg-white/15 px-2.5 py-0.5 text-[11px] font-bold text-white ring-1 ring-white/20 backdrop-blur-sm">
                 <UserCog className="h-3 w-3" />
-                {student.teacher_name || "غير مسنَد"}
+                {student.teacher_name ? `الشيخ ${student.teacher_name}` : "غير مسنَد"}
               </span>
               {stats?.today_record?.attendance ? (
                 <AttendancePill

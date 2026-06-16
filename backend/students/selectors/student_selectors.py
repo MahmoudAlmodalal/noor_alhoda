@@ -200,8 +200,9 @@ def student_stats(*, student_id, actor: User) -> dict:
         else:
             break
 
-    # Memorized parts (juz') — approximate: ~604 verses per juz
-    memorized_parts = total_achieved // 604 if total_achieved > 0 else 0
+    # Memorized parts (juz') — the Quran has 604 pages across 30 juz
+    PAGES_PER_JUZ = 604 // 30
+    memorized_parts = total_achieved // PAGES_PER_JUZ if total_achieved > 0 else 0
 
     # Points: simple gamification formula
     points = present_records * 10 + total_achieved * 5

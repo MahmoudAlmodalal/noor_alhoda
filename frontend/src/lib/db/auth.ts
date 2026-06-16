@@ -16,6 +16,7 @@ import {
   createWrappedDbKey,
   decryptRecord,
   encryptRecord,
+  rewrapDbKey,
   unwrapDbKey,
   type EncryptedBlob,
   type WrappedKeyMeta,
@@ -242,6 +243,41 @@ export async function unlockOffline(params: {
   sessionKey = dbKey;
   await persistSessionKey(dbKey);
   return row;
+}
+
+/**
+ * Re-wrap the local DB key under a new password after a self-service
+ * password change has already succeeded server-side. Throws
+ * `OFFLINE_LOGIN_INVALID_PASSWORD` if `currentPassword` doesn't unwrap the
+ * existing key (e.g. stale cache) — caller should treat that as non-fatal
+ * since the server-side change already went through.
+ */
+export async function changeLocalPassword(
+  currentPassword: string,
+  newPassword: string
+): Promise<void> {
+  const db = getDb();
+  const row = await db.auth.get("current");
+  if (!row) return;
+
+  let newMeta: WrappedKeyMeta;
+  try {
+    newMeta = await rewrapDbKey(currentPassword, newPassword, {
+      wrapped_dbk: row.wrapped_dbk,
+      salt: row.salt,
+      iterations: row.iterations,
+    });
+  } catch {
+    throw new Error("OFFLINE_LOGIN_INVALID_PASSWORD");
+  }
+
+  const newVerifier = await hashVerifier(newPassword);
+  await db.auth.update("current", {
+    wrapped_dbk: newMeta.wrapped_dbk,
+    salt: newMeta.salt,
+    iterations: newMeta.iterations,
+    verifier_hash: newVerifier,
+  });
 }
 
 export async function markSyncAt(iso: string): Promise<void> {

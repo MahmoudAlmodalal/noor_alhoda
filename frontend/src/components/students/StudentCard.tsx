@@ -25,6 +25,7 @@ import type { StudentWithTeacher } from "@/hooks/queries";
 interface StudentCardProps {
   student: StudentWithTeacher;
   canEdit: boolean;
+  canDelete?: boolean;
   onAssignTeacher?: () => void;
   onEdit: () => void;
   onDelete: () => void;
@@ -35,6 +36,7 @@ interface StudentCardProps {
 export function StudentCard({
   student,
   canEdit,
+  canDelete = false,
   onAssignTeacher,
   onEdit,
   onDelete,
@@ -92,7 +94,7 @@ export function StudentCard({
           {hasTeacher ? (
             <Badge className="rounded-md bg-role-admin-bg px-2.5 py-0.5 text-[11px] font-bold text-primary hover:bg-role-admin-bg">
               <UserCog className="me-1 inline h-3 w-3" />
-              {student.teacher_name}
+              {`الشيخ ${student.teacher_name}`}
             </Badge>
           ) : (
             <Badge className="rounded-md bg-tile-amber px-2.5 py-0.5 text-[11px] font-bold text-[#92710e] hover:bg-tile-amber">
@@ -168,26 +170,26 @@ export function StudentCard({
           </Button>
         ) : null}
         {canEdit ? (
-          <>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-10 w-10 rounded-[12px] text-text-muted hover:bg-white hover:text-primary"
-              onClick={onEdit}
-              aria-label={`تعديل الطالب ${student.full_name}`}
-            >
-              <Edit className="h-[18px] w-[18px]" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-10 w-10 rounded-[12px] text-text-muted hover:bg-red-50 hover:text-red-600"
-              onClick={onDelete}
-              aria-label={`حذف الطالب ${student.full_name}`}
-            >
-              <Trash2 className="h-[18px] w-[18px]" />
-            </Button>
-          </>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-10 w-10 rounded-[12px] text-text-muted hover:bg-white hover:text-primary"
+            onClick={onEdit}
+            aria-label={`تعديل الطالب ${student.full_name}`}
+          >
+            <Edit className="h-[18px] w-[18px]" />
+          </Button>
+        ) : null}
+        {canDelete ? (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-10 w-10 rounded-[12px] text-text-muted hover:bg-red-50 hover:text-red-600"
+            onClick={onDelete}
+            aria-label={`حذف الطالب ${student.full_name}`}
+          >
+            <Trash2 className="h-[18px] w-[18px]" />
+          </Button>
         ) : null}
       </div>
     </Card>

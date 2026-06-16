@@ -337,7 +337,7 @@ export interface HistoryEntry {
   id: string;
   date: string;
   day?: string;
-  attendance: AttendanceStatus;
+  attendance?: AttendanceStatus;
   surah_name?: string;
   required_verses?: number;
   achieved_verses?: number;

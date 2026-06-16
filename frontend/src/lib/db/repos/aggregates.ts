@@ -464,6 +464,29 @@ export async function weeklySummary(
     note: r.note,
   }));
 
+  // Fill in days that have no daily_record yet (e.g. right after the plan is
+  // created) with a placeholder showing their evenly-distributed share of
+  // total_required, so "المطلوب" isn't blank before a teacher records anything.
+  const WEEK_DAY_CODES = ["sat", "sun", "mon", "tue", "wed", "thu"];
+  const recordedDays = new Set(records.map((r) => r.day));
+  const base = Math.floor(plan.total_required / WEEK_DAY_CODES.length);
+  const remainder = plan.total_required % WEEK_DAY_CODES.length;
+  const weekStartDate = new Date(ws);
+  WEEK_DAY_CODES.forEach((day, i) => {
+    if (recordedDays.has(day)) return;
+    const date = new Date(weekStartDate.getTime());
+    date.setDate(date.getDate() + i);
+    const share = base + (i < remainder ? 1 : 0);
+    records.push({
+      id: "",
+      date: date.toISOString().slice(0, 10),
+      day,
+      required_verses: share,
+      achieved_verses: 0,
+    });
+  });
+  records.sort((a, b) => (a.date < b.date ? -1 : 1));
+
   const catchup = computeCatchup(daily);
 
   return {

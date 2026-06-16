@@ -20,6 +20,7 @@ import {
     Calendar,
     GraduationCap,
     Building2,
+    KeyRound,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNotifications } from "@/contexts/NotificationsContext";
@@ -63,6 +64,14 @@ export const menuItems: NavItem[] = [
     { name: "الخطة الأسبوعية", href: "/student/plan", icon: Calendar, roles: ["student"] },
     { name: "الاختبارات", href: "/student/evaluations", icon: GraduationCap, roles: ["student"] },
     { name: "سجل الإنجاز", href: "/student/achievements", icon: Trophy, roles: ["student"] },
+
+    // متاح لجميع الأدوار
+    {
+        name: "تغيير كلمة المرور",
+        href: "/profile/password",
+        icon: KeyRound,
+        roles: ["admin", "teacher", "student", "parent"],
+    },
 ];
 
 interface SidebarProps {

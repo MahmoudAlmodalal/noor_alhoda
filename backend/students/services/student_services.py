@@ -218,8 +218,11 @@ def student_update(*, student: Student, actor: User, data: dict) -> Student:
             "current_surah", "current_juz", "memorized_verses",
         ]
     elif actor.role == "teacher":
-        # Teachers can only update health, skills, and Quran progress notes
-        allowed = ["health_note", "skills", "current_surah", "current_juz", "memorized_verses"]
+        # Teachers can update health, skills, Quran progress, and contact info
+        allowed = [
+            "health_note", "skills", "current_surah", "current_juz", "memorized_verses",
+            "address", "whatsapp", "mobile",
+        ]
     else:
         raise PermissionDenied("ليس لديك صلاحية لتعديل بيانات الطالب.")
 

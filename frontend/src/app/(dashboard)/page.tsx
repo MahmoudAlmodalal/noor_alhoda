@@ -25,6 +25,7 @@ import type {
 import type { DashboardStats, ScheduleItem } from "@/types/api";
 import { WeeklyPlanModal } from "@/components/plans/WeeklyPlanModal";
 import { AnnounceModal } from "@/components/notifications/AnnounceModal";
+import { cn } from "@/lib/utils";
 
 const HIJRI_PLACEHOLDER = "اليوم";
 
@@ -286,8 +287,8 @@ export default function Dashboard() {
         </SectionCard>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
+      <div className={cn("grid grid-cols-1 gap-6", isAdmin && "lg:grid-cols-3")}>
+        <div className={cn(isAdmin && "lg:col-span-2", "space-y-6")}>
           <SectionCard padding="none" radius="xl" className="overflow-hidden">
             <div className="p-5 border-b border-border-card flex items-center justify-between">
               <h3 className="font-bold text-lg text-text-body">قائمة الطلاب</h3>
@@ -319,7 +320,7 @@ export default function Dashboard() {
                             <span className="text-sm font-bold text-text-body">{s.full_name}</span>
                           </div>
                         </td>
-                        <td className="px-5 py-3 text-xs text-text-label">{s.teacher_name || "غير محدد"}</td>
+                        <td className="px-5 py-3 text-xs text-text-label">{s.teacher_name ? `الشيخ ${s.teacher_name}` : "غير محدد"}</td>
                         <td className="px-5 py-3">
                           <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${s.is_active ? "bg-role-student-bg text-role-student-text" : "bg-border-card text-text-muted"}`}>
                             {s.is_active ? "نشط" : "متوقف"}
@@ -339,6 +340,7 @@ export default function Dashboard() {
           </SectionCard>
         </div>
 
+        {isAdmin ? (
         <div className="space-y-6">
           <div className="bg-primary rounded-[24px] p-6 text-white shadow-lg shadow-primary/20">
             <h3 className="font-bold text-lg mb-2">إجراءات سريعة</h3>
@@ -386,6 +388,7 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
+        ) : null}
       </div>
 
       <WeeklyPlanModal isOpen={planModalOpen} onClose={() => setPlanModalOpen(false)} />

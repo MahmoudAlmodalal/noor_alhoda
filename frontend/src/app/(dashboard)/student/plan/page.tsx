@@ -348,7 +348,7 @@ export default function StudentPlanPage() {
         excused: 0,
     };
     (summary?.records ?? []).forEach((r) => {
-        if (r.attendance in attendanceCounts) {
+        if (r.attendance && r.attendance in attendanceCounts) {
             attendanceCounts[r.attendance as keyof typeof attendanceCounts] += 1;
         }
     });
