@@ -21,7 +21,7 @@ import {
   type EncryptedBlob,
   type WrappedKeyMeta,
 } from "./crypto";
-import { getDb, type AuthRow } from "./schema";
+import { getDb, wipeDb, type AuthRow } from "./schema";
 
 const BCRYPT_COST = 10;
 const SESSION_STORAGE_KEY = "_dbk";
@@ -127,7 +127,7 @@ export async function initializeOrUnlockSession(params: {
     // Different user on this device — wipe all local state.
     console.log("[auth] user mismatch — wiping DB");
     console.time("[auth] db.delete");
-    await db.delete();
+    await wipeDb();
     console.timeEnd("[auth] db.delete");
     sessionKey = null;
     // Re-open the DB after delete.
