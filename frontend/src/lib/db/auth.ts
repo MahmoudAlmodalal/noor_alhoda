@@ -288,6 +288,18 @@ export async function updateSyncGeneration(generation: string): Promise<void> {
   await getDb().auth.update("current", { sync_generation: generation });
 }
 
+/**
+ * Reset the delta cursor to "full pull" and adopt the server's new generation,
+ * without dropping the auth row (the DB key + offline-login material). Used by
+ * the pull sync when the server's sync_generation changes (server DB reset).
+ */
+export async function resetSyncStateForGeneration(generation: string): Promise<void> {
+  await getDb().auth.update("current", {
+    last_sync_at: null,
+    sync_generation: generation,
+  });
+}
+
 // Re-export crypto helpers so repos can `import { encryptRecord } from "./auth"`.
 export {
   encryptRecord,

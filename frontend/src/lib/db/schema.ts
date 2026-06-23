@@ -325,3 +325,41 @@ export async function wipeDb(): Promise<void> {
   await db.delete();
   _db = null;
 }
+
+// Cached server data (domain tables + delete-trail). Excludes `auth` (the
+// wrapped DB key + offline-login verifier) and `outbox` (pending offline
+// writes) — those must survive a server-side reset.
+const SYNCED_TABLES = [
+  "users",
+  "teachers",
+  "parents",
+  "parent_student_links",
+  "students",
+  "weekly_plans",
+  "daily_records",
+  "review_records",
+  "evaluations",
+  "notifications",
+  "courses",
+  "student_courses",
+  "progress",
+  "tombstones",
+] as const;
+
+/**
+ * Clear all cached server data (domain tables + delete-trail) WITHOUT touching
+ * `auth` (the wrapped DB key + offline-login verifier) or `outbox` (pending
+ * offline writes). Used on a server sync-generation change: stale rows must go
+ * and we re-pull from scratch, but destroying the key would lock the user out
+ * of offline mode and destroying the outbox would silently lose unsynced edits.
+ */
+export async function clearSyncedDataForResync(): Promise<void> {
+  const db = getDb();
+  await db.transaction(
+    "rw",
+    SYNCED_TABLES.map((t) => db.table(t)),
+    async () => {
+      for (const t of SYNCED_TABLES) await db.table(t).clear();
+    }
+  );
+}

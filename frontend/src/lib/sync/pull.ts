@@ -6,9 +6,15 @@
  */
 import { api } from "@/lib/api";
 
-import { hasSessionKey, markSyncAt, readAuth, updateSyncGeneration } from "../db/auth";
+import {
+  hasSessionKey,
+  markSyncAt,
+  readAuth,
+  resetSyncStateForGeneration,
+  updateSyncGeneration,
+} from "../db/auth";
 import { emitChanges, type ResourceName } from "../db/events";
-import { getDb, wipeDb } from "../db/schema";
+import { clearSyncedDataForResync, getDb } from "../db/schema";
 import {
   upsertCourses,
   upsertEvaluations,
@@ -65,6 +71,23 @@ export interface SyncPullResponse {
   sync_generation: string;
 }
 
+// Every synced domain resource — emitted after a generation-reset clear so any
+// list still showing stale rows refetches from the now-empty/refreshed tables.
+const ALL_RESOURCES: ResourceName[] = [
+  "student",
+  "teacher",
+  "parent",
+  "parent_student_link",
+  "weekly_plan",
+  "daily_record",
+  "review_record",
+  "evaluation",
+  "notification",
+  "course",
+  "student_course",
+  "progress",
+];
+
 let pullInFlight: Promise<PullResult> | null = null;
 
 export interface PullResult {
@@ -91,13 +114,28 @@ export async function pullSync(): Promise<PullResult> {
       }
 
       // Check if server's sync generation differs from client's stored generation.
-      // If so, the server DB was reset — wipe local IndexedDB and do a full re-sync.
+      // If so, the server DB was reset/reseeded — drop stale cached rows and do
+      // a full re-sync.
       const currentAuth = await readAuth();
       const serverGeneration = res.data.sync_generation;
       if (currentAuth && currentAuth.sync_generation !== null && currentAuth.sync_generation !== serverGeneration) {
-        // Server DB was reset. Wipe local DB and re-initialize for a fresh full pull.
-        await wipeDb();
-        return { ok: true, server_time: res.data.server_time };
+        // PRESERVE `auth` (encryption key + offline login) and `outbox` (pending
+        // offline writes). The old wipeDb() destroyed both, locking users out of
+        // offline mode and silently losing unsynced edits.
+        await clearSyncedDataForResync();
+        await resetSyncStateForGeneration(serverGeneration);
+        // Refresh any list still rendering now-cleared rows.
+        emitChanges([...ALL_RESOURCES]);
+
+        // Re-pull everything from scratch (cursor is now reset to null).
+        const full = await api.get<SyncPullResponse>(`/api/sync/pull/`);
+        if (!full.success) {
+          // Cursor is already reset; the next pull retries a full pull and
+          // won't re-clear (generation now matches). Brief empty UI until then.
+          return { ok: false, error: full.error.message };
+        }
+        await applyPullResponse(full.data);
+        return { ok: true, server_time: full.data.server_time };
       }
 
       await applyPullResponse(res.data);
