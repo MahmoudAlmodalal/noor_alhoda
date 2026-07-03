@@ -139,8 +139,12 @@ def otp_verify(*, national_id: str, code: str, new_password: str) -> None:
     otp.is_used = True
     otp.save()
 
-    # Reset password
+    # Reset password and clear any lockout state so the reset actually
+    # restores access instead of leaving the account locked.
     user.set_password(new_password)
+    user.failed_login_attempts = 0
+    user.lockout_until = None
+    user.last_login_attempt = None
     user.save()
 
     # Invalidate all active refresh tokens for this user

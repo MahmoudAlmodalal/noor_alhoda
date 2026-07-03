@@ -53,7 +53,15 @@ class Command(BaseCommand):
                 self.stdout.write(f"  - would reset {national_id} ({user.role}) -> {new_password}")
             else:
                 user.set_password(new_password)
-                user.save(update_fields=["password"])
+                user.failed_login_attempts = 0
+                user.lockout_until = None
+                user.last_login_attempt = None
+                user.save(update_fields=[
+                    "password",
+                    "failed_login_attempts",
+                    "lockout_until",
+                    "last_login_attempt",
+                ])
             updated += 1
 
         action = "would update" if dry_run else "updated"

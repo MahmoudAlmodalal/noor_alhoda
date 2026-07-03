@@ -493,6 +493,28 @@ class OtpVerifyApiTests(AccountsFixture, APITestCase):
         with self.assertRaises(TokenError):
             RefreshToken(refresh_str)
 
+    def test_valid_code_clears_lockout_state(self):
+        self.user.failed_login_attempts = 5
+        self.user.lockout_until = timezone.now() + timedelta(minutes=30)
+        self.user.last_login_attempt = timezone.now()
+        self.user.save()
+
+        self._create_otp("123456")
+        response = self.client.post(
+            OTP_VERIFY_URL,
+            {
+                "national_id": self.user.national_id,
+                "code": "123456",
+                "new_password": "newpass123",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.failed_login_attempts, 0)
+        self.assertIsNone(self.user.lockout_until)
+        self.assertIsNone(self.user.last_login_attempt)
+
     def test_unknown_national_id_returns_400(self):
         response = self.client.post(
             OTP_VERIFY_URL,
