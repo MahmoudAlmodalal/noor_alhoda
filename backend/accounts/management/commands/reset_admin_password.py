@@ -23,10 +23,13 @@ class Command(BaseCommand):
         try:
             user = User.objects.get(national_id=national_id)
             user.set_password(password)
+            user.failed_login_attempts = 0
+            user.lockout_until = None
+            user.last_login_attempt = None
             user.save()
             self.stdout.write(
                 self.style.SUCCESS(
-                    f'✓ Password reset for admin {national_id}: {password}'
+                    f'✓ Password reset and lockout cleared for admin {national_id}: {password}'
                 )
             )
         except User.DoesNotExist:
