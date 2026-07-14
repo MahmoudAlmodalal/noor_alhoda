@@ -14,6 +14,12 @@ from students.views.student_views import (
     StudentReviewIntervalApi,
 )
 from students.views.student_export_views import StudentExportApi
+from students.views.change_request_views import (
+    ChangeRequestListCreateApi,
+    ChangeRequestApproveApi,
+    ChangeRequestRejectApi,
+    ChangeRequestCancelApi,
+)
 
 urlpatterns = [
     path("", StudentListApi.as_view(), name="student-list"),
@@ -28,4 +34,8 @@ urlpatterns = [
     path("<uuid:student_id>/tasks/today/", StudentTasksTodayApi.as_view(), name="student-tasks-today"),
     path("<uuid:student_id>/reviews/complete/", StudentReviewCompleteApi.as_view(), name="student-review-complete"),
     path("<uuid:student_id>/review-interval/", StudentReviewIntervalApi.as_view(), name="student-review-interval"),
+    path("teacher-requests/", ChangeRequestListCreateApi.as_view(), name="student-change-request-list-create"),
+    path("teacher-requests/<uuid:request_id>/approve/", ChangeRequestApproveApi.as_view(), name="student-change-request-approve"),
+    path("teacher-requests/<uuid:request_id>/reject/", ChangeRequestRejectApi.as_view(), name="student-change-request-reject"),
+    path("teacher-requests/<uuid:request_id>/", ChangeRequestCancelApi.as_view(), name="student-change-request-cancel"),
 ]

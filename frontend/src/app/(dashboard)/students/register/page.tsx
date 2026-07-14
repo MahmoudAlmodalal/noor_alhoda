@@ -10,6 +10,9 @@ import { useQuery } from "@/hooks/useApi";
 import type { CourseRecord, TeacherWithUser } from "@/hooks/queries";
 import type { CreateStudentRequest } from "@/types/api";
 import { RoleGate } from "@/components/auth/RoleGate";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/contexts/ToastContext";
+import { api } from "@/lib/api";
 
 function SectionTitle({ number, title }: { number: number; title: string }) {
   return (
@@ -129,7 +132,12 @@ function CheckboxItem({ label, checked, onChange }: { label: string; checked: bo
 
 function StudentRegistrationInner() {
   const router = useRouter();
-  const { mutate, isSubmitting } = useMutation("student", "create");
+  const { user } = useAuth();
+  const { showToast } = useToast();
+  const isTeacherActor = user?.role === "teacher";
+  const { mutate, isSubmitting: isMutating } = useMutation("student", "create");
+  const [isRequestSubmitting, setIsRequestSubmitting] = useState(false);
+  const isSubmitting = isMutating || isRequestSubmitting;
   const fieldErrors: Record<string, string | string[]> | null = null;
 
   const [form, setForm] = useState({
@@ -201,6 +209,26 @@ function StudentRegistrationInner() {
       skills: { ...skills, ...(skills.other && skillsOtherText ? { other_text: skillsOtherText } : {}) } as unknown as Record<string, boolean>,
     };
 
+    if (isTeacherActor) {
+      // Teachers can't create students directly — this submits a pending
+      // StudentChangeRequest instead (action=create), which only takes
+      // effect once an admin approves it. Direct online call, same pattern
+      // as AnnounceModal — not part of the Dexie outbox.
+      setIsRequestSubmitting(true);
+      const res = await api.post("/api/students/teacher-requests/", {
+        action: "create",
+        payload: body,
+      });
+      setIsRequestSubmitting(false);
+      if (!res.success) {
+        showToast(res.error.message, "error");
+        return;
+      }
+      showToast("تم إرسال طلب تسجيل الطالب، بانتظار موافقة الإدارة", "success");
+      router.push("/teacher-requests");
+      return;
+    }
+
     const defaultPassword = form.phone_number.slice(-4);
     const result = await mutate(body as unknown as Record<string, unknown>, { successMessage: `تم تسجيل الطالب بنجاح. كلمة المرور الافتراضية: ${defaultPassword}` });
     if (result) {
@@ -260,7 +288,13 @@ function StudentRegistrationInner() {
           </div>
         </div>
 
-        <TeacherSelect value={form.teacher_id} onChange={handleChange} teachers={teachers ?? []} />
+        {isTeacherActor ? (
+          <p className="mb-4 text-sm text-text-muted">
+            سيُسجَّل الطالب في حلقتك بعد موافقة الإدارة.
+          </p>
+        ) : (
+          <TeacherSelect value={form.teacher_id} onChange={handleChange} teachers={teachers ?? []} />
+        )}
 
         <SectionTitle number={2} title="بيانات ولي الأمر" />
         <FormGroup label="الاسم رباعي:" name="guardian_name" value={form.guardian_name} onChange={handleChange} error={getFieldError("guardian_name")} />
@@ -331,16 +365,20 @@ function StudentRegistrationInner() {
             {isSubmitting ? (
               <>
                 <Loader2 className="w-5 h-5 animate-spin" />
-                جاري الحفظ...
+                {isTeacherActor ? "جاري الإرسال..." : "جاري الحفظ..."}
               </>
+            ) : isTeacherActor ? (
+              "إرسال طلب التسجيل"
             ) : (
               "حفظ البيانات وإصدار البطاقة"
             )}
           </Button>
-          <Button type="button" onClick={() => window.print()} variant="outline" className="w-full h-12 text-base font-medium border-secondary text-secondary hover:bg-[#fffcf4] gap-2">
-            طباعة البطاقة
-            <Printer className="w-5 h-5" />
-          </Button>
+          {!isTeacherActor && (
+            <Button type="button" onClick={() => window.print()} variant="outline" className="w-full h-12 text-base font-medium border-secondary text-secondary hover:bg-[#fffcf4] gap-2">
+              طباعة البطاقة
+              <Printer className="w-5 h-5" />
+            </Button>
+          )}
         </div>
       </form>
     </div>
@@ -349,7 +387,7 @@ function StudentRegistrationInner() {
 
 export default function StudentRegistration() {
   return (
-    <RoleGate roles={["admin"]}>
+    <RoleGate roles={["admin", "teacher"]}>
       <StudentRegistrationInner />
     </RoleGate>
   );

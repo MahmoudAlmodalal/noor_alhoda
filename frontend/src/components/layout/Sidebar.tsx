@@ -21,6 +21,7 @@ import {
     GraduationCap,
     Building2,
     KeyRound,
+    ClipboardList,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNotifications } from "@/contexts/NotificationsContext";
@@ -42,7 +43,8 @@ export const menuItems: NavItem[] = [
     { name: "الرئيسية", href: "/student", icon: LayoutGrid, roles: ["student"] },
 
     // Admin فقط
-    { name: "تسجيل طالب", href: "/students/register", icon: UserPlus, roles: ["admin"] },
+    { name: "تسجيل طالب", href: "/students/register", icon: UserPlus, roles: ["admin", "teacher"] },
+    { name: "طلبات المحفظ", href: "/teacher-requests", icon: ClipboardList, roles: ["admin", "teacher"] },
     { name: "إدارة المحفظين", href: "/teachers", icon: UserCheck, roles: ["admin"] },
     { name: "هيكلية المركز", href: "/staff-db", icon: Building2, roles: ["admin"] },
     { name: "سجل الطلاب", href: "/students", icon: Users, roles: ["admin"] },

@@ -24,6 +24,11 @@ import {
   EditStudentModal,
 } from "@/components/modals/StudentModals";
 import { ConfirmDeleteModal } from "@/components/modals/TeacherModals";
+import {
+  RequestAssignStudentModal,
+  RequestDeleteStudentModal,
+  RequestRemoveTeacherModal,
+} from "@/components/modals/ChangeRequestModals";
 
 const PAGE_SIZE = 12;
 
@@ -95,6 +100,11 @@ export default function StudentsPage() {
   const [editStudent, setEditStudent] = useState<StudentWithTeacher | null>(null);
   const [deleteStudent, setDeleteStudent] =
     useState<StudentWithTeacher | null>(null);
+  const [removeRequestTarget, setRemoveRequestTarget] =
+    useState<StudentWithTeacher | null>(null);
+  const [deleteRequestTarget, setDeleteRequestTarget] =
+    useState<StudentWithTeacher | null>(null);
+  const [showAssignRequestModal, setShowAssignRequestModal] = useState(false);
 
   const hasFilters = Boolean(
     debouncedSearch || teacherFilter || courseFilter || gradeFilter
@@ -244,6 +254,26 @@ export default function StudentsPage() {
             </Button>
           </>
         ) : null}
+
+        {isTeacher ? (
+          <>
+            <Button
+              onClick={() => router.push("/students/register")}
+              variant="outline"
+              className="h-12 gap-2 rounded-[14px] px-4 font-bold"
+            >
+              <UserPlus className="h-5 w-5" />
+              تسجيل طالب
+            </Button>
+            <Button
+              onClick={() => setShowAssignRequestModal(true)}
+              className="h-12 gap-2 rounded-[14px] px-5 font-bold"
+            >
+              <UserPlus className="h-5 w-5" />
+              طلب ضم طالب
+            </Button>
+          </>
+        ) : null}
       </div>
 
       {sorted.length > 0 ? (
@@ -277,6 +307,16 @@ export default function StudentsPage() {
               canDelete={isAdmin}
               onAssignTeacher={
                 isAdmin ? () => setAssignStudent(student) : undefined
+              }
+              onRequestRemoveTeacher={
+                isTeacher && student.teacher_id === user?.teacher_profile?.id
+                  ? () => setRemoveRequestTarget(student)
+                  : undefined
+              }
+              onRequestDelete={
+                isTeacher && student.teacher_id === user?.teacher_profile?.id
+                  ? () => setDeleteRequestTarget(student)
+                  : undefined
               }
               onEdit={() => setEditStudent(student)}
               onDelete={() => setDeleteStudent(student)}
@@ -322,6 +362,34 @@ export default function StudentsPage() {
           resource="student"
           targetId={deleteStudent.id}
           onSuccess={() => setDeleteStudent(null)}
+        />
+      ) : null}
+
+      {removeRequestTarget ? (
+        <RequestRemoveTeacherModal
+          isOpen={!!removeRequestTarget}
+          onClose={() => setRemoveRequestTarget(null)}
+          studentId={removeRequestTarget.id}
+          studentName={removeRequestTarget.full_name}
+          onSuccess={() => setRemoveRequestTarget(null)}
+        />
+      ) : null}
+
+      {deleteRequestTarget ? (
+        <RequestDeleteStudentModal
+          isOpen={!!deleteRequestTarget}
+          onClose={() => setDeleteRequestTarget(null)}
+          studentId={deleteRequestTarget.id}
+          studentName={deleteRequestTarget.full_name}
+          onSuccess={() => setDeleteRequestTarget(null)}
+        />
+      ) : null}
+
+      {showAssignRequestModal ? (
+        <RequestAssignStudentModal
+          isOpen={showAssignRequestModal}
+          onClose={() => setShowAssignRequestModal(false)}
+          onSuccess={() => setShowAssignRequestModal(false)}
         />
       ) : null}
     </div>

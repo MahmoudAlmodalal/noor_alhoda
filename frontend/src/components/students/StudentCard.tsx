@@ -10,6 +10,7 @@ import {
   Phone,
   Trash2,
   UserCog,
+  UserMinus,
 } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import {
@@ -27,6 +28,8 @@ interface StudentCardProps {
   canEdit: boolean;
   canDelete?: boolean;
   onAssignTeacher?: () => void;
+  onRequestRemoveTeacher?: () => void;
+  onRequestDelete?: () => void;
   onEdit: () => void;
   onDelete: () => void;
   onDownloadPdf: () => void;
@@ -38,6 +41,8 @@ export function StudentCard({
   canEdit,
   canDelete = false,
   onAssignTeacher,
+  onRequestRemoveTeacher,
+  onRequestDelete,
   onEdit,
   onDelete,
   onDownloadPdf,
@@ -187,6 +192,30 @@ export function StudentCard({
             className="h-10 w-10 rounded-[12px] text-text-muted hover:bg-red-50 hover:text-red-600"
             onClick={onDelete}
             aria-label={`حذف الطالب ${student.full_name}`}
+          >
+            <Trash2 className="h-[18px] w-[18px]" />
+          </Button>
+        ) : null}
+        {onRequestRemoveTeacher ? (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-10 w-10 rounded-[12px] text-text-muted hover:bg-amber-50 hover:text-amber-600"
+            onClick={onRequestRemoveTeacher}
+            aria-label={`طلب إزالة الطالب ${student.full_name} من الحلقة`}
+            title="طلب إزالة من الحلقة"
+          >
+            <UserMinus className="h-[18px] w-[18px]" />
+          </Button>
+        ) : null}
+        {onRequestDelete ? (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-10 w-10 rounded-[12px] text-text-muted hover:bg-red-50 hover:text-red-600"
+            onClick={onRequestDelete}
+            aria-label={`طلب حذف الطالب ${student.full_name}`}
+            title="طلب حذف الطالب"
           >
             <Trash2 className="h-[18px] w-[18px]" />
           </Button>

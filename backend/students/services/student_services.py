@@ -197,43 +197,39 @@ def student_create(*, creator: User, id=None, **data) -> Student:
 @transaction.atomic
 def student_update(*, student: Student, actor: User, data: dict) -> Student:
     """
-    Update student data. Admin can update all fields. Teacher limited fields.
+    Update student data. Admin only — a teacher cannot write to a student's
+    record directly; they must submit a `StudentChangeRequest` (action=update)
+    for admin approval, which this function then applies on the admin's behalf.
     """
-    if is_admin_user(actor):
-        # Admin can update all fields
-        allowed = [
-            # Personal Information
-            "full_name", "birthdate", "grade",
-            # Contact Information
-            "address", "whatsapp", "mobile", "phone_number",
-            # Academic Information
-            "previous_courses", "desired_courses",
-            # Bank Account Information
-            "bank_account_number", "bank_account_name", "bank_account_type",
-            # Guardian Information
-            "guardian_name", "guardian_national_id", "guardian_mobile",
-            # Health and Skills
-            "health_status", "health_note", "skills",
-            # Quran Progress
-            "current_surah", "current_juz", "memorized_verses",
-        ]
-    elif actor.role == "teacher":
-        # Teachers can update health, skills, Quran progress, and contact info
-        allowed = [
-            "health_note", "skills", "current_surah", "current_juz", "memorized_verses",
-            "address", "whatsapp", "mobile",
-        ]
-    else:
-        raise PermissionDenied("ليس لديك صلاحية لتعديل بيانات الطالب.")
+    if not is_admin_user(actor):
+        raise PermissionDenied(
+            "لا يمكنك تعديل بيانات الطالب مباشرة. يرجى إرسال طلب تعديل بانتظار موافقة الإدارة."
+        )
+
+    allowed = [
+        # Personal Information
+        "full_name", "birthdate", "grade",
+        # Contact Information
+        "address", "whatsapp", "mobile", "phone_number",
+        # Academic Information
+        "previous_courses", "desired_courses",
+        # Bank Account Information
+        "bank_account_number", "bank_account_name", "bank_account_type",
+        # Guardian Information
+        "guardian_name", "guardian_national_id", "guardian_mobile",
+        # Health and Skills
+        "health_status", "health_note", "skills",
+        # Quran Progress
+        "current_surah", "current_juz", "memorized_verses",
+    ]
 
     # national_id is stored on the related User (USERNAME_FIELD). Route it there.
-    if is_admin_user(actor):
-        new_national_id = data.get("national_id")
-        if new_national_id and new_national_id != student.user.national_id:
-            if User.objects.filter(national_id=new_national_id).exclude(pk=student.user_id).exists():
-                raise ValidationError({"national_id": "رقم الهوية مسجل مسبقاً."})
-            student.user.national_id = new_national_id
-            student.user.save(update_fields=["national_id"])
+    new_national_id = data.get("national_id")
+    if new_national_id and new_national_id != student.user.national_id:
+        if User.objects.filter(national_id=new_national_id).exclude(pk=student.user_id).exists():
+            raise ValidationError({"national_id": "رقم الهوية مسجل مسبقاً."})
+        student.user.national_id = new_national_id
+        student.user.save(update_fields=["national_id"])
 
     # Update allowed fields on the Student itself
     for field, value in data.items():
@@ -300,6 +296,22 @@ def student_assign_teacher(*, student_id, teacher_id, actor: User) -> Student:
         )
 
     student.teacher = teacher
+    student.save()
+    return student
+
+
+@transaction.atomic
+def student_unassign_teacher(*, student_id, actor: User) -> Student:
+    """
+    Remove a student's teacher assignment. Admin only.
+    """
+    if not is_admin_user(actor):
+        raise PermissionDenied("فقط المدير يمكنه إزالة تعيين المحفظ.")
+
+    from students.selectors.student_selectors import student_get
+
+    student = student_get(student_id=student_id, actor=actor)
+    student.teacher = None
     student.save()
     return student
 

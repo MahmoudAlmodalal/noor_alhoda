@@ -732,26 +732,32 @@ class StudentPatchTests(StudentTestSetup):
         self.assertEqual(self.student_a.grade, "Grade 9")
         self.assertEqual(self.student_a.health_status, "injured")
 
-    def test_teacher_limited_to_health_note_and_skills(self):
+    def test_teacher_direct_patch_forbidden(self):
+        """
+        Teachers can no longer write to a student's record directly — they
+        must submit a StudentChangeRequest (action=update) for admin approval
+        (see ChangeRequestTests). Even health_note/skills, once directly
+        editable, now require the same approval flow.
+        """
         self.client.force_authenticate(self.teacher_a_user)
         response = self.client.patch(
             f"{STUDENTS_URL}{self.student_a.id}/",
             {"health_note": "follow-up", "skills": {"quran": True}},
             format="json",
         )
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 403)
         self.student_a.refresh_from_db()
-        self.assertEqual(self.student_a.health_note, "follow-up")
-        self.assertEqual(self.student_a.skills.get("quran"), True)
+        self.assertNotEqual(self.student_a.health_note, "follow-up")
 
-    def test_teacher_attempt_to_edit_name_is_ignored(self):
+    def test_teacher_attempt_to_edit_name_is_forbidden(self):
         self.client.force_authenticate(self.teacher_a_user)
         original_name = self.student_a.full_name
-        self.client.patch(
+        response = self.client.patch(
             f"{STUDENTS_URL}{self.student_a.id}/",
             {"full_name": "Hijacked", "health_note": "ok"},
             format="json",
         )
+        self.assertEqual(response.status_code, 403)
         self.student_a.refresh_from_db()
         self.assertEqual(self.student_a.full_name, original_name)
 
@@ -955,3 +961,329 @@ class StudentLinkParentExtendedTests(StudentTestSetup):
             format="json",
         )
         self.assertEqual(response.status_code, 403)
+
+
+CHANGE_REQUESTS_URL = f"{STUDENTS_URL}teacher-requests/"
+
+
+class ChangeRequestTests(StudentTestSetup):
+    """StudentChangeRequest: teacher submits, admin approves/rejects."""
+
+    # -- unassign (remove from own roster) -----------------------------
+    def test_teacher_requests_unassign_own_student(self):
+        self.client.force_authenticate(self.teacher_a_user)
+        response = self.client.post(
+            CHANGE_REQUESTS_URL,
+            {"action": "unassign", "student_id": str(self.student_a.id)},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data["data"]["status"], "pending")
+        self.student_a.refresh_from_db()
+        self.assertEqual(self.student_a.teacher_id, self.teacher_a.id)  # unchanged until approved
+
+    def test_teacher_cannot_request_unassign_for_foreign_student(self):
+        self.client.force_authenticate(self.teacher_a_user)
+        response = self.client.post(
+            CHANGE_REQUESTS_URL,
+            {"action": "unassign", "student_id": str(self.student_b.id)},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_admin_approves_unassign_request(self):
+        self.client.force_authenticate(self.teacher_a_user)
+        create_resp = self.client.post(
+            CHANGE_REQUESTS_URL,
+            {"action": "unassign", "student_id": str(self.student_a.id)},
+            format="json",
+        )
+        request_id = create_resp.data["data"]["id"]
+
+        self.client.force_authenticate(self.admin)
+        response = self.client.post(f"{CHANGE_REQUESTS_URL}{request_id}/approve/")
+        self.assertEqual(response.status_code, 200)
+        self.student_a.refresh_from_db()
+        self.assertIsNone(self.student_a.teacher_id)
+
+    def test_admin_rejects_request_with_note(self):
+        self.client.force_authenticate(self.teacher_a_user)
+        create_resp = self.client.post(
+            CHANGE_REQUESTS_URL,
+            {"action": "unassign", "student_id": str(self.student_a.id)},
+            format="json",
+        )
+        request_id = create_resp.data["data"]["id"]
+
+        self.client.force_authenticate(self.admin)
+        response = self.client.post(
+            f"{CHANGE_REQUESTS_URL}{request_id}/reject/",
+            {"note": "still needs this student"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["data"]["status"], "rejected")
+        self.assertEqual(response.data["data"]["note"], "still needs this student")
+        self.student_a.refresh_from_db()
+        self.assertEqual(self.student_a.teacher_id, self.teacher_a.id)  # unchanged
+
+    # -- assign (transfer, including from another teacher) --------------
+    def test_teacher_requests_assign_student_from_another_teacher(self):
+        self.client.force_authenticate(self.teacher_a_user)
+        response = self.client.post(
+            CHANGE_REQUESTS_URL,
+            {"action": "assign", "student_id": str(self.student_b.id)},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201)
+
+    def test_teacher_cannot_request_assign_for_already_own_student(self):
+        self.client.force_authenticate(self.teacher_a_user)
+        response = self.client.post(
+            CHANGE_REQUESTS_URL,
+            {"action": "assign", "student_id": str(self.student_a.id)},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_assign_approval_enforces_max_students_capacity(self):
+        # teacher_b's capacity is 2, already has student_b assigned.
+        third_student_user = User.objects.create_user(
+            national_id="STU-C-001", phone_number="970590100060",
+            password="secret123", role="student",
+        )
+        third_student = Student.objects.create(
+            user=third_student_user, full_name="Student C", birthdate=date(2012, 3, 3),
+            grade="Grade 7", teacher=None,
+            guardian_name="Guardian C", guardian_mobile="0599000003",
+        )
+        fourth_student_user = User.objects.create_user(
+            national_id="STU-D-001", phone_number="970590100070",
+            password="secret123", role="student",
+        )
+        fourth_student = Student.objects.create(
+            user=fourth_student_user, full_name="Student D", birthdate=date(2012, 4, 4),
+            grade="Grade 7", teacher=None,
+            guardian_name="Guardian D", guardian_mobile="0599000004",
+        )
+
+        self.client.force_authenticate(self.teacher_b_user)
+        r1 = self.client.post(
+            CHANGE_REQUESTS_URL,
+            {"action": "assign", "student_id": str(third_student.id)},
+            format="json",
+        )
+        r2 = self.client.post(
+            CHANGE_REQUESTS_URL,
+            {"action": "assign", "student_id": str(fourth_student.id)},
+            format="json",
+        )
+
+        self.client.force_authenticate(self.admin)
+        approve1 = self.client.post(f"{CHANGE_REQUESTS_URL}{r1.data['data']['id']}/approve/")
+        self.assertEqual(approve1.status_code, 200)  # teacher_b now at capacity (2/2)
+
+        approve2 = self.client.post(f"{CHANGE_REQUESTS_URL}{r2.data['data']['id']}/approve/")
+        self.assertEqual(approve2.status_code, 400)
+        fourth_student.refresh_from_db()
+        self.assertIsNone(fourth_student.teacher_id)
+
+    # -- update (full fields, via admin-executed approval) ---------------
+    def test_teacher_requests_update_then_admin_approves_applies_full_fields(self):
+        self.client.force_authenticate(self.teacher_a_user)
+        response = self.client.post(
+            CHANGE_REQUESTS_URL,
+            {
+                "action": "update",
+                "student_id": str(self.student_a.id),
+                "payload": {"full_name": "Renamed Student", "grade": "Grade 10"},
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201)
+        request_id = response.data["data"]["id"]
+
+        self.client.force_authenticate(self.admin)
+        approve = self.client.post(f"{CHANGE_REQUESTS_URL}{request_id}/approve/")
+        self.assertEqual(approve.status_code, 200)
+        self.student_a.refresh_from_db()
+        self.assertEqual(self.student_a.full_name, "Renamed Student")
+        self.assertEqual(self.student_a.grade, "Grade 10")
+
+    def test_teacher_cannot_request_update_for_foreign_student(self):
+        self.client.force_authenticate(self.teacher_a_user)
+        response = self.client.post(
+            CHANGE_REQUESTS_URL,
+            {"action": "update", "student_id": str(self.student_b.id), "payload": {"full_name": "X"}},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 403)
+
+    # -- delete ------------------------------------------------------------
+    def test_teacher_requests_delete_then_admin_rejects_keeps_student(self):
+        self.client.force_authenticate(self.teacher_a_user)
+        response = self.client.post(
+            CHANGE_REQUESTS_URL,
+            {"action": "delete", "student_id": str(self.student_a.id)},
+            format="json",
+        )
+        request_id = response.data["data"]["id"]
+
+        self.client.force_authenticate(self.admin)
+        reject = self.client.post(
+            f"{CHANGE_REQUESTS_URL}{request_id}/reject/", {"note": "no"}, format="json"
+        )
+        self.assertEqual(reject.status_code, 200)
+        self.assertTrue(Student.objects.filter(id=self.student_a.id).exists())
+
+    def test_teacher_requests_delete_then_admin_approves_deletes_student(self):
+        self.client.force_authenticate(self.teacher_a_user)
+        response = self.client.post(
+            CHANGE_REQUESTS_URL,
+            {"action": "delete", "student_id": str(self.student_a.id)},
+            format="json",
+        )
+        request_id = response.data["data"]["id"]
+
+        self.client.force_authenticate(self.admin)
+        approve = self.client.post(f"{CHANGE_REQUESTS_URL}{request_id}/approve/")
+        self.assertEqual(approve.status_code, 200)
+        self.assertFalse(Student.objects.filter(id=self.student_a.id).exists())
+
+    # -- create (new student registration) --------------------------------
+    def test_teacher_requests_create_then_admin_approves_creates_student_assigned_to_teacher(self):
+        self.client.force_authenticate(self.teacher_a_user)
+        response = self.client.post(
+            CHANGE_REQUESTS_URL,
+            {
+                "action": "create",
+                "payload": {
+                    "full_name": "Brand New Student",
+                    "national_id": "970590199996",
+                    "birthdate": "2014-01-01",
+                    "grade": "Grade 5",
+                    "phone_number": "970590199998",
+                    "guardian_name": "Guardian New",
+                    "guardian_mobile": "970590199997",
+                },
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201)
+        request_id = response.data["data"]["id"]
+
+        self.client.force_authenticate(self.admin)
+        approve = self.client.post(f"{CHANGE_REQUESTS_URL}{request_id}/approve/")
+        self.assertEqual(approve.status_code, 200)
+
+        new_student = Student.objects.get(user__national_id="970590199996")
+        self.assertEqual(new_student.teacher_id, self.teacher_a.id)
+
+    def test_teacher_create_request_missing_fields_rejected(self):
+        self.client.force_authenticate(self.teacher_a_user)
+        response = self.client.post(
+            CHANGE_REQUESTS_URL,
+            {"action": "create", "payload": {"full_name": "Incomplete"}},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+
+    # -- guard rails ---------------------------------------------------
+    def test_duplicate_pending_request_rejected(self):
+        self.client.force_authenticate(self.teacher_a_user)
+        self.client.post(
+            CHANGE_REQUESTS_URL,
+            {"action": "unassign", "student_id": str(self.student_a.id)},
+            format="json",
+        )
+        response = self.client.post(
+            CHANGE_REQUESTS_URL,
+            {"action": "unassign", "student_id": str(self.student_a.id)},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_approving_already_reviewed_request_fails(self):
+        self.client.force_authenticate(self.teacher_a_user)
+        create_resp = self.client.post(
+            CHANGE_REQUESTS_URL,
+            {"action": "unassign", "student_id": str(self.student_a.id)},
+            format="json",
+        )
+        request_id = create_resp.data["data"]["id"]
+
+        self.client.force_authenticate(self.admin)
+        self.client.post(f"{CHANGE_REQUESTS_URL}{request_id}/approve/")
+        second_attempt = self.client.post(f"{CHANGE_REQUESTS_URL}{request_id}/approve/")
+        self.assertEqual(second_attempt.status_code, 400)
+
+    def test_admin_cannot_submit_a_request(self):
+        self.client.force_authenticate(self.admin)
+        response = self.client.post(
+            CHANGE_REQUESTS_URL,
+            {"action": "unassign", "student_id": str(self.student_a.id)},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_teacher_sees_only_own_requests(self):
+        self.client.force_authenticate(self.teacher_a_user)
+        self.client.post(
+            CHANGE_REQUESTS_URL,
+            {"action": "unassign", "student_id": str(self.student_a.id)},
+            format="json",
+        )
+        self.client.force_authenticate(self.teacher_b_user)
+        self.client.post(
+            CHANGE_REQUESTS_URL,
+            {"action": "unassign", "student_id": str(self.student_b.id)},
+            format="json",
+        )
+        response = self.client.get(CHANGE_REQUESTS_URL)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data["data"]), 1)
+        self.assertEqual(response.data["data"][0]["teacher_id"], str(self.teacher_b.id))
+
+    def test_admin_sees_all_requests(self):
+        self.client.force_authenticate(self.teacher_a_user)
+        self.client.post(
+            CHANGE_REQUESTS_URL,
+            {"action": "unassign", "student_id": str(self.student_a.id)},
+            format="json",
+        )
+        self.client.force_authenticate(self.teacher_b_user)
+        self.client.post(
+            CHANGE_REQUESTS_URL,
+            {"action": "unassign", "student_id": str(self.student_b.id)},
+            format="json",
+        )
+        self.client.force_authenticate(self.admin)
+        response = self.client.get(CHANGE_REQUESTS_URL)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data["data"]), 2)
+
+    def test_teacher_can_browse_all_students_for_assign_picker(self):
+        self.client.force_authenticate(self.teacher_a_user)
+        response = self.client.get(STUDENTS_URL, {"browse_all": "true"})
+        self.assertEqual(response.status_code, 200)
+        ids = {row["id"] for row in response.data["data"]}
+        self.assertIn(str(self.student_a.id), ids)
+        self.assertIn(str(self.student_b.id), ids)  # visible even though owned by teacher_b
+
+    def test_teacher_default_student_list_still_scoped_to_own_roster(self):
+        self.client.force_authenticate(self.teacher_a_user)
+        response = self.client.get(STUDENTS_URL)
+        self.assertEqual(response.status_code, 200)
+        ids = {row["id"] for row in response.data["data"]}
+        self.assertEqual(ids, {str(self.student_a.id)})
+
+    def test_teacher_can_cancel_own_pending_request(self):
+        self.client.force_authenticate(self.teacher_a_user)
+        create_resp = self.client.post(
+            CHANGE_REQUESTS_URL,
+            {"action": "unassign", "student_id": str(self.student_a.id)},
+            format="json",
+        )
+        request_id = create_resp.data["data"]["id"]
+        response = self.client.delete(f"{CHANGE_REQUESTS_URL}{request_id}/")
+        self.assertEqual(response.status_code, 200)

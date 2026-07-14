@@ -44,7 +44,15 @@ def student_list(*, filters: dict, user: User) -> QuerySet[Student]:
 
     # Role-based filtering
     if user.role == "teacher" and hasattr(user, "teacher_profile"):
-        qs = qs.filter(teacher=user.teacher_profile)
+        if filters.get("browse_all"):
+            # Opt-in, read-only: lets a teacher browse the full roster
+            # (including other teachers' students) to pick someone to submit
+            # an "assign" (transfer) StudentChangeRequest for. Never used by
+            # the default students screens, and never hit during sync/pull
+            # (pull_visible_students always calls with filters={}).
+            pass
+        else:
+            qs = qs.filter(teacher=user.teacher_profile)
     elif user.role == "parent":
         linked_ids = ParentStudentLink.objects.filter(
             parent__user=user
