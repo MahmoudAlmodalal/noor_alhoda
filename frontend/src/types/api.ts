@@ -450,6 +450,37 @@ export interface AnnounceRequest {
   target_user_ids?: string[];
 }
 
+// ─── Student change requests (طلبات المحفظ) ─────────────────────────────────
+// Teacher-submitted requests (assign/unassign/create/update/delete a student)
+// that only take effect once an admin approves them. Fetched/mutated as
+// direct online calls (see useChangeRequests.ts) — not part of the Dexie
+// offline sync pipeline.
+
+export type ChangeRequestAction = "assign" | "unassign" | "create" | "update" | "delete";
+export type ChangeRequestStatus = "pending" | "approved" | "rejected";
+
+export interface StudentChangeRequest {
+  id: string;
+  teacher_id: string;
+  teacher_name: string;
+  student_id: string | null;
+  student_name: string;
+  action: ChangeRequestAction;
+  status: ChangeRequestStatus;
+  payload: Record<string, unknown>;
+  requested_by_name: string | null;
+  reviewed_by_name: string | null;
+  reviewed_at: string | null;
+  note: string;
+  created_at: string;
+}
+
+export interface StudentChangeRequestCreatePayload {
+  action: ChangeRequestAction;
+  student_id?: string;
+  payload?: Record<string, unknown>;
+}
+
 // ─── Tasks / Evaluations ─────────────────────────────────────────────────────
 
 export type TaskStatus = "pending" | "in_progress" | "done";

@@ -16,6 +16,7 @@ class Notification(models.Model):
         ANNOUNCEMENT = "announcement", "إعلان"
         REMINDER = "reminder", "تذكير"
         REPORT = "report", "تقرير"
+        TEACHER_REQUEST = "teacher_request", "طلب محفظ"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     recipient = models.ForeignKey(

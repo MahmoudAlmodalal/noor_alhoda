@@ -33,6 +33,7 @@ class StudentFilterSerializer(serializers.Serializer):
     search = serializers.CharField(required=False)
     paginated = serializers.BooleanField(required=False, default=False)
     page = serializers.IntegerField(required=False, default=1, min_value=1)
+    browse_all = serializers.BooleanField(required=False, default=False)
 
 
 class StudentInputSerializer(serializers.Serializer):

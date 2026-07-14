@@ -3,6 +3,7 @@ import uuid
 from django.db import models
 
 from accounts.models import User
+from core.models import BaseModel
 from teacher.models import Teacher
 
 
@@ -159,3 +160,73 @@ class Student(models.Model):
 
     def __str__(self):
         return self.full_name
+
+
+class StudentChangeRequest(BaseModel):
+    """
+    Teacher-submitted request (add/remove student from roster, register/edit/
+    delete a student) that only takes effect once an admin approves it.
+    """
+
+    class Action(models.TextChoices):
+        ASSIGN = "assign", "ضم لحلقتي"
+        UNASSIGN = "unassign", "إزالة من حلقتي"
+        CREATE = "create", "تسجيل طالب جديد"
+        UPDATE = "update", "تعديل بيانات"
+        DELETE = "delete", "حذف الطالب"
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "قيد الانتظار"
+        APPROVED = "approved", "موافَق عليه"
+        REJECTED = "rejected", "مرفوض"
+
+    teacher = models.ForeignKey(
+        Teacher,
+        on_delete=models.CASCADE,
+        related_name="change_requests",
+        verbose_name="المحفظ",
+    )
+    student = models.ForeignKey(
+        Student,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="change_requests",
+        verbose_name="الطالب",
+    )
+    action = models.CharField(max_length=20, choices=Action.choices, verbose_name="الإجراء")
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+        verbose_name="الحالة",
+    )
+    payload = models.JSONField(default=dict, blank=True, verbose_name="البيانات المقترحة")
+    requested_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="submitted_change_requests",
+        verbose_name="مقدّم الطلب",
+    )
+    reviewed_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reviewed_change_requests",
+        verbose_name="راجعه",
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True, verbose_name="تاريخ المراجعة")
+    note = models.TextField(blank=True, default="", verbose_name="ملاحظة")
+
+    class Meta:
+        verbose_name = "طلب تعديل طالب"
+        verbose_name_plural = "طلبات تعديل الطلاب"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["teacher", "status"]),
+        ]
+
+    def __str__(self):
+        return f"{self.get_action_display()} — {self.teacher} — {self.get_status_display()}"
