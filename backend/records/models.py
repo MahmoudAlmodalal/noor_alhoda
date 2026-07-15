@@ -112,6 +112,27 @@ class DailyRecord(models.Model):
         default=Quality.NONE,
         verbose_name="جودة الحفظ",
     )
+    review_surah_name = models.CharField(
+        max_length=100,
+        blank=True,
+        verbose_name="اسم سورة المراجعة",
+    )
+    review_from_ayah = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="مراجعة من آية",
+    )
+    review_to_ayah = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="مراجعة إلى آية",
+    )
+    review_quality = models.CharField(
+        max_length=10,
+        choices=Quality.choices,
+        default=Quality.NONE,
+        verbose_name="جودة المراجعة",
+    )
     note = models.TextField(blank=True, verbose_name="ملاحظة المحفظ")
     result = models.CharField(
         max_length=10,

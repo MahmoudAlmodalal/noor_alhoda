@@ -340,7 +340,7 @@ export default function Dashboard() {
           </SectionCard>
         </div>
 
-        {isAdmin ? (
+        {isAdmin || isTeacher ? (
         <div className="space-y-6">
           <div className="bg-primary rounded-[24px] p-6 text-white shadow-lg shadow-primary/20">
             <h3 className="font-bold text-lg mb-2">إجراءات سريعة</h3>

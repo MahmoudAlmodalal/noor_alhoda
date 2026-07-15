@@ -353,6 +353,10 @@ const handlers: Record<MutationResource, Handler> = {
         recorded_by_id: null,
         created_at: now,
         updated_at: now,
+        review_surah_name: String(payload.review_surah_name ?? ""),
+        review_from_ayah: payload.review_from_ayah !== null && payload.review_from_ayah !== undefined && payload.review_from_ayah !== "" ? Number(payload.review_from_ayah) : null,
+        review_to_ayah: payload.review_to_ayah !== null && payload.review_to_ayah !== undefined && payload.review_to_ayah !== "" ? Number(payload.review_to_ayah) : null,
+        review_quality: (payload.review_quality as DailyRecordRecord["review_quality"]) ?? "none",
       };
       await upsertDailyRecords([rec]);
     },

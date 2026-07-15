@@ -27,6 +27,10 @@ export interface DailyRecordRecord {
   recorded_by_id: string | null;
   created_at: string | null;
   updated_at: string | null;
+  review_surah_name?: string;
+  review_from_ayah?: number | null;
+  review_to_ayah?: number | null;
+  review_quality?: "excellent" | "good" | "acceptable" | "weak" | "none";
 }
 
 export interface ReviewRecordRecord {

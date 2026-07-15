@@ -1,10 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Calendar, Inbox, PlusCircle } from "lucide-react";
+import { Calendar, Edit, Inbox, PlusCircle, Trash2 } from "lucide-react";
 import { Segmented } from "@/components/ui/Segmented";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { WeeklyPlanModal } from "@/components/plans/WeeklyPlanModal";
+import { ConfirmDeleteModal } from "@/components/modals/TeacherModals";
 import { useQuery } from "@/hooks/useApi";
 import type { PlanForList } from "@/lib/db/repos/aggregates";
 import { cn } from "@/lib/utils";
@@ -31,6 +32,14 @@ interface Props {
 export function TeacherPlansTab({ teacherId }: Props) {
   const [weekFilter, setWeekFilter] = useState<WeekFilter>("current");
   const [modalOpen, setModalOpen] = useState(false);
+  const [editPlan, setEditPlan] = useState<{
+    id: string;
+    studentId: string;
+    studentName: string;
+    totalRequired: number;
+    weekStart: string;
+  } | null>(null);
+  const [deletePlan, setDeletePlan] = useState<{ id: string; name: string } | null>(null);
 
   const weekStart = useMemo(() => {
     if (weekFilter === "current") return weekStartFor(new Date());
@@ -144,6 +153,7 @@ export function TeacherPlansTab({ teacherId }: Props) {
                 <th className="px-4 py-3 font-bold">المطلوب</th>
                 <th className="px-4 py-3 font-bold">المنجز</th>
                 <th className="px-4 py-3 font-bold">النسبة</th>
+                <th className="px-4 py-3 font-bold text-center">إجراءات</th>
               </tr>
             </thead>
             <tbody>
@@ -195,6 +205,39 @@ export function TeacherPlansTab({ teacherId }: Props) {
                         </span>
                       </div>
                     </td>
+                    <td className="px-4 py-3 text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditPlan({
+                              id: p.id,
+                              studentId: p.student_id,
+                              studentName: p.student_name,
+                              totalRequired: p.total_required,
+                              weekStart: p.week_start,
+                            });
+                          }}
+                          className="p-1 text-text-muted hover:text-primary transition-colors"
+                          title="تعديل"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setDeletePlan({
+                              id: p.id,
+                              name: p.student_name,
+                            });
+                          }}
+                          className="p-1 text-text-muted hover:text-red-500 transition-colors"
+                          title="حذف"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 );
               })}
@@ -204,9 +247,28 @@ export function TeacherPlansTab({ teacherId }: Props) {
       )}
 
       <WeeklyPlanModal
-        isOpen={modalOpen}
-        onClose={() => setModalOpen(false)}
+        isOpen={modalOpen || !!editPlan}
+        onClose={() => {
+          setModalOpen(false);
+          setEditPlan(null);
+        }}
+        studentId={editPlan?.studentId}
+        studentName={editPlan?.studentName}
+        editPlanId={editPlan?.id}
+        initialTotalRequired={editPlan?.totalRequired}
+        initialWeekStart={editPlan?.weekStart}
       />
+
+      {deletePlan && (
+        <ConfirmDeleteModal
+          isOpen={!!deletePlan}
+          onClose={() => setDeletePlan(null)}
+          targetName={`${deletePlan.name} (خطة أسبوع ${rows.find((r) => r.id === deletePlan.id)?.week_start || ""})`}
+          resource="weekly_plan"
+          targetId={deletePlan.id}
+          onSuccess={() => setDeletePlan(null)}
+        />
+      )}
     </section>
   );
 }

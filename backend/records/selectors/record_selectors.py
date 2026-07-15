@@ -119,6 +119,10 @@ def weekly_summary(*, student_id, week_start, actor: User) -> dict:
                 "result": r.result,
                 "surah_name": r.surah_name,
                 "note": r.note,
+                "review_surah_name": r.review_surah_name,
+                "review_from_ayah": r.review_from_ayah,
+                "review_to_ayah": r.review_to_ayah,
+                "review_quality": r.review_quality,
             })
         else:
             # Upcoming or missed day
@@ -134,6 +138,10 @@ def weekly_summary(*, student_id, week_start, actor: User) -> dict:
                 "result": "none",
                 "surah_name": "",
                 "note": "",
+                "review_surah_name": "",
+                "review_from_ayah": None,
+                "review_to_ayah": None,
+                "review_quality": "none",
             })
 
     return {

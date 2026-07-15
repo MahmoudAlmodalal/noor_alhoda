@@ -15,6 +15,10 @@ export interface DraftRecord {
   quality: string;
   note: string;
   dirty: boolean;
+  review_surah_name: string;
+  review_from_ayah: number | "";
+  review_to_ayah: number | "";
+  review_quality: string;
 }
 
 const STATUS_OPTIONS: { value: AttendanceStatus; label: string; color: string }[] = [
@@ -100,6 +104,7 @@ export function AttendanceRow({ draft, onChange }: Props) {
 
       {expanded && (
         <div className="border-t border-border-card p-4 bg-surface-subtle space-y-3">
+          <div className="text-xs font-bold text-primary mb-1 pb-0.5 border-b border-border-card/50">الحفظ الجديد</div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div className="space-y-1">
               <label className="block text-[11px] font-bold text-text-label">السورة</label>
@@ -135,7 +140,7 @@ export function AttendanceRow({ draft, onChange }: Props) {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div className="space-y-1">
-              <label className="block text-[11px] font-bold text-text-label">التقدير</label>
+              <label className="block text-[11px] font-bold text-text-label">تقدير الحفظ</label>
               <select
                 value={draft.quality}
                 onChange={(e) => onChange({ quality: e.target.value })}
@@ -149,13 +154,64 @@ export function AttendanceRow({ draft, onChange }: Props) {
               </select>
             </div>
             <div className="md:col-span-2 space-y-1">
-              <label className="block text-[11px] font-bold text-text-label">ملاحظات</label>
+              <label className="block text-[11px] font-bold text-text-label">ملاحظات الحفظ</label>
               <input
                 type="text"
                 value={draft.note}
                 onChange={(e) => onChange({ note: e.target.value })}
                 className={inputCls}
               />
+            </div>
+          </div>
+
+          <div className="text-xs font-bold text-primary mt-3 mb-1 pb-0.5 border-b border-border-card/50">المراجعة</div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="space-y-1">
+              <label className="block text-[11px] font-bold text-text-label">سورة المراجعة</label>
+              <input
+                type="text"
+                value={draft.review_surah_name}
+                onChange={(e) => onChange({ review_surah_name: e.target.value })}
+                className={inputCls}
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="block text-[11px] font-bold text-text-label">من آية</label>
+              <input
+                type="number"
+                min={0}
+                value={draft.review_from_ayah}
+                onChange={(e) => onChange({ review_from_ayah: e.target.value === "" ? "" : Number(e.target.value) })}
+                className={inputCls}
+                dir="ltr"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="block text-[11px] font-bold text-text-label">إلى آية</label>
+              <input
+                type="number"
+                min={0}
+                value={draft.review_to_ayah}
+                onChange={(e) => onChange({ review_to_ayah: e.target.value === "" ? "" : Number(e.target.value) })}
+                className={inputCls}
+                dir="ltr"
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="space-y-1">
+              <label className="block text-[11px] font-bold text-text-label">تقدير المراجعة</label>
+              <select
+                value={draft.review_quality}
+                onChange={(e) => onChange({ review_quality: e.target.value })}
+                className={inputCls}
+              >
+                {QUALITY_OPTIONS.map((q) => (
+                  <option key={q.value} value={q.value}>
+                    {q.label}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
         </div>

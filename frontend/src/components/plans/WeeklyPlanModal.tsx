@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Loader2, Save } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
@@ -35,9 +35,21 @@ interface Props {
   studentId?: string;
   studentName?: string;
   onCreated?: () => void;
+  editPlanId?: string;
+  initialTotalRequired?: number;
+  initialWeekStart?: string;
 }
 
-export function WeeklyPlanModal({ isOpen, onClose, studentId, studentName, onCreated }: Props) {
+export function WeeklyPlanModal({
+  isOpen,
+  onClose,
+  studentId,
+  studentName,
+  onCreated,
+  editPlanId,
+  initialTotalRequired,
+  initialWeekStart,
+}: Props) {
   if (!isOpen) return null;
 
   return (
@@ -47,18 +59,46 @@ export function WeeklyPlanModal({ isOpen, onClose, studentId, studentName, onCre
       studentId={studentId}
       studentName={studentName}
       onCreated={onCreated}
+      editPlanId={editPlanId}
+      initialTotalRequired={initialTotalRequired}
+      initialWeekStart={initialWeekStart}
     />
   );
 }
 
-function WeeklyPlanModalContent({ isOpen, onClose, studentId, studentName, onCreated }: Props) {
+function WeeklyPlanModalContent({
+  isOpen,
+  onClose,
+  studentId,
+  studentName,
+  onCreated,
+  editPlanId,
+  initialTotalRequired,
+  initialWeekStart,
+}: Props) {
   const [selectedId, setSelectedId] = useState(studentId ?? "");
   const [selectedName, setSelectedName] = useState(studentName ?? "");
-  const [weekStart, setWeekStart] = useState<string>(nextSaturday());
-  const [totalRequired, setTotalRequired] = useState<number>(20);
+  const [weekStart, setWeekStart] = useState<string>(initialWeekStart ?? nextSaturday());
+  const [totalRequired, setTotalRequired] = useState<number>(initialTotalRequired ?? 20);
   const [clientError, setClientError] = useState<string | null>(null);
 
-  const { mutate, isSubmitting, error } = useMutation("weekly_plan", "create");
+  const { mutate: createMutate, isSubmitting: isCreating, error: createError, reset: resetCreate } = useMutation("weekly_plan", "create");
+  const { mutate: updateMutate, isSubmitting: isUpdating, error: updateError, reset: resetUpdate } = useMutation("weekly_plan", "update");
+
+  const isSubmitting = isCreating || isUpdating;
+  const error = createError || updateError;
+
+  useEffect(() => {
+    if (isOpen) {
+      setSelectedId(studentId ?? "");
+      setSelectedName(studentName ?? "");
+      setWeekStart(initialWeekStart ?? nextSaturday());
+      setTotalRequired(initialTotalRequired ?? 20);
+      setClientError(null);
+      resetCreate();
+      resetUpdate();
+    }
+  }, [isOpen, studentId, studentName, initialWeekStart, initialTotalRequired, resetCreate, resetUpdate]);
 
   const handleSubmit = async () => {
     setClientError(null);
@@ -73,27 +113,43 @@ function WeeklyPlanModalContent({ isOpen, onClose, studentId, studentName, onCre
       return;
     }
 
-    const result = await mutate(
-      {
-        student_id: selectedId,
-        week_start: weekStart,
-        week_number: getWeekNumber(weekStart),
-        total_required: Number(totalRequired) || 0,
-      },
-      { successMessage: "تم إنشاء الخطة الأسبوعية" }
-    );
-    if (result !== null) {
-      onCreated?.();
-      onClose();
+    if (editPlanId) {
+      const result = await updateMutate(
+        {
+          id: editPlanId,
+          total_required: Number(totalRequired) || 0,
+        },
+        { successMessage: "تم تعديل الخطة الأسبوعية بنجاح" }
+      );
+      if (result !== null) {
+        onCreated?.();
+        onClose();
+      }
+    } else {
+      const result = await createMutate(
+        {
+          student_id: selectedId,
+          week_start: weekStart,
+          week_number: getWeekNumber(weekStart),
+          total_required: Number(totalRequired) || 0,
+        },
+        { successMessage: "تم إنشاء الخطة الأسبوعية بنجاح" }
+      );
+      if (result !== null) {
+        onCreated?.();
+        onClose();
+      }
     }
   };
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} className="max-w-md">
-      <h2 className="text-xl font-bold text-primary mb-6">إضافة خطة أسبوعية</h2>
+      <h2 className="text-xl font-bold text-primary mb-6">
+        {editPlanId ? "تعديل الخطة الأسبوعية" : "إضافة خطة أسبوعية"}
+      </h2>
 
       <div className="space-y-4 mb-8">
-        {studentId ? (
+        {studentId || editPlanId ? (
           <div className="space-y-1.5">
             <label className="block text-sm font-bold text-text-body">الطالب</label>
             <div className="h-12 rounded-xl border border-border-subtle bg-surface-subtle px-4 flex items-center text-sm font-bold text-text-body">
@@ -124,6 +180,7 @@ function WeeklyPlanModalContent({ isOpen, onClose, studentId, studentName, onCre
             aria-label="بداية الأسبوع"
             className="h-12 rounded-xl border-border-subtle"
             dir="ltr"
+            disabled={!!editPlanId}
           />
         </div>
 
@@ -159,7 +216,7 @@ function WeeklyPlanModalContent({ isOpen, onClose, studentId, studentName, onCre
           className="flex-[1.5] h-12 rounded-xl font-bold gap-2"
         >
           {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-          حفظ الخطة
+          {editPlanId ? "تعديل الخطة" : "حفظ الخطة"}
         </Button>
       </div>
     </Modal>

@@ -117,9 +117,12 @@ export function TeacherRecitationTab({ teacherId, initialStudentId }: Props) {
               <tr>
                 <th className="px-4 py-3 font-bold">الطالب</th>
                 <th className="px-4 py-3 font-bold">الحضور</th>
-                <th className="px-4 py-3 font-bold">السورة</th>
-                <th className="px-4 py-3 font-bold">الإنجاز</th>
-                <th className="px-4 py-3 font-bold">الجودة</th>
+                <th className="px-4 py-3 font-bold">سورة الحفظ</th>
+                <th className="px-4 py-3 font-bold">إنجاز الحفظ</th>
+                <th className="px-4 py-3 font-bold">جودة الحفظ</th>
+                <th className="px-4 py-3 font-bold">سورة المراجعة</th>
+                <th className="px-4 py-3 font-bold">آيات المراجعة</th>
+                <th className="px-4 py-3 font-bold">جودة المراجعة</th>
                 <th className="px-4 py-3 font-bold">النتيجة</th>
                 <th className="px-4 py-3 font-bold">ملاحظة</th>
               </tr>
@@ -175,6 +178,21 @@ export function TeacherRecitationTab({ teacherId, initialStudentId }: Props) {
                     </td>
                     <td className="px-4 py-3">
                       <QualityBadge value={r.quality} />
+                    </td>
+                    <td className="px-4 py-3 text-text-label">
+                      {r.review_surah_name || "—"}
+                    </td>
+                    <td className="px-4 py-3 text-text-label">
+                      {r.review_from_ayah || r.review_to_ayah ? (
+                        <span className="text-xs font-bold text-text-body">
+                          {r.review_from_ayah ?? "1"} - {r.review_to_ayah ?? "الأخير"}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-text-muted">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <QualityBadge value={r.review_quality ?? "none"} />
                     </td>
                     <td className="px-4 py-3">
                       <ResultBadge value={r.result} />

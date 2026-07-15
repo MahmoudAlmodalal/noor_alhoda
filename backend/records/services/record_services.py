@@ -75,9 +75,12 @@ def weekly_plan_update(*, plan: WeeklyPlan, actor: User, data: dict) -> WeeklyPl
 
 @transaction.atomic
 def weekly_plan_delete(*, plan: WeeklyPlan, actor: User) -> None:
-    """Delete a weekly plan. Admin only (cascades daily records)."""
-    if not is_admin_user(actor):
-        raise PermissionDenied("فقط المدير يمكنه حذف الخطة الأسبوعية.")
+    """Delete a weekly plan. Admin or owning teacher only (cascades daily records)."""
+    if not (is_admin_user(actor) or actor.role == "teacher"):
+        raise PermissionDenied("فقط المدير أو المحفظ يمكنه حذف الخطة الأسبوعية.")
+    if actor.role == "teacher":
+        if not hasattr(actor, "teacher_profile") or plan.student.teacher_id != actor.teacher_profile.id:
+            raise PermissionDenied("لا يمكنك حذف خطة لطالب ليس في حلقتك.")
 
     from sync.models import Tombstone
     from sync.services.tombstone_service import tombstone_write
@@ -118,6 +121,10 @@ def daily_record_create(*, teacher: User, id=None, **data) -> DailyRecord:
         achieved_verses=data.get("achieved_verses", 0),
         surah_name=data.get("surah_name", ""),
         quality=data.get("quality", "none"),
+        review_surah_name=data.get("review_surah_name", ""),
+        review_from_ayah=data.get("review_from_ayah"),
+        review_to_ayah=data.get("review_to_ayah"),
+        review_quality=data.get("review_quality", "none"),
         result=data.get("result", "pending"),
         note=data.get("note", ""),
         recorded_by=teacher,
@@ -187,6 +194,7 @@ def daily_record_update(*, record_id, teacher: User, data: dict) -> DailyRecord:
     allowed_fields = [
         "attendance", "required_verses", "achieved_verses",
         "surah_name", "quality", "result", "note",
+        "review_surah_name", "review_from_ayah", "review_to_ayah", "review_quality",
     ]
 
     was_absent = record.attendance == DailyRecord.Attendance.ABSENT

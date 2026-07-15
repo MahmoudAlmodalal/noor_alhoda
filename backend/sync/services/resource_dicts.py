@@ -146,6 +146,10 @@ def daily_record_to_dict(r: DailyRecord) -> dict[str, Any]:
         "recorded_by_id": str(r.recorded_by_id) if r.recorded_by_id else None,
         "created_at": _iso(r.created_at),
         "updated_at": _iso(r.updated_at),
+        "review_surah_name": r.review_surah_name,
+        "review_from_ayah": r.review_from_ayah,
+        "review_to_ayah": r.review_to_ayah,
+        "review_quality": r.review_quality,
     }
 
 

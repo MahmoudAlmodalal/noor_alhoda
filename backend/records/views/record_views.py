@@ -26,6 +26,10 @@ class DailyRecordOutputSerializer(serializers.Serializer):
     achieved_verses = serializers.IntegerField()
     surah_name = serializers.CharField()
     quality = serializers.CharField()
+    review_surah_name = serializers.CharField()
+    review_from_ayah = serializers.IntegerField(allow_null=True)
+    review_to_ayah = serializers.IntegerField(allow_null=True)
+    review_quality = serializers.CharField()
     result = serializers.CharField()
     note = serializers.CharField()
     created_at = serializers.DateTimeField()
@@ -47,6 +51,13 @@ class DailyRecordInputSerializer(serializers.Serializer):
         choices=["excellent", "good", "acceptable", "weak", "none"],
         default="none",
     )
+    review_surah_name = serializers.CharField(required=False, default="")
+    review_from_ayah = serializers.IntegerField(required=False, allow_null=True, default=None)
+    review_to_ayah = serializers.IntegerField(required=False, allow_null=True, default=None)
+    review_quality = serializers.ChoiceField(
+        choices=["excellent", "good", "acceptable", "weak", "none"],
+        default="none",
+    )
     result = serializers.ChoiceField(
         choices=["pass", "fail", "pending"],
         default="pending",
@@ -64,6 +75,13 @@ class DailyRecordUpdateSerializer(serializers.Serializer):
     achieved_verses = serializers.IntegerField(required=False)
     surah_name = serializers.CharField(required=False)
     quality = serializers.ChoiceField(
+        choices=["excellent", "good", "acceptable", "weak", "none"],
+        required=False,
+    )
+    review_surah_name = serializers.CharField(required=False)
+    review_from_ayah = serializers.IntegerField(required=False, allow_null=True)
+    review_to_ayah = serializers.IntegerField(required=False, allow_null=True)
+    review_quality = serializers.ChoiceField(
         choices=["excellent", "good", "acceptable", "weak", "none"],
         required=False,
     )

@@ -53,7 +53,7 @@ export const menuItems: NavItem[] = [
     { name: "تسجيل الحضور", href: "/attendance", icon: ClipboardCheck, roles: ["admin"] },
     { name: "لوحة الشرف", href: "/leaderboard", icon: Trophy, roles: ["admin"] },
     { name: "تقارير الحضور", href: "/reports/attendance", icon: BarChart3, roles: ["admin"] },
-    { name: "الإشعارات", href: "/notifications", icon: Bell, roles: ["admin", "parent"] },
+    { name: "الإشعارات", href: "/notifications", icon: Bell, roles: ["admin", "teacher", "parent"] },
 
     // المحفظ فقط
     { name: "الحضور والتقييم", href: "/attendance", icon: ClipboardCheck, roles: ["teacher"] },

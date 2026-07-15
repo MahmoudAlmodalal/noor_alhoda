@@ -30,6 +30,8 @@ export default function NotificationsPage() {
 
   const filtered = filter === "unread" ? items.filter((n) => !n.is_read) : items;
   const isAdmin = user?.role === "admin";
+  const isTeacher = user?.role === "teacher";
+  const canAnnounce = isAdmin || isTeacher;
 
   return (
     <div className="space-y-6 max-w-3xl mx-auto pb-10">
@@ -43,7 +45,7 @@ export default function NotificationsPage() {
             <p className="text-xs text-text-muted">{unreadCount} غير مقروءة</p>
           </div>
         </div>
-        {isAdmin && (
+        {canAnnounce && (
           <button
             type="button"
             onClick={() => setAnnounceOpen(true)}
@@ -120,7 +122,7 @@ export default function NotificationsPage() {
         </div>
       </div>
 
-      {isAdmin && (
+      {canAnnounce && (
         <AnnounceModal
           isOpen={announceOpen}
           onClose={() => setAnnounceOpen(false)}

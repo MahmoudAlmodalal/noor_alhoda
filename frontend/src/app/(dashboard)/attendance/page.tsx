@@ -143,6 +143,10 @@ function AttendanceContent() {
           achieved_verses: existing?.achieved_verses ?? 0,
           quality: existing?.quality ?? "none",
           note: existing?.note ?? "",
+          review_surah_name: existing?.review_surah_name ?? "",
+          review_from_ayah: existing?.review_from_ayah ?? "",
+          review_to_ayah: existing?.review_to_ayah ?? "",
+          review_quality: existing?.review_quality ?? "none",
           dirty: false,
         });
       });
@@ -218,6 +222,10 @@ function AttendanceContent() {
         achieved_verses: d.achieved_verses,
         quality: d.quality,
         note: d.note,
+        review_surah_name: d.review_surah_name,
+        review_from_ayah: d.review_from_ayah === "" ? null : Number(d.review_from_ayah),
+        review_to_ayah: d.review_to_ayah === "" ? null : Number(d.review_to_ayah),
+        review_quality: d.review_quality,
       };
       const res = existingId
         ? await runMutation({
