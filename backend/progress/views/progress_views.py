@@ -26,8 +26,9 @@ class ProgressOutputSerializer(serializers.Serializer):
     surah_number = serializers.IntegerField()
     surah_name = serializers.CharField()
     juz_number = serializers.IntegerField()
-    from_page = serializers.IntegerField(allow_null=True)
-    to_page = serializers.IntegerField(allow_null=True)
+    from_ayah = serializers.IntegerField(allow_null=True)
+    to_ayah = serializers.IntegerField(allow_null=True)
+    type = serializers.CharField()
     note = serializers.CharField(allow_blank=True)
     recorded_at = serializers.DateTimeField()
     created_at = serializers.DateTimeField()
@@ -38,8 +39,9 @@ class ProgressInputSerializer(serializers.Serializer):
     student_id = serializers.UUIDField()
     surah_number = serializers.IntegerField(min_value=1, max_value=114)
     juz_number = serializers.IntegerField(min_value=1, max_value=30)
-    from_page = serializers.IntegerField(required=False, allow_null=True, default=None)
-    to_page = serializers.IntegerField(required=False, allow_null=True, default=None)
+    from_ayah = serializers.IntegerField(required=False, allow_null=True, default=None)
+    to_ayah = serializers.IntegerField(required=False, allow_null=True, default=None)
+    type = serializers.ChoiceField(choices=["memorization", "revision"], required=False, default="memorization")
     note = serializers.CharField(required=False, allow_blank=True, default="")
 
 
@@ -50,8 +52,9 @@ class ProgressUpdateSerializer(serializers.Serializer):
     juz_number = serializers.IntegerField(
         min_value=1, max_value=30, required=False
     )
-    from_page = serializers.IntegerField(required=False, allow_null=True)
-    to_page = serializers.IntegerField(required=False, allow_null=True)
+    from_ayah = serializers.IntegerField(required=False, allow_null=True)
+    to_ayah = serializers.IntegerField(required=False, allow_null=True)
+    type = serializers.ChoiceField(choices=["memorization", "revision"], required=False)
     note = serializers.CharField(required=False, allow_blank=True)
 
 

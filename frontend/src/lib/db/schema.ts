@@ -16,7 +16,7 @@ import Dexie, { type EntityTable } from "dexie";
 import type { EncryptedBlob } from "./crypto";
 
 export const DB_NAME = "noor_alhuda_local";
-export const DB_VERSION = 5;
+export const DB_VERSION = 6;
 
 export interface EncryptedRow extends EncryptedBlob {
   id: string; // UUID (server-assigned)
@@ -286,6 +286,37 @@ export class LocalDb extends Dexie {
         outbox:
           "op_id, status, created_at, resource, target_id, [resource+target_id], next_retry_at",
         auth: "id",
+      });
+
+    // v6 — update progress table schema (from_page/to_page replaced by from_ayah/to_ayah and type).
+    // To prevent data corruption, we clear the progress table and set last_sync_at to null so
+    // a full pull is triggered.
+    this.version(6)
+      .stores({
+        users: "id, updated_at, national_id, role",
+        teachers: "id, updated_at, user_id",
+        parents: "id, updated_at, user_id",
+        parent_student_links: "id, updated_at, parent_id, student_id",
+        students: "id, updated_at, teacher_id, national_id",
+        weekly_plans: "id, updated_at, student_id, week_start",
+        daily_records:
+          "id, updated_at, weekly_plan_id, date, [weekly_plan_id+day]",
+        review_records: "id, updated_at, student_id, reviewed_date",
+        evaluations: "id, updated_at, student_id, scheduled_date, status",
+        notifications: "id, updated_at, recipient_id, is_read, created_at",
+        courses: "id, updated_at, name",
+        student_courses: "id, updated_at, student_id, course_id",
+        progress: "id, updated_at, student_id, recorded_at",
+        tombstones: "key, resource, deleted_at",
+        outbox:
+          "op_id, status, created_at, resource, target_id, [resource+target_id], next_retry_at",
+        auth: "id",
+      })
+      .upgrade(async (tx) => {
+        await tx.table("progress").clear();
+        await tx.table("auth").toCollection().modify((row) => {
+          row.last_sync_at = null;
+        });
       });
 
     // Handle IndexedDB version-upgrade blocks: if another tab holds an open

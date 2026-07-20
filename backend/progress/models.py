@@ -42,15 +42,25 @@ class StudentProgress(models.Model):
         validators=[MinValueValidator(1), MaxValueValidator(30)],
         verbose_name="رقم الجزء",
     )
-    from_page = models.PositiveIntegerField(
+    from_ayah = models.PositiveIntegerField(
         null=True,
         blank=True,
-        verbose_name="من صفحة",
+        verbose_name="من آية",
     )
-    to_page = models.PositiveIntegerField(
+    to_ayah = models.PositiveIntegerField(
         null=True,
         blank=True,
-        verbose_name="إلى صفحة",
+        verbose_name="إلى آية",
+    )
+    TYPE_CHOICES = [
+        ("memorization", "memorization"),
+        ("revision", "revision"),
+    ]
+    type = models.CharField(
+        max_length=20,
+        choices=TYPE_CHOICES,
+        default="memorization",
+        verbose_name="نوع التقدم",
     )
     note = models.TextField(
         blank=True,

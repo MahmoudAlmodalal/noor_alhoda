@@ -14,12 +14,14 @@ interface Props {
 export function ProgressForm({ studentId, onSuccess }: Props) {
   const [surahNumber, setSurahNumber] = useState<number | "">("");
   const [juzNumber, setJuzNumber] = useState<number | "">("");
-  const [fromPage, setFromPage] = useState<string>("");
-  const [toPage, setToPage] = useState<string>("");
+  const [fromAyah, setFromAyah] = useState<string>("");
+  const [toAyah, setToAyah] = useState<string>("");
+  const [errorMsg, setErrorMsg] = useState<string>("");
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [surahSearch, setSurahSearch] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
+  const [progressType, setProgressType] = useState<"memorization" | "revision">("memorization");
 
   // Auto-set juz when surah is selected
   const handleSurahSelect = useCallback((num: number) => {
@@ -30,6 +32,7 @@ export function ProgressForm({ studentId, onSuccess }: Props) {
     }
     setShowDropdown(false);
     setSurahSearch("");
+    setErrorMsg("");
   }, []);
 
   const filteredSurahs = useMemo(() => {
@@ -47,6 +50,37 @@ export function ProgressForm({ studentId, onSuccess }: Props) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!surahNumber || !juzNumber) return;
+
+    setErrorMsg("");
+
+    const fromNum = fromAyah ? parseInt(fromAyah) : null;
+    const toNum = toAyah ? parseInt(toAyah) : null;
+
+    if (fromNum !== null && (isNaN(fromNum) || fromNum < 1)) {
+      setErrorMsg("رقم الآية يجب أن يكون أكبر من الصفر.");
+      return;
+    }
+    if (toNum !== null && (isNaN(toNum) || toNum < 1)) {
+      setErrorMsg("رقم الآية يجب أن يكون أكبر من الصفر.");
+      return;
+    }
+
+    if (fromNum !== null && toNum !== null && fromNum > toNum) {
+      setErrorMsg("بداية الآية لا يمكن أن تكون أكبر من نهاية الآية.");
+      return;
+    }
+
+    if (selectedSurah) {
+      if (fromNum !== null && fromNum > selectedSurah.verses) {
+        setErrorMsg(`بداية الآية تتجاوز عدد آيات السورة (${selectedSurah.verses}).`);
+        return;
+      }
+      if (toNum !== null && toNum > selectedSurah.verses) {
+        setErrorMsg(`نهاية الآية تتجاوز عدد آيات السورة (${selectedSurah.verses}).`);
+        return;
+      }
+    }
+
     setSubmitting(true);
     try {
       const result = await runMutation({
@@ -56,19 +90,25 @@ export function ProgressForm({ studentId, onSuccess }: Props) {
           student_id: studentId,
           surah_number: surahNumber,
           juz_number: juzNumber,
-          from_page: fromPage ? parseInt(fromPage) : null,
-          to_page: toPage ? parseInt(toPage) : null,
+          from_ayah: fromNum,
+          to_ayah: toNum,
+          type: progressType,
           note,
         },
       });
       if (result.ok) {
         setSurahNumber("");
         setJuzNumber("");
-        setFromPage("");
-        setToPage("");
+        setFromAyah("");
+        setToAyah("");
+        setProgressType("memorization");
         setNote("");
         onSuccess?.();
+      } else {
+        setErrorMsg(result.error || "حدث خطأ أثناء حفظ التقدم.");
       }
+    } catch {
+      setErrorMsg("حدث خطأ أثناء حفظ التقدم.");
     } finally {
       setSubmitting(false);
     }
@@ -86,6 +126,45 @@ export function ProgressForm({ studentId, onSuccess }: Props) {
         <h3 className="text-[var(--text-h3)] font-bold leading-[var(--text-h3--line-height)] text-text-title">
           تسجيل تقدم جديد
         </h3>
+      </div>
+
+      {errorMsg && (
+        <div className="mb-4 rounded-[var(--radius-md)] border border-red-200 bg-red-50 p-3 text-[var(--text-small)] font-medium text-red-800">
+          {errorMsg}
+        </div>
+      )}
+
+      {/* Progress Type Segmented Toggle */}
+      <div className="mb-4">
+        <label className="mb-1.5 block text-[var(--text-small)] font-medium text-text-label">
+          نوع التقدم <span className="text-red-500">*</span>
+        </label>
+        <div className="inline-flex rounded-[var(--radius-md)] bg-surface-subtle p-1 border border-border-subtle gap-1">
+          <button
+            type="button"
+            onClick={() => setProgressType("memorization")}
+            className={cn(
+              "h-9 px-5 text-sm font-semibold rounded-[var(--radius-sm)] transition-all cursor-pointer",
+              progressType === "memorization"
+                ? "bg-white text-primary shadow-sm"
+                : "text-text-muted hover:text-text-body hover:bg-surface-subtle/80"
+            )}
+          >
+            حفظ
+          </button>
+          <button
+            type="button"
+            onClick={() => setProgressType("revision")}
+            className={cn(
+              "h-9 px-5 text-sm font-semibold rounded-[var(--radius-sm)] transition-all cursor-pointer",
+              progressType === "revision"
+                ? "bg-white text-primary shadow-sm"
+                : "text-text-muted hover:text-text-body hover:bg-surface-subtle/80"
+            )}
+          >
+            مراجعة
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -164,7 +243,10 @@ export function ProgressForm({ studentId, onSuccess }: Props) {
             <Hash className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
             <select
               value={juzNumber}
-              onChange={(e) => setJuzNumber(e.target.value ? parseInt(e.target.value) : "")}
+              onChange={(e) => {
+                setJuzNumber(e.target.value ? parseInt(e.target.value) : "");
+                setErrorMsg("");
+              }}
               className="h-11 w-full appearance-none rounded-[var(--radius-md)] border border-border-subtle bg-surface-subtle pe-3 ps-9 text-[var(--text-body)] text-text-title transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             >
               <option value="">اختر الجزء</option>
@@ -178,33 +260,39 @@ export function ProgressForm({ studentId, onSuccess }: Props) {
           </div>
         </div>
 
-        {/* From Page */}
+        {/* From Ayah */}
         <div>
           <label className="mb-1.5 block text-[var(--text-small)] font-medium text-text-label">
-            من صفحة
+            من آية
           </label>
           <input
             type="number"
             min="1"
-            max="604"
-            value={fromPage}
-            onChange={(e) => setFromPage(e.target.value)}
+            max={selectedSurah ? selectedSurah.verses : undefined}
+            value={fromAyah}
+            onChange={(e) => {
+              setFromAyah(e.target.value);
+              setErrorMsg("");
+            }}
             placeholder="اختياري"
             className="h-11 w-full rounded-[var(--radius-md)] border border-border-subtle bg-surface-subtle px-3 text-[var(--text-body)] text-text-title placeholder:text-text-placeholder transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
           />
         </div>
 
-        {/* To Page */}
+        {/* To Ayah */}
         <div>
           <label className="mb-1.5 block text-[var(--text-small)] font-medium text-text-label">
-            إلى صفحة
+            إلى آية
           </label>
           <input
             type="number"
             min="1"
-            max="604"
-            value={toPage}
-            onChange={(e) => setToPage(e.target.value)}
+            max={selectedSurah ? selectedSurah.verses : undefined}
+            value={toAyah}
+            onChange={(e) => {
+              setToAyah(e.target.value);
+              setErrorMsg("");
+            }}
             placeholder="اختياري"
             className="h-11 w-full rounded-[var(--radius-md)] border border-border-subtle bg-surface-subtle px-3 text-[var(--text-body)] text-text-title placeholder:text-text-placeholder transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
           />

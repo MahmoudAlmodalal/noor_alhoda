@@ -1,4 +1,6 @@
 # Environment variables / secrets
+.*
+specs
 .env
 .env.*
 !.env.example

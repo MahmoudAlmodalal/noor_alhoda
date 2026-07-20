@@ -47,6 +47,12 @@ export function ProgressTable({ entries }: Props) {
       switch (sortKey) {
         case "date":
           cmp = (a.recorded_at ?? "").localeCompare(b.recorded_at ?? "");
+          if (cmp === 0) {
+            cmp = (a.created_at ?? "").localeCompare(b.created_at ?? "");
+          }
+          if (cmp === 0) {
+            cmp = (a.updated_at ?? "").localeCompare(b.updated_at ?? "");
+          }
           break;
         case "surah":
           cmp = (a.surah_number ?? 0) - (b.surah_number ?? 0);
@@ -123,13 +129,16 @@ export function ProgressTable({ entries }: Props) {
                 <SortButton label="التاريخ" sortKeyVal="date" />
               </th>
               <th className="px-4 py-3 text-start">
+                <span className="text-[var(--text-micro)] font-bold text-text-muted">النوع</span>
+              </th>
+              <th className="px-4 py-3 text-start">
                 <SortButton label="السورة" sortKeyVal="surah" />
               </th>
               <th className="px-4 py-3 text-start">
                 <SortButton label="الجزء" sortKeyVal="juz" />
               </th>
               <th className="px-4 py-3 text-start">
-                <span className="text-[var(--text-micro)] font-bold text-text-muted">الصفحات</span>
+                <span className="text-[var(--text-micro)] font-bold text-text-muted">الآيات</span>
               </th>
               <th className="px-4 py-3 text-start">
                 <span className="text-[var(--text-micro)] font-bold text-text-muted">ملاحظة</span>
@@ -156,6 +165,17 @@ export function ProgressTable({ entries }: Props) {
                   </div>
                 </td>
                 <td className="px-4 py-3">
+                  {entry.type === "memorization" ? (
+                    <span className="inline-flex items-center rounded-full bg-[#eefbee] px-2.5 py-0.5 text-xs font-semibold text-[#2f944d]">
+                      حفظ
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center rounded-full bg-[#e3f2fd] px-2.5 py-0.5 text-xs font-semibold text-[#1e88e5]">
+                      مراجعة
+                    </span>
+                  )}
+                </td>
+                <td className="px-4 py-3">
                   <div className="flex items-center gap-2">
                     <span className="inline-flex h-6 min-w-[28px] items-center justify-center rounded-[var(--radius-xs)] bg-primary/10 px-1.5 text-[10px] font-bold text-primary">
                       {toArabicNumeral(entry.surah_number)}
@@ -172,14 +192,14 @@ export function ProgressTable({ entries }: Props) {
                   </span>
                 </td>
                 <td className="px-4 py-3">
-                  {entry.from_page || entry.to_page ? (
+                  {entry.from_ayah !== null && entry.from_ayah !== undefined && entry.to_ayah !== null && entry.to_ayah !== undefined ? (
                     <span className="inline-flex items-center gap-1 rounded-[var(--radius-sm)] bg-tile-blue px-2 py-0.5 text-[11px] font-bold text-primary">
-                      {entry.from_page && toArabicNumeral(entry.from_page)}
-                      {entry.from_page && entry.to_page && " → "}
-                      {entry.to_page && toArabicNumeral(entry.to_page)}
+                      {toArabicNumeral(entry.from_ayah)} ← {toArabicNumeral(entry.to_ayah)}
                     </span>
                   ) : (
-                    <span className="text-[var(--text-small)] text-text-muted">—</span>
+                    <span className="text-[var(--text-small)] text-text-muted">
+                      {entry.surah_name.startsWith("سورة") ? entry.surah_name : `سورة ${entry.surah_name}`}
+                    </span>
                   )}
                 </td>
                 <td className="max-w-[200px] px-4 py-3">

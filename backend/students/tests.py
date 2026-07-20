@@ -51,7 +51,7 @@ class StudentTestSetup(APITestCase):
 
         # Student A (belongs to teacher A)
         self.student_a_user = User.objects.create_user(
-            national_id="STU-A-001",
+            national_id="970590100031",
             phone_number="970590100030",
             password="secret123",
             role="student",
@@ -68,7 +68,7 @@ class StudentTestSetup(APITestCase):
 
         # Student B (belongs to teacher B)
         self.student_b_user = User.objects.create_user(
-            national_id="STU-B-001",
+            national_id="970590100041",
             phone_number="970590100040",
             password="secret123",
             role="student",
@@ -106,7 +106,7 @@ class StudentCreateTests(StudentTestSetup):
             "/api/students/create/",
             {
                 "full_name": "New Student",
-                "national_id": "NEW-001",
+                "national_id": "970590100201",
                 "birthdate": "2013-05-15",
                 "grade": "Grade 6",
                 "phone_number": "970590199999",
@@ -117,7 +117,7 @@ class StudentCreateTests(StudentTestSetup):
             format="json",
         )
         self.assertEqual(response.status_code, 201)
-        self.assertTrue(Student.objects.filter(user__national_id="NEW-001").exists())
+        self.assertTrue(Student.objects.filter(user__national_id="970590100201").exists())
 
     def test_non_admin_cannot_create_student(self):
         """STU-02: Non-admin gets 403."""
@@ -126,7 +126,7 @@ class StudentCreateTests(StudentTestSetup):
             "/api/students/create/",
             {
                 "full_name": "Blocked Student",
-                "national_id": "BLOCK-001",
+                "national_id": "970590100202",
                 "birthdate": "2013-01-01",
                 "grade": "Grade 7",
                 "phone_number": "970590199998",
@@ -142,7 +142,7 @@ class StudentCreateTests(StudentTestSetup):
             "/api/students/create/",
             {
                 "full_name": "Duplicate NID",
-                "national_id": "STU-A-001",
+                "national_id": "970590100031",
                 "birthdate": "2013-01-01",
                 "grade": "Grade 7",
                 "phone_number": "970590199997",
@@ -221,7 +221,7 @@ class StudentOperationsTests(StudentTestSetup):
         """STU-12 / Feature 2.4: Assign teacher checks max_students limit."""
         # Teacher B has max_students=2, already has 1 student
         extra_user = User.objects.create_user(
-            national_id="EX-001",
+            national_id="970590100060",
             phone_number="970590100060", password="s", role="student",
         )
         Student.objects.create(
@@ -306,11 +306,11 @@ class StudentListScopeTests(StudentTestSetup):
 
     def test_student_list_search_by_national_id(self):
         self.client.force_authenticate(self.admin)
-        response = self.client.get(STUDENTS_URL + "?search=STU-B-001")
+        response = self.client.get(STUDENTS_URL + "?search=970590100041")
         self.assertEqual(response.status_code, 200)
         results = response.data["data"]
         self.assertEqual(len(results), 1)
-        self.assertEqual(results[0]["national_id"], "STU-B-001")
+        self.assertEqual(results[0]["national_id"], "970590100041")
 
     def test_teacher_id_filter_scopes_results(self):
         self.client.force_authenticate(self.admin)
@@ -332,7 +332,7 @@ class StudentListScopeTests(StudentTestSetup):
     def test_paginated_list_returns_metadata_and_25_rows(self):
         for idx in range(30):
             extra_user = User.objects.create_user(
-                national_id=f"STU-EX-{idx:03d}",
+                national_id=f"97059011{idx:04d}",
                 phone_number=f"0599200{idx:03d}"[:10],
                 password="secret123",
                 role="student",
@@ -375,7 +375,7 @@ class StudentCreateContractTests(StudentTestSetup):
     def _valid_payload(self, **overrides):
         payload = {
             "full_name": "Contract Student",
-            "national_id": "CT-001",
+            "national_id": "970590100301",
             "birthdate": "2013-05-15",
             "grade": "Grade 6",
             "phone_number": "970590198880",
@@ -390,7 +390,7 @@ class StudentCreateContractTests(StudentTestSetup):
         response = self.client.post(
             STUDENT_CREATE_URL,
             self._valid_payload(
-                national_id="CT-OPT-1",
+                national_id="970590100302",
                 bank_account_number="123",
                 bank_account_name="Name",
                 bank_account_type="Savings",
@@ -401,21 +401,21 @@ class StudentCreateContractTests(StudentTestSetup):
             format="json",
         )
         self.assertEqual(response.status_code, 201)
-        student = Student.objects.get(user__national_id="CT-OPT-1")
+        student = Student.objects.get(user__national_id="970590100302")
         self.assertEqual(student.bank_account_number, "123")
         self.assertEqual(student.health_status, "sick")
         self.assertEqual(student.skills.get("quran"), True)
 
     def test_missing_required_full_name_rejected(self):
         self.client.force_authenticate(self.admin)
-        payload = self._valid_payload(national_id="CT-002")
+        payload = self._valid_payload(national_id="970590100303")
         del payload["full_name"]
         response = self.client.post(STUDENT_CREATE_URL, payload, format="json")
         self.assertEqual(response.status_code, 400)
 
     def test_missing_guardian_mobile_rejected(self):
         self.client.force_authenticate(self.admin)
-        payload = self._valid_payload(national_id="CT-003")
+        payload = self._valid_payload(national_id="970590100304")
         del payload["guardian_mobile"]
         response = self.client.post(STUDENT_CREATE_URL, payload, format="json")
         self.assertEqual(response.status_code, 400)
@@ -425,7 +425,7 @@ class StudentCreateContractTests(StudentTestSetup):
         response = self.client.post(
             STUDENT_CREATE_URL,
             self._valid_payload(
-                national_id="CT-004",
+                national_id="970590100305",
                 teacher_id=str(uuid.uuid4()),
             ),
             format="json",
@@ -435,7 +435,7 @@ class StudentCreateContractTests(StudentTestSetup):
     def test_unauthenticated_create_401(self):
         response = self.client.post(
             STUDENT_CREATE_URL,
-            self._valid_payload(national_id="CT-005"),
+            self._valid_payload(national_id="970590100306"),
             format="json",
         )
         self.assertEqual(response.status_code, 401)
@@ -444,13 +444,13 @@ class StudentCreateContractTests(StudentTestSetup):
 class StudentBulkCreateTests(StudentTestSetup):
     def _row(self, **overrides):
         row = {
-            "national_id": "BULK-001",
+            "national_id": "970590100401",
             "full_name": "Bulk Student",
             "birthdate": "10/10/2013",
             "grade": "7",
             "guardian_name": "Parent",
             "guardian_mobile": "0599912345",
-            "guardian_national_id": "G-BULK-001",
+            "guardian_national_id": "970590100402",
             "teacher_name": self.teacher_a.full_name,
             "desired_courses": "تجويد",
         }
@@ -477,7 +477,7 @@ class StudentBulkCreateTests(StudentTestSetup):
         data = response.data["data"]
         self.assertEqual(data["created_count"], 1)
         self.assertEqual(data["error_count"], 0)
-        student = Student.objects.get(user__national_id="BULK-001")
+        student = Student.objects.get(user__national_id="970590100401")
         self.assertTrue(ParentStudentLink.objects.filter(student=student).exists())
         self.assertTrue(StudentCourse.objects.filter(student=student).exists())
 
@@ -516,17 +516,17 @@ class StudentBulkCreateTests(StudentTestSetup):
         self.client.force_authenticate(self.admin)
         self.client.post(
             STUDENT_BULK_CREATE_URL,
-            {"rows": [self._row(national_id="BULK-T1")]},
+            {"rows": [self._row(national_id="970590100403")]},
             format="json",
         )
-        student = Student.objects.get(user__national_id="BULK-T1")
+        student = Student.objects.get(user__national_id="970590100403")
         self.assertEqual(student.teacher, self.teacher_a)
 
     def test_teacher_auto_create_when_missing(self):
         self.client.force_authenticate(self.admin)
         response = self.client.post(
             STUDENT_BULK_CREATE_URL,
-            {"rows": [self._row(national_id="BULK-T2", teacher_name="New Bulk Teacher")]},
+            {"rows": [self._row(national_id="970590100404", teacher_name="New Bulk Teacher")]},
             format="json",
         )
         self.assertEqual(response.status_code, 201)
@@ -534,8 +534,8 @@ class StudentBulkCreateTests(StudentTestSetup):
 
     def test_row_level_errors_collected_without_aborting(self):
         self.client.force_authenticate(self.admin)
-        good = self._row(national_id="BULK-OK-1")
-        bad = self._row(national_id="BULK-BAD-1", birthdate="not-a-date")
+        good = self._row(national_id="970590100405")
+        bad = self._row(national_id="970590100406", birthdate="not-a-date")
         # student_create's full_clean on a raw invalid date raises — bulk handler should surface the row.
         response = self.client.post(
             STUDENT_BULK_CREATE_URL, {"rows": [good, bad]}, format="json"
@@ -551,7 +551,7 @@ class StudentBulkCreateTests(StudentTestSetup):
             {
                 "rows": [
                     self._row(
-                        national_id="BULK-AFF-1",
+                        national_id="970590100407",
                         teacher_name=self.teacher_a.full_name,
                         affiliation="دار القراءن",
                     )
@@ -570,7 +570,7 @@ class StudentBulkCreateTests(StudentTestSetup):
             {
                 "rows": [
                     self._row(
-                        national_id="BULK-SKILLS-1",
+                        national_id="970590100408",
                         skills="قراءة القرآن/ انشاد/ كرة قدم",
                     )
                 ]
@@ -578,7 +578,7 @@ class StudentBulkCreateTests(StudentTestSetup):
             format="json",
         )
         self.assertEqual(response.status_code, 201)
-        student = Student.objects.get(user__national_id="BULK-SKILLS-1")
+        student = Student.objects.get(user__national_id="970590100408")
         self.assertTrue(student.skills["quran"])
         self.assertTrue(student.skills["nasheed"])
         self.assertTrue(student.skills["other"])
@@ -588,7 +588,7 @@ class StudentBulkCreateTests(StudentTestSetup):
         alias_course = Course.objects.create(name="النوارنية", description="")
         placeholder_course = Course.objects.create(name="لايوجد", description="")
         existing_user = User.objects.create_user(
-            national_id="BULK-EXIST-1",
+            national_id="970590100409",
             phone_number="0599100080",
             password="secret123",
             role="student",
@@ -612,7 +612,7 @@ class StudentBulkCreateTests(StudentTestSetup):
             {
                 "rows": [
                     self._row(
-                        national_id="BULK-EXIST-1",
+                        national_id="970590100409",
                         full_name="Existing Bulk Student",
                         birthdate="12/12/2013",
                         grade="السابع",
@@ -647,7 +647,7 @@ class StudentBulkCreateTests(StudentTestSetup):
         self.client.force_authenticate(self.admin)
         response = self.client.post(
             STUDENT_BULK_CREATE_URL,
-            {"rows": [self._row(national_id="BULK-NO-COURSE", desired_courses="لايوجد")]},
+            {"rows": [self._row(national_id="970590100410", desired_courses="لايوجد")]},
             format="json",
         )
         self.assertEqual(response.status_code, 201)
@@ -1049,7 +1049,7 @@ class ChangeRequestTests(StudentTestSetup):
     def test_assign_approval_enforces_max_students_capacity(self):
         # teacher_b's capacity is 2, already has student_b assigned.
         third_student_user = User.objects.create_user(
-            national_id="STU-C-001", phone_number="970590100060",
+            national_id="970590100062", phone_number="970590100060",
             password="secret123", role="student",
         )
         third_student = Student.objects.create(
@@ -1058,7 +1058,7 @@ class ChangeRequestTests(StudentTestSetup):
             guardian_name="Guardian C", guardian_mobile="0599000003",
         )
         fourth_student_user = User.objects.create_user(
-            national_id="STU-D-001", phone_number="970590100070",
+            national_id="970590100072", phone_number="970590100070",
             password="secret123", role="student",
         )
         fourth_student = Student.objects.create(

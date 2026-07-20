@@ -22,8 +22,9 @@ def progress_create(
     surah_number: int,
     juz_number: int,
     note: str = "",
-    from_page=None,
-    to_page=None,
+    from_ayah=None,
+    to_ayah=None,
+    type: str = "memorization",
     id=None,
 ) -> StudentProgress:
     """Create a new progress entry for a student."""
@@ -53,6 +54,23 @@ def progress_create(
     if not (1 <= juz_number <= 30):
         raise ValidationError({"juz_number": "رقم الجزء غير صحيح (1–30)."})
 
+    # Validate ayah range
+    if from_ayah is not None and to_ayah is not None:
+        if int(from_ayah) > int(to_ayah):
+            raise ValidationError({"from_ayah": "بداية الآية لا يمكن أن تكون أكبر من نهاية الآية."})
+
+    if from_ayah is not None:
+        if int(from_ayah) < 1:
+            raise ValidationError({"from_ayah": "رقم الآية يجب أن يكون أكبر من الصفر."})
+        if int(from_ayah) > surah_data["verses"]:
+            raise ValidationError({"from_ayah": "بداية الآية تتجاوز عدد آيات السورة."})
+
+    if to_ayah is not None:
+        if int(to_ayah) < 1:
+            raise ValidationError({"to_ayah": "رقم الآية يجب أن يكون أكبر من الصفر."})
+        if int(to_ayah) > surah_data["verses"]:
+            raise ValidationError({"to_ayah": "نهاية الآية تتجاوز عدد آيات السورة."})
+
     # Resolve teacher profile
     teacher = getattr(actor, "teacher_profile", None)
 
@@ -63,12 +81,13 @@ def progress_create(
         "surah_name": surah_data["name_ar"],
         "juz_number": juz_number,
         "note": note or "",
+        "type": type,
     }
 
-    if from_page is not None:
-        kwargs["from_page"] = int(from_page)
-    if to_page is not None:
-        kwargs["to_page"] = int(to_page)
+    if from_ayah is not None:
+        kwargs["from_ayah"] = int(from_ayah)
+    if to_ayah is not None:
+        kwargs["to_ayah"] = int(to_ayah)
     if id is not None:
         kwargs["id"] = id
 
@@ -95,7 +114,7 @@ def progress_update(
         if str(progress.student.teacher_id) != str(actor.teacher_profile.id):
             raise PermissionDenied("لا يمكنك تعديل تقدم طالب ليس من حلقتك.")
 
-    allowed_fields = {"surah_number", "juz_number", "note", "from_page", "to_page"}
+    allowed_fields = {"surah_number", "juz_number", "note", "from_ayah", "to_ayah", "type"}
     update_fields = []
 
     for key, value in data.items():
@@ -116,12 +135,36 @@ def progress_update(
         elif key == "note":
             progress.note = str(value)
             update_fields.append("note")
-        elif key == "from_page":
-            progress.from_page = int(value) if value is not None else None
-            update_fields.append("from_page")
-        elif key == "to_page":
-            progress.to_page = int(value) if value is not None else None
-            update_fields.append("to_page")
+        elif key == "from_ayah":
+            progress.from_ayah = int(value) if value is not None else None
+            update_fields.append("from_ayah")
+        elif key == "to_ayah":
+            progress.to_ayah = int(value) if value is not None else None
+            update_fields.append("to_ayah")
+        elif key == "type":
+            progress.type = str(value)
+            update_fields.append("type")
+
+    # Validate the final state of the ayah range and surah number
+    surah_data = SURAH_BY_NUMBER.get(progress.surah_number)
+    if not surah_data:
+        raise ValidationError({"surah_number": "رقم السورة غير صحيح (1–114)."})
+
+    if progress.from_ayah is not None and progress.to_ayah is not None:
+        if progress.from_ayah > progress.to_ayah:
+            raise ValidationError({"from_ayah": "بداية الآية لا يمكن أن تكون أكبر من نهاية الآية."})
+
+    if progress.from_ayah is not None:
+        if progress.from_ayah < 1:
+            raise ValidationError({"from_ayah": "رقم الآية يجب أن يكون أكبر من الصفر."})
+        if progress.from_ayah > surah_data["verses"]:
+            raise ValidationError({"from_ayah": "بداية الآية تتجاوز عدد آيات السورة."})
+
+    if progress.to_ayah is not None:
+        if progress.to_ayah < 1:
+            raise ValidationError({"to_ayah": "رقم الآية يجب أن يكون أكبر من الصفر."})
+        if progress.to_ayah > surah_data["verses"]:
+            raise ValidationError({"to_ayah": "نهاية الآية تتجاوز عدد آيات السورة."})
 
     if update_fields:
         update_fields.append("updated_at")

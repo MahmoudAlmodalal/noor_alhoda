@@ -860,8 +860,9 @@ def _push_progress_create(*, actor: User, op: dict) -> dict:
         surah_number=int(data.get("surah_number", 1)),
         juz_number=int(data.get("juz_number", 1)),
         note=data.get("note", ""),
-        from_page=data.get("from_page"),
-        to_page=data.get("to_page"),
+        from_ayah=data.get("from_ayah"),
+        to_ayah=data.get("to_ayah"),
+        type=data.get("type", "memorization"),
     )
     return {
         "client_id": op.get("client_id"),

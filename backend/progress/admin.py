@@ -10,8 +10,9 @@ class StudentProgressAdmin(admin.ModelAdmin):
         "surah_name",
         "surah_number",
         "juz_number",
-        "from_page",
-        "to_page",
+        "from_ayah",
+        "to_ayah",
+        "type",
         "recorded_at",
     ]
     list_filter = ["juz_number", "recorded_at"]

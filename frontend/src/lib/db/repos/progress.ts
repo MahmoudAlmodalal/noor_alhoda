@@ -8,12 +8,15 @@ export interface ProgressRecord {
   surah_number: number;
   surah_name: string;
   juz_number: number;
-  from_page: number | null;
-  to_page: number | null;
+  from_ayah: number | null;
+  to_ayah: number | null;
+  type: "memorization" | "revision";
   note: string;
   recorded_at: string | null;
   created_at: string | null;
   updated_at: string | null;
+  from_page?: number | null;
+  to_page?: number | null;
 }
 
 export async function upsertProgress(p: ProgressRecord): Promise<void> {
