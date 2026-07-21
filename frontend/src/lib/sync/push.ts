@@ -48,7 +48,7 @@ export interface PushResult {
 interface PushWireOp {
   client_id: string;
   resource: string;
-  op: "create" | "update" | "delete";
+  op: "create" | "update" | "delete" | "direct_message";
   id: string;
   data: unknown;
   base_updated_at: string | null;

@@ -3,6 +3,7 @@ Notification Tests
 Covers: FR-17, FR-18, FR-20
 """
 from datetime import date
+import uuid
 
 from rest_framework.test import APITestCase
 
@@ -157,12 +158,6 @@ class AbsenceNotificationServiceTests(NotificationTestSetup):
         self.assertEqual(
             Notification.objects.filter(type="absence").count(), 2,
         )
-
-
-# ==========================================================================
-# Extended coverage — plan: endpoint matrix for /api/notifications/
-# ==========================================================================
-import uuid
 
 
 NOTIFICATIONS_URL = "/api/notifications/"

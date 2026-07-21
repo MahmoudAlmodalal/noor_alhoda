@@ -100,7 +100,7 @@ export interface TombstoneRow {
 export interface OutboxRow {
   op_id: string; // UUIDv4 generated client-side
   resource: string;
-  action: "create" | "update" | "delete";
+  action: "create" | "update" | "delete" | "direct_message";
   target_id: string; // UUID of the record this op targets (client-minted for create)
   payload_iv: string; // EncryptedBlob split into indexable columns
   payload_ct: string;

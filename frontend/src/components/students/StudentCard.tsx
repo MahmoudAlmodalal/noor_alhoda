@@ -7,6 +7,7 @@ import {
   Edit,
   FileText,
   IdCard,
+  MessageSquare,
   Phone,
   Trash2,
   UserCog,
@@ -33,6 +34,7 @@ interface StudentCardProps {
   onEdit: () => void;
   onDelete: () => void;
   onDownloadPdf: () => void;
+  onSendMessage?: () => void;
   animationDelay?: number;
 }
 
@@ -46,6 +48,7 @@ export function StudentCard({
   onEdit,
   onDelete,
   onDownloadPdf,
+  onSendMessage,
   animationDelay = 0,
 }: StudentCardProps) {
   const memorized = student.memorized_ajza_count ?? 0;
@@ -154,6 +157,18 @@ export function StudentCard({
           عرض التفاصيل
           <ArrowLeft className="h-3.5 w-3.5" />
         </Link>
+        {onSendMessage ? (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-10 w-10 rounded-[12px] text-text-muted hover:bg-emerald-50 hover:text-emerald-600"
+            onClick={onSendMessage}
+            aria-label={`إرسال رسالة للطالب ${student.full_name}`}
+            title="إرسال رسالة خاصة"
+          >
+            <MessageSquare className="h-[18px] w-[18px]" />
+          </Button>
+        ) : null}
         <Button
           variant="ghost"
           size="icon"

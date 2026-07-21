@@ -8,7 +8,7 @@ import { encryptRecord, decryptRecord, getSessionKey } from "@/lib/db/auth";
 import { getDb, type OutboxRow } from "@/lib/db/schema";
 import { emitChange, type ResourceName } from "@/lib/db/events";
 
-export type OutboxAction = "create" | "update" | "delete";
+export type OutboxAction = "create" | "update" | "delete" | "direct_message";
 
 // Auto-retry policy for errored ops. After MAX_ATTEMPTS the op stops
 // auto-retrying (next_retry_at = null) and remains visible for manual

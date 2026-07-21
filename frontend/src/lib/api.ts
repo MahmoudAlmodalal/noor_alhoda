@@ -517,4 +517,78 @@ export const api = {
       method: "GET",
     });
   },
+
+  sendDirectStudentMessage,
 };
+
+export interface DirectMessageParams {
+  student_id?: string;
+  studentId?: string;
+  title: string;
+  body: string;
+}
+
+export interface DirectMessageResponseData {
+  student_id: string;
+  notifications_created: number;
+  recipients_count: number;
+}
+
+export async function sendDirectStudentMessage(
+  params: DirectMessageParams
+): Promise<ApiResponse<DirectMessageResponseData>> {
+  const studentId = params.student_id || params.studentId || "";
+  const payload = {
+    student_id: studentId,
+    title: params.title,
+    body: params.body,
+  };
+
+  if (typeof navigator !== "undefined" && navigator.onLine !== false) {
+    try {
+      const res = await api.post<DirectMessageResponseData>(
+        "/api/notifications/direct-message/",
+        payload
+      );
+      if (res.success || (res.error && res.error.code !== 0)) {
+        return res;
+      }
+    } catch {
+      // Network failure, fallback to offline outbox queue
+    }
+  }
+
+  try {
+    const { enqueueOp } = await import("@/lib/sync/outbox");
+    await enqueueOp({
+      resource: "notification",
+      action: "direct_message",
+      target_id: studentId,
+      payload,
+      base_updated_at: null,
+      client_updated_at: new Date().toISOString(),
+    });
+
+    return {
+      success: true,
+      message: "تم حفظ الرسالة في صندوق الصادر للمزامنة عند توفر الاتصال.",
+      data: {
+        student_id: studentId,
+        notifications_created: 0,
+        recipients_count: 0,
+      },
+    };
+  } catch (err) {
+    return {
+      success: false,
+      error: {
+        code: 0,
+        message:
+          err instanceof Error
+            ? err.message
+            : "فشل حفظ الرسالة في صندوق الصادر.",
+      },
+    };
+  }
+}
+

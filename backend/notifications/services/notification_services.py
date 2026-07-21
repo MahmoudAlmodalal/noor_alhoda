@@ -2,12 +2,15 @@ from urllib.parse import quote
 
 from django.db import transaction
 from django.shortcuts import get_object_or_404
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import NotFound, PermissionDenied
 
 from notifications.models import Notification
 from notifications.selectors.notification_selectors import (
     announcement_recipients,
+    parent_users_get_for_student,
     parents_of_student_with_phone,
+    student_get_by_id,
+    teacher_can_message_student,
 )
 from accounts.models import User
 from core.permissions import is_admin_user
@@ -97,3 +100,53 @@ def send_absence_notification(*, student, date) -> dict:
     # TODO: Send FCM push notification via Firebase in production
 
     return result
+
+
+@transaction.atomic
+def direct_message_send(
+    *,
+    sender: User,
+    student_id: str,
+    title: str,
+    body: str,
+) -> dict:
+    """
+    Send a targeted private message to a specified student and linked parent account(s).
+    Enforces teacher circle RBAC (admin users bypass circle check).
+    """
+    student = student_get_by_id(student_id)
+    if not student:
+        raise NotFound("الطالب غير موجود.")
+
+    if not is_admin_user(sender):
+        if not teacher_can_message_student(sender, student=student):
+            raise PermissionDenied("ليس لديك صلاحية لإرسال رسالة مباشرة لهذا الطالب (خارج حلقتك).")
+
+    recipients: list[User] = []
+    student_user = getattr(student, "user", None)
+    if student_user:
+        recipients.append(student_user)
+
+    parent_users = parent_users_get_for_student(student=student)
+    for p_user in parent_users:
+        if p_user not in recipients:
+            recipients.append(p_user)
+
+    notifications = [
+        Notification(
+            recipient=user,
+            type=Notification.NotificationType.DIRECT_MESSAGE,
+            title=title,
+            body=body,
+        )
+        for user in recipients
+    ]
+    if notifications:
+        Notification.objects.bulk_create(notifications)
+
+    return {
+        "student_id": str(student.id),
+        "notifications_created": len(notifications),
+        "recipients_count": len(recipients),
+    }
+

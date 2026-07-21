@@ -5,6 +5,7 @@ from notifications.views.notification_views import (
     NotificationMarkReadApi,
     NotificationMarkAllReadApi,
     AnnouncementCreateApi,
+    DirectMessageCreateApi,
 )
 
 urlpatterns = [
@@ -12,4 +13,6 @@ urlpatterns = [
     path("<uuid:notification_id>/read/", NotificationMarkReadApi.as_view(), name="notification-read"),
     path("read-all/", NotificationMarkAllReadApi.as_view(), name="notification-read-all"),
     path("announce/", AnnouncementCreateApi.as_view(), name="announcement-create"),
+    path("direct-message/", DirectMessageCreateApi.as_view(), name="direct-message-create"),
 ]
+

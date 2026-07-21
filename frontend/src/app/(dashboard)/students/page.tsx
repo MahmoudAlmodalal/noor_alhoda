@@ -19,6 +19,7 @@ import type { StudentsOverviewStats } from "@/lib/db/repos/aggregates";
 import { api } from "@/lib/api";
 import { StudentsHeroStats } from "@/components/students/StudentsHeroStats";
 import { StudentCard } from "@/components/students/StudentCard";
+import { DirectMessageModal } from "@/components/notifications/DirectMessageModal";
 import {
   AssignStudentModal,
   EditStudentModal,
@@ -105,6 +106,8 @@ export default function StudentsPage() {
   const [deleteRequestTarget, setDeleteRequestTarget] =
     useState<StudentWithTeacher | null>(null);
   const [showAssignRequestModal, setShowAssignRequestModal] = useState(false);
+  const [messageStudent, setMessageStudent] =
+    useState<StudentWithTeacher | null>(null);
 
   const hasFilters = Boolean(
     debouncedSearch || teacherFilter || courseFilter || gradeFilter
@@ -321,6 +324,7 @@ export default function StudentsPage() {
               onEdit={() => setEditStudent(student)}
               onDelete={() => setDeleteStudent(student)}
               onDownloadPdf={() => handleDownloadPdf(student)}
+              onSendMessage={() => setMessageStudent(student)}
               animationDelay={idx * 40}
             />
           ))}
@@ -390,6 +394,16 @@ export default function StudentsPage() {
           isOpen={showAssignRequestModal}
           onClose={() => setShowAssignRequestModal(false)}
           onSuccess={() => setShowAssignRequestModal(false)}
+        />
+      ) : null}
+
+      {messageStudent ? (
+        <DirectMessageModal
+          isOpen={!!messageStudent}
+          onClose={() => setMessageStudent(null)}
+          studentId={messageStudent.id}
+          studentName={messageStudent.full_name}
+          onSent={() => setMessageStudent(null)}
         />
       ) : null}
     </div>

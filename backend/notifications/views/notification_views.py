@@ -12,6 +12,7 @@ from notifications.services.notification_services import (
     notification_mark_read,
     notification_mark_all_read,
     announcement_send,
+    direct_message_send,
 )
 
 
@@ -115,3 +116,39 @@ class AnnouncementCreateApi(APIView):
             {"success": True, "message": f"تم إرسال الإعلان إلى {count} مستخدم."},
             status=status.HTTP_201_CREATED,
         )
+
+
+# ---------------------------------------------------------------------------
+# Direct Message
+# ---------------------------------------------------------------------------
+class DirectMessageInputSerializer(serializers.Serializer):
+    student_id = serializers.UUIDField()
+    title = serializers.CharField(max_length=200, min_length=1)
+    body = serializers.CharField(min_length=1)
+
+
+class DirectMessageCreateApi(APIView):
+    """POST /api/notifications/direct-message/ — إرسال رسالة خاصة لطالب"""
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = DirectMessageInputSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        result = direct_message_send(
+            sender=request.user,
+            student_id=serializer.validated_data["student_id"],
+            title=serializer.validated_data["title"],
+            body=serializer.validated_data["body"],
+        )
+
+        return Response(
+            {
+                "success": True,
+                "message": f"تم إرسال الرسالة بنجاح إلى {result['recipients_count']} مستلم.",
+                "data": result,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
