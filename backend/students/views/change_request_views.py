@@ -97,13 +97,21 @@ class ChangeRequestListCreateApi(APIView):
         )
 
 
+class ChangeRequestApproveSerializer(serializers.Serializer):
+    note = serializers.CharField(required=False, allow_blank=True, default="")
+
+
 class ChangeRequestApproveApi(APIView):
     """POST /api/students/teacher-requests/<id>/approve/ — موافقة (مدير فقط)"""
 
     permission_classes = [IsAdmin]
 
     def post(self, request, request_id):
-        req = student_change_request_approve(actor=request.user, request_id=request_id)
+        serializer = ChangeRequestApproveSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        note = serializer.validated_data.get("note", "")
+
+        req = student_change_request_approve(actor=request.user, request_id=request_id, note=note)
         return Response(
             {"success": True, "data": ChangeRequestOutputSerializer(req).data},
             status=status.HTTP_200_OK,

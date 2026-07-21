@@ -207,15 +207,17 @@ class StudentRBACTests(StudentTestSetup):
 
 
 class StudentOperationsTests(StudentTestSetup):
-    def test_admin_hard_deletes_student(self):
-        """STU-11 / Feature 2.5: Hard-delete removes student and user."""
+    def test_admin_soft_deletes_student(self):
+        """STU-11 / Feature 2.5: Soft-delete deactivates user and unassigns teacher."""
         self.client.force_authenticate(self.admin)
         student_id = self.student_a.id
         user_id = self.student_a.user.id
         response = self.client.delete(f"/api/students/{student_id}/")
         self.assertEqual(response.status_code, 200)
-        self.assertFalse(Student.objects.filter(id=student_id).exists())
-        self.assertFalse(User.objects.filter(id=user_id).exists())
+        
+        student = Student.objects.get(id=student_id)
+        self.assertFalse(student.user.is_active)
+        self.assertIsNone(student.teacher)
 
     def test_admin_assigns_teacher_respects_max_students(self):
         """STU-12 / Feature 2.4: Assign teacher checks max_students limit."""
@@ -791,12 +793,13 @@ class StudentDeleteExtendedTests(StudentTestSetup):
         response = self.client.delete(f"{STUDENTS_URL}{uuid.uuid4()}/")
         self.assertEqual(response.status_code, 404)
 
-    def test_delete_cascades_to_linked_user(self):
+    def test_delete_soft_deactivates_user(self):
         self.client.force_authenticate(self.admin)
-        user_id = self.student_a.user.id
         self.client.delete(f"{STUDENTS_URL}{self.student_a.id}/")
-        self.assertFalse(User.objects.filter(id=user_id).exists())
-        self.assertFalse(Student.objects.filter(id=self.student_a.id).exists())
+        self.student_a.refresh_from_db()
+        self.student_a.user.refresh_from_db()
+        self.assertFalse(self.student_a.user.is_active)
+        self.assertIsNone(self.student_a.teacher)
 
 
 class StudentHistoryTests(StudentTestSetup):
@@ -1001,10 +1004,24 @@ class ChangeRequestTests(StudentTestSetup):
         request_id = create_resp.data["data"]["id"]
 
         self.client.force_authenticate(self.admin)
-        response = self.client.post(f"{CHANGE_REQUESTS_URL}{request_id}/approve/")
+        response = self.client.post(
+            f"{CHANGE_REQUESTS_URL}{request_id}/approve/",
+            {"note": "Approved during weekly roster review."},
+            format="json",
+        )
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["data"]["status"], "approved")
+        self.assertEqual(response.data["data"]["note"], "Approved during weekly roster review.")
         self.student_a.refresh_from_db()
         self.assertIsNone(self.student_a.teacher_id)
+
+        # Check notification dispatch
+        from notifications.models import Notification
+        notif = Notification.objects.filter(recipient=self.teacher_a_user, type="teacher_request").last()
+        self.assertIsNotNone(notif)
+        self.assertEqual(notif.title, "تمت الموافقة على طلبك")
+        self.assertIn("إزالة من حلقتي", notif.body)
+        self.assertIn("Approved during weekly roster review.", notif.body)
 
     def test_admin_rejects_request_with_note(self):
         self.client.force_authenticate(self.teacher_a_user)
@@ -1026,6 +1043,35 @@ class ChangeRequestTests(StudentTestSetup):
         self.assertEqual(response.data["data"]["note"], "still needs this student")
         self.student_a.refresh_from_db()
         self.assertEqual(self.student_a.teacher_id, self.teacher_a.id)  # unchanged
+
+        # Check notification dispatch
+        from notifications.models import Notification
+        notif = Notification.objects.filter(recipient=self.teacher_a_user, type="teacher_request").last()
+        self.assertIsNotNone(notif)
+        self.assertEqual(notif.title, "تم رفض طلبك")
+        self.assertIn("still needs this student", notif.body)
+
+    def test_non_admin_cannot_approve_or_reject_requests(self):
+        self.client.force_authenticate(self.teacher_a_user)
+        create_resp = self.client.post(
+            CHANGE_REQUESTS_URL,
+            {"action": "unassign", "student_id": str(self.student_a.id)},
+            format="json",
+        )
+        request_id = create_resp.data["data"]["id"]
+
+        # Teacher B tries to approve
+        self.client.force_authenticate(self.teacher_b_user)
+        approve_resp = self.client.post(f"{CHANGE_REQUESTS_URL}{request_id}/approve/")
+        self.assertEqual(approve_resp.status_code, 403)
+
+        # Teacher B tries to reject
+        reject_resp = self.client.post(
+            f"{CHANGE_REQUESTS_URL}{request_id}/reject/",
+            {"note": "forbidden"},
+            format="json",
+        )
+        self.assertEqual(reject_resp.status_code, 403)
 
     # -- assign (transfer, including from another teacher) --------------
     def test_teacher_requests_assign_student_from_another_teacher(self):
@@ -1136,7 +1182,7 @@ class ChangeRequestTests(StudentTestSetup):
         self.assertEqual(reject.status_code, 200)
         self.assertTrue(Student.objects.filter(id=self.student_a.id).exists())
 
-    def test_teacher_requests_delete_then_admin_approves_deletes_student(self):
+    def test_teacher_requests_delete_then_admin_approves_soft_deletes_student(self):
         self.client.force_authenticate(self.teacher_a_user)
         response = self.client.post(
             CHANGE_REQUESTS_URL,
@@ -1148,7 +1194,19 @@ class ChangeRequestTests(StudentTestSetup):
         self.client.force_authenticate(self.admin)
         approve = self.client.post(f"{CHANGE_REQUESTS_URL}{request_id}/approve/")
         self.assertEqual(approve.status_code, 200)
-        self.assertFalse(Student.objects.filter(id=self.student_a.id).exists())
+        self.student_a.refresh_from_db()
+        self.student_a.user.refresh_from_db()
+        self.assertFalse(self.student_a.user.is_active)
+        self.assertIsNone(self.student_a.teacher)
+
+    def test_teacher_cannot_request_delete_for_foreign_student(self):
+        self.client.force_authenticate(self.teacher_a_user)
+        response = self.client.post(
+            CHANGE_REQUESTS_URL,
+            {"action": "delete", "student_id": str(self.student_b.id)},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 403)
 
     # -- create (new student registration) --------------------------------
     def test_teacher_requests_create_then_admin_approves_creates_student_assigned_to_teacher(self):
@@ -1198,7 +1256,7 @@ class ChangeRequestTests(StudentTestSetup):
         )
         response = self.client.post(
             CHANGE_REQUESTS_URL,
-            {"action": "unassign", "student_id": str(self.student_a.id)},
+            {"action": "delete", "student_id": str(self.student_a.id)},
             format="json",
         )
         self.assertEqual(response.status_code, 400)

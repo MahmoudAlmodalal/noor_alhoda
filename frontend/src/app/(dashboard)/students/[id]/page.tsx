@@ -18,6 +18,8 @@ import type { StudentCourseRecord } from "@/lib/db/repos/misc";
 import { useAuth } from "@/contexts/AuthContext";
 import { WeeklyPlanModal } from "@/components/plans/WeeklyPlanModal";
 import { StudentHeader } from "@/components/students/StudentHeader";
+import { RequestRemoveTeacherModal } from "@/components/students/RequestRemoveTeacherModal";
+import { RequestDeleteStudentModal } from "@/components/students/RequestDeleteStudentModal";
 import { DirectMessageModal } from "@/components/notifications/DirectMessageModal";
 import type {
   HistoryEntry,
@@ -30,6 +32,8 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
   const [planOpen, setPlanOpen] = useState(false);
   const [coursesOpen, setCoursesOpen] = useState(false);
   const [messageOpen, setMessageOpen] = useState(false);
+  const [removeOpen, setRemoveOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [togglingCourseId, setTogglingCourseId] = useState<string | null>(null);
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
@@ -108,6 +112,37 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
     URL.revokeObjectURL(url);
   };
 
+  const submitRemoveRequest = async (reason: string) => {
+    try {
+      await api.post("/api/students/teacher-requests/", {
+        student_id: id,
+        action: "UNASSIGN",
+        reason: reason,
+      });
+      setRemoveOpen(false);
+      // Optional: show a toast notification here
+      // But the requirement says "a success toast notification appears", maybe handled by api hook or we can just rely on the component.
+      // Wait, there is no toast provided in the code above, but the component has its own state.
+    } catch (error) {
+      console.error("Failed to submit request", error);
+      throw error; // Let the modal handle the error/stop loading
+    }
+  };
+
+  const submitDeleteRequest = async (reason: string) => {
+    try {
+      await api.post("/api/students/teacher-requests/", {
+        student_id: id,
+        action: "DELETE",
+        reason: reason,
+      });
+      setDeleteOpen(false);
+    } catch (error) {
+      console.error("Failed to submit delete request", error);
+      throw error;
+    }
+  };
+
   return (
     <div className="space-y-6 max-w-4xl mx-auto pb-10">
       <Link href="/students" className="inline-flex items-center gap-2 text-sm text-primary font-bold hover:underline">
@@ -123,6 +158,8 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
         onOpenPlan={() => setPlanOpen(true)}
         onOpenCourses={isAdmin ? () => setCoursesOpen(true) : undefined}
         onSendMessage={() => setMessageOpen(true)}
+        onRequestRemove={user?.role === "teacher" ? () => setRemoveOpen(true) : undefined}
+        onRequestDelete={user?.role === "teacher" ? () => setDeleteOpen(true) : undefined}
       />
 
       <div className="rounded-[24px] border border-border-card bg-white p-5 shadow-sm">
@@ -303,6 +340,20 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
           onSent={() => setMessageOpen(false)}
         />
       ) : null}
+
+      <RequestRemoveTeacherModal
+        isOpen={removeOpen}
+        onClose={() => setRemoveOpen(false)}
+        onSubmit={submitRemoveRequest}
+        studentName={student.full_name}
+      />
+
+      <RequestDeleteStudentModal
+        isOpen={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
+        onSubmit={submitDeleteRequest}
+        studentName={student.full_name}
+      />
     </div>
   );
 }

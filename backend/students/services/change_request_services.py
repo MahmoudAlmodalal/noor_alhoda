@@ -38,6 +38,8 @@ def _notify_teacher_of_decision(req: StudentChangeRequest, *, approved: bool) ->
     if approved:
         title = "تمت الموافقة على طلبك"
         body = f"{_ACTION_LABELS.get(req.action, req.action)} — {student_name}"
+        if req.note:
+            body += f"\nملاحظة الإدارة: {req.note}"
     else:
         title = "تم رفض طلبك"
         body = f"{_ACTION_LABELS.get(req.action, req.action)} — {student_name}"
@@ -83,10 +85,10 @@ def student_change_request_create(
         else:
             raise ValidationError({"action": "إجراء غير معروف."})
 
-    if StudentChangeRequest.objects.filter(
-        teacher=teacher, student=student, action=action, status=StudentChangeRequest.Status.PENDING
+    if student and StudentChangeRequest.objects.filter(
+        student=student, status=StudentChangeRequest.Status.PENDING
     ).exists():
-        raise ValidationError({"action": "يوجد طلب مماثل قيد الانتظار بالفعل."})
+        raise ValidationError({"action": "يوجد طلب قيد الانتظار لهذا الطالب بالفعل."})
 
     req = StudentChangeRequest.objects.create(
         teacher=teacher,
@@ -100,7 +102,7 @@ def student_change_request_create(
 
 
 @transaction.atomic
-def student_change_request_approve(*, actor: User, request_id) -> StudentChangeRequest:
+def student_change_request_approve(*, actor: User, request_id, note: str = "") -> StudentChangeRequest:
     """Apply a pending request's effect. Admin only."""
     if not is_admin_user(actor):
         raise PermissionDenied("فقط المدير يمكنه الموافقة على الطلبات.")
@@ -133,16 +135,14 @@ def student_change_request_approve(*, actor: User, request_id) -> StudentChangeR
     elif req.action == StudentChangeRequest.Action.UPDATE:
         student_update(student=req.student, actor=actor, data=req.payload)
     elif req.action == StudentChangeRequest.Action.DELETE:
-        # Snapshot the name before deleting — SET_NULL clears student_id at
-        # the DB level, and re-saving `req` below would otherwise stomp that
-        # with the stale in-memory FK, violating the FK constraint.
         req.payload = {"full_name": req.student.full_name}
         student_delete(student_id=req.student_id, actor=actor)
-        req.student = None
 
     req.status = StudentChangeRequest.Status.APPROVED
     req.reviewed_by = actor
     req.reviewed_at = timezone.now()
+    if note:
+        req.note = note
     req.save()
 
     _notify_teacher_of_decision(req, approved=True)

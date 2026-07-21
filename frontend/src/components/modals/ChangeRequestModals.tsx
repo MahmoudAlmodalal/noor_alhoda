@@ -267,3 +267,69 @@ export function RejectRequestModal({
     </Modal>
   );
 }
+
+/**
+ * Approve a pending StudentChangeRequest with an optional note.
+ */
+export function ApproveRequestModal({
+  isOpen,
+  onClose,
+  requestId,
+  onSuccess,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  requestId: string;
+  onSuccess?: () => void;
+}) {
+  const { showToast } = useToast();
+  const [note, setNote] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async () => {
+    setIsSubmitting(true);
+    const res = await api.post(`/api/students/teacher-requests/${requestId}/approve/`, { note });
+    setIsSubmitting(false);
+    if (!res.success) {
+      showToast(res.error.message, "error");
+      return;
+    }
+    showToast("تمت الموافقة على الطلب بنجاح", "success");
+    setNote("");
+    onSuccess?.();
+    onClose();
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} className="max-w-sm">
+      <h2 className="text-lg font-bold text-text-body mb-2">الموافقة على الطلب</h2>
+      <p className="text-sm text-text-muted mb-4">يمكنك إضافة ملاحظة للمحفظ (اختياري).</p>
+      <textarea
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+        rows={3}
+        placeholder="ملاحظة الإدارة (اختياري)..."
+        aria-label="ملاحظة الإدارة"
+        className="mb-6 w-full rounded-xl border border-border-subtle bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 resize-none"
+      />
+      <div className="flex items-center gap-3">
+        <Button
+          variant="ghost"
+          onClick={onClose}
+          disabled={isSubmitting}
+          className="flex-1 bg-border-card/80 text-text-body hover:bg-border-subtle h-11 rounded-xl font-bold"
+        >
+          إلغاء
+        </Button>
+        <Button
+          onClick={handleSubmit}
+          disabled={isSubmitting}
+          className="flex-1 h-11 rounded-xl font-bold gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
+        >
+          {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
+          تأكيد الموافقة
+        </Button>
+      </div>
+    </Modal>
+  );
+}

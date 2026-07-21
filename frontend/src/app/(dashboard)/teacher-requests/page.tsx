@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check, ClipboardList, Loader2, UserPlus, X } from "lucide-react";
+import { Check, ClipboardList, Loader2, MessageSquare, UserPlus, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Card, CardContent } from "@/components/ui/Card";
@@ -11,15 +11,37 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
 import { api } from "@/lib/api";
 import { useChangeRequests } from "@/hooks/useChangeRequests";
-import { RejectRequestModal, RequestAssignStudentModal } from "@/components/modals/ChangeRequestModals";
+import {
+  ApproveRequestModal,
+  RejectRequestModal,
+  RequestAssignStudentModal,
+} from "@/components/modals/ChangeRequestModals";
 import type { ChangeRequestStatus, StudentChangeRequest } from "@/types/api";
 
-const ACTION_LABELS: Record<StudentChangeRequest["action"], string> = {
-  assign: "ضم لحلقة",
-  unassign: "إزالة من حلقة",
-  create: "تسجيل طالب جديد",
-  update: "تعديل بيانات",
-  delete: "حذف طالب",
+const ACTION_CONFIG: Record<
+  StudentChangeRequest["action"],
+  { label: string; className: string }
+> = {
+  unassign: {
+    label: "إزالة من حلقة",
+    className: "bg-amber-50 text-amber-700 border-amber-200",
+  },
+  delete: {
+    label: "حذف طالب",
+    className: "bg-red-50 text-red-700 border-red-200",
+  },
+  assign: {
+    label: "ضم لحلقة",
+    className: "bg-blue-50 text-blue-700 border-blue-200",
+  },
+  create: {
+    label: "تسجيل طالب جديد",
+    className: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  },
+  update: {
+    label: "تعديل بيانات",
+    className: "bg-purple-50 text-purple-700 border-purple-200",
+  },
 };
 
 const FIELD_LABELS: Record<string, string> = {
@@ -51,6 +73,18 @@ const STATUS_TABS: { value: ChangeRequestStatus | "all"; label: string }[] = [
   { value: "rejected", label: "مرفوض" },
 ];
 
+function ActionBadge({ action }: { action: StudentChangeRequest["action"] }) {
+  const config = ACTION_CONFIG[action] ?? {
+    label: action,
+    className: "bg-gray-50 text-gray-700 border-gray-200",
+  };
+  return (
+    <Badge variant="outline" className={`border font-semibold ${config.className}`}>
+      {config.label}
+    </Badge>
+  );
+}
+
 function StatusBadge({ status }: { status: ChangeRequestStatus }) {
   if (status === "approved") return <Badge variant="success">موافَق عليه</Badge>;
   if (status === "rejected") return <Badge variant="destructive">مرفوض</Badge>;
@@ -59,7 +93,9 @@ function StatusBadge({ status }: { status: ChangeRequestStatus }) {
 
 function PayloadDetails({ payload }: { payload: Record<string, unknown> }) {
   const [open, setOpen] = useState(false);
-  const entries = Object.entries(payload).filter(([, v]) => v !== null && v !== "" && v !== undefined);
+  const entries = Object.entries(payload).filter(
+    ([, v]) => v !== null && v !== "" && v !== undefined
+  );
   if (entries.length === 0) return null;
 
   return (
@@ -97,19 +133,20 @@ function RequestCard({
   onChanged: () => void;
 }) {
   const { showToast } = useToast();
-  const [isApproving, setIsApproving] = useState(false);
+  const [isQuickApproving, setIsQuickApproving] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
-  const [showReject, setShowReject] = useState(false);
+  const [showApproveModal, setShowApproveModal] = useState(false);
+  const [showRejectModal, setShowRejectModal] = useState(false);
 
-  const handleApprove = async () => {
-    setIsApproving(true);
+  const handleQuickApprove = async () => {
+    setIsQuickApproving(true);
     const res = await api.post(`/api/students/teacher-requests/${req.id}/approve/`);
-    setIsApproving(false);
+    setIsQuickApproving(false);
     if (!res.success) {
       showToast(res.error.message, "error");
       return;
     }
-    showToast("تمت الموافقة على الطلب", "success");
+    showToast("تمت الموافقة على الطلب بنجاح", "success");
     onChanged();
   };
 
@@ -126,13 +163,11 @@ function RequestCard({
   };
 
   return (
-    <Card className="rounded-[20px] border-border-card bg-white shadow-sm">
+    <Card className="rounded-[20px] border-border-card bg-white shadow-sm transition-all hover:shadow-md">
       <CardContent className="flex flex-col gap-2 p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <Badge variant="outline" className="border-border-card text-text-body">
-              {ACTION_LABELS[req.action]}
-            </Badge>
+            <ActionBadge action={req.action} />
             <StatusBadge status={req.status} />
           </div>
           <span className="text-[11px] text-text-muted">
@@ -149,26 +184,46 @@ function RequestCard({
 
         <PayloadDetails payload={req.payload} />
 
+        {req.status === "approved" && req.note && (
+          <p className="mt-1 rounded-lg bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-800">
+            ملاحظة الإدارة: {req.note}
+          </p>
+        )}
+
         {req.status === "rejected" && req.note && (
-          <p className="mt-1 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">
+          <p className="mt-1 rounded-lg bg-red-50 px-3 py-2 text-xs font-medium text-red-600">
             سبب الرفض: {req.note}
           </p>
         )}
 
         {req.status === "pending" && (
-          <div className="mt-2 flex items-center gap-2">
+          <div className="mt-2 flex flex-wrap items-center gap-2">
             {isAdmin ? (
               <>
                 <Button
-                  onClick={handleApprove}
-                  disabled={isApproving}
-                  className="h-9 flex-1 gap-1.5 rounded-lg text-xs font-bold"
+                  onClick={handleQuickApprove}
+                  disabled={isQuickApproving}
+                  className="h-9 flex-1 gap-1.5 rounded-lg bg-emerald-600 text-xs font-bold text-white hover:bg-emerald-700"
                 >
-                  {isApproving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                  {isQuickApproving ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Check className="h-4 w-4" />
+                  )}
                   قبول
                 </Button>
+
                 <Button
-                  onClick={() => setShowReject(true)}
+                  onClick={() => setShowApproveModal(true)}
+                  variant="ghost"
+                  className="h-9 gap-1.5 rounded-lg bg-emerald-50 text-xs font-bold text-emerald-700 hover:bg-emerald-100"
+                >
+                  <MessageSquare className="h-4 w-4" />
+                  قبول بملاحظة
+                </Button>
+
+                <Button
+                  onClick={() => setShowRejectModal(true)}
                   variant="ghost"
                   className="h-9 flex-1 gap-1.5 rounded-lg bg-red-50 text-xs font-bold text-red-600 hover:bg-red-100"
                 >
@@ -191,13 +246,25 @@ function RequestCard({
         )}
       </CardContent>
 
-      {showReject && (
-        <RejectRequestModal
-          isOpen={showReject}
-          onClose={() => setShowReject(false)}
+      {showApproveModal && (
+        <ApproveRequestModal
+          isOpen={showApproveModal}
+          onClose={() => setShowApproveModal(false)}
           requestId={req.id}
           onSuccess={() => {
-            setShowReject(false);
+            setShowApproveModal(false);
+            onChanged();
+          }}
+        />
+      )}
+
+      {showRejectModal && (
+        <RejectRequestModal
+          isOpen={showRejectModal}
+          onClose={() => setShowRejectModal(false)}
+          requestId={req.id}
+          onSuccess={() => {
+            setShowRejectModal(false);
             onChanged();
           }}
         />

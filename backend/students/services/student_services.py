@@ -244,7 +244,7 @@ def student_update(*, student: Student, actor: User, data: dict) -> Student:
 @transaction.atomic
 def student_delete(*, student_id, actor: User):
     """
-    Hard-delete a student and their user account. Admin only.
+    Soft-delete a student and their user account. Admin only.
     Writes a Tombstone in the same transaction so offline clients learn
     of the deletion on the next sync pull (STU-04 semantics preserved).
     """
@@ -259,9 +259,12 @@ def student_delete(*, student_id, actor: User):
     user = student.user
     deleted_uuid = student.id
 
-    # Deleting the user cascades to the student profile and all its
-    # FK children (weekly plans, daily records, evaluations, etc.).
-    user.delete()
+    # Soft delete: Deactivate the user and unassign from the roster.
+    user.is_active = False
+    user.save(update_fields=["is_active"])
+
+    student.teacher = None
+    student.save(update_fields=["teacher"])
 
     tombstone_write(
         resource=Tombstone.Resource.STUDENT,

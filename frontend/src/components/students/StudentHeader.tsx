@@ -6,6 +6,8 @@ import {
   MessageSquare,
   PlusCircle,
   UserCog,
+  UserMinus,
+  UserX,
 } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import {
@@ -23,6 +25,8 @@ interface StudentHeaderProps {
   onOpenPlan: () => void;
   onOpenCourses?: () => void;
   onSendMessage?: () => void;
+  onRequestRemove?: () => void;
+  onRequestDelete?: () => void;
 }
 
 export function StudentHeader({
@@ -33,6 +37,8 @@ export function StudentHeader({
   onOpenPlan,
   onOpenCourses,
   onSendMessage,
+  onRequestRemove,
+  onRequestDelete,
 }: StudentHeaderProps) {
   return (
     <div className="relative overflow-hidden rounded-[24px] bg-gradient-to-br from-primary via-[#0a4a85] to-[#083d73] p-6 text-white shadow-[0_10px_30px_-12px_rgba(11,83,148,0.45)]">
@@ -118,6 +124,26 @@ export function StudentHeader({
           >
             <MessageSquare className="h-4 w-4" />
             إرسال رسالة
+          </button>
+        ) : null}
+        {onRequestRemove ? (
+          <button
+            type="button"
+            onClick={onRequestRemove}
+            className="inline-flex items-center gap-2 rounded-xl bg-red-500/20 px-4 py-2 text-xs font-bold text-white ring-1 ring-red-400/30 backdrop-blur-sm transition-colors hover:bg-red-500/30"
+          >
+            <UserMinus className="h-4 w-4" />
+            طلب إزالة من الحلقة
+          </button>
+        ) : null}
+        {onRequestDelete ? (
+          <button
+            type="button"
+            onClick={onRequestDelete}
+            className="inline-flex items-center gap-2 rounded-xl bg-red-500/20 px-4 py-2 text-xs font-bold text-white ring-1 ring-red-400/30 backdrop-blur-sm transition-colors hover:bg-red-500/30"
+          >
+            <UserX className="h-4 w-4" />
+            طلب حذف الطالب
           </button>
         ) : null}
       </div>
