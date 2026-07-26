@@ -340,20 +340,23 @@ def _push_weekly_plan_update(*, actor: User, op: dict) -> dict:
 
     target_id = op.get("id")
     base = _parse_base(op.get("base_updated_at"))
+    data = dict(op.get("data") or {})
     plan = WeeklyPlan.objects.filter(id=target_id).first()
+    if plan is None and data.get("student_id") and data.get("week_start"):
+        plan = WeeklyPlan.objects.filter(
+            student_id=data.get("student_id"),
+            week_start=data.get("week_start"),
+        ).first()
     if plan is None:
-        return {
-            "client_id": op.get("client_id"),
-            "status": "error",
-            "error": {"code": "not_found", "message": "الخطة غير موجودة."},
-        }
+        return {"client_id": op.get("client_id"), "status": "synced"}
+
     if _server_newer_than_client(plan.updated_at, base):
         return {
             "client_id": op.get("client_id"),
             "status": "conflict",
             "row": _conflict_row("weekly_plan", plan),
         }
-    updated = weekly_plan_update(plan=plan, actor=actor, data=op.get("data") or {})
+    updated = weekly_plan_update(plan=plan, actor=actor, data=data)
     return {
         "client_id": op.get("client_id"),
         "status": "synced",
@@ -432,13 +435,17 @@ def _push_daily_record_update(*, actor: User, op: dict) -> dict:
 
     target_id = op.get("id")
     base = _parse_base(op.get("base_updated_at"))
+    data = dict(op.get("data") or {})
+
     record = DailyRecord.objects.filter(id=target_id).first()
     if record is None:
-        return {
-            "client_id": op.get("client_id"),
-            "status": "error",
-            "error": {"code": "not_found", "message": "السجل اليومي غير موجود."},
-        }
+        plan_id = data.get("weekly_plan_id")
+        day = data.get("day")
+        if plan_id and day:
+            record = DailyRecord.objects.filter(weekly_plan_id=plan_id, day=day).first()
+    if record is None:
+        return {"client_id": op.get("client_id"), "status": "synced"}
+
     if _server_newer_than_client(record.updated_at, base):
         return {
             "client_id": op.get("client_id"),
@@ -446,9 +453,9 @@ def _push_daily_record_update(*, actor: User, op: dict) -> dict:
             "row": _conflict_row("daily_record", record),
         }
     updated = daily_record_update(
-        record_id=target_id,
+        record_id=record.id,
         teacher=actor,
-        data=op.get("data") or {},
+        data=data,
     )
     return {
         "client_id": op.get("client_id"),
