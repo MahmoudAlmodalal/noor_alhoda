@@ -299,8 +299,8 @@ def _push_weekly_plan_create(*, actor: User, op: dict) -> dict:
             total_required=data.get("total_required", 0),
             teacher=actor,
         )
-    except IntegrityError:
-        # Unique-together (student, week_start) collision — return server row.
+    except (IntegrityError, ValidationError, DjangoValidationError):
+        # Unique-together (student, week_start) collision — return server row as conflict.
         existing = WeeklyPlan.objects.filter(
             student_id=data.get("student_id"),
             week_start=data.get("week_start"),
@@ -365,15 +365,34 @@ def _push_weekly_plan_delete(*, actor: User, op: dict) -> dict:
 
 def _push_daily_record_create(*, actor: User, op: dict) -> dict:
     from records.services.record_services import daily_record_create
+    from django.utils.dateparse import parse_date
 
     data = dict(op.get("data") or {})
+    plan_id = data.get("weekly_plan_id")
+
+    # If weekly_plan_id is missing or doesn't exist on server, resolve via date & week_start
+    if plan_id and not WeeklyPlan.objects.filter(id=plan_id).exists():
+        date_str = data.get("date")
+        if date_str:
+            try:
+                rec_date = parse_datetime(str(date_str)).date() if "T" in str(date_str) else parse_date(str(date_str))
+                if rec_date:
+                    from datetime import timedelta
+                    days_since_sat = (rec_date.weekday() + 2) % 7
+                    ws = rec_date - timedelta(days=days_since_sat)
+                    existing_plan = WeeklyPlan.objects.filter(week_start=ws).first()
+                    if existing_plan:
+                        data["weekly_plan_id"] = str(existing_plan.id)
+            except Exception:
+                pass
+
     try:
         record = daily_record_create(
             id=op.get("id"),
             teacher=actor,
             **data,
         )
-    except IntegrityError:
+    except (IntegrityError, ValidationError, DjangoValidationError):
         existing = DailyRecord.objects.filter(
             weekly_plan_id=data.get("weekly_plan_id"),
             day=data.get("day"),
