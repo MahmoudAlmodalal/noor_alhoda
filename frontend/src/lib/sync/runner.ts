@@ -74,6 +74,7 @@ export function startSyncRunner(): void {
  * push-side guard.
  */
 export async function runSyncNow(): Promise<void> {
+  await requeueErroredOps();
   await maybeSync();
 }
 
