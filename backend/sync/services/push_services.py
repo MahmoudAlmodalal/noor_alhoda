@@ -55,9 +55,25 @@ def sync_push(*, actor: User, ops: list[dict]) -> dict[str, Any]:
         {"results": [per-op result, ...], "server_time": <iso>}
     """
     results: list[dict[str, Any]] = []
+    id_map: dict[str, str] = {}
+
     for op in ops:
+        # Remap any client-generated parent IDs in op["data"] using id_map
+        data = op.get("data")
+        if isinstance(data, dict):
+            for key, val in list(data.items()):
+                if isinstance(val, str) and val in id_map:
+                    data[key] = id_map[val]
+
         result = _apply_op(actor=actor, op=op)
         results.append(result)
+
+        # Record ID mapping if op returned a server-authoritative row
+        target_id = op.get("id")
+        row = result.get("row")
+        if target_id and isinstance(row, dict) and "id" in row:
+            server_id = str(row["id"])
+            id_map[str(target_id)] = server_id
 
     return {
         "results": results,
