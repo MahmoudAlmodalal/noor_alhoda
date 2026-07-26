@@ -6,7 +6,7 @@ import { AlertCircle, Clock, RefreshCw, Trash2, CheckCircle2 } from "lucide-reac
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { getDb, type OutboxRow } from "@/lib/db/schema";
-import { dropErroredOp, retryErroredOps } from "@/lib/sync/outbox";
+import { clearErroredOps, dropErroredOp, retryErroredOps } from "@/lib/sync/outbox";
 import { runSyncNow } from "@/lib/sync/runner";
 import { onChange } from "@/lib/db/events";
 
@@ -79,6 +79,16 @@ export function OutboxModal({ isOpen, onClose }: OutboxModalProps) {
     }
   };
 
+  const handleClearAllErrors = async () => {
+    setActionInProgress(true);
+    try {
+      await clearErroredOps();
+      await fetchOutboxItems();
+    } finally {
+      setActionInProgress(false);
+    }
+  };
+
   const handleDropItem = async (opId: string) => {
     setActionInProgress(true);
     try {
@@ -109,17 +119,33 @@ export function OutboxModal({ isOpen, onClose }: OutboxModalProps) {
             )}
           </div>
 
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={handleRetryAll}
-            disabled={actionInProgress || items.length === 0}
-            className="flex items-center gap-1.5"
-          >
-            <RefreshCw className={`h-3.5 w-3.5 ${actionInProgress ? "animate-spin" : ""}`} />
-            إعادة محاولة الكل
-          </Button>
+          <div className="flex items-center gap-2">
+            {errorCount > 0 && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleClearAllErrors}
+                disabled={actionInProgress}
+                className="flex items-center gap-1.5 text-red-600 border-red-200 hover:bg-red-50"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                تنظيف الأخطاء
+              </Button>
+            )}
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleRetryAll}
+              disabled={actionInProgress || items.length === 0}
+              className="flex items-center gap-1.5"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${actionInProgress ? "animate-spin" : ""}`} />
+              إعادة محاولة الكل
+            </Button>
+          </div>
         </div>
 
         {/* List of items */}

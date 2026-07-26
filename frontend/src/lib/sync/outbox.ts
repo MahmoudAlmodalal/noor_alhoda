@@ -307,6 +307,19 @@ export async function dropErroredOp(opId: string): Promise<void> {
   emitChange("outbox");
 }
 
+export async function clearErroredOps(): Promise<number> {
+  const db = getDb();
+  const errored = await db.outbox.where("status").equals("error").toArray();
+  if (errored.length === 0) return 0;
+  await db.transaction("rw", db.outbox, async () => {
+    for (const row of errored) {
+      await db.outbox.delete(row.op_id);
+    }
+  });
+  emitChange("outbox");
+  return errored.length;
+}
+
 /**
  * Errored ops whose backoff window has elapsed. Combined with `listPending`
  * by `triggerPush` so transient failures auto-recover without UI interaction.
