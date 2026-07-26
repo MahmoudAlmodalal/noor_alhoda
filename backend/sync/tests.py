@@ -281,3 +281,127 @@ class SyncPullParentTests(SyncPullRBACSetup):
         self.assertEqual(len(res["parent_student_links"]), 1)
         self.assertEqual(len(res["parents"]), 1)
         self.assertEqual(res["parents"][0]["id"], str(self.parent.id))
+
+
+class SyncPushInBatchRemappingTests(APITestCase):
+    def setUp(self):
+        self.teacher_user = User.objects.create_user(
+            national_id="TEA-MAP", phone_number="970599111111",
+            password="pw", role="teacher",
+        )
+        self.teacher = Teacher.objects.create(
+            user=self.teacher_user, full_name="Teacher Map", max_students=25,
+        )
+        self.student_user = User.objects.create_user(
+            national_id="S-MAP", phone_number="970599222222",
+            password="pw", role="student",
+        )
+        self.student = Student.objects.create(
+            user=self.student_user, full_name="Student Map",
+            birthdate=date(2012, 1, 1), grade="G7", teacher=self.teacher,
+        )
+
+    def test_in_batch_id_remapping_new_weekly_plan(self):
+        """When client creates a new weekly plan and a daily record in the same batch using a temp UUID,
+        in-batch ID remapping should associate the daily record with the created weekly plan."""
+        self.client.force_authenticate(self.teacher_user)
+        temp_plan_id = "11111111-1111-4111-a111-111111111111"
+        temp_record_id = "22222222-2222-4222-a222-222222222222"
+
+        ops = [
+            {
+                "client_id": "10000000-0000-4000-a000-000000000001",
+                "resource": "weekly_plan",
+                "op": "create",
+                "id": temp_plan_id,
+                "data": {
+                    "student_id": str(self.student.id),
+                    "week_start": "2026-08-01",
+                    "week_number": 1,
+                    "total_required": 5,
+                },
+            },
+            {
+                "client_id": "10000000-0000-4000-a000-000000000002",
+                "resource": "daily_record",
+                "op": "create",
+                "id": temp_record_id,
+                "data": {
+                    "weekly_plan_id": temp_plan_id,
+                    "day": "sat",
+                    "date": "2026-08-01",
+                    "attendance": "present",
+                },
+            },
+        ]
+
+        response = self.client.post("/api/sync/push/", {"ops": ops}, format="json")
+        self.assertEqual(response.status_code, 200)
+
+        data = response.json()["data"]
+        results = data["results"]
+        self.assertEqual(len(results), 2)
+        self.assertEqual(results[0]["status"], "synced")
+        self.assertEqual(results[1]["status"], "synced")
+
+        # Verify DB states
+        plan = WeeklyPlan.objects.get(student=self.student, week_start="2026-08-01")
+        self.assertEqual(str(plan.id), temp_plan_id)
+        record = DailyRecord.objects.get(id=temp_record_id)
+        self.assertEqual(record.weekly_plan_id, plan.id)
+
+    def test_in_batch_id_remapping_existing_weekly_plan_conflict(self):
+        """When client tries to create an already existing weekly plan (gets conflict with server ID),
+        in-batch ID remapping must remap the temp ID to the server's existing plan ID for dependent daily records."""
+        self.client.force_authenticate(self.teacher_user)
+        server_plan = WeeklyPlan.objects.create(
+            student=self.student,
+            week_start=date(2026, 8, 8),
+            week_number=2,
+            total_required=10,
+        )
+
+        temp_plan_id = "33333333-3333-4333-a333-333333333333"
+        temp_record_id = "44444444-4444-4444-a444-444444444444"
+
+        ops = [
+            {
+                "client_id": "20000000-0000-4000-a000-000000000001",
+                "resource": "weekly_plan",
+                "op": "create",
+                "id": temp_plan_id,
+                "data": {
+                    "student_id": str(self.student.id),
+                    "week_start": "2026-08-08",
+                    "week_number": 2,
+                    "total_required": 10,
+                },
+            },
+            {
+                "client_id": "20000000-0000-4000-a000-000000000002",
+                "resource": "daily_record",
+                "op": "create",
+                "id": temp_record_id,
+                "data": {
+                    "weekly_plan_id": temp_plan_id,
+                    "day": "sat",
+                    "date": "2026-08-08",
+                    "attendance": "present",
+                },
+            },
+        ]
+
+        response = self.client.post("/api/sync/push/", {"ops": ops}, format="json")
+        self.assertEqual(response.status_code, 200)
+
+        data = response.json()["data"]
+        results = data["results"]
+        self.assertEqual(len(results), 2)
+        self.assertEqual(results[0]["status"], "conflict")
+        self.assertEqual(results[0]["row"]["id"], str(server_plan.id))
+        self.assertEqual(results[1]["status"], "synced")
+
+        # Verify daily record linked to server_plan.id instead of non-existent temp_plan_id
+        record = DailyRecord.objects.get(id=temp_record_id)
+        self.assertEqual(record.weekly_plan_id, server_plan.id)
+
