@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
  *  - synced  → green check
  */
 export function SyncStatusBadge() {
-  const { pending, errors } = useSyncStatus();
+  const { pending, errors, lastError } = useSyncStatus();
   const [syncing, setSyncing] = useState(false);
   const [online, setOnline] = useState(() =>
     typeof navigator === "undefined" ? true : navigator.onLine
@@ -80,7 +80,7 @@ export function SyncStatusBadge() {
       type="button"
       onClick={onClick}
       disabled={syncing || !online}
-      title="اضغط للمزامنة الآن"
+      title={hasErrors && lastError ? `فشل المزامنة: ${lastError}` : "اضغط للمزامنة الآن"}
       className={cn(
         "flex w-full items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium transition-colors",
         bg,
