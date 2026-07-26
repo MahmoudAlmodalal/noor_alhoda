@@ -92,13 +92,12 @@ export function OutboxModal({ isOpen, onClose }: OutboxModalProps) {
   const errorCount = items.filter((i) => i.status === "error").length;
 
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      title="سجل العمليات المعلقة والمزامنة"
-      description="تفاصيل العمليات المخزنة محلياً بانتظار المزامنة مع السيرفر"
-    >
+    <Modal isOpen={isOpen} onClose={onClose} className="max-w-lg">
       <div className="space-y-4">
+        <div>
+          <h2 className="text-base font-bold text-gray-900">سجل العمليات المعلقة والمزامنة</h2>
+          <p className="text-xs text-gray-500">تفاصيل العمليات المخزنة محلياً بانتظار المزامنة مع السيرفر</p>
+        </div>
         {/* Header Summary & Actions */}
         <div className="flex items-center justify-between rounded-xl bg-gray-50 p-3">
           <div className="text-sm font-medium text-gray-700">
