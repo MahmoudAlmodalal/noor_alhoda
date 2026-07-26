@@ -20,6 +20,7 @@ class PushOpSerializer(serializers.Serializer):
         "course",
         "student_course",
         "notification",
+        "progress",
     ])
     op = serializers.ChoiceField(choices=["create", "update", "delete"])
     id = serializers.UUIDField()

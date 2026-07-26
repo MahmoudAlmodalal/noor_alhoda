@@ -171,6 +171,16 @@ export async function errorCount(): Promise<number> {
   return getDb().outbox.where("status").equals("error").count();
 }
 
+export async function getLastError(): Promise<string | null> {
+  const row = await getDb().outbox
+    .where("status")
+    .equals("error")
+    .reverse()
+    .sortBy("created_at")
+    .then((rows) => rows[0]);
+  return row?.last_error ?? null;
+}
+
 export async function hasPendingFor(
   resource: ResourceName,
   target_id: string
