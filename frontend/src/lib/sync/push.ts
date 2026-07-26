@@ -34,6 +34,7 @@ import {
   markError,
   markInFlight,
   markSynced,
+  remapPendingOutboxIds,
   revertInFlight,
   revertOrphanedInFlight,
 } from "./outbox";
@@ -122,6 +123,9 @@ export async function triggerPush(): Promise<PushResult> {
         }
 
         const opIds = batch.map((r) => r.op_id);
+        const opTargetMap = new Map<string, string>(
+          batch.map((r) => [r.op_id, r.target_id])
+        );
         await markInFlight(opIds);
 
         // Inner try/finally guarantees that if anything between
@@ -142,7 +146,7 @@ export async function triggerPush(): Promise<PushResult> {
 
           const touched = new Set<ResourceName>();
           for (const r of res.data.results) {
-            await applyResult(r, touched);
+            await applyResult(r, touched, opTargetMap);
           }
           // applyResult deletes synced/conflict ops and marks errors —
           // every op in the batch is now in a terminal state (deleted or
@@ -170,12 +174,18 @@ export async function triggerPush(): Promise<PushResult> {
 
 async function applyResult(
   r: PerOpResult,
-  touched: Set<ResourceName>
+  touched: Set<ResourceName>,
+  opTargetMap?: Map<string, string>
 ): Promise<void> {
   if (r.status === "synced" || r.status === "conflict") {
     if (r.row) {
       const resource = await applyServerRow(r.row);
       if (resource) touched.add(resource);
+
+      const targetId = opTargetMap?.get(r.client_id);
+      if (typeof r.row.id === "string" && targetId && targetId !== r.row.id) {
+        await remapPendingOutboxIds(targetId, r.row.id);
+      }
     }
     for (const extra of r.extra_rows ?? []) {
       const resource = await applyServerRow(extra);

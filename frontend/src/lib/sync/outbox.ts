@@ -140,6 +140,66 @@ export async function markConflict(opId: string, message: string): Promise<void>
   emitChange("outbox");
 }
 
+/**
+ * Replace temporary client IDs with server-assigned primary keys across
+ * all pending and errored ops in the IndexedDB outbox. Resets errored ops
+ * to 'pending' so dependent ops retry automatically without user intervention.
+ */
+export async function remapPendingOutboxIds(
+  oldId: string,
+  newId: string
+): Promise<void> {
+  if (!oldId || !newId || oldId === newId) return;
+  const db = getDb();
+  const sessionKey = getSessionKey();
+  if (!sessionKey) return;
+
+  const rows = await db.outbox
+    .where("status")
+    .anyOf("pending", "in_flight", "error")
+    .toArray();
+
+  for (const row of rows) {
+    try {
+      const payload = await decryptRecord<Record<string, unknown>>(sessionKey, {
+        iv: row.payload_iv,
+        ct: row.payload_ct,
+      });
+
+      let changed = false;
+      let target_id = row.target_id;
+      if (target_id === oldId) {
+        target_id = newId;
+        changed = true;
+      }
+
+      if (payload && typeof payload === "object") {
+        for (const [key, val] of Object.entries(payload)) {
+          if (val === oldId) {
+            payload[key] = newId;
+            changed = true;
+          }
+        }
+      }
+
+      if (changed) {
+        const { iv, ct } = await encryptRecord(sessionKey, payload);
+        await db.outbox.update(row.op_id, {
+          target_id,
+          payload_iv: iv,
+          payload_ct: ct,
+          status: "pending",
+          last_error: null,
+          next_retry_at: null,
+        });
+      }
+    } catch {
+      // Ignore decryption error
+    }
+  }
+  emitChange("outbox");
+}
+
 export async function markError(opId: string, message: string): Promise<void> {
   const db = getDb();
   const row = await db.outbox.get(opId);

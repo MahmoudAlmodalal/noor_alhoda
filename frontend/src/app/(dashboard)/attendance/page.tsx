@@ -213,6 +213,7 @@ function AttendanceContent() {
 
       const existingId = d.record_id ?? (await findDailyRecordId(planId, day));
       const payload = {
+        student_id: d.student_id,
         weekly_plan_id: planId,
         day,
         date,

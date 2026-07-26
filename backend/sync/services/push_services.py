@@ -383,14 +383,15 @@ def _push_weekly_plan_delete(*, actor: User, op: dict) -> dict:
 
 
 def _push_daily_record_create(*, actor: User, op: dict) -> dict:
-    from records.services.record_services import daily_record_create
+    from records.services.record_services import daily_record_create, weekly_plan_create
     from django.utils.dateparse import parse_date
 
     data = dict(op.get("data") or {})
     plan_id = data.get("weekly_plan_id")
+    student_id = data.pop("student_id", None)
 
-    # If weekly_plan_id is missing or doesn't exist on server, resolve via date & week_start
-    if plan_id and not WeeklyPlan.objects.filter(id=plan_id).exists():
+    # If weekly_plan_id is missing or doesn't exist on server, resolve via student_id & date & week_start
+    if not plan_id or not WeeklyPlan.objects.filter(id=plan_id).exists():
         date_str = data.get("date")
         if date_str:
             try:
@@ -399,7 +400,22 @@ def _push_daily_record_create(*, actor: User, op: dict) -> dict:
                     from datetime import timedelta
                     days_since_sat = (rec_date.weekday() + 2) % 7
                     ws = rec_date - timedelta(days=days_since_sat)
-                    existing_plan = WeeklyPlan.objects.filter(week_start=ws).first()
+                    
+                    existing_plan = None
+                    if student_id:
+                        existing_plan = WeeklyPlan.objects.filter(student_id=student_id, week_start=ws).first()
+                        if not existing_plan:
+                            try:
+                                existing_plan = weekly_plan_create(
+                                    student_id=student_id,
+                                    week_start=ws,
+                                    teacher=actor,
+                                )
+                            except Exception:
+                                pass
+                    if not existing_plan:
+                        existing_plan = WeeklyPlan.objects.filter(week_start=ws).first()
+
                     if existing_plan:
                         data["weekly_plan_id"] = str(existing_plan.id)
             except Exception:
@@ -436,6 +452,7 @@ def _push_daily_record_update(*, actor: User, op: dict) -> dict:
     target_id = op.get("id")
     base = _parse_base(op.get("base_updated_at"))
     data = dict(op.get("data") or {})
+    student_id = data.pop("student_id", None)
 
     record = DailyRecord.objects.filter(id=target_id).first()
     if record is None:
@@ -443,6 +460,9 @@ def _push_daily_record_update(*, actor: User, op: dict) -> dict:
         day = data.get("day")
         if plan_id and day:
             record = DailyRecord.objects.filter(weekly_plan_id=plan_id, day=day).first()
+        if record is None and student_id and data.get("date"):
+            record = DailyRecord.objects.filter(weekly_plan__student_id=student_id, date=data.get("date")).first()
+
     if record is None:
         return {"client_id": op.get("client_id"), "status": "synced"}
 
