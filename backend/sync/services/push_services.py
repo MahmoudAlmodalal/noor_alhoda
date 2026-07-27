@@ -438,10 +438,10 @@ def _push_daily_record_create(*, actor: User, op: dict) -> dict:
             except Exception:
                 pass
 
+    data["id"] = op.get("id")
     try:
         with transaction.atomic():
             record = daily_record_create(
-                id=op.get("id"),
                 teacher=actor,
                 **data,
             )

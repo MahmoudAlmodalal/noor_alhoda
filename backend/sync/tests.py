@@ -483,3 +483,37 @@ class SyncPushDailyRecordDuplicateConflictTests(SyncPushInBatchRemappingTests):
         self.assertEqual(results[0]["status"], "conflict")
         self.assertEqual(results[0]["row"]["id"], str(old_record.id))
 
+    def test_daily_record_create_with_id_in_data_payload(self):
+        """Frontend includes 'id' inside op.data. Backend must not crash with
+        'got multiple values for keyword argument id'."""
+        self.client.force_authenticate(self.teacher_user)
+        plan = WeeklyPlan.objects.create(
+            student=self.student,
+            week_start=date(2026, 10, 3),
+            week_number=1,
+            total_required=5,
+        )
+
+        rec_id = "5598b94c-1111-4111-a111-111111111111"
+        op = {
+            "client_id": "40000000-0000-4000-a000-000000000001",
+            "resource": "daily_record",
+            "op": "create",
+            "id": rec_id,
+            "data": {
+                "id": rec_id,  # Frontend sends 'id' inside data object
+                "weekly_plan_id": str(plan.id),
+                "day": "sat",
+                "date": "2026-10-03",
+                "attendance": "present",
+            },
+        }
+
+        response = self.client.post("/api/sync/push/", {"ops": [op]}, format="json")
+        self.assertEqual(response.status_code, 200)
+
+        results = response.json()["data"]["results"]
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["status"], "synced")
+        self.assertEqual(results[0]["row"]["id"], rec_id)
+
