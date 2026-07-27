@@ -11,6 +11,7 @@ from notifications.selectors.notification_selectors import (
     parents_of_student_with_phone,
     student_get_by_id,
     teacher_can_message_student,
+    teacher_circle_recipients,
 )
 from accounts.models import User
 from core.permissions import is_admin_user
@@ -38,6 +39,30 @@ def announcement_send(*, sender: User, title: str, body: str, target_roles: list
     Notification.objects.bulk_create(notifications)
     return len(notifications)
 
+
+@transaction.atomic
+def teacher_circle_announce_send(*, sender: User, title: str, body: str) -> int:
+    """
+    إرسال إعلان من المحفظ إلى حلقته فقط (طلابه + أولياء أمورهم).
+    يتحقق من أن المرسل لديه ملف محفظ صالح ويعيد عدد الإشعارات المُنشأة.
+    """
+    if sender.role != "teacher":
+        raise PermissionDenied("فقط المحفظ يمكنه إرسال إعلان الحلقة.")
+
+    recipients = teacher_circle_recipients(sender)
+
+    notifications = [
+        Notification(
+            recipient=user,
+            type=Notification.NotificationType.ANNOUNCEMENT,
+            title=title,
+            body=body,
+        )
+        for user in recipients
+    ]
+    if notifications:
+        Notification.objects.bulk_create(notifications)
+    return len(notifications)
 
 @transaction.atomic
 def notification_create(*, recipient: User, type: str, title: str, body: str) -> Notification:

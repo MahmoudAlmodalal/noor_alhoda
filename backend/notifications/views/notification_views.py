@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework import status, serializers
 from rest_framework.permissions import IsAuthenticated
 
-from core.permissions import IsAdmin
+from core.permissions import IsAdmin, IsTeacher
 from notifications.selectors.notification_selectors import (
     notification_list,
     notification_unread_count,
@@ -13,6 +13,7 @@ from notifications.services.notification_services import (
     notification_mark_all_read,
     announcement_send,
     direct_message_send,
+    teacher_circle_announce_send,
 )
 
 
@@ -152,3 +153,34 @@ class DirectMessageCreateApi(APIView):
             status=status.HTTP_201_CREATED,
         )
 
+
+# ---------------------------------------------------------------------------
+# Teacher Circle Announcement
+# ---------------------------------------------------------------------------
+class TeacherCircleAnnounceInputSerializer(serializers.Serializer):
+    title = serializers.CharField(max_length=200, min_length=1)
+    body = serializers.CharField(min_length=1)
+
+
+class TeacherCircleAnnounceApi(APIView):
+    """إرسال إعلان من المحفظ لحلقته فقط (طلابه + أولياء أمورهم)"""
+
+    permission_classes = [IsTeacher]
+
+    def post(self, request):
+        serializer = TeacherCircleAnnounceInputSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        count = teacher_circle_announce_send(
+            sender=request.user,
+            title=serializer.validated_data["title"],
+            body=serializer.validated_data["body"],
+        )
+
+        return Response(
+            {
+                "success": True,
+                "message": f"تم إرسال الإعلان إلى {count} مستخدم.",
+            },
+            status=status.HTTP_201_CREATED,
+        )

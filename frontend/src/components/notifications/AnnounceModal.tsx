@@ -23,15 +23,21 @@ const AUDIENCE_TO_ROLES: Record<Exclude<Audience, "all">, AnnounceRequest["targe
  * N notifications), so it's kept as a direct online POST rather than
  * routed through the per-record outbox. After success we trigger a pull so
  * the created notifications appear in the local DB without a page reload.
+ *
+ * Props:
+ *  - isTeacher: if true, sends to the teacher's circle only via /circle-announce/
+ *               and hides the audience selector.
  */
 export function AnnounceModal({
   isOpen,
   onClose,
   onSent,
+  isTeacher = false,
 }: {
   isOpen: boolean;
   onClose: () => void;
   onSent?: () => void;
+  isTeacher?: boolean;
 }) {
   const [audience, setAudience] = useState<Audience>("all");
   const [title, setTitle] = useState("");
@@ -43,12 +49,21 @@ export function AnnounceModal({
   const handleSubmit = async () => {
     setIsSubmitting(true);
     setError(null);
-    const payload: AnnounceRequest = {
-      title,
-      body,
-      ...(audience === "all" ? {} : { target_roles: AUDIENCE_TO_ROLES[audience] }),
-    };
-    const res = await api.post("/api/notifications/announce/", payload);
+
+    let res;
+    if (isTeacher) {
+      // المحفظ يُرسل لحلقته فقط
+      res = await api.post("/api/notifications/circle-announce/", { title, body });
+    } else {
+      // المدير يُرسل حسب الجمهور المختار
+      const payload: AnnounceRequest = {
+        title,
+        body,
+        ...(audience === "all" ? {} : { target_roles: AUDIENCE_TO_ROLES[audience] }),
+      };
+      res = await api.post("/api/notifications/announce/", payload);
+    }
+
     setIsSubmitting(false);
     if (!res.success) {
       setError(res.error.message);
@@ -66,23 +81,32 @@ export function AnnounceModal({
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} className="max-w-md">
-      <h2 className="text-xl font-bold text-primary mb-6">إرسال إعلان</h2>
+      <h2 className="text-xl font-bold text-primary mb-1">إرسال إعلان</h2>
+      {isTeacher && (
+        <p className="text-xs text-text-muted mb-5">
+          سيُرسَل الإعلان إلى طلاب حلقتك وأولياء أمورهم فقط
+        </p>
+      )}
+      {!isTeacher && <div className="mb-5" />}
 
       <div className="space-y-4 mb-8">
-        <div className="space-y-1.5">
-          <label className="block text-sm font-bold text-text-body">الجمهور</label>
-          <select
-            value={audience}
-            onChange={(e) => setAudience(e.target.value as Audience)}
-            aria-label="الجمهور"
-            className="h-12 w-full rounded-xl border border-border-subtle bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-          >
-            <option value="all">الجميع</option>
-            <option value="teachers">المحفظون</option>
-            <option value="parents">أولياء الأمور</option>
-            <option value="students">الطلاب</option>
-          </select>
-        </div>
+        {/* خيار الجمهور — للمدير فقط */}
+        {!isTeacher && (
+          <div className="space-y-1.5">
+            <label className="block text-sm font-bold text-text-body">الجمهور</label>
+            <select
+              value={audience}
+              onChange={(e) => setAudience(e.target.value as Audience)}
+              aria-label="الجمهور"
+              className="h-12 w-full rounded-xl border border-border-subtle bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+            >
+              <option value="all">الجميع</option>
+              <option value="teachers">المحفظون</option>
+              <option value="parents">أولياء الأمور</option>
+              <option value="students">الطلاب</option>
+            </select>
+          </div>
+        )}
 
         <div className="space-y-1.5">
           <label className="block text-sm font-bold text-text-body">العنوان</label>

@@ -4,6 +4,7 @@ from django.db.models import QuerySet
 from notifications.models import Notification
 from accounts.models import Parent, ParentStudentLink, User
 from students.models import Student
+from teacher.models import Teacher
 
 
 def notification_list(*, user: User) -> QuerySet[Notification]:
@@ -119,3 +120,39 @@ def teacher_can_message_student(
 
     return student_obj.teacher_id == teacher_user.teacher_profile.id
 
+
+def teacher_circle_recipients(teacher_user: User) -> list[User]:
+    """
+    Return all User accounts (student + parent) in the teacher's circle.
+    Includes: user accounts of active students assigned to this teacher,
+    plus user accounts of parents linked to those students.
+    """
+    if not hasattr(teacher_user, "teacher_profile") or not teacher_user.teacher_profile:
+        return []
+
+    teacher: Teacher = teacher_user.teacher_profile
+
+    # جلب الطلاب المُعيَّنين لهذا المحفظ الذين لديهم حساب مستخدم
+    students = (
+        Student.objects.filter(teacher=teacher)
+        .select_related("user")
+        .prefetch_related("parent_links__parent__user")
+    )
+
+    recipients: list[User] = []
+    seen_ids: set = set()
+
+    for student in students:
+        # حساب الطالب
+        if student.user_id and student.user_id not in seen_ids:
+            recipients.append(student.user)
+            seen_ids.add(student.user_id)
+
+        # حسابات أولياء الأمور
+        for link in student.parent_links.all():
+            parent_user = getattr(link.parent, "user", None)
+            if parent_user and parent_user.id not in seen_ids:
+                recipients.append(parent_user)
+                seen_ids.add(parent_user.id)
+
+    return recipients

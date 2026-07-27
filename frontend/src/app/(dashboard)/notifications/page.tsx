@@ -127,6 +127,7 @@ export default function NotificationsPage() {
           isOpen={announceOpen}
           onClose={() => setAnnounceOpen(false)}
           onSent={refetch}
+          isTeacher={isTeacher}
         />
       )}
     </div>

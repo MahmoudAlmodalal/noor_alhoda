@@ -103,6 +103,39 @@ def sync_pull(*, actor: User, since: datetime | None = None) -> dict[str, Any]:
 
     tombstones_qs = pull_tombstones(actor=actor, since=since)
 
+    # -----------------------------------------------------------------------
+    # "Evicted students" — students who LEFT this teacher's ring since the
+    # last sync.  Without this, a delta pull for a teacher never returns the
+    # updated row (teacher=None) for a student who was just unassigned,
+    # because `pull_visible_students` scopes to teacher=actor exclusively.
+    # The result: stale rows stay in the client IndexedDB forever, the
+    # student keeps showing in the teacher's list, and any new change-request
+    # for that student is rejected with "not in your ring".
+    #
+    # Fix: for teacher actors on a delta pull, also include students whose
+    # `updated_at > since` AND whose teacher FK no longer points to this
+    # teacher (i.e. they were recently unassigned or transferred).
+    # The client receives the updated row (teacher_id = null / other teacher)
+    # and upserts it, clearing the stale local entry.
+    # -----------------------------------------------------------------------
+    if since is not None and actor.role == "teacher" and hasattr(actor, "teacher_profile"):
+        from students.models import Student as _Student
+        evicted_qs = (
+            _Student.objects
+            .filter(delta)
+            .exclude(id__in=visible_student_ids)
+            .exclude(id__in=students_delta.values_list("id", flat=True))
+            .filter(
+                change_requests__teacher_id=actor.teacher_profile.id,
+                change_requests__action="unassign",
+                change_requests__status="approved",
+            )
+            .select_related("user", "teacher")
+            .distinct()
+        )
+        students_delta = list(students_delta) + list(evicted_qs)
+    # -----------------------------------------------------------------------
+
     sync_generation = SyncGeneration.get_current()
 
     return {
