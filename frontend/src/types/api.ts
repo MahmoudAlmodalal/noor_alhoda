@@ -195,11 +195,11 @@ export interface Student {
 }
 
 export interface CreateStudentRequest {
-  phone_number: string;
   full_name: string;
-  national_id: string;
-  birthdate: string;
-  grade: string;
+  phone_number?: string;
+  national_id?: string;
+  birthdate?: string;
+  grade?: string;
   address?: string;
   whatsapp?: string;
   mobile?: string;
@@ -207,8 +207,8 @@ export interface CreateStudentRequest {
   bank_account_number?: string;
   bank_account_name?: string;
   bank_account_type?: string;
-  guardian_name: string;
-  guardian_mobile: string;
+  guardian_name?: string;
+  guardian_mobile?: string;
   guardian_national_id?: string;
   health_status?: string;
   health_note?: string;

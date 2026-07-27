@@ -119,6 +119,18 @@ class StudentCreateTests(StudentTestSetup):
         self.assertEqual(response.status_code, 201)
         self.assertTrue(Student.objects.filter(user__national_id="970590100201").exists())
 
+    def test_admin_creates_student_with_name_only(self):
+        """STU-01b: Admin can create a student with only full_name."""
+        self.client.force_authenticate(self.admin)
+        response = self.client.post(
+            "/api/students/create/",
+            {"full_name": "طالب بالاسم فقط"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201)
+        student = Student.objects.get(full_name="طالب بالاسم فقط")
+        self.assertTrue(student.user.national_id.startswith("97"))
+
     def test_non_admin_cannot_create_student(self):
         """STU-02: Non-admin gets 403."""
         self.client.force_authenticate(self.teacher_a_user)

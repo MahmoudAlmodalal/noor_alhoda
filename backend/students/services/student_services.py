@@ -108,23 +108,30 @@ def student_create(*, creator: User, id=None, **data) -> Student:
         raise PermissionDenied("فقط المدير يمكنه تسجيل طلاب جدد.")
 
     # Required fields for manual creation
-    # During bulk import, we allow missing fields by filling them with "غ. م" in the caller
-    # but national_id and full_name are still conceptually required.
-    required_fields = ["full_name", "national_id", "phone_number", "guardian_name", "guardian_mobile"]
-    
-    # If this is an internal student creation (like from bulk import), we don't enforce these strictly
-    # as the caller (bulk_create) already provides defaults like "غ. م"
+    required_fields = ["full_name"]
+
     if not data.get("_internal_student_create"):
         missing = [f for f in required_fields if not data.get(f)]
         if missing:
             raise ValidationError({f: "هذا الحقل مطلوب." for f in missing})
-    
+
+    # Auto-generate synthetic national_id if not provided or blank
+    national_id = str(data.get("national_id") or "").strip()
+    if not national_id:
+        import hashlib, uuid
+        seed = f"{data.get('full_name', '')}-{uuid.uuid4().hex[:8]}"
+        digest = int(hashlib.md5(seed.encode("utf-8")).hexdigest(), 16)
+        synthetic_nid = f"97{digest % 10**10:010d}"
+        while User.objects.filter(national_id=synthetic_nid).exists():
+            seed += "x"
+            digest = int(hashlib.md5(seed.encode("utf-8")).hexdigest(), 16)
+            synthetic_nid = f"97{digest % 10**10:010d}"
+        national_id = synthetic_nid
+    data["national_id"] = national_id
+
     # Handle birthdate separately if missing (Django DateField cannot be empty string)
     birthdate = data.get("birthdate")
     if not birthdate:
-        # For bulk import where birthdate might be missing, we use a placeholder 
-        # but the user sees "غ. م" if we could store it in a char field.
-        # Since it's a DateField, we'll use a very old date as a technical placeholder.
         birthdate = "1900-01-01"
 
     # Check for duplicate national_id (canonical uniqueness lives on User).
@@ -165,25 +172,25 @@ def student_create(*, creator: User, id=None, **data) -> Student:
         user=user,
         full_name=data["full_name"],
         birthdate=birthdate,
-        grade=data["grade"],
-        address=data.get("address", ""),
-        whatsapp=data.get("whatsapp", ""),
-        mobile=data.get("mobile", ""),
-        previous_courses=data.get("previous_courses", ""),
-        desired_courses=data.get("desired_courses", ""),
+        grade=data.get("grade") or "غ. م",
+        address=data.get("address") or "",
+        whatsapp=data.get("whatsapp") or "",
+        mobile=data.get("mobile") or "",
+        previous_courses=data.get("previous_courses") or "",
+        desired_courses=data.get("desired_courses") or "",
         bank_account_number=data.get("bank_account_number"),
         bank_account_name=data.get("bank_account_name"),
         bank_account_type=data.get("bank_account_type"),
-        guardian_name=data["guardian_name"],
+        guardian_name=data.get("guardian_name") or "غ. م",
         guardian_national_id=data.get("guardian_national_id"),
-        guardian_mobile=data["guardian_mobile"],
+        guardian_mobile=data.get("guardian_mobile") or "غ. م",
         teacher=teacher,
-        health_status=data.get("health_status", "normal"),
-        health_note=data.get("health_note", ""),
-        skills=data.get("skills", {}),
-        current_surah=data.get("current_surah", ""),
+        health_status=data.get("health_status") or "normal",
+        health_note=data.get("health_note") or "",
+        skills=data.get("skills") or {},
+        current_surah=data.get("current_surah") or "",
         current_juz=data.get("current_juz"),
-        memorized_verses=data.get("memorized_verses", 0),
+        memorized_verses=data.get("memorized_verses") or 0,
     )
     if id is not None:
         student_kwargs["id"] = id

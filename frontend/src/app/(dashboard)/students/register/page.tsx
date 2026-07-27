@@ -137,6 +137,7 @@ function StudentRegistrationInner() {
   const isTeacherActor = user?.role === "teacher";
   const { mutate, isSubmitting: isMutating } = useMutation("student", "create");
   const [isRequestSubmitting, setIsRequestSubmitting] = useState(false);
+  const [showOptionalDetails, setShowOptionalDetails] = useState(false);
   const isSubmitting = isMutating || isRequestSubmitting;
   const fieldErrors: Record<string, string | string[]> | null = null;
 
@@ -193,6 +194,11 @@ function StudentRegistrationInner() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (!form.full_name.trim()) {
+      showToast("يرجى إدخال اسم الطالب الرباعي", "error");
+      return;
+    }
+
     let health_status = "normal";
     if (health.martyr_son) health_status = "martyr_son";
     else if (health.sick) health_status = "sick";
@@ -210,10 +216,6 @@ function StudentRegistrationInner() {
     };
 
     if (isTeacherActor) {
-      // Teachers can't create students directly — this submits a pending
-      // StudentChangeRequest instead (action=create), which only takes
-      // effect once an admin approves it. Direct online call, same pattern
-      // as AnnounceModal — not part of the Dexie outbox.
       setIsRequestSubmitting(true);
       const res = await api.post("/api/students/teacher-requests/", {
         action: "create",
@@ -224,13 +226,13 @@ function StudentRegistrationInner() {
         showToast(res.error.message, "error");
         return;
       }
-      showToast("تم إرسال طلب تسجيل الطالب، بانتظار موافقة الإدارة", "success");
+      showToast(`تم إرسال طلب تسجيل الطالب "${form.full_name}"، بانتظار موافقة الإدارة`, "success");
       router.push("/teacher-requests");
       return;
     }
 
-    const defaultPassword = form.phone_number.slice(-4);
-    const result = await mutate(body as unknown as Record<string, unknown>, { successMessage: `تم تسجيل الطالب بنجاح. كلمة المرور الافتراضية: ${defaultPassword}` });
+    const defaultPassword = form.phone_number ? form.phone_number.slice(-4) : "1234";
+    const result = await mutate(body as unknown as Record<string, unknown>, { successMessage: `تم تسجيل الطالب "${form.full_name}" بنجاح. كلمة المرور الافتراضية: ${defaultPassword}` });
     if (result) {
       router.push("/students");
     }
@@ -246,140 +248,185 @@ function StudentRegistrationInner() {
           <div className="w-20 h-20 mx-auto bg-white rounded-full flex items-center justify-center mb-5 border-4 border-secondary shadow-[0px_10px_15px_0px_rgba(0,0,0,0.1)]">
             <span className="text-4xl leading-none">🕌</span>
           </div>
-          <h2 className="text-xl font-bold mb-2 text-white">بطاقة الانتساب - طالب جديد</h2>
+          <h2 className="text-xl font-bold mb-2 text-white">تسجيل طالب جديد</h2>
           <p className="text-sm text-[#dbeafe]">مركز نور الهدى لتحفيظ القرآن الكريم وعلومه</p>
         </div>
       </div>
 
       {/* Form Content */}
-      <form className="px-2 pt-2 md:px-0" onSubmit={handleSubmit}>
-
-        <SectionTitle number={1} title="البيانات الأساسية" />
-        <FormGroup label="رقم الهوية:" name="national_id" type="number" value={form.national_id} onChange={handleChange} error={getFieldError("national_id")} />
-        <FormGroup label="الاسم رباعي:" name="full_name" value={form.full_name} onChange={handleChange} error={getFieldError("full_name")} />
-        <FormGroup label="تاريخ الميلاد:" name="birthdate" type="date" value={form.birthdate} onChange={handleChange} error={getFieldError("birthdate")} />
-        <AgeDisplay birthdate={form.birthdate} />
-        <GradeSelect value={form.grade} onChange={handleChange} error={getFieldError("grade")} />
-        <FormGroup label="رقم الجوال:" name="phone_number" type="tel" value={form.phone_number} onChange={handleChange} error={getFieldError("phone_number")} placeholder="05XXXXXXXX" />
-        <FormGroup label="رقم الواتساب:" name="whatsapp" type="tel" value={form.whatsapp} onChange={handleChange} error={getFieldError("whatsapp")} />
-        <FormGroup label="عنوان السكن:" name="address" value={form.address} onChange={handleChange} error={getFieldError("address")} />
-
-        <div className="space-y-1.5 mb-4">
-          <label className="block text-base font-medium text-[#575757]">الدورات السابقة:</label>
-          <div className="border border-[#e6e6e6] rounded-md p-3 max-h-48 overflow-y-auto bg-white space-y-2">
-            {(courses ?? []).length === 0 && (
-              <p className="text-sm text-text-muted">لا توجد دورات متاحة</p>
-            )}
-            {(courses ?? []).map((c) => (
-              <label key={c.id} className="flex items-center justify-end flex-row-reverse gap-3 cursor-pointer">
-                <span className="text-sm text-text-body">{c.name}</span>
-                <input
-                  type="checkbox"
-                  checked={selectedCourses.includes(c.name)}
-                  onChange={() => {
-                    setSelectedCourses((prev) =>
-                      prev.includes(c.name) ? prev.filter((n) => n !== c.name) : [...prev, c.name]
-                    );
-                  }}
-                  className="w-5 h-5 rounded border-border-subtle accent-secondary bg-surface-subtle"
-                />
-              </label>
-            ))}
+      <form className="px-2 pt-2 md:px-0 space-y-6" onSubmit={handleSubmit}>
+        
+        {/* Step 1: Quick Name Input */}
+        <div className="bg-white p-5 rounded-[16px] border border-border-card shadow-sm space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="font-bold text-primary text-lg flex items-center gap-2">
+              <span className="w-7 h-7 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold">1</span>
+              بيانات الطالب الأساسية
+            </h3>
+            <span className="text-xs bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded-full font-bold">مطلوب الاسم فقط</span>
           </div>
-        </div>
+          
+          <FormGroup 
+            label="اسم الطالب الرباعي *" 
+            name="full_name" 
+            value={form.full_name} 
+            onChange={handleChange} 
+            error={getFieldError("full_name")} 
+            placeholder="مثال: أحمد محمد علي حسن" 
+          />
 
-        {isTeacherActor ? (
-          <p className="mb-4 text-sm text-text-muted">
-            سيُسجَّل الطالب في حلقتك بعد موافقة الإدارة.
-          </p>
-        ) : (
-          <TeacherSelect value={form.teacher_id} onChange={handleChange} teachers={teachers ?? []} />
-        )}
+          {isTeacherActor ? (
+            <p className="text-xs text-text-muted">
+              سيُسجَّل الطالب في حلقتك بعد موافقة الإدارة.
+            </p>
+          ) : (
+            <TeacherSelect value={form.teacher_id} onChange={handleChange} teachers={teachers ?? []} />
+          )}
 
-        <SectionTitle number={2} title="بيانات ولي الأمر" />
-        <FormGroup label="الاسم رباعي:" name="guardian_name" value={form.guardian_name} onChange={handleChange} error={getFieldError("guardian_name")} />
-        <FormGroup label="رقم الهوية:" name="guardian_national_id" type="number" value={form.guardian_national_id} onChange={handleChange} error={getFieldError("guardian_national_id")} />
-        <FormGroup label="رقم الجوال:" name="guardian_mobile" type="tel" value={form.guardian_mobile} onChange={handleChange} error={getFieldError("guardian_mobile")} placeholder="05XXXXXXXX" />
-
-        <SectionTitle number={3} title="البيانات المصرفية" />
-        <FormGroup label="رقم الحساب:" name="bank_account_number" value={form.bank_account_number} onChange={handleChange} error={getFieldError("bank_account_number")} />
-        <FormGroup label="اسم الحساب:" name="bank_account_name" value={form.bank_account_name} onChange={handleChange} error={getFieldError("bank_account_name")} />
-        <div className="space-y-1.5 mb-4">
-          <label className="block text-base font-medium text-[#575757]">نوع الحساب:</label>
-          <select
-            value={bankAccountType}
-            onChange={(e) => setBankAccountType(e.target.value)}
-            className="w-full border border-[#e6e6e6] rounded-md px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/20"
-          >
-            <option value="">اختر نوع الحساب...</option>
-            <option value="محفظة">محفظة</option>
-            <option value="بنك فلسطين">بنك فلسطين</option>
-            <option value="بنك الإسلامي الفلسطيني">بنك الإسلامي الفلسطيني</option>
-          </select>
-          {getFieldError("bank_account_type") && <p className="text-xs text-red-500 mt-1">{getFieldError("bank_account_type")}</p>}
-        </div>
-
-        <SectionBand title="الحالة الصحية" />
-        <div className="grid grid-cols-2 gap-y-5 gap-x-4 mb-4">
-          <CheckboxItem label="ابن شهيد" checked={health.martyr_son} onChange={() => setHealth({ ...health, martyr_son: !health.martyr_son })} />
-          <CheckboxItem label="مريض" checked={health.sick} onChange={() => setHealth({ ...health, sick: !health.sick })} />
-          <CheckboxItem label="جريح" checked={health.injured} onChange={() => setHealth({ ...health, injured: !health.injured })} />
-          <CheckboxItem label="أخرى" checked={health.other} onChange={() => setHealth({ ...health, other: !health.other })} />
-        </div>
-        {health.other && (
-          <div className="mb-4">
-            <Input
-              type="text"
-              value={healthOtherText}
-              onChange={(e) => setHealthOtherText(e.target.value)}
-              placeholder="اكتب التفاصيل..."
-              aria-label="تفاصيل الحالة الصحية"
-              className="border-[#e6e6e6]"
-            />
-          </div>
-        )}
-
-        <SectionBand title="المهارات والاهتمامات" />
-        <div className="grid grid-cols-2 gap-y-5 gap-x-4 mb-10">
-          <CheckboxItem label="قراءات قرآن" checked={skills.quran} onChange={() => setSkills({ ...skills, quran: !skills.quran })} />
-          <CheckboxItem label="إنشاد" checked={skills.nasheed} onChange={() => setSkills({ ...skills, nasheed: !skills.nasheed })} />
-          <CheckboxItem label="شعر" checked={skills.poetry} onChange={() => setSkills({ ...skills, poetry: !skills.poetry })} />
-          <CheckboxItem label="أخرى" checked={skills.other} onChange={() => setSkills({ ...skills, other: !skills.other })} />
-        </div>
-        {skills.other && (
-          <div className="mb-6">
-            <Input
-              type="text"
-              value={skillsOtherText}
-              onChange={(e) => setSkillsOtherText(e.target.value)}
-              placeholder="اكتب التفاصيل..."
-              aria-label="تفاصيل المهارات الأخرى"
-              className="border-[#e6e6e6]"
-            />
-          </div>
-        )}
-
-        {/* Action Buttons */}
-        <div className="space-y-3 mt-8">
-          <Button type="submit" size="lg" disabled={isSubmitting} className="w-full h-14 text-base font-bold gap-2">
+          <Button type="submit" size="lg" disabled={isSubmitting} className="w-full h-13 text-base font-bold gap-2">
             {isSubmitting ? (
               <>
                 <Loader2 className="w-5 h-5 animate-spin" />
-                {isTeacherActor ? "جاري الإرسال..." : "جاري الحفظ..."}
+                {isTeacherActor ? "جاري إرسال الطلب..." : "جاري تسجيل الطالب..."}
               </>
             ) : isTeacherActor ? (
-              "إرسال طلب التسجيل"
+              "تسجيل الطالب (إرسال للموافقة)"
             ) : (
-              "حفظ البيانات وإصدار البطاقة"
+              "تسجيل الطالب الآن"
             )}
           </Button>
-          {!isTeacherActor && (
-            <Button type="button" onClick={() => window.print()} variant="outline" className="w-full h-12 text-base font-medium border-secondary text-secondary hover:bg-[#fffcf4] gap-2">
-              طباعة البطاقة
-              <Printer className="w-5 h-5" />
-            </Button>
-          )}
         </div>
+
+        {/* Optional Toggle Button */}
+        <div className="text-center">
+          <button
+            type="button"
+            onClick={() => setShowOptionalDetails(!showOptionalDetails)}
+            className="text-sm font-bold text-secondary hover:underline inline-flex items-center gap-1 bg-surface-subtle px-4 py-2 rounded-xl border border-border-subtle transition-all"
+          >
+            {showOptionalDetails ? "▲ إخفاء البيانات الإضافية" : "▼ إضافة بيانات تفصيلية (اختياري)"}
+          </button>
+        </div>
+
+        {/* Step 2: Optional Extra Details */}
+        {showOptionalDetails && (
+          <div className="bg-white p-5 rounded-[16px] border border-border-card shadow-sm space-y-6">
+            <SectionTitle number={2} title="البيانات الشخصية والدراسية (اختياري)" />
+            <FormGroup label="رقم الهوية:" name="national_id" type="number" value={form.national_id} onChange={handleChange} error={getFieldError("national_id")} placeholder="تترك فارغة لتوليد رقم تلقائي" />
+            <FormGroup label="تاريخ الميلاد:" name="birthdate" type="date" value={form.birthdate} onChange={handleChange} error={getFieldError("birthdate")} />
+            <AgeDisplay birthdate={form.birthdate} />
+            <GradeSelect value={form.grade} onChange={handleChange} error={getFieldError("grade")} />
+            <FormGroup label="رقم الجوال:" name="phone_number" type="tel" value={form.phone_number} onChange={handleChange} error={getFieldError("phone_number")} placeholder="05XXXXXXXX" />
+            <FormGroup label="رقم الواتساب:" name="whatsapp" type="tel" value={form.whatsapp} onChange={handleChange} error={getFieldError("whatsapp")} />
+            <FormGroup label="عنوان السكن:" name="address" value={form.address} onChange={handleChange} error={getFieldError("address")} />
+
+            <div className="space-y-1.5 mb-4">
+              <label className="block text-base font-medium text-[#575757]">الدورات السابقة:</label>
+              <div className="border border-[#e6e6e6] rounded-md p-3 max-h-48 overflow-y-auto bg-white space-y-2">
+                {(courses ?? []).length === 0 && (
+                  <p className="text-sm text-text-muted">لا توجد دورات متاحة</p>
+                )}
+                {(courses ?? []).map((c) => (
+                  <label key={c.id} className="flex items-center justify-end flex-row-reverse gap-3 cursor-pointer">
+                    <span className="text-sm text-text-body">{c.name}</span>
+                    <input
+                      type="checkbox"
+                      checked={selectedCourses.includes(c.name)}
+                      onChange={() => {
+                        setSelectedCourses((prev) =>
+                          prev.includes(c.name) ? prev.filter((n) => n !== c.name) : [...prev, c.name]
+                        );
+                      }}
+                      className="w-5 h-5 rounded border-border-subtle accent-secondary bg-surface-subtle"
+                    />
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <SectionTitle number={3} title="بيانات ولي الأمر (اختياري)" />
+            <FormGroup label="الاسم رباعي:" name="guardian_name" value={form.guardian_name} onChange={handleChange} error={getFieldError("guardian_name")} />
+            <FormGroup label="رقم الهوية:" name="guardian_national_id" type="number" value={form.guardian_national_id} onChange={handleChange} error={getFieldError("guardian_national_id")} />
+            <FormGroup label="رقم الجوال:" name="guardian_mobile" type="tel" value={form.guardian_mobile} onChange={handleChange} error={getFieldError("guardian_mobile")} placeholder="05XXXXXXXX" />
+
+            <SectionTitle number={4} title="البيانات المصرفية (اختياري)" />
+            <FormGroup label="رقم الحساب:" name="bank_account_number" value={form.bank_account_number} onChange={handleChange} error={getFieldError("bank_account_number")} />
+            <FormGroup label="اسم الحساب:" name="bank_account_name" value={form.bank_account_name} onChange={handleChange} error={getFieldError("bank_account_name")} />
+            <div className="space-y-1.5 mb-4">
+              <label className="block text-base font-medium text-[#575757]">نوع الحساب:</label>
+              <select
+                value={bankAccountType}
+                onChange={(e) => setBankAccountType(e.target.value)}
+                className="w-full border border-[#e6e6e6] rounded-md px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/20"
+              >
+                <option value="">اختر نوع الحساب...</option>
+                <option value="محفظة">محفظة</option>
+                <option value="بنك فلسطين">بنك فلسطين</option>
+                <option value="بنك الإسلامي الفلسطيني">بنك الإسلامي الفلسطيني</option>
+              </select>
+            </div>
+
+            <SectionBand title="الحالة الصحية (اختياري)" />
+            <div className="grid grid-cols-2 gap-y-5 gap-x-4 mb-4">
+              <CheckboxItem label="ابن شهيد" checked={health.martyr_son} onChange={() => setHealth({ ...health, martyr_son: !health.martyr_son })} />
+              <CheckboxItem label="مريض" checked={health.sick} onChange={() => setHealth({ ...health, sick: !health.sick })} />
+              <CheckboxItem label="جريح" checked={health.injured} onChange={() => setHealth({ ...health, injured: !health.injured })} />
+              <CheckboxItem label="أخرى" checked={health.other} onChange={() => setHealth({ ...health, other: !health.other })} />
+            </div>
+            {health.other && (
+              <div className="mb-4">
+                <Input
+                  type="text"
+                  value={healthOtherText}
+                  onChange={(e) => setHealthOtherText(e.target.value)}
+                  placeholder="اكتب التفاصيل..."
+                  aria-label="تفاصيل الحالة الصحية"
+                  className="border-[#e6e6e6]"
+                />
+              </div>
+            )}
+
+            <SectionBand title="المهارات والاهتمامات (اختياري)" />
+            <div className="grid grid-cols-2 gap-y-5 gap-x-4 mb-6">
+              <CheckboxItem label="قراءات قرآن" checked={skills.quran} onChange={() => setSkills({ ...skills, quran: !skills.quran })} />
+              <CheckboxItem label="إنشاد" checked={skills.nasheed} onChange={() => setSkills({ ...skills, nasheed: !skills.nasheed })} />
+              <CheckboxItem label="شعر" checked={skills.poetry} onChange={() => setSkills({ ...skills, poetry: !skills.poetry })} />
+              <CheckboxItem label="أخرى" checked={skills.other} onChange={() => setSkills({ ...skills, other: !skills.other })} />
+            </div>
+            {skills.other && (
+              <div className="mb-6">
+                <Input
+                  type="text"
+                  value={skillsOtherText}
+                  onChange={(e) => setSkillsOtherText(e.target.value)}
+                  placeholder="اكتب التفاصيل..."
+                  aria-label="تفاصيل المهارات الأخرى"
+                  className="border-[#e6e6e6]"
+                />
+              </div>
+            )}
+
+            <Button type="submit" size="lg" disabled={isSubmitting} className="w-full h-14 text-base font-bold gap-2">
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  {isTeacherActor ? "جاري الإرسال..." : "جاري الحفظ..."}
+                </>
+              ) : isTeacherActor ? (
+                "إرسال طلب التسجيل"
+              ) : (
+                "حفظ كل البيانات وإصدار البطاقة"
+              )}
+            </Button>
+
+            {!isTeacherActor && (
+              <Button type="button" onClick={() => window.print()} variant="outline" className="w-full h-12 text-base font-medium border-secondary text-secondary hover:bg-[#fffcf4] gap-2">
+                طباعة البطاقة
+                <Printer className="w-5 h-5" />
+              </Button>
+            )}
+          </div>
+        )}
       </form>
     </div>
   );
