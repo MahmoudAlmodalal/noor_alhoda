@@ -1,11 +1,12 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { BookOpen, GraduationCap, PlusCircle } from "lucide-react";
+import { BookOpen, Edit, GraduationCap, PlusCircle, Trash2 } from "lucide-react";
 import { PageLoading } from "@/components/ui/LoadingSpinner";
 import { useQuery } from "@/hooks/useApi";
 import { WeeklyPlanModal } from "@/components/plans/WeeklyPlanModal";
 import { EvaluationCreateModal } from "@/components/modals/EvaluationCreateModal";
+import { ConfirmDeleteModal } from "@/components/modals/TeacherModals";
 import { ReviewIntervalInput } from "@/components/plans/ReviewIntervalInput";
 import type { PlanForList } from "@/lib/db/repos/aggregates";
 
@@ -13,6 +14,14 @@ export default function PlansPage() {
   const [planModalOpen, setPlanModalOpen] = useState(false);
   const [weekFilter, setWeekFilter] = useState<string>("");
   const [evalTarget, setEvalTarget] = useState<{ id: string; name: string } | null>(null);
+  const [editPlan, setEditPlan] = useState<{
+    id: string;
+    studentId: string;
+    studentName: string;
+    totalRequired: number;
+    weekStart: string;
+  } | null>(null);
+  const [deletePlan, setDeletePlan] = useState<{ id: string; name: string } | null>(null);
 
   const params = useMemo<Record<string, string | undefined>>(
     () => ({ week_start: weekFilter || undefined }),
@@ -155,16 +164,48 @@ export default function PlansPage() {
                         />
                       </td>
                       <td className="px-4 py-3 text-center">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setEvalTarget({ id: plan.student_id, name: plan.student_name })
-                          }
-                          className="inline-flex items-center gap-1 rounded-[10px] border border-primary/30 px-2.5 py-1 text-[11px] font-bold text-primary hover:bg-primary/5"
-                        >
-                          <GraduationCap className="h-3.5 w-3.5" />
-                          اختبار
-                        </button>
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setEvalTarget({ id: plan.student_id, name: plan.student_name })
+                            }
+                            className="inline-flex items-center gap-1 rounded-[10px] border border-primary/30 px-2.5 py-1 text-[11px] font-bold text-primary hover:bg-primary/5"
+                            title="اختبار"
+                          >
+                            <GraduationCap className="h-3.5 w-3.5" />
+                            اختبار
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setEditPlan({
+                                id: plan.id,
+                                studentId: plan.student_id,
+                                studentName: plan.student_name,
+                                totalRequired: plan.total_required,
+                                weekStart: plan.week_start,
+                              })
+                            }
+                            className="p-1 text-text-muted hover:text-primary transition-colors"
+                            title="تعديل الخطة"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setDeletePlan({
+                                id: plan.id,
+                                name: plan.student_name,
+                              })
+                            }
+                            className="p-1 text-text-muted hover:text-red-500 transition-colors"
+                            title="حذف الخطة"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -176,9 +217,28 @@ export default function PlansPage() {
       )}
 
       <WeeklyPlanModal
-        isOpen={planModalOpen}
-        onClose={() => setPlanModalOpen(false)}
+        isOpen={planModalOpen || !!editPlan}
+        onClose={() => {
+          setPlanModalOpen(false);
+          setEditPlan(null);
+        }}
+        studentId={editPlan?.studentId}
+        studentName={editPlan?.studentName}
+        editPlanId={editPlan?.id}
+        initialTotalRequired={editPlan?.totalRequired}
+        initialWeekStart={editPlan?.weekStart}
       />
+
+      {deletePlan && (
+        <ConfirmDeleteModal
+          isOpen={!!deletePlan}
+          onClose={() => setDeletePlan(null)}
+          targetName={`${deletePlan.name} (خطة أسبوع ${plans?.find((r) => r.id === deletePlan.id)?.week_start || ""})`}
+          resource="weekly_plan"
+          targetId={deletePlan.id}
+          onSuccess={() => setDeletePlan(null)}
+        />
+      )}
 
       {evalTarget && (
         <EvaluationCreateModal
