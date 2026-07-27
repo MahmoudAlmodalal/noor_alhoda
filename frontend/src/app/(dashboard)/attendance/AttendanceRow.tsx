@@ -257,41 +257,6 @@ export function AttendanceRow({ draft, onChange }: Props) {
             </div>
           </div>
 
-          <div className="text-xs font-bold text-amber-600 mt-3 mb-1 pb-0.5 border-b border-border-card/50">المطلوب تسميعه غداً (مراجعة)</div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div className="space-y-1">
-              <label className="block text-[11px] font-bold text-text-label">السورة</label>
-              <input
-                type="text"
-                placeholder="اسم السورة"
-                value={draft.next_review_target}
-                onChange={(e) => onChange({ next_review_target: e.target.value })}
-                className={inputCls}
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="block text-[11px] font-bold text-text-label">من آية</label>
-              <input
-                type="number"
-                min={0}
-                value={draft.next_review_from_ayah}
-                onChange={(e) => onChange({ next_review_from_ayah: e.target.value === "" ? "" : Number(e.target.value) })}
-                className={inputCls}
-                dir="ltr"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="block text-[11px] font-bold text-text-label">إلى آية</label>
-              <input
-                type="number"
-                min={0}
-                value={draft.next_review_to_ayah}
-                onChange={(e) => onChange({ next_review_to_ayah: e.target.value === "" ? "" : Number(e.target.value) })}
-                className={inputCls}
-                dir="ltr"
-              />
-            </div>
-          </div>
         </div>
       )}
     </div>
