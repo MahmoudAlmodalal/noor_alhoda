@@ -119,7 +119,6 @@ export async function revertOrphanedInFlight(): Promise<number> {
     for (const row of orphans) {
       await db.outbox.update(row.op_id, {
         status: "pending",
-        attempts: (row.attempts || 0) + 1,
       });
     }
   });
@@ -140,6 +139,21 @@ export async function markConflict(opId: string, message: string): Promise<void>
   emitChange("outbox");
 }
 
+const RESOURCE_TABLE_MAP: Partial<Record<ResourceName, string>> = {
+  student: "students",
+  teacher: "teachers",
+  parent: "parents",
+  parent_student_link: "parent_student_links",
+  weekly_plan: "weekly_plans",
+  daily_record: "daily_records",
+  review_record: "review_records",
+  evaluation: "evaluations",
+  notification: "notifications",
+  course: "courses",
+  student_course: "student_courses",
+  progress: "progress",
+};
+
 /**
  * Replace temporary client IDs with server-assigned primary keys across
  * all pending and errored ops in the IndexedDB outbox. Resets errored ops
@@ -147,12 +161,24 @@ export async function markConflict(opId: string, message: string): Promise<void>
  */
 export async function remapPendingOutboxIds(
   oldId: string,
-  newId: string
+  newId: string,
+  resource?: ResourceName
 ): Promise<void> {
   if (!oldId || !newId || oldId === newId) return;
   const db = getDb();
   const sessionKey = getSessionKey();
   if (!sessionKey) return;
+
+  if (resource) {
+    try {
+      const tableName = RESOURCE_TABLE_MAP[resource];
+      if (tableName) {
+        await db.table(tableName).delete(oldId);
+      }
+    } catch {
+      // Best effort cleanup of temporary client ID in domain table
+    }
+  }
 
   const rows = await db.outbox
     .where("status")
@@ -178,6 +204,13 @@ export async function remapPendingOutboxIds(
           if (val === oldId) {
             payload[key] = newId;
             changed = true;
+          }
+          if (Array.isArray(val)) {
+            const idx = val.indexOf(oldId);
+            if (idx !== -1) {
+              val[idx] = newId;
+              changed = true;
+            }
           }
         }
       }

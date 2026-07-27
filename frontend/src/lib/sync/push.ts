@@ -184,7 +184,7 @@ async function applyResult(
 
       const targetId = opTargetMap?.get(r.client_id);
       if (typeof r.row.id === "string" && targetId && targetId !== r.row.id) {
-        await remapPendingOutboxIds(targetId, r.row.id);
+        await remapPendingOutboxIds(targetId, r.row.id, resource);
       }
     }
     for (const extra of r.extra_rows ?? []) {

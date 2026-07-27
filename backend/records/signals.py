@@ -56,3 +56,4 @@ def infer_daily_record_result(sender, instance, **kwargs):
         result=new_result,
         updated_at=timezone.now(),
     )
+    instance.result = new_result

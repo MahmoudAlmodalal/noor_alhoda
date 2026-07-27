@@ -260,7 +260,7 @@ def _push_student_create(*, actor: User, op: dict) -> dict:
     return {
         "client_id": op.get("client_id"),
         "status": "synced",
-        "row": RESOURCE_DICT_MAP["student"][1](student),
+        "row": _conflict_row("student", student),
     }
 
 
