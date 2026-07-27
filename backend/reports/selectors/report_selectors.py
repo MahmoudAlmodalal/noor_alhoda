@@ -135,15 +135,22 @@ def attendance_report(*, month: int, year: int, actor: User, teacher_id=None) ->
     }
 
 
-def leaderboard(*, month: int, year: int, actor: User) -> list:
+def leaderboard(*, actor: User) -> list:
     """
-    Monthly leaderboard — top 10 students by achieved verses (feature 5.4).
+    Weekly leaderboard — top 10 students by achieved verses this week (feature 5.4).
 
+    The week runs Saturday → Thursday (the centre's working week).
     RBAC: admin sees all students center-wide; teachers see their own
     halaqah; students see classmates in their halaqah; parents see the
     halaqahs their linked students belong to.
     """
-    base = DailyRecord.objects.filter(date__month=month, date__year=year)
+    today = timezone.now().date()
+    weekday = today.weekday()  # Monday=0 … Sunday=6
+    days_since_saturday = (weekday + 2) % 7
+    week_start = today - timezone.timedelta(days=days_since_saturday)
+    week_end = week_start + timezone.timedelta(days=5)  # Thursday
+
+    base = DailyRecord.objects.filter(date__gte=week_start, date__lte=week_end)
 
     is_admin = actor.role == "admin" or actor.is_superuser
     if is_admin:

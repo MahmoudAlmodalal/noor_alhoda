@@ -62,17 +62,10 @@ class StudentPDFReportApi(APIView):
 
 
 class LeaderboardApi(APIView):
-    """GET /api/reports/leaderboard/?month=4&year=2026 — لوحة الشرف"""
+    """GET /api/reports/leaderboard/ — لوحة الشرف (الأسبوع الجاري)"""
 
     permission_classes = [IsAdminOrTeacherOrSelf]
 
     def get(self, request):
-        filter_ser = MonthYearFilterSerializer(data=request.query_params)
-        filter_ser.is_valid(raise_exception=True)
-
-        data = leaderboard(
-            month=filter_ser.validated_data["month"],
-            year=filter_ser.validated_data["year"],
-            actor=request.user,
-        )
+        data = leaderboard(actor=request.user)
         return Response({"success": True, "data": data}, status=status.HTTP_200_OK)

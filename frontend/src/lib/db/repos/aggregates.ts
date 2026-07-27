@@ -696,15 +696,19 @@ export async function leaderboard(): Promise<LeaderboardEntry[]> {
   const [students, teachers] = await Promise.all([listStudents(), listTeachers()]);
   const teacherById = new Map(teachers.map((t) => [t.id, t]));
 
+  // الأسبوع الحالي: من السبت إلى الخميس
   const today = new Date();
-  const monthFrom = new Date(today.getFullYear(), today.getMonth(), 1)
-    .toISOString()
-    .slice(0, 10);
-  const monthTo = new Date(today.getFullYear(), today.getMonth() + 1, 0)
-    .toISOString()
-    .slice(0, 10);
+  const dayOfWeek = today.getDay(); // 0=Sun, 1=Mon, …, 6=Sat
+  const daysSinceSat = (dayOfWeek + 1) % 7; // السبت = يوم 0 في حسابنا
+  const weekStart = new Date(today);
+  weekStart.setDate(today.getDate() - daysSinceSat);
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 5); // الخميس
 
-  const daily = await listDailyRecordsInRange(monthFrom, monthTo);
+  const weekFrom = weekStart.toISOString().slice(0, 10);
+  const weekTo   = weekEnd.toISOString().slice(0, 10);
+
+  const daily = await listDailyRecordsInRange(weekFrom, weekTo);
 
   const planToStudent = new Map<string, string>();
   for (const s of students) {

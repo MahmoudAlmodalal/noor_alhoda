@@ -244,19 +244,16 @@ class StudentPDFExtendedTests(ReportTestSetup):
 
 
 class LeaderboardExtendedTests(ReportTestSetup):
-    def test_invalid_month_returns_400(self):
+    def test_no_params_required(self):
+        """REP-EXT: Leaderboard works without any query params (uses current week)."""
         self.client.force_authenticate(self.admin)
-        response = self.client.get(LEADERBOARD_URL + "?month=13&year=2026")
-        self.assertEqual(response.status_code, 400)
-
-    def test_invalid_year_returns_400(self):
-        self.client.force_authenticate(self.admin)
-        response = self.client.get(LEADERBOARD_URL + "?month=1&year=1900")
-        self.assertEqual(response.status_code, 400)
+        response = self.client.get(LEADERBOARD_URL)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("data", response.data)
 
     def test_student_can_access_leaderboard(self):
         self.client.force_authenticate(self.student_user_1)
-        response = self.client.get(LEADERBOARD_URL + "?month=4&year=2026")
+        response = self.client.get(LEADERBOARD_URL)
         self.assertEqual(response.status_code, 200)
 
     def test_parent_can_access_leaderboard(self):
@@ -268,21 +265,21 @@ class LeaderboardExtendedTests(ReportTestSetup):
         )
         Parent.objects.create(user=parent_user, full_name="P")
         self.client.force_authenticate(parent_user)
-        response = self.client.get(LEADERBOARD_URL + "?month=4&year=2026")
+        response = self.client.get(LEADERBOARD_URL)
         self.assertEqual(response.status_code, 200)
 
     def test_leaderboard_descending_order(self):
         self.client.force_authenticate(self.admin)
-        response = self.client.get(LEADERBOARD_URL + "?month=4&year=2026")
+        response = self.client.get(LEADERBOARD_URL)
         data = response.data["data"]
         scores = [row["score"] for row in data]
         self.assertEqual(scores, sorted(scores, reverse=True))
 
     def test_leaderboard_caps_at_ten_entries(self):
         self.client.force_authenticate(self.admin)
-        response = self.client.get(LEADERBOARD_URL + "?month=4&year=2026")
+        response = self.client.get(LEADERBOARD_URL)
         self.assertLessEqual(len(response.data["data"]), 10)
 
     def test_unauthenticated_returns_401(self):
-        response = self.client.get(LEADERBOARD_URL + "?month=4&year=2026")
+        response = self.client.get(LEADERBOARD_URL)
         self.assertEqual(response.status_code, 401)
