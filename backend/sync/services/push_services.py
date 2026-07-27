@@ -166,10 +166,11 @@ def _apply_op(*, actor: User, op: dict) -> dict[str, Any]:
         logger.warning("IntegrityError in sync_push op %s/%s: %s", resource, action, exc)
     except Exception as exc:  # noqa: BLE001
         logger.exception("Unhandled error in sync_push op %s/%s", resource, action)
+        err_msg = str(exc) if str(exc) else "تعذّر تنفيذ العملية."
         result = {
             "client_id": client_id,
             "status": "error",
-            "error": {"code": "internal", "message": "تعذّر تنفيذ العملية."},
+            "error": {"code": "internal", "message": err_msg},
         }
 
     return _finalize(
@@ -431,11 +432,6 @@ def _push_daily_record_create(*, actor: User, op: dict) -> dict:
                                     )
                             except Exception:
                                 pass
-                    if not existing_plan:
-                        try:
-                            existing_plan = WeeklyPlan.objects.filter(week_start=ws).first()
-                        except Exception:
-                            pass
 
                     if existing_plan:
                         data["weekly_plan_id"] = str(existing_plan.id)
@@ -449,17 +445,28 @@ def _push_daily_record_create(*, actor: User, op: dict) -> dict:
                 teacher=actor,
                 **data,
             )
-    except (IntegrityError, ValidationError, DjangoValidationError):
+    except (IntegrityError, ValidationError, DjangoValidationError, PermissionDenied):
         existing = (
             DailyRecord.objects.filter(id=op.get("id")).first()
             if op.get("id")
             else None
         )
         if existing is None and data.get("weekly_plan_id") and data.get("day"):
-            existing = DailyRecord.objects.filter(
-                weekly_plan_id=data.get("weekly_plan_id"),
-                day=data.get("day"),
-            ).first()
+            try:
+                existing = DailyRecord.objects.filter(
+                    weekly_plan_id=data.get("weekly_plan_id"),
+                    day=data.get("day"),
+                ).first()
+            except Exception:
+                pass
+        if existing is None and student_id and data.get("date"):
+            try:
+                existing = DailyRecord.objects.filter(
+                    weekly_plan__student_id=student_id,
+                    date=data.get("date"),
+                ).first()
+            except Exception:
+                pass
         if existing is not None:
             return {
                 "client_id": op.get("client_id"),
@@ -512,11 +519,27 @@ def _push_daily_record_update(*, actor: User, op: dict) -> dict:
             "status": "conflict",
             "row": _conflict_row("daily_record", record),
         }
-    updated = daily_record_update(
-        record_id=record.id,
-        teacher=actor,
-        data=data,
-    )
+
+    try:
+        updated = daily_record_update(
+            record_id=record.id,
+            teacher=actor,
+            data=data,
+        )
+    except PermissionDenied as exc:
+        return {
+            "client_id": op.get("client_id"),
+            "status": "conflict",
+            "row": _conflict_row("daily_record", record),
+            "error": {"code": "forbidden", "message": str(exc)},
+        }
+    except (ValidationError, DjangoValidationError):
+        return {
+            "client_id": op.get("client_id"),
+            "status": "conflict",
+            "row": _conflict_row("daily_record", record),
+        }
+
     return {
         "client_id": op.get("client_id"),
         "status": "synced",

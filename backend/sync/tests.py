@@ -448,3 +448,38 @@ class SyncPushDailyRecordDuplicateConflictTests(SyncPushInBatchRemappingTests):
         self.assertEqual(results[0]["status"], "conflict")
         self.assertEqual(results[0]["row"]["id"], str(existing_record.id))
 
+    def test_update_old_record_returns_conflict_status(self):
+        """When client pushes a daily record update for an old record (>7 days),
+        PermissionDenied should return status 'conflict' with server row so client outbox clears."""
+        self.client.force_authenticate(self.teacher_user)
+        plan = WeeklyPlan.objects.create(
+            student=self.student,
+            week_start=date(2026, 1, 3),
+            week_number=1,
+            total_required=5,
+        )
+        old_record = DailyRecord.objects.create(
+            weekly_plan=plan,
+            day="sat",
+            date=date(2026, 1, 3),
+            attendance="present",
+        )
+
+        op = {
+            "client_id": "30000000-0000-4000-a000-000000000002",
+            "resource": "daily_record",
+            "op": "update",
+            "id": str(old_record.id),
+            "data": {
+                "attendance": "absent",
+            },
+        }
+
+        response = self.client.post("/api/sync/push/", {"ops": [op]}, format="json")
+        self.assertEqual(response.status_code, 200)
+
+        results = response.json()["data"]["results"]
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["status"], "conflict")
+        self.assertEqual(results[0]["row"]["id"], str(old_record.id))
+
