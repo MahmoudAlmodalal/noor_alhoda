@@ -15,6 +15,8 @@ const HEARTBEAT_MS = 30_000;
 let started = false;
 let heartbeat: ReturnType<typeof setInterval> | null = null;
 let swMessageHandler: ((ev: MessageEvent) => void) | null = null;
+let onlineHandler: (() => void) | null = null;
+let focusHandler: (() => void) | null = null;
 
 async function maybeSync(): Promise<void> {
   if (!hasSessionKey()) return;
@@ -44,16 +46,18 @@ export function startSyncRunner(): void {
     await maybeSync();
   })();
 
-  window.addEventListener("online", () => {
+  onlineHandler = () => {
     // Coming back online is the right boundary to rescue ops parked at
     // status="error" by a transient failure (server restart, brief 502,
     // intermittent network). Bounded by an attempts cap inside so a
     // permanent error doesn't loop forever.
     void requeueErroredOps().then(() => maybeSync());
-  });
-  window.addEventListener("focus", () => {
+  };
+  focusHandler = () => {
     void maybeSync();
-  });
+  };
+  window.addEventListener("online", onlineHandler);
+  window.addEventListener("focus", focusHandler);
   heartbeat = setInterval(() => {
     if (document.visibilityState === "visible") void maybeSync();
   }, HEARTBEAT_MS);
@@ -82,6 +86,14 @@ export function stopSyncRunner(): void {
   if (heartbeat !== null) clearInterval(heartbeat);
   heartbeat = null;
   started = false;
+  if (onlineHandler) {
+    window.removeEventListener("online", onlineHandler);
+    onlineHandler = null;
+  }
+  if (focusHandler) {
+    window.removeEventListener("focus", focusHandler);
+    focusHandler = null;
+  }
   if (swMessageHandler && "serviceWorker" in navigator) {
     navigator.serviceWorker.removeEventListener("message", swMessageHandler);
     swMessageHandler = null;

@@ -68,7 +68,7 @@ export function StudentHeader({
           <h1 className="text-2xl font-black leading-tight text-white">
             {student.full_name}
           </h1>
-          <p className="text-xs text-white/70" dir="ltr">
+          <p className="text-xs text-white/70 text-end" dir="ltr">
             {student.national_id}
           </p>
           <div className="flex flex-wrap items-center gap-2">

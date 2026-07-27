@@ -252,16 +252,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           clearSessionKey();
         }
       } else {
-        // Token exists but no session key could be restored. This happens if
-        // (a) the tab was closed and reopened (sessionStorage cleared), or
-        // (b) the page was reloaded mid-login before persistSessionKey() had
-        // run. Either way the DB is locked and we no longer have the password
-        // needed to unwrap it — force a fresh login.
-        localStorage.removeItem("access_token");
-        localStorage.removeItem("refresh_token");
+        // Token exists but no session key could be restored (e.g. new tab opened).
+        // The DB is locked and we no longer have the password needed to unwrap it —
+        // redirect to /login WITHOUT clearing localStorage tokens so other open tabs remain logged in.
         if (isMounted) setIsLoading(false);
         if (typeof window !== "undefined") {
-          window.location.href = "/login";
+          window.location.href = "/login?reason=new_tab";
         }
         return;
       }
@@ -314,13 +310,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           userNationalId: u.national_id,
           userRole: u.role,
         });
-        const timeoutPromise = new Promise<never>((_, reject) =>
-          setTimeout(
+        let timeoutId: ReturnType<typeof setTimeout> | undefined;
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          timeoutId = setTimeout(
             () => reject(new Error("DB_INSTALL_TIMEOUT")),
             DB_INSTALL_TIMEOUT_MS
-          )
-        );
+          );
+        });
         await Promise.race([installPromise, timeoutPromise]);
+        if (timeoutId) clearTimeout(timeoutId);
 
         console.timeEnd("[AuthContext] DB install");
         console.log("[AuthContext] DB install succeeded, unlocking…");

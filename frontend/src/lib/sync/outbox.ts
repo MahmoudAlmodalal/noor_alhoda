@@ -92,7 +92,6 @@ export async function revertInFlight(opIds: string[]): Promise<void> {
       if (row && row.status === "in_flight") {
         await db.outbox.update(id, {
           status: "pending",
-          attempts: (row.attempts || 0) + 1,
         });
       }
     }
@@ -206,10 +205,11 @@ export async function remapPendingOutboxIds(
             changed = true;
           }
           if (Array.isArray(val)) {
-            const idx = val.indexOf(oldId);
-            if (idx !== -1) {
-              val[idx] = newId;
-              changed = true;
+            for (let i = 0; i < val.length; i++) {
+              if (val[i] === oldId) {
+                val[i] = newId;
+                changed = true;
+              }
             }
           }
         }

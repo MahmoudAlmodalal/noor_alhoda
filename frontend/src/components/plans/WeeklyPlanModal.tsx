@@ -90,6 +90,7 @@ function WeeklyPlanModalContent({
 
   useEffect(() => {
     if (isOpen) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedId(studentId ?? "");
       setSelectedName(studentName ?? "");
       setWeekStart(initialWeekStart ?? nextSaturday());

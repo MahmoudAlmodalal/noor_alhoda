@@ -52,7 +52,7 @@ class StudentInputSerializer(serializers.Serializer):
     bank_account_type = serializers.CharField(required=False, allow_blank=True, allow_null=True, default=None)
     guardian_name = serializers.CharField(required=False, allow_blank=True, default="")
     guardian_national_id = serializers.CharField(required=False, allow_blank=True, allow_null=True, default=None)
-    guardian_mobile = serializers.CharField(required=False, allow_blank=True, default="")
+    guardian_mobile = serializers.CharField()
     teacher_id = serializers.UUIDField(required=False, allow_null=True, default=None)
     health_status = serializers.CharField(required=False, allow_blank=True, default="normal")
     health_note = serializers.CharField(required=False, allow_blank=True, default="")

@@ -53,7 +53,9 @@ const REFRESH_TS_KEY = "_refresh_ts";
 const REFRESH_WINDOW_MS = 10_000;
 
 function normalizeEndpoint(endpoint: string): string {
-  const [path, query = ""] = endpoint.split("?");
+  const qIdx = endpoint.indexOf("?");
+  const path = qIdx === -1 ? endpoint : endpoint.slice(0, qIdx);
+  const query = qIdx === -1 ? "" : endpoint.slice(qIdx + 1);
   const normalizedPath = path.endsWith("/") ? path : `${path}/`;
   return query ? `${normalizedPath}?${query}` : normalizedPath;
 }
@@ -68,12 +70,15 @@ async function refreshAccessToken(): Promise<boolean> {
     const lastTs = localStorage.getItem(REFRESH_TS_KEY);
     if (lastTs && Date.now() - parseInt(lastTs, 10) < REFRESH_WINDOW_MS) {
       const oldToken = getAccessToken();
-      // انتظر حتى نهاية النافذة الزمنية ليتأكد أن التاب الثاني أنهى الـ refresh
-      await new Promise((r) => setTimeout(r, REFRESH_WINDOW_MS));
-      const newToken = getAccessToken();
-      // إذا تغير التوكن → الـ refresh نجح في تاب آخر
-      if (newToken && newToken !== oldToken) return true;
-      // إذا لم يتغير → نسمح لهذا التاب يحاول بنفسه
+      // Poll localStorage every 200ms instead of blocking unconditionally for 10s
+      const POLL_MS = 200;
+      const maxPolls = Math.ceil(REFRESH_WINDOW_MS / POLL_MS);
+      for (let i = 0; i < maxPolls; i++) {
+        await new Promise((r) => setTimeout(r, POLL_MS));
+        const newToken = getAccessToken();
+        if (newToken && newToken !== oldToken) return true;
+        if (!localStorage.getItem(REFRESH_TS_KEY)) break;
+      }
     }
   }
 
@@ -275,6 +280,24 @@ async function apiFetch<T>(
     if (dataObj?.error) {
       return { success: false, error: dataObj.error as ApiErrorResponse["error"] };
     }
+
+    // ── DRF field-level validation errors (e.g. {"national_id": ["..."]}) ────
+    if (res.status === 400 && dataObj && !dataObj.detail && !dataObj.message) {
+      const entries = Object.entries(dataObj).filter(
+        ([k]) => k !== "error" && k !== "success"
+      );
+      if (entries.length > 0) {
+        const messages = entries.map(([field, msgs]) => {
+          const msg = Array.isArray(msgs) ? msgs[0] : String(msgs);
+          return `${field}: ${msg}`;
+        });
+        return {
+          success: false,
+          error: { code: 400, message: messages.join("، ") },
+        };
+      }
+    }
+
     return {
       success: false,
       error: {
@@ -439,7 +462,10 @@ function buildQueryString(params?: Record<string, string | undefined>): string {
 
 export const api = {
   get<T>(endpoint: string, params?: Record<string, string | undefined>, signal?: AbortSignal) {
-    return apiFetch<T>(endpoint + buildQueryString(params), { method: "GET", signal });
+    const qs = buildQueryString(params);
+    const sep = qs && endpoint.includes("?") ? "&" : "";
+    const joined = qs ? endpoint + sep + qs.slice(1) : endpoint;
+    return apiFetch<T>(joined, { method: "GET", signal });
   },
 
   post<T>(endpoint: string, body?: unknown, signal?: AbortSignal) {

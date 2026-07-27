@@ -15,7 +15,7 @@ from students.services.student_services import (
     student_update,
 )
 
-_CREATE_REQUIRED_FIELDS = ["full_name"]
+_CREATE_REQUIRED_FIELDS = ["full_name", "guardian_mobile"]
 
 _ACTION_LABELS = dict(StudentChangeRequest.Action.choices)
 

@@ -107,6 +107,9 @@ export async function triggerPush(): Promise<PushResult> {
             ? await listRetriableErrored(new Date().toISOString(), remaining)
             : [];
         const batch = [...pending, ...retriable];
+        // Ensure causal ordering: older ops (CREATE) must precede newer
+        // dependent ops (UPDATE/DELETE on the same resource).
+        batch.sort((a, b) => a.created_at.localeCompare(b.created_at));
         if (batch.length === 0) return { ok: true };
 
         const ops: PushWireOp[] = [];

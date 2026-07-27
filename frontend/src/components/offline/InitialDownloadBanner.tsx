@@ -51,6 +51,7 @@ export function InitialDownloadBanner() {
 
   useEffect(() => {
     if (!isInstallingDb) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setInstallElapsed(0);
       return;
     }

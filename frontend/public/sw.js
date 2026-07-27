@@ -39,7 +39,7 @@ self.addEventListener("install", (event) => {
           try {
             const res = await fetch(url, { credentials: "same-origin" });
             if (res.ok) await cache.put(url, res.clone());
-          } catch (_err) {
+          } catch {
             /* swallow — we'll retry at runtime */
           }
         })
@@ -127,7 +127,7 @@ async function warmRoutes(urls) {
         if (res.ok && res.status === 200) {
           await cache.put(url, res.clone());
         }
-      } catch (_err) {
+      } catch {
         /* silent — we'll retry next login */
       }
     })
@@ -154,7 +154,7 @@ async function cacheFirst(req) {
       cache.put(req, res.clone());
     }
     return res;
-  } catch (_err) {
+  } catch {
     return new Response("", { status: 504 });
   }
 }
@@ -167,7 +167,7 @@ async function navigationHandler(req) {
       cache.put(req, res.clone());
     }
     return res;
-  } catch (_err) {
+  } catch {
     // Offline — serve a cached navigation if we have one; otherwise the
     // root shell so React's client router can render the target route
     // from IndexedDB.

@@ -54,6 +54,7 @@ export function DirectMessageModal({
   useEffect(() => {
     if (isOpen) {
       if (studentId) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setSelectedStudentId(studentId);
       } else if (students && students.length > 0) {
         setSelectedStudentId(students[0].id);
@@ -69,6 +70,7 @@ export function DirectMessageModal({
     if (!studentId && filteredStudents.length > 0) {
       const exists = filteredStudents.some((s) => s.id === selectedStudentId);
       if (!exists) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setSelectedStudentId(filteredStudents[0].id);
       }
     }
