@@ -147,6 +147,8 @@ function AttendanceContent() {
           review_from_ayah: existing?.review_from_ayah ?? "",
           review_to_ayah: existing?.review_to_ayah ?? "",
           review_quality: existing?.review_quality ?? "none",
+          next_memorization_target: existing?.next_memorization_target ?? "",
+          next_review_target: existing?.next_review_target ?? "",
           dirty: false,
         });
       });
@@ -227,6 +229,8 @@ function AttendanceContent() {
         review_from_ayah: d.review_from_ayah === "" ? null : Number(d.review_from_ayah),
         review_to_ayah: d.review_to_ayah === "" ? null : Number(d.review_to_ayah),
         review_quality: d.review_quality,
+        next_memorization_target: d.next_memorization_target,
+        next_review_target: d.next_review_target,
       };
       const res = existingId
         ? await runMutation({

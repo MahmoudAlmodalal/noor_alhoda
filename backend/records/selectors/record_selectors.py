@@ -113,8 +113,8 @@ def weekly_summary(*, student_id, week_start, actor: User) -> dict:
                 "day": day_labels[day_code],
                 "date": str(r.date),
                 "attendance": r.attendance,
-                "required": f"{r.required_verses} صفحات" if r.required_verses else "-",
-                "achieved": f"{r.achieved_verses} صفحات" if r.achieved_verses else "-",
+                "required": f"{r.required_verses} آية" if r.required_verses else "-",
+                "achieved": f"{r.achieved_verses} آية" if r.achieved_verses else "-",
                 "evaluation": r.quality,
                 "result": r.result,
                 "surah_name": r.surah_name,
@@ -123,6 +123,8 @@ def weekly_summary(*, student_id, week_start, actor: User) -> dict:
                 "review_from_ayah": r.review_from_ayah,
                 "review_to_ayah": r.review_to_ayah,
                 "review_quality": r.review_quality,
+                "next_memorization_target": r.next_memorization_target,
+                "next_review_target": r.next_review_target,
             })
         else:
             # Upcoming or missed day
@@ -132,7 +134,7 @@ def weekly_summary(*, student_id, week_start, actor: User) -> dict:
                 "day": day_labels[day_code],
                 "date": str(day_date),
                 "attendance": attendance,
-                "required": f"{share} صفحات" if share else "-",
+                "required": f"{share} آية" if share else "-",
                 "achieved": "-",
                 "evaluation": "none",
                 "result": "none",
@@ -142,6 +144,8 @@ def weekly_summary(*, student_id, week_start, actor: User) -> dict:
                 "review_from_ayah": None,
                 "review_to_ayah": None,
                 "review_quality": "none",
+                "next_memorization_target": "",
+                "next_review_target": "",
             })
 
     return {

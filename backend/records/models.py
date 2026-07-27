@@ -22,8 +22,8 @@ class WeeklyPlan(models.Model):
     )
     week_number = models.PositiveIntegerField(verbose_name="رقم الأسبوع")
     week_start = models.DateField(verbose_name="بداية الأسبوع (السبت)")
-    total_required = models.PositiveIntegerField(default=0, verbose_name="إجمالي الصفحات المطلوبة")
-    total_achieved = models.PositiveIntegerField(default=0, verbose_name="إجمالي الصفحات المنجزة")
+    total_required = models.PositiveIntegerField(default=0, verbose_name="إجمالي الآيات المطلوبة")
+    total_achieved = models.PositiveIntegerField(default=0, verbose_name="إجمالي الآيات المنجزة")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True, verbose_name="آخر تحديث")
 
@@ -99,8 +99,8 @@ class DailyRecord(models.Model):
         default=Attendance.PRESENT,
         verbose_name="الحضور",
     )
-    required_verses = models.PositiveIntegerField(default=0, verbose_name="الصفحات المطلوبة")
-    achieved_verses = models.PositiveIntegerField(default=0, verbose_name="الصفحات المنجزة")
+    required_verses = models.PositiveIntegerField(default=0, verbose_name="الآيات المطلوبة")
+    achieved_verses = models.PositiveIntegerField(default=0, verbose_name="الآيات المنجزة")
     surah_name = models.CharField(
         max_length=100,
         blank=True,
@@ -132,6 +132,18 @@ class DailyRecord(models.Model):
         choices=Quality.choices,
         default=Quality.NONE,
         verbose_name="جودة المراجعة",
+    )
+    next_memorization_target = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        verbose_name="المطلوب تسميعه غداً (حفظ)",
+    )
+    next_review_target = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        verbose_name="المطلوب تسميعه غداً (مراجعة)",
     )
     note = models.TextField(blank=True, verbose_name="ملاحظة المحفظ")
     result = models.CharField(

@@ -144,6 +144,8 @@ def daily_record_create(*, teacher: User, id=None, **data) -> DailyRecord:
         review_from_ayah=_to_int_or_none(data.get("review_from_ayah")),
         review_to_ayah=_to_int_or_none(data.get("review_to_ayah")),
         review_quality=data.get("review_quality", "none"),
+        next_memorization_target=data.get("next_memorization_target", ""),
+        next_review_target=data.get("next_review_target", ""),
         result=data.get("result", "pending"),
         note=data.get("note", ""),
         recorded_by=teacher,
@@ -214,6 +216,7 @@ def daily_record_update(*, record_id, teacher: User, data: dict) -> DailyRecord:
         "attendance", "required_verses", "achieved_verses",
         "surah_name", "quality", "result", "note",
         "review_surah_name", "review_from_ayah", "review_to_ayah", "review_quality",
+        "next_memorization_target", "next_review_target",
     ]
 
     was_absent = record.attendance == DailyRecord.Attendance.ABSENT

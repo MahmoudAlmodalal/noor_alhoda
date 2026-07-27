@@ -31,6 +31,8 @@ export interface DailyRecordRecord {
   review_from_ayah?: number | null;
   review_to_ayah?: number | null;
   review_quality?: "excellent" | "good" | "acceptable" | "weak" | "none";
+  next_memorization_target?: string;
+  next_review_target?: string;
 }
 
 export interface ReviewRecordRecord {

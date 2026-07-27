@@ -106,7 +106,7 @@ function WeeklyPlanModalContent({
     const validation = all(
       requiredString(selectedId, "الطالب"),
       isSaturday(weekStart),
-      positiveInt(totalRequired, "عدد الصفحات المطلوبة"),
+      positiveInt(totalRequired, "عدد الآيات المطلوبة"),
     );
     if (!validation.ok) {
       setClientError(validation.error);
@@ -185,13 +185,13 @@ function WeeklyPlanModalContent({
         </div>
 
         <div className="space-y-1.5">
-          <label className="block text-sm font-bold text-text-body">عدد الصفحات المطلوبة</label>
+          <label className="block text-sm font-bold text-text-body">عدد الآيات المطلوبة</label>
           <Input
             type="number"
             min={1}
             value={totalRequired}
             onChange={(e) => setTotalRequired(Number(e.target.value))}
-            aria-label="عدد الصفحات المطلوبة"
+            aria-label="عدد الآيات المطلوبة"
             className="h-12 rounded-xl border-border-subtle"
             dir="ltr"
           />

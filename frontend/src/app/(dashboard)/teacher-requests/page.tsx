@@ -63,7 +63,7 @@ const FIELD_LABELS: Record<string, string> = {
   health_note: "ملاحظة صحية",
   skills: "المهارات",
   current_juz: "الجزء الحالي",
-  memorized_verses: "الصفحات المحفوظة",
+  memorized_verses: "الآيات المحفوظة",
 };
 
 const STATUS_TABS: { value: ChangeRequestStatus | "all"; label: string }[] = [

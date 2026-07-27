@@ -325,7 +325,7 @@ export default function StudentDashboard() {
                     <div className="mb-2 flex items-center justify-between text-[12px] text-text-muted">
                         <span>
                             المنجز {tasks.memorization.achieved_verses} من{" "}
-                            {tasks.memorization.required_verses} صفحة
+                            {tasks.memorization.required_verses} آية
                         </span>
                         <ChevronLeft className="h-4 w-4" />
                     </div>
@@ -415,7 +415,7 @@ export default function StudentDashboard() {
                         </h3>
                     </div>
                     <span className="text-[12px] text-text-muted">
-                        {weeklyPlan?.total_achieved ?? 0} / {weeklyPlan?.total_required ?? 0} صفحة
+                        {weeklyPlan?.total_achieved ?? 0} / {weeklyPlan?.total_required ?? 0} آية
                     </span>
                 </div>
                 <div className="flex items-center gap-5">
@@ -588,7 +588,7 @@ export default function StudentDashboard() {
                                 label: "المنجز",
                                 value:
                                     todayRecord.achieved_verses > 0
-                                        ? `${todayRecord.achieved_verses} صفحات`
+                                        ? `${todayRecord.achieved_verses} آية`
                                         : "-",
                                 stars:
                                     todayRecord.achieved_verses >= 5

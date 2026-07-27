@@ -346,8 +346,8 @@ export function EditStudentModal({
             <Input type="number" dir="ltr" value={form.current_juz} onChange={(e) => handleChange("current_juz", e.target.value)} aria-label="الجزء الحالي" className="h-12 rounded-xl border-border-subtle" />
           </div>
           <div className="space-y-1.5">
-            <label className="block text-sm font-bold text-text-body">عدد الصفحات المحفوظة</label>
-            <Input type="number" dir="ltr" value={form.memorized_verses} onChange={(e) => handleChange("memorized_verses", e.target.value)} aria-label="عدد الصفحات المحفوظة" className="h-12 rounded-xl border-border-subtle" />
+            <label className="block text-sm font-bold text-text-body">عدد الآيات المحفوظة</label>
+            <Input type="number" dir="ltr" value={form.memorized_verses} onChange={(e) => handleChange("memorized_verses", e.target.value)} aria-label="عدد الآيات المحفوظة" className="h-12 rounded-xl border-border-subtle" />
           </div>
         </div>
       </div>

@@ -357,6 +357,8 @@ const handlers: Record<MutationResource, Handler> = {
         review_from_ayah: payload.review_from_ayah !== null && payload.review_from_ayah !== undefined && payload.review_from_ayah !== "" ? Number(payload.review_from_ayah) : null,
         review_to_ayah: payload.review_to_ayah !== null && payload.review_to_ayah !== undefined && payload.review_to_ayah !== "" ? Number(payload.review_to_ayah) : null,
         review_quality: (payload.review_quality as DailyRecordRecord["review_quality"]) ?? "none",
+        next_memorization_target: String(payload.next_memorization_target ?? ""),
+        next_review_target: String(payload.next_review_target ?? ""),
       };
       await upsertDailyRecords([rec]);
     },

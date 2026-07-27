@@ -137,7 +137,7 @@ class Student(models.Model):
     )
     memorized_verses = models.PositiveIntegerField(
         default=0,
-        verbose_name="عدد الصفحات",
+        verbose_name="عدد الآيات",
     )
     current_page = models.PositiveIntegerField(
         null=True,

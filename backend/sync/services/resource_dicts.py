@@ -150,6 +150,8 @@ def daily_record_to_dict(r: DailyRecord) -> dict[str, Any]:
         "review_from_ayah": r.review_from_ayah,
         "review_to_ayah": r.review_to_ayah,
         "review_quality": r.review_quality,
+        "next_memorization_target": r.next_memorization_target,
+        "next_review_target": r.next_review_target,
     }
 
 

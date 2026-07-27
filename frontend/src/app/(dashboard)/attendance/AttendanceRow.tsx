@@ -19,6 +19,8 @@ export interface DraftRecord {
   review_from_ayah: number | "";
   review_to_ayah: number | "";
   review_quality: string;
+  next_memorization_target: string;
+  next_review_target: string;
 }
 
 const STATUS_OPTIONS: { value: AttendanceStatus; label: string; color: string }[] = [
@@ -116,7 +118,7 @@ export function AttendanceRow({ draft, onChange }: Props) {
               />
             </div>
             <div className="space-y-1">
-              <label className="block text-[11px] font-bold text-text-label">الصفحات المطلوبة</label>
+              <label className="block text-[11px] font-bold text-text-label">من آية</label>
               <input
                 type="number"
                 min={0}
@@ -127,7 +129,7 @@ export function AttendanceRow({ draft, onChange }: Props) {
               />
             </div>
             <div className="space-y-1">
-              <label className="block text-[11px] font-bold text-text-label">الصفحات المنجزة</label>
+              <label className="block text-[11px] font-bold text-text-label">إلى آية</label>
               <input
                 type="number"
                 min={0}
@@ -153,7 +155,17 @@ export function AttendanceRow({ draft, onChange }: Props) {
                 ))}
               </select>
             </div>
-            <div className="md:col-span-2 space-y-1">
+            <div className="space-y-1">
+              <label className="block text-[11px] font-bold text-text-label">المطلوب تسميعه غداً (حفظ)</label>
+              <input
+                type="text"
+                placeholder="مثال: البقرة (1-20)"
+                value={draft.next_memorization_target}
+                onChange={(e) => onChange({ next_memorization_target: e.target.value })}
+                className={inputCls}
+              />
+            </div>
+            <div className="space-y-1">
               <label className="block text-[11px] font-bold text-text-label">ملاحظات الحفظ</label>
               <input
                 type="text"
@@ -212,6 +224,16 @@ export function AttendanceRow({ draft, onChange }: Props) {
                   </option>
                 ))}
               </select>
+            </div>
+            <div className="md:col-span-2 space-y-1">
+              <label className="block text-[11px] font-bold text-text-label">المطلوب تسميعه غداً (مراجعة)</label>
+              <input
+                type="text"
+                placeholder="مثال: الجزء الأول"
+                value={draft.next_review_target}
+                onChange={(e) => onChange({ next_review_target: e.target.value })}
+                className={inputCls}
+              />
             </div>
           </div>
         </div>
