@@ -360,18 +360,20 @@ export default function Dashboard() {
                 </div>
               </button>
 
-              <button
-                onClick={() => setAnnounceModalOpen(true)}
-                className="flex items-center gap-3 bg-white/10 hover:bg-white/20 p-3 rounded-[14px] transition-colors text-right"
-              >
-                <div className="w-10 h-10 bg-white/20 rounded-[10px] flex items-center justify-center">
-                  <Star className="w-5 h-5" />
-                </div>
-                <div>
-                  <h4 className="text-sm font-bold">إعلان عام</h4>
-                  <p className="text-[10px] text-white/60">إرسال تنبيه لجميع الطلاب</p>
-                </div>
-              </button>
+              {isAdmin && (
+                <button
+                  onClick={() => setAnnounceModalOpen(true)}
+                  className="flex items-center gap-3 bg-white/10 hover:bg-white/20 p-3 rounded-[14px] transition-colors text-right"
+                >
+                  <div className="w-10 h-10 bg-white/20 rounded-[10px] flex items-center justify-center">
+                    <Star className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold">إعلان عام</h4>
+                    <p className="text-[10px] text-white/60">إرسال تنبيه لجميع الطلاب</p>
+                  </div>
+                </button>
+              )}
 
               <Link
                 href="/students/register"
