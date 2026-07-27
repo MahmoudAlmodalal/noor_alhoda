@@ -307,20 +307,27 @@ def _push_weekly_plan_create(*, actor: User, op: dict) -> dict:
     data = dict(op.get("data") or {})
     # weekly_plan_create expects student_id, week_start, week_number, total_required, teacher
     try:
-        plan = weekly_plan_create(
-            id=op.get("id"),
-            student_id=data.get("student_id"),
-            week_start=data.get("week_start"),
-            week_number=data.get("week_number"),
-            total_required=data.get("total_required", 0),
-            teacher=actor,
-        )
+        with transaction.atomic():
+            plan = weekly_plan_create(
+                id=op.get("id"),
+                student_id=data.get("student_id"),
+                week_start=data.get("week_start"),
+                week_number=data.get("week_number"),
+                total_required=data.get("total_required", 0),
+                teacher=actor,
+            )
     except (IntegrityError, ValidationError, DjangoValidationError):
-        # Unique-together (student, week_start) collision — return server row as conflict.
-        existing = WeeklyPlan.objects.filter(
-            student_id=data.get("student_id"),
-            week_start=data.get("week_start"),
-        ).first()
+        # Unique-together (student, week_start) collision or ID collision — return server row as conflict.
+        existing = (
+            WeeklyPlan.objects.filter(id=op.get("id")).first()
+            if op.get("id")
+            else None
+        )
+        if existing is None and data.get("student_id") and data.get("week_start"):
+            existing = WeeklyPlan.objects.filter(
+                student_id=data.get("student_id"),
+                week_start=data.get("week_start"),
+            ).first()
         if existing is not None:
             return {
                 "client_id": op.get("client_id"),
@@ -390,8 +397,15 @@ def _push_daily_record_create(*, actor: User, op: dict) -> dict:
     plan_id = data.get("weekly_plan_id")
     student_id = data.pop("student_id", None)
 
+    plan_exists = False
+    if plan_id:
+        try:
+            plan_exists = WeeklyPlan.objects.filter(id=plan_id).exists()
+        except (DjangoValidationError, ValueError, TypeError):
+            plan_exists = False
+
     # If weekly_plan_id is missing or doesn't exist on server, resolve via student_id & date & week_start
-    if not plan_id or not WeeklyPlan.objects.filter(id=plan_id).exists():
+    if not plan_id or not plan_exists:
         date_str = data.get("date")
         if date_str:
             try:
@@ -403,18 +417,25 @@ def _push_daily_record_create(*, actor: User, op: dict) -> dict:
                     
                     existing_plan = None
                     if student_id:
-                        existing_plan = WeeklyPlan.objects.filter(student_id=student_id, week_start=ws).first()
+                        try:
+                            existing_plan = WeeklyPlan.objects.filter(student_id=student_id, week_start=ws).first()
+                        except Exception:
+                            pass
                         if not existing_plan:
                             try:
-                                existing_plan = weekly_plan_create(
-                                    student_id=student_id,
-                                    week_start=ws,
-                                    teacher=actor,
-                                )
+                                with transaction.atomic():
+                                    existing_plan = weekly_plan_create(
+                                        student_id=student_id,
+                                        week_start=ws,
+                                        teacher=actor,
+                                    )
                             except Exception:
                                 pass
                     if not existing_plan:
-                        existing_plan = WeeklyPlan.objects.filter(week_start=ws).first()
+                        try:
+                            existing_plan = WeeklyPlan.objects.filter(week_start=ws).first()
+                        except Exception:
+                            pass
 
                     if existing_plan:
                         data["weekly_plan_id"] = str(existing_plan.id)
@@ -422,16 +443,23 @@ def _push_daily_record_create(*, actor: User, op: dict) -> dict:
                 pass
 
     try:
-        record = daily_record_create(
-            id=op.get("id"),
-            teacher=actor,
-            **data,
-        )
+        with transaction.atomic():
+            record = daily_record_create(
+                id=op.get("id"),
+                teacher=actor,
+                **data,
+            )
     except (IntegrityError, ValidationError, DjangoValidationError):
-        existing = DailyRecord.objects.filter(
-            weekly_plan_id=data.get("weekly_plan_id"),
-            day=data.get("day"),
-        ).first()
+        existing = (
+            DailyRecord.objects.filter(id=op.get("id")).first()
+            if op.get("id")
+            else None
+        )
+        if existing is None and data.get("weekly_plan_id") and data.get("day"):
+            existing = DailyRecord.objects.filter(
+                weekly_plan_id=data.get("weekly_plan_id"),
+                day=data.get("day"),
+            ).first()
         if existing is not None:
             return {
                 "client_id": op.get("client_id"),
@@ -454,14 +482,26 @@ def _push_daily_record_update(*, actor: User, op: dict) -> dict:
     data = dict(op.get("data") or {})
     student_id = data.pop("student_id", None)
 
-    record = DailyRecord.objects.filter(id=target_id).first()
+    record = None
+    if target_id:
+        try:
+            record = DailyRecord.objects.filter(id=target_id).first()
+        except (DjangoValidationError, ValueError, TypeError):
+            record = None
+
     if record is None:
         plan_id = data.get("weekly_plan_id")
         day = data.get("day")
         if plan_id and day:
-            record = DailyRecord.objects.filter(weekly_plan_id=plan_id, day=day).first()
+            try:
+                record = DailyRecord.objects.filter(weekly_plan_id=plan_id, day=day).first()
+            except (DjangoValidationError, ValueError, TypeError):
+                pass
         if record is None and student_id and data.get("date"):
-            record = DailyRecord.objects.filter(weekly_plan__student_id=student_id, date=data.get("date")).first()
+            try:
+                record = DailyRecord.objects.filter(weekly_plan__student_id=student_id, date=data.get("date")).first()
+            except (DjangoValidationError, ValueError, TypeError):
+                pass
 
     if record is None:
         return {"client_id": op.get("client_id"), "status": "synced"}

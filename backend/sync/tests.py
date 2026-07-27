@@ -405,3 +405,46 @@ class SyncPushInBatchRemappingTests(APITestCase):
         record = DailyRecord.objects.get(id=temp_record_id)
         self.assertEqual(record.weekly_plan_id, server_plan.id)
 
+
+class SyncPushDailyRecordDuplicateConflictTests(SyncPushInBatchRemappingTests):
+    def test_duplicate_daily_record_returns_conflict_status(self):
+        """When client pushes a daily record that already exists on server for (weekly_plan, day),
+        it should return status 'conflict' with the server row instead of failing with an internal server error."""
+        self.client.force_authenticate(self.teacher_user)
+        plan = WeeklyPlan.objects.create(
+            student=self.student,
+            week_start=date(2026, 9, 5),
+            week_number=1,
+            total_required=5,
+        )
+        existing_record = DailyRecord.objects.create(
+            weekly_plan=plan,
+            day="sat",
+            date=date(2026, 9, 5),
+            attendance="present",
+        )
+
+        op = {
+            "client_id": "30000000-0000-4000-a000-000000000001",
+            "resource": "daily_record",
+            "op": "create",
+            "id": "55555555-5555-4555-a555-555555555555",
+            "data": {
+                "weekly_plan_id": str(plan.id),
+                "day": "sat",
+                "date": "2026-09-05",
+                "attendance": "present",
+                "review_from_ayah": "",
+                "review_to_ayah": "",
+                "required_verses": "",
+            },
+        }
+
+        response = self.client.post("/api/sync/push/", {"ops": [op]}, format="json")
+        self.assertEqual(response.status_code, 200)
+
+        results = response.json()["data"]["results"]
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["status"], "conflict")
+        self.assertEqual(results[0]["row"]["id"], str(existing_record.id))
+
