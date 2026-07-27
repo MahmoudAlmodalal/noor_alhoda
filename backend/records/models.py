@@ -139,11 +139,31 @@ class DailyRecord(models.Model):
         default="",
         verbose_name="المطلوب تسميعه غداً (حفظ)",
     )
+    next_memorization_from_ayah = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="حفظ غداً من آية",
+    )
+    next_memorization_to_ayah = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="حفظ غداً إلى آية",
+    )
     next_review_target = models.CharField(
         max_length=255,
         blank=True,
         default="",
         verbose_name="المطلوب تسميعه غداً (مراجعة)",
+    )
+    next_review_from_ayah = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="مراجعة غداً من آية",
+    )
+    next_review_to_ayah = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="مراجعة غداً إلى آية",
     )
     note = models.TextField(blank=True, verbose_name="ملاحظة المحفظ")
     result = models.CharField(

@@ -31,7 +31,11 @@ class DailyRecordOutputSerializer(serializers.Serializer):
     review_to_ayah = serializers.IntegerField(allow_null=True)
     review_quality = serializers.CharField()
     next_memorization_target = serializers.CharField(required=False, allow_blank=True, default="")
+    next_memorization_from_ayah = serializers.IntegerField(required=False, allow_null=True, default=None)
+    next_memorization_to_ayah = serializers.IntegerField(required=False, allow_null=True, default=None)
     next_review_target = serializers.CharField(required=False, allow_blank=True, default="")
+    next_review_from_ayah = serializers.IntegerField(required=False, allow_null=True, default=None)
+    next_review_to_ayah = serializers.IntegerField(required=False, allow_null=True, default=None)
     result = serializers.CharField()
     note = serializers.CharField()
     created_at = serializers.DateTimeField()
@@ -61,7 +65,11 @@ class DailyRecordInputSerializer(serializers.Serializer):
         default="none",
     )
     next_memorization_target = serializers.CharField(required=False, allow_blank=True, default="")
+    next_memorization_from_ayah = serializers.IntegerField(required=False, allow_null=True, default=None)
+    next_memorization_to_ayah = serializers.IntegerField(required=False, allow_null=True, default=None)
     next_review_target = serializers.CharField(required=False, allow_blank=True, default="")
+    next_review_from_ayah = serializers.IntegerField(required=False, allow_null=True, default=None)
+    next_review_to_ayah = serializers.IntegerField(required=False, allow_null=True, default=None)
     result = serializers.ChoiceField(
         choices=["pass", "fail", "pending"],
         default="pending",
@@ -90,7 +98,11 @@ class DailyRecordUpdateSerializer(serializers.Serializer):
         required=False,
     )
     next_memorization_target = serializers.CharField(required=False, allow_blank=True)
+    next_memorization_from_ayah = serializers.IntegerField(required=False, allow_null=True)
+    next_memorization_to_ayah = serializers.IntegerField(required=False, allow_null=True)
     next_review_target = serializers.CharField(required=False, allow_blank=True)
+    next_review_from_ayah = serializers.IntegerField(required=False, allow_null=True)
+    next_review_to_ayah = serializers.IntegerField(required=False, allow_null=True)
     result = serializers.ChoiceField(
         choices=["pass", "fail", "pending"],
         required=False,

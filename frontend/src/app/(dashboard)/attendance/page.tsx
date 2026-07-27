@@ -148,7 +148,11 @@ function AttendanceContent() {
           review_to_ayah: existing?.review_to_ayah ?? "",
           review_quality: existing?.review_quality ?? "none",
           next_memorization_target: existing?.next_memorization_target ?? "",
+          next_memorization_from_ayah: existing?.next_memorization_from_ayah ?? "",
+          next_memorization_to_ayah: existing?.next_memorization_to_ayah ?? "",
           next_review_target: existing?.next_review_target ?? "",
+          next_review_from_ayah: existing?.next_review_from_ayah ?? "",
+          next_review_to_ayah: existing?.next_review_to_ayah ?? "",
           dirty: false,
         });
       });
@@ -230,7 +234,11 @@ function AttendanceContent() {
         review_to_ayah: d.review_to_ayah === "" ? null : Number(d.review_to_ayah),
         review_quality: d.review_quality,
         next_memorization_target: d.next_memorization_target,
+        next_memorization_from_ayah: d.next_memorization_from_ayah === "" ? null : Number(d.next_memorization_from_ayah),
+        next_memorization_to_ayah: d.next_memorization_to_ayah === "" ? null : Number(d.next_memorization_to_ayah),
         next_review_target: d.next_review_target,
+        next_review_from_ayah: d.next_review_from_ayah === "" ? null : Number(d.next_review_from_ayah),
+        next_review_to_ayah: d.next_review_to_ayah === "" ? null : Number(d.next_review_to_ayah),
       };
       const res = existingId
         ? await runMutation({

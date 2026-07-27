@@ -20,7 +20,11 @@ export interface DraftRecord {
   review_to_ayah: number | "";
   review_quality: string;
   next_memorization_target: string;
+  next_memorization_from_ayah: number | "";
+  next_memorization_to_ayah: number | "";
   next_review_target: string;
+  next_review_from_ayah: number | "";
+  next_review_to_ayah: number | "";
 }
 
 const STATUS_OPTIONS: { value: AttendanceStatus; label: string; color: string }[] = [
@@ -156,22 +160,48 @@ export function AttendanceRow({ draft, onChange }: Props) {
               </select>
             </div>
             <div className="space-y-1">
-              <label className="block text-[11px] font-bold text-text-label">المطلوب تسميعه غداً (حفظ)</label>
-              <input
-                type="text"
-                placeholder="مثال: البقرة (1-20)"
-                value={draft.next_memorization_target}
-                onChange={(e) => onChange({ next_memorization_target: e.target.value })}
-                className={inputCls}
-              />
-            </div>
-            <div className="space-y-1">
               <label className="block text-[11px] font-bold text-text-label">ملاحظات الحفظ</label>
               <input
                 type="text"
                 value={draft.note}
                 onChange={(e) => onChange({ note: e.target.value })}
                 className={inputCls}
+              />
+            </div>
+          </div>
+
+          <div className="text-xs font-bold text-amber-600 mt-3 mb-1 pb-0.5 border-b border-border-card/50">المطلوب تسميعه غداً (حفظ)</div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="space-y-1">
+              <label className="block text-[11px] font-bold text-text-label">السورة</label>
+              <input
+                type="text"
+                placeholder="اسم السورة"
+                value={draft.next_memorization_target}
+                onChange={(e) => onChange({ next_memorization_target: e.target.value })}
+                className={inputCls}
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="block text-[11px] font-bold text-text-label">من آية</label>
+              <input
+                type="number"
+                min={0}
+                value={draft.next_memorization_from_ayah}
+                onChange={(e) => onChange({ next_memorization_from_ayah: e.target.value === "" ? "" : Number(e.target.value) })}
+                className={inputCls}
+                dir="ltr"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="block text-[11px] font-bold text-text-label">إلى آية</label>
+              <input
+                type="number"
+                min={0}
+                value={draft.next_memorization_to_ayah}
+                onChange={(e) => onChange({ next_memorization_to_ayah: e.target.value === "" ? "" : Number(e.target.value) })}
+                className={inputCls}
+                dir="ltr"
               />
             </div>
           </div>
@@ -225,14 +255,40 @@ export function AttendanceRow({ draft, onChange }: Props) {
                 ))}
               </select>
             </div>
-            <div className="md:col-span-2 space-y-1">
-              <label className="block text-[11px] font-bold text-text-label">المطلوب تسميعه غداً (مراجعة)</label>
+          </div>
+
+          <div className="text-xs font-bold text-amber-600 mt-3 mb-1 pb-0.5 border-b border-border-card/50">المطلوب تسميعه غداً (مراجعة)</div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="space-y-1">
+              <label className="block text-[11px] font-bold text-text-label">السورة</label>
               <input
                 type="text"
-                placeholder="مثال: الجزء الأول"
+                placeholder="اسم السورة"
                 value={draft.next_review_target}
                 onChange={(e) => onChange({ next_review_target: e.target.value })}
                 className={inputCls}
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="block text-[11px] font-bold text-text-label">من آية</label>
+              <input
+                type="number"
+                min={0}
+                value={draft.next_review_from_ayah}
+                onChange={(e) => onChange({ next_review_from_ayah: e.target.value === "" ? "" : Number(e.target.value) })}
+                className={inputCls}
+                dir="ltr"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="block text-[11px] font-bold text-text-label">إلى آية</label>
+              <input
+                type="number"
+                min={0}
+                value={draft.next_review_to_ayah}
+                onChange={(e) => onChange({ next_review_to_ayah: e.target.value === "" ? "" : Number(e.target.value) })}
+                className={inputCls}
+                dir="ltr"
               />
             </div>
           </div>

@@ -124,7 +124,11 @@ def weekly_summary(*, student_id, week_start, actor: User) -> dict:
                 "review_to_ayah": r.review_to_ayah,
                 "review_quality": r.review_quality,
                 "next_memorization_target": r.next_memorization_target,
+                "next_memorization_from_ayah": r.next_memorization_from_ayah,
+                "next_memorization_to_ayah": r.next_memorization_to_ayah,
                 "next_review_target": r.next_review_target,
+                "next_review_from_ayah": r.next_review_from_ayah,
+                "next_review_to_ayah": r.next_review_to_ayah,
             })
         else:
             # Upcoming or missed day
@@ -145,7 +149,11 @@ def weekly_summary(*, student_id, week_start, actor: User) -> dict:
                 "review_to_ayah": None,
                 "review_quality": "none",
                 "next_memorization_target": "",
+                "next_memorization_from_ayah": None,
+                "next_memorization_to_ayah": None,
                 "next_review_target": "",
+                "next_review_from_ayah": None,
+                "next_review_to_ayah": None,
             })
 
     return {

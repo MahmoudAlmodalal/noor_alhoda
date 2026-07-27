@@ -358,7 +358,11 @@ const handlers: Record<MutationResource, Handler> = {
         review_to_ayah: payload.review_to_ayah !== null && payload.review_to_ayah !== undefined && payload.review_to_ayah !== "" ? Number(payload.review_to_ayah) : null,
         review_quality: (payload.review_quality as DailyRecordRecord["review_quality"]) ?? "none",
         next_memorization_target: String(payload.next_memorization_target ?? ""),
+        next_memorization_from_ayah: payload.next_memorization_from_ayah !== null && payload.next_memorization_from_ayah !== undefined && payload.next_memorization_from_ayah !== "" ? Number(payload.next_memorization_from_ayah) : null,
+        next_memorization_to_ayah: payload.next_memorization_to_ayah !== null && payload.next_memorization_to_ayah !== undefined && payload.next_memorization_to_ayah !== "" ? Number(payload.next_memorization_to_ayah) : null,
         next_review_target: String(payload.next_review_target ?? ""),
+        next_review_from_ayah: payload.next_review_from_ayah !== null && payload.next_review_from_ayah !== undefined && payload.next_review_from_ayah !== "" ? Number(payload.next_review_from_ayah) : null,
+        next_review_to_ayah: payload.next_review_to_ayah !== null && payload.next_review_to_ayah !== undefined && payload.next_review_to_ayah !== "" ? Number(payload.next_review_to_ayah) : null,
       };
       await upsertDailyRecords([rec]);
     },
