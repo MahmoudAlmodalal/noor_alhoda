@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Loader2, Save } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
@@ -54,6 +54,7 @@ export function WeeklyPlanModal({
 
   return (
     <WeeklyPlanModalContent
+      key={`${studentId ?? ""}-${editPlanId ?? ""}-${initialWeekStart ?? ""}-${initialTotalRequired ?? ""}`}
       isOpen={isOpen}
       onClose={onClose}
       studentId={studentId}
@@ -82,24 +83,11 @@ function WeeklyPlanModalContent({
   const [totalRequired, setTotalRequired] = useState<number>(initialTotalRequired ?? 20);
   const [clientError, setClientError] = useState<string | null>(null);
 
-  const { mutate: createMutate, isSubmitting: isCreating, error: createError, reset: resetCreate } = useMutation("weekly_plan", "create");
-  const { mutate: updateMutate, isSubmitting: isUpdating, error: updateError, reset: resetUpdate } = useMutation("weekly_plan", "update");
+  const { mutate: createMutate, isSubmitting: isCreating, error: createError } = useMutation("weekly_plan", "create");
+  const { mutate: updateMutate, isSubmitting: isUpdating, error: updateError } = useMutation("weekly_plan", "update");
 
   const isSubmitting = isCreating || isUpdating;
   const error = createError || updateError;
-
-  useEffect(() => {
-    if (isOpen) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setSelectedId(studentId ?? "");
-      setSelectedName(studentName ?? "");
-      setWeekStart(initialWeekStart ?? nextSaturday());
-      setTotalRequired(initialTotalRequired ?? 20);
-      setClientError(null);
-      resetCreate();
-      resetUpdate();
-    }
-  }, [isOpen, studentId, studentName, initialWeekStart, initialTotalRequired, resetCreate, resetUpdate]);
 
   const handleSubmit = async () => {
     setClientError(null);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { Loader2, Send, MessageSquare, UserCheck, Search } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
@@ -24,7 +24,17 @@ export interface DirectMessageModalProps {
   students?: StudentOption[];
 }
 
-export function DirectMessageModal({
+export function DirectMessageModal(props: DirectMessageModalProps) {
+  if (!props.isOpen) return null;
+  return (
+    <DirectMessageModalContent
+      key={`${props.isOpen}-${props.studentId ?? ""}-${props.students?.length ?? 0}`}
+      {...props}
+    />
+  );
+}
+
+function DirectMessageModalContent({
   isOpen,
   onClose,
   onSent,
@@ -32,7 +42,8 @@ export function DirectMessageModal({
   studentName,
   students,
 }: DirectMessageModalProps) {
-  const [selectedStudentId, setSelectedStudentId] = useState<string>(studentId || "");
+  const initialStudentId = studentId || (students && students.length > 0 ? students[0].id : "");
+  const [selectedStudentId, setSelectedStudentId] = useState<string>(initialStudentId);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [title, setTitle] = useState<string>("");
   const [body, setBody] = useState<string>("");
@@ -51,33 +62,17 @@ export function DirectMessageModal({
     );
   }, [students, searchQuery]);
 
-  useEffect(() => {
-    if (isOpen) {
-      if (studentId) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setSelectedStudentId(studentId);
-      } else if (students && students.length > 0) {
-        setSelectedStudentId(students[0].id);
-      } else {
-        setSelectedStudentId("");
-      }
-      setSearchQuery("");
-      setError(null);
+  const effectiveSelectedStudentId = useMemo(() => {
+    if (studentId) return studentId;
+    if (!students || students.length === 0) return selectedStudentId;
+    if (filteredStudents.some((s) => s.id === selectedStudentId)) {
+      return selectedStudentId;
     }
-  }, [isOpen, studentId, students]);
-
-  useEffect(() => {
-    if (!studentId && filteredStudents.length > 0) {
-      const exists = filteredStudents.some((s) => s.id === selectedStudentId);
-      if (!exists) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setSelectedStudentId(filteredStudents[0].id);
-      }
-    }
-  }, [filteredStudents, selectedStudentId, studentId]);
+    return filteredStudents[0]?.id || students[0]?.id || selectedStudentId;
+  }, [studentId, students, filteredStudents, selectedStudentId]);
 
   const handleSubmit = async () => {
-    const targetId = selectedStudentId || studentId;
+    const targetId = effectiveSelectedStudentId || studentId;
     if (!targetId) {
       setError("يرجى تحديد الطالب المستهدف.");
       return;
@@ -153,7 +148,7 @@ export function DirectMessageModal({
               </div>
             )}
             <select
-              value={selectedStudentId}
+              value={effectiveSelectedStudentId}
               onChange={(e) => setSelectedStudentId(e.target.value)}
               aria-label="حدد الطالب"
               className="h-12 w-full rounded-xl border border-border-subtle bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"

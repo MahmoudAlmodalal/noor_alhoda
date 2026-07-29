@@ -218,6 +218,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
+      const isLoginPage = window.location.pathname.startsWith("/login");
       const token = localStorage.getItem("access_token");
       if (!token) {
         // No tokens → must log in again. Drop any stale session key so the
@@ -227,8 +228,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      // Restore the DB key from sessionStorage if this is a reload within the
-      // same tab. Hydrate user state from the cached auth row so pages render
+      // Restore the DB key from sessionStorage or via BroadcastChannel from another open tab.
+      // Hydrate user state from the cached auth row so pages render
       // immediately instead of bouncing to /login.
       const restored = await restoreSessionKey();
       if (restored) {
@@ -251,27 +252,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } else if (!row) {
           clearSessionKey();
         }
-      } else {
-        // Token exists but no session key could be restored (e.g. new tab opened).
-        // The DB is locked and we no longer have the password needed to unwrap it —
-        // redirect to /login WITHOUT clearing localStorage tokens so other open tabs remain logged in.
-        if (isMounted) setIsLoading(false);
-        if (typeof window !== "undefined") {
-          window.location.href = "/login?reason=new_tab";
-        }
-        return;
       }
 
       // Refresh the user from /me (with retry for transient network errors).
       // On success, server data overrides the minimal state we set from IDB.
       // On 401/403, fetchMe clears tokens; on network failure we keep them so
       // the sync runner can retry once connectivity returns.
-      const MAX_RETRIES = 2;
+      const MAX_RETRIES = restored ? 2 : 1;
       const RETRY_DELAY_MS = 1500;
+      let fetched = false;
 
       for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
         try {
-          if (await fetchMe()) break;
+          if (await fetchMe()) {
+            fetched = true;
+            break;
+          }
           if (!localStorage.getItem("access_token")) break;
         } catch {
           // network error — fall through to retry
@@ -279,6 +275,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (attempt < MAX_RETRIES - 1) {
           await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
         }
+      }
+
+      if (!restored && !fetched) {
+        // Token exists but session key could not be restored and online /me fetch did not succeed.
+        // Redirect to /login WITHOUT clearing localStorage tokens, but ONLY if not already on /login path.
+        if (isMounted) setIsLoading(false);
+        if (!isLoginPage && typeof window !== "undefined") {
+          window.location.href = "/login?reason=new_tab";
+        }
+        return;
       }
 
       if (isMounted) setIsLoading(false);

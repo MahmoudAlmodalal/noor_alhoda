@@ -50,13 +50,12 @@ export function InitialDownloadBanner() {
   const [installElapsed, setInstallElapsed] = useState(0);
 
   useEffect(() => {
-    if (!isInstallingDb) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setInstallElapsed(0);
-      return;
-    }
+    if (!isInstallingDb) return;
     const id = setInterval(() => setInstallElapsed((s) => s + 1), 1_000);
-    return () => clearInterval(id);
+    return () => {
+      clearInterval(id);
+      setInstallElapsed(0);
+    };
   }, [isInstallingDb]);
 
   // Phase 1: the encrypted-DB key is still being derived/unwrapped in the

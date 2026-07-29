@@ -52,8 +52,11 @@ def infer_daily_record_result(sender, instance, **kwargs):
         if ratio >= threshold
         else DailyRecord.Result.FAIL
     )
+    now = timezone.now()
     DailyRecord.objects.filter(pk=instance.pk).update(
         result=new_result,
-        updated_at=timezone.now(),
+        updated_at=now,
     )
     instance.result = new_result
+    instance.updated_at = now
+

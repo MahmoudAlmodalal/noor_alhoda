@@ -109,7 +109,20 @@ export async function triggerPush(): Promise<PushResult> {
         const batch = [...pending, ...retriable];
         // Ensure causal ordering: older ops (CREATE) must precede newer
         // dependent ops (UPDATE/DELETE on the same resource).
-        batch.sort((a, b) => a.created_at.localeCompare(b.created_at));
+        const actionPriority: Record<string, number> = {
+          create: 0,
+          update: 1,
+          delete: 2,
+          direct_message: 3,
+        };
+        batch.sort((a, b) => {
+          if (a.target_id === b.target_id && a.resource === b.resource) {
+            const pA = actionPriority[a.action] ?? 99;
+            const pB = actionPriority[b.action] ?? 99;
+            if (pA !== pB) return pA - pB;
+          }
+          return a.created_at.localeCompare(b.created_at);
+        });
         if (batch.length === 0) return { ok: true };
 
         const ops: PushWireOp[] = [];

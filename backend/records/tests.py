@@ -378,6 +378,17 @@ class ResultInferenceTests(RecordTestSetup):
         record.refresh_from_db()
         self.assertEqual(record.result, DailyRecord.Result.PASS)
 
+    def test_in_memory_instance_updated_at_synced(self):
+        record = DailyRecord.objects.create(
+            weekly_plan=self.plan, day="wed", date=date(2026, 4, 8),
+            attendance="present", required_verses=10, achieved_verses=9,
+            recorded_by=self.teacher_user,
+        )
+        self.assertIsNotNone(record.updated_at)
+        db_record = DailyRecord.objects.get(pk=record.pk)
+        self.assertEqual(record.updated_at, db_record.updated_at)
+
+
 
 class TeacherOwnershipTests(RecordTestSetup):
     def test_teacher_cannot_create_record_for_another_teachers_student(self):

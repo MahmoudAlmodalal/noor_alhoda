@@ -1,4 +1,4 @@
-import type { ApiErrorResponse, ApiResponse, LoginRequest, LoginResponse } from "@/types/api";
+import type { ApiResponse, LoginRequest, LoginResponse } from "@/types/api";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "";
 const REQUEST_TIMEOUT_MS = 30_000;
@@ -129,22 +129,107 @@ async function refreshAccessToken(): Promise<boolean> {
   return refreshPromise;
 }
 
-// ─── قراءة رسالة الخطأ الحقيقية من رد السيرفر ───────────────────────────────
+// ─── قراءة وسنفرة رسائل الأخطاء من الردود ───────────────────────────────
+
+export function parseErrorMessage(
+  data: unknown,
+  fallback: string = "حدث خطأ غير متوقع."
+): string {
+  if (data === null || data === undefined) {
+    return fallback;
+  }
+
+  if (typeof data === "string") {
+    const cleanText = data.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+    if (!cleanText) {
+      return fallback;
+    }
+    return cleanText;
+  }
+
+  if (typeof data === "number" || typeof data === "boolean") {
+    return String(data);
+  }
+
+  if (Array.isArray(data)) {
+    if (data.length === 0) return fallback;
+    const itemMessages = data
+      .map((item) => parseErrorMessage(item, ""))
+      .filter((msg) => msg.length > 0);
+    return itemMessages.length > 0 ? itemMessages.join("، ") : fallback;
+  }
+
+  if (typeof data === "object") {
+    const obj = data as Record<string, unknown>;
+
+    if (obj.error !== undefined && obj.error !== null) {
+      if (typeof obj.error === "string") {
+        return parseErrorMessage(obj.error, fallback);
+      }
+      if (typeof obj.error === "object") {
+        const errObj = obj.error as Record<string, unknown>;
+        if (errObj.message !== undefined && errObj.message !== null) {
+          return parseErrorMessage(errObj.message, fallback);
+        }
+      }
+    }
+
+    if (obj.detail !== undefined && obj.detail !== null) {
+      return parseErrorMessage(obj.detail, fallback);
+    }
+
+    if (obj.message !== undefined && obj.message !== null) {
+      return parseErrorMessage(obj.message, fallback);
+    }
+
+    if (obj.non_field_errors !== undefined && obj.non_field_errors !== null) {
+      const nonFieldMsg = parseErrorMessage(obj.non_field_errors, "");
+      if (nonFieldMsg) return nonFieldMsg;
+    }
+
+    if (obj.errors !== undefined && obj.errors !== null) {
+      const errorsMsg = parseErrorMessage(obj.errors, "");
+      if (errorsMsg) return errorsMsg;
+    }
+
+    const entries = Object.entries(obj).filter(
+      ([key]) => key !== "error" && key !== "success" && key !== "code" && key !== "status"
+    );
+
+    if (entries.length > 0) {
+      const fieldMessages: string[] = [];
+      for (const [field, val] of entries) {
+        if (val === undefined || val === null) continue;
+        const msg = parseErrorMessage(val, "");
+        if (msg) {
+          fieldMessages.push(`${field}: ${msg}`);
+        }
+      }
+      if (fieldMessages.length > 0) {
+        return fieldMessages.join("، ");
+      }
+    }
+  }
+
+  return fallback;
+}
 
 async function extractErrorMessage(res: Response): Promise<string> {
+  const fallback = `حدث خطأ غير متوقع (${res.status}).`;
   try {
-    const body = await res.json();
-    return (
-      body?.detail ||
-      body?.message ||
-      body?.error?.message ||
-      body?.non_field_errors?.[0] ||
-      "حدث خطأ غير متوقع."
-    );
+    const bodyText = await res.text().catch(() => "");
+    if (!bodyText) return fallback;
+    try {
+      const data = JSON.parse(bodyText);
+      return parseErrorMessage(data, fallback);
+    } catch {
+      return parseErrorMessage(bodyText, fallback);
+    }
   } catch {
-    return "حدث خطأ غير متوقع.";
+    return fallback;
   }
 }
+
 
 // ─── Core fetch wrapper ───────────────────────────────────────────────────────
 
@@ -254,11 +339,13 @@ async function apiFetch<T>(
       try {
         data = JSON.parse(bodyText);
       } catch {
+        const cleanSnippet = parseErrorMessage(bodyText, "").slice(0, 200);
+        const textSnippet = cleanSnippet ? `. ${cleanSnippet}` : "";
         return {
           success: false,
           error: {
             code: res.status,
-            message: `الخادم أعاد استجابة غير صالحة (${res.status}${res.statusText ? " " + res.statusText : ""}). ${bodyText.slice(0, 200)}`.trim(),
+            message: `الخادم أعاد استجابة غير صالحة (${res.status}${res.statusText ? " " + res.statusText : ""})${textSnippet}`.trim(),
           },
         };
       }
@@ -267,8 +354,6 @@ async function apiFetch<T>(
     const dataObj = (data && typeof data === "object" ? data : null) as {
       success?: unknown;
       error?: { code?: number; message?: string };
-      detail?: string;
-      message?: string;
     } | null;
 
     if (res.ok) {
@@ -277,32 +362,26 @@ async function apiFetch<T>(
     }
 
     // ── أخطاء أخرى (400، 403، 404، 500...) ───────────────────────────────
-    if (dataObj?.error) {
-      return { success: false, error: dataObj.error as ApiErrorResponse["error"] };
-    }
+    const fallbackMessage = `حدث خطأ غير متوقع (${res.status}).`;
+    const parsedMessage = parseErrorMessage(
+      data ?? bodyText,
+      fallbackMessage
+    );
 
-    // ── DRF field-level validation errors (e.g. {"national_id": ["..."]}) ────
-    if (res.status === 400 && dataObj && !dataObj.detail && !dataObj.message) {
-      const entries = Object.entries(dataObj).filter(
-        ([k]) => k !== "error" && k !== "success"
-      );
-      if (entries.length > 0) {
-        const messages = entries.map(([field, msgs]) => {
-          const msg = Array.isArray(msgs) ? msgs[0] : String(msgs);
-          return `${field}: ${msg}`;
-        });
-        return {
-          success: false,
-          error: { code: 400, message: messages.join("، ") },
-        };
-      }
+    let errorCode = res.status;
+    if (
+      dataObj?.error &&
+      typeof dataObj.error === "object" &&
+      typeof dataObj.error.code === "number"
+    ) {
+      errorCode = dataObj.error.code;
     }
 
     return {
       success: false,
       error: {
-        code: res.status,
-        message: dataObj?.detail || dataObj?.message || `حدث خطأ غير متوقع (${res.status}).`,
+        code: errorCode,
+        message: parsedMessage,
       },
     };
   } catch (err: unknown) {
@@ -397,11 +476,13 @@ async function apiUpload<T>(
       try {
         data = JSON.parse(bodyText);
       } catch {
+        const cleanSnippet = parseErrorMessage(bodyText, "").slice(0, 200);
+        const textSnippet = cleanSnippet ? `. ${cleanSnippet}` : "";
         return {
           success: false,
           error: {
             code: res.status,
-            message: `الخادم أعاد استجابة غير صالحة (${res.status}). ${bodyText.slice(0, 200)}`.trim(),
+            message: `الخادم أعاد استجابة غير صالحة (${res.status})${textSnippet}`.trim(),
           },
         };
       }
@@ -410,9 +491,6 @@ async function apiUpload<T>(
     const dataObj = (data && typeof data === "object" ? data : null) as {
       success?: unknown;
       error?: { code?: number; message?: string };
-      errors?: Record<string, string | string[]>;
-      detail?: string;
-      message?: string;
     } | null;
 
     if (res.ok) {
@@ -420,20 +498,24 @@ async function apiUpload<T>(
       return { success: true, data: (data ?? {}) as T };
     }
 
-    if (dataObj?.error) {
-      return { success: false, error: dataObj.error as ApiErrorResponse["error"] };
+    const fallbackUploadMessage = `حدث خطأ غير متوقع (${res.status}).`;
+    const parsedUploadMessage = parseErrorMessage(
+      data ?? bodyText,
+      fallbackUploadMessage
+    );
+
+    let errorCode = res.status;
+    if (
+      dataObj?.error &&
+      typeof dataObj.error === "object" &&
+      typeof dataObj.error.code === "number"
+    ) {
+      errorCode = dataObj.error.code;
     }
 
-    // The teacher import view returns { success: false, errors: {...} } —
-    // surface the first field message so callers get something readable.
-    let message = dataObj?.detail || dataObj?.message;
-    if (!message && dataObj?.errors) {
-      const first = Object.values(dataObj.errors)[0];
-      message = Array.isArray(first) ? first[0] : (first as string | undefined);
-    }
     return {
       success: false,
-      error: { code: res.status, message: message || `حدث خطأ غير متوقع (${res.status}).` },
+      error: { code: errorCode, message: parsedUploadMessage },
     };
   } catch (err: unknown) {
     if (err instanceof DOMException && err.name === "TimeoutError") {

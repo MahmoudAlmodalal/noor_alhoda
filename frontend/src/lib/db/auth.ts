@@ -25,8 +25,40 @@ import { getDb, wipeDb, type AuthRow } from "./schema";
 
 const BCRYPT_COST = 10;
 const SESSION_STORAGE_KEY = "_dbk";
+const CHANNEL_NAME = "auth_session_sync";
 
 let sessionKey: CryptoKey | null = null;
+let authChannel: BroadcastChannel | null = null;
+
+function initAuthChannel(): BroadcastChannel | null {
+  if (typeof window === "undefined" || typeof BroadcastChannel === "undefined") {
+    return null;
+  }
+  if (!authChannel) {
+    try {
+      authChannel = new BroadcastChannel(CHANNEL_NAME);
+      authChannel.onmessage = (event: MessageEvent) => {
+        if (event.data?.type === "REQUEST_SESSION_KEY") {
+          const raw = typeof sessionStorage !== "undefined" ? sessionStorage.getItem(SESSION_STORAGE_KEY) : null;
+          if (raw) {
+            authChannel?.postMessage({
+              type: "SHARE_SESSION_KEY",
+              jwk: raw,
+            });
+          }
+        } else if (event.data?.type === "CLEAR_SESSION_KEY") {
+          sessionKey = null;
+          if (typeof sessionStorage !== "undefined") {
+            sessionStorage.removeItem(SESSION_STORAGE_KEY);
+          }
+        }
+      };
+    } catch {
+      authChannel = null;
+    }
+  }
+  return authChannel;
+}
 
 export function getSessionKey(): CryptoKey {
   if (sessionKey === null) {
@@ -44,6 +76,14 @@ export function clearSessionKey(): void {
   if (typeof sessionStorage !== "undefined") {
     sessionStorage.removeItem(SESSION_STORAGE_KEY);
   }
+  const channel = initAuthChannel();
+  if (channel) {
+    try {
+      channel.postMessage({ type: "CLEAR_SESSION_KEY" });
+    } catch {
+      // ignore
+    }
+  }
 }
 
 // Persist the current session key in sessionStorage as JWK so it survives a
@@ -54,18 +94,61 @@ async function persistSessionKey(key: CryptoKey): Promise<void> {
   try {
     const jwk = await crypto.subtle.exportKey("jwk", key);
     sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(jwk));
+    initAuthChannel();
   } catch {
     // exportKey fails if the key is non-extractable — nothing we can do.
   }
 }
 
-// Restore the session key from sessionStorage if present. Returns true on
-// success. Caller must still verify that a matching auth row exists.
+// Restore the session key from sessionStorage if present, or request it from
+// another open tab via BroadcastChannel. Returns true on success.
+// Caller must still verify that a matching auth row exists.
 export async function restoreSessionKey(): Promise<boolean> {
   if (sessionKey !== null) return true;
   if (typeof sessionStorage === "undefined") return false;
-  const raw = sessionStorage.getItem(SESSION_STORAGE_KEY);
+
+  const channel = initAuthChannel();
+  let raw = sessionStorage.getItem(SESSION_STORAGE_KEY);
+
+  if (!raw && channel) {
+    raw = await new Promise<string | null>((resolve) => {
+      let resolved = false;
+      const handler = (event: MessageEvent) => {
+        if (event.data?.type === "SHARE_SESSION_KEY" && event.data?.jwk) {
+          if (!resolved) {
+            resolved = true;
+            channel.removeEventListener("message", handler);
+            resolve(typeof event.data.jwk === "string" ? event.data.jwk : JSON.stringify(event.data.jwk));
+          }
+        }
+      };
+      channel.addEventListener("message", handler);
+      try {
+        channel.postMessage({ type: "REQUEST_SESSION_KEY" });
+      } catch {
+        // ignore
+      }
+
+      setTimeout(() => {
+        if (!resolved) {
+          resolved = true;
+          channel.removeEventListener("message", handler);
+          resolve(null);
+        }
+      }, 500);
+    });
+
+    if (raw) {
+      try {
+        sessionStorage.setItem(SESSION_STORAGE_KEY, raw);
+      } catch {
+        // ignore
+      }
+    }
+  }
+
   if (!raw) return false;
+
   try {
     const jwk = JSON.parse(raw) as JsonWebKey;
     sessionKey = await crypto.subtle.importKey(

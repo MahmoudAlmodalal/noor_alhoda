@@ -63,13 +63,20 @@ export async function enqueueOp(params: EnqueueParams): Promise<OutboxRow> {
   return row;
 }
 
-export async function listPending(limit = 50): Promise<OutboxRow[]> {
-  const rows = await getDb().outbox
-    .where("status")
+export async function listPending(
+  limit = 50,
+  nowIso = new Date().toISOString()
+): Promise<OutboxRow[]> {
+  const rows = await getDb()
+    .outbox.where("status")
     .equals("pending")
-    .limit(limit)
     .toArray();
-  return rows.sort((a, b) => a.created_at.localeCompare(b.created_at));
+  const eligible = rows.filter(
+    (row) => !row.next_retry_at || row.next_retry_at <= nowIso
+  );
+  return eligible
+    .sort((a, b) => a.created_at.localeCompare(b.created_at))
+    .slice(0, limit);
 }
 
 export async function markInFlight(opIds: string[]): Promise<void> {
@@ -90,8 +97,12 @@ export async function revertInFlight(opIds: string[]): Promise<void> {
     for (const id of opIds) {
       const row = await db.outbox.get(id);
       if (row && row.status === "in_flight") {
+        const status =
+          (row.attempts || 0) > 0 || row.last_error !== null
+            ? "error"
+            : "pending";
         await db.outbox.update(id, {
-          status: "pending",
+          status,
         });
       }
     }
@@ -100,7 +111,7 @@ export async function revertInFlight(opIds: string[]): Promise<void> {
 }
 
 /**
- * Rescue every `in_flight` row by flipping it back to `pending`.
+ * Rescue every `in_flight` row by flipping it back to `pending` or `error`.
  *
  * Called at the top of `triggerPush` so a previous push that was killed
  * mid-flight (tab close, browser crash, 401-induced navigation, async
@@ -116,8 +127,12 @@ export async function revertOrphanedInFlight(): Promise<number> {
   if (orphans.length === 0) return 0;
   await db.transaction("rw", db.outbox, async () => {
     for (const row of orphans) {
+      const status =
+        (row.attempts || 0) > 0 || row.last_error !== null
+          ? "error"
+          : "pending";
       await db.outbox.update(row.op_id, {
-        status: "pending",
+        status,
       });
     }
   });
@@ -153,10 +168,56 @@ const RESOURCE_TABLE_MAP: Partial<Record<ResourceName, string>> = {
   progress: "progress",
 };
 
+const DOMAIN_TABLE_RESOURCES: Array<{ tableName: string; resource: ResourceName }> = [
+  { tableName: "weekly_plans", resource: "weekly_plan" },
+  { tableName: "daily_records", resource: "daily_record" },
+  { tableName: "review_records", resource: "review_record" },
+  { tableName: "evaluations", resource: "evaluation" },
+  { tableName: "student_courses", resource: "student_course" },
+  { tableName: "parent_student_links", resource: "parent_student_link" },
+  { tableName: "progress", resource: "progress" },
+  { tableName: "students", resource: "student" },
+  { tableName: "teachers", resource: "teacher" },
+  { tableName: "parents", resource: "parent" },
+  { tableName: "notifications", resource: "notification" },
+  { tableName: "courses", resource: "course" },
+];
+
+function remapObjectIds(
+  val: unknown,
+  oldId: string,
+  newId: string
+): { result: unknown; changed: boolean } {
+  if (val === oldId) {
+    return { result: newId, changed: true };
+  }
+  if (Array.isArray(val)) {
+    let changed = false;
+    const newArr = val.map((item) => {
+      const res = remapObjectIds(item, oldId, newId);
+      if (res.changed) changed = true;
+      return res.result;
+    });
+    return { result: newArr, changed };
+  }
+  if (val !== null && typeof val === "object") {
+    let changed = false;
+    const newObj: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(val as Record<string, unknown>)) {
+      const res = remapObjectIds(v, oldId, newId);
+      if (res.changed) changed = true;
+      newObj[k] = res.result;
+    }
+    return { result: newObj, changed };
+  }
+  return { result: val, changed: false };
+}
+
 /**
  * Replace temporary client IDs with server-assigned primary keys across
- * all pending and errored ops in the IndexedDB outbox. Resets errored ops
- * to 'pending' so dependent ops retry automatically without user intervention.
+ * all pending and errored ops in the IndexedDB outbox as well as dependent
+ * local domain tables in IndexedDB. Resets errored ops to 'pending' so
+ * dependent ops retry automatically without user intervention.
  */
 export async function remapPendingOutboxIds(
   oldId: string,
@@ -167,6 +228,81 @@ export async function remapPendingOutboxIds(
   const db = getDb();
   const sessionKey = getSessionKey();
   if (!sessionKey) return;
+
+  const touchedResources = new Set<ResourceName>();
+
+  // 1. Remap dependent local domain tables
+  for (const item of DOMAIN_TABLE_RESOURCES) {
+    try {
+      const table = db.table(item.tableName);
+      const rows = (await table.toArray()) as Array<Record<string, unknown>>;
+      let tableModified = false;
+
+      for (const row of rows) {
+        let rowChanged = false;
+        let pkChanged = false;
+        const originalId = row.id;
+
+        if (originalId === oldId) {
+          row.id = newId;
+          pkChanged = true;
+          rowChanged = true;
+        }
+
+        // Check clear foreign key columns / properties
+        for (const [k, v] of Object.entries(row)) {
+          if (k === "iv" || k === "ct") continue;
+          if (v === oldId) {
+            row[k] = newId;
+            rowChanged = true;
+          } else if (Array.isArray(v)) {
+            for (let i = 0; i < v.length; i++) {
+              if (v[i] === oldId) {
+                v[i] = newId;
+                rowChanged = true;
+              }
+            }
+          }
+        }
+
+        // Decrypt encrypted payload (iv, ct) and replace oldId with newId
+        let payloadChanged = false;
+        if (typeof row.iv === "string" && typeof row.ct === "string") {
+          try {
+            const payload = await decryptRecord<unknown>(sessionKey, {
+              iv: row.iv,
+              ct: row.ct,
+            });
+            const remapRes = remapObjectIds(payload, oldId, newId);
+            if (remapRes.changed) {
+              payloadChanged = true;
+              const { iv, ct } = await encryptRecord(sessionKey, remapRes.result);
+              row.iv = iv;
+              row.ct = ct;
+            }
+          } catch {
+            // Ignore decryption error for corrupted or un-decryptable payload
+          }
+        }
+
+        if (rowChanged || payloadChanged) {
+          if (pkChanged && typeof originalId === "string") {
+            await table.delete(originalId);
+            await table.put(row);
+          } else {
+            await table.put(row);
+          }
+          tableModified = true;
+        }
+      }
+
+      if (tableModified) {
+        touchedResources.add(item.resource);
+      }
+    } catch {
+      // Best effort scanning per table
+    }
+  }
 
   if (resource) {
     try {
@@ -179,14 +315,16 @@ export async function remapPendingOutboxIds(
     }
   }
 
-  const rows = await db.outbox
+  // 2. Remap outbox payloads and target_ids
+  const outboxRows = await db.outbox
     .where("status")
     .anyOf("pending", "in_flight", "error")
     .toArray();
 
-  for (const row of rows) {
+  let outboxModified = false;
+  for (const row of outboxRows) {
     try {
-      const payload = await decryptRecord<Record<string, unknown>>(sessionKey, {
+      const payload = await decryptRecord<unknown>(sessionKey, {
         iv: row.payload_iv,
         ct: row.payload_ct,
       });
@@ -198,25 +336,13 @@ export async function remapPendingOutboxIds(
         changed = true;
       }
 
-      if (payload && typeof payload === "object") {
-        for (const [key, val] of Object.entries(payload)) {
-          if (val === oldId) {
-            payload[key] = newId;
-            changed = true;
-          }
-          if (Array.isArray(val)) {
-            for (let i = 0; i < val.length; i++) {
-              if (val[i] === oldId) {
-                val[i] = newId;
-                changed = true;
-              }
-            }
-          }
-        }
+      const remapRes = remapObjectIds(payload, oldId, newId);
+      if (remapRes.changed) {
+        changed = true;
       }
 
       if (changed) {
-        const { iv, ct } = await encryptRecord(sessionKey, payload);
+        const { iv, ct } = await encryptRecord(sessionKey, remapRes.result);
         await db.outbox.update(row.op_id, {
           target_id,
           payload_iv: iv,
@@ -225,12 +351,20 @@ export async function remapPendingOutboxIds(
           last_error: null,
           next_retry_at: null,
         });
+        outboxModified = true;
       }
     } catch {
       // Ignore decryption error
     }
   }
-  emitChange("outbox");
+
+  // 3. Emit Dexie change events for all modified domain tables and outbox
+  for (const res of touchedResources) {
+    emitChange(res);
+  }
+  if (outboxModified) {
+    emitChange("outbox");
+  }
 }
 
 export async function markError(opId: string, message: string): Promise<void> {
@@ -393,7 +527,11 @@ export async function revertStaleInFlight(): Promise<void> {
   await db.transaction("rw", db.outbox, async () => {
     const stuck = await db.outbox.where("status").equals("in_flight").toArray();
     for (const row of stuck) {
-      await db.outbox.update(row.op_id, { status: "pending" });
+      const status =
+        (row.attempts || 0) > 0 || row.last_error !== null
+          ? "error"
+          : "pending";
+      await db.outbox.update(row.op_id, { status });
       touched = true;
     }
   });
