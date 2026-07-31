@@ -194,7 +194,7 @@ def progress_delete(
     tombstone_write(
         resource="progress",
         resource_uuid=progress.id,
-        deleted_by=actor,
-        scope_user_id=actor.id,
+        actor=actor,
+        scope_user_id=None,
     )
     progress.delete()

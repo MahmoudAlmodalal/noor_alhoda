@@ -22,7 +22,7 @@ class PushOpSerializer(serializers.Serializer):
         "notification",
         "progress",
     ])
-    op = serializers.ChoiceField(choices=["create", "update", "delete"])
+    op = serializers.ChoiceField(choices=["create", "update", "delete", "direct_message"])
     id = serializers.UUIDField()
     data = serializers.DictField(required=False, allow_null=True, default=dict)
     base_updated_at = serializers.CharField(

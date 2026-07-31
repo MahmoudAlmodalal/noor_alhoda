@@ -1,7 +1,6 @@
 import uuid
 
 from django.db import models
-from django.core.cache import cache
 
 from accounts.models import User
 
@@ -25,7 +24,6 @@ class SyncGeneration(models.Model):
 
     def save(self, *args, **kwargs):
         self.pk = 1  # Enforce single row
-        cache.delete("sync_generation")  # Invalidate cache
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -33,12 +31,18 @@ class SyncGeneration(models.Model):
 
     @classmethod
     def get_current(cls):
-        """Get or create the current generation, with caching."""
-        cached = cache.get("sync_generation")
-        if cached:
-            return cached
+        """
+        Get or create the current generation.
+
+        Intentionally uncached: this is a single-row primary-key read, so
+        its cost is negligible. Caching it previously caused multi-worker
+        drift (each gunicorn worker has its own process-local LocMemCache
+        with no shared CACHES backend configured), which made clients
+        flip-flop between "reset" and "stale" generations depending on
+        which worker served the request, repeatedly wiping and re-syncing
+        the local IndexedDB.
+        """
         obj, _ = cls.objects.get_or_create(pk=1)
-        cache.set("sync_generation", obj.generation_id, timeout=None)
         return obj.generation_id
 
 

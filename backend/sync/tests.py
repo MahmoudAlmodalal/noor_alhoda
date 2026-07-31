@@ -11,6 +11,8 @@ from evaluations.models import Evaluation
 from notifications.models import Notification
 from records.models import DailyRecord, ReviewRecord, WeeklyPlan
 from students.models import Student
+from students.services.student_services import student_delete
+from sync.models import IdempotencyKey
 from sync.services.push_services import _conflict_row
 from sync.services.resource_dicts import RESOURCE_DICT_MAP
 from teacher.models import Teacher
@@ -285,6 +287,10 @@ class SyncPullParentTests(SyncPullRBACSetup):
 
 class SyncPushInBatchRemappingTests(APITestCase):
     def setUp(self):
+        self.admin = User.objects.create_user(
+            national_id="ADM-MAP", phone_number="970599000099",
+            password="pw", role="admin",
+        )
         self.teacher_user = User.objects.create_user(
             national_id="TEA-MAP", phone_number="970599111111",
             password="pw", role="teacher",
@@ -299,6 +305,7 @@ class SyncPushInBatchRemappingTests(APITestCase):
         self.student = Student.objects.create(
             user=self.student_user, full_name="Student Map",
             birthdate=date(2012, 1, 1), grade="G7", teacher=self.teacher,
+            guardian_name="Guardian Map", guardian_mobile="970599555555",
         )
 
     def test_in_batch_id_remapping_new_weekly_plan(self):
@@ -516,4 +523,239 @@ class SyncPushDailyRecordDuplicateConflictTests(SyncPushInBatchRemappingTests):
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0]["status"], "synced")
         self.assertEqual(results[0]["row"]["id"], rec_id)
+
+
+class SyncPushDirectMessageOpTests(SyncPushInBatchRemappingTests):
+    """
+    The frontend outbox can enqueue a `direct_message` op (api.ts:673) for
+    a student's teacher/admin to send a private message. Before this fix,
+    `op` only accepted create/update/delete, so the WHOLE BATCH (not just
+    this op) was rejected with a 400 by `PushBatchSerializer` — and because
+    that's a batch-level failure rather than a per-op error, the client had
+    no way to isolate and clear it, freezing the outbox forever.
+    """
+
+    def test_direct_message_op_does_not_reject_the_batch(self):
+        self.client.force_authenticate(self.teacher_user)
+        op = {
+            "client_id": "60000000-0000-4000-a000-000000000001",
+            "resource": "notification",
+            "op": "direct_message",
+            "id": str(self.student.id),
+            "data": {
+                "student_id": str(self.student.id),
+                "title": "تنويه",
+                "body": "رسالة مباشرة للطالب",
+            },
+        }
+        response = self.client.post("/api/sync/push/", {"ops": [op]}, format="json")
+        self.assertEqual(response.status_code, 200)
+
+        results = response.json()["data"]["results"]
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["status"], "synced")
+        self.assertTrue(
+            Notification.objects.filter(
+                recipient=self.student_user, type="direct_message"
+            ).exists()
+        )
+
+    def test_direct_message_alongside_other_ops_in_same_batch(self):
+        """A malformed/unsupported op type must not 400 the WHOLE batch —
+        only fail in isolation. Pair a direct_message with a normal update
+        to prove the rest of the batch still applies."""
+        self.client.force_authenticate(self.admin)
+        ops = [
+            {
+                "client_id": "60000000-0000-4000-a000-000000000002",
+                "resource": "notification",
+                "op": "direct_message",
+                "id": str(self.student.id),
+                "data": {
+                    "student_id": str(self.student.id),
+                    "title": "تنويه",
+                    "body": "رسالة ثانية",
+                },
+            },
+            {
+                "client_id": "60000000-0000-4000-a000-000000000003",
+                "resource": "student",
+                "op": "update",
+                "id": str(self.student.id),
+                "data": {"grade": "G9"},
+                "base_updated_at": self.student.updated_at.isoformat(),
+            },
+        ]
+        response = self.client.post("/api/sync/push/", {"ops": ops}, format="json")
+        self.assertEqual(response.status_code, 200)
+
+        results = response.json()["data"]["results"]
+        self.assertEqual(results[0]["status"], "synced")
+        self.assertEqual(results[1]["status"], "synced")
+        self.student.refresh_from_db()
+        self.assertEqual(self.student.grade, "G9")
+
+
+class SyncPushIdempotencyErrorNotCachedTests(SyncPushInBatchRemappingTests):
+    """
+    `_finalize` used to cache EVERY terminal status — including "error" —
+    in `IdempotencyKey`. A transient failure (500, lock, momentarily
+    missing FK) got permanently pinned: every retry with the same op_id
+    replayed the stale cached error forever instead of re-running the
+    mutation, so a fixed underlying condition could never actually recover.
+    """
+
+    def test_retry_after_error_with_same_op_id_succeeds(self):
+        self.client.force_authenticate(self.admin)
+        other_user = User.objects.create_user(
+            national_id="S-OTHER-NID", phone_number="970599333333",
+            password="pw", role="student",
+        )
+        Student.objects.create(
+            user=other_user, full_name="Other Student",
+            birthdate=date(2012, 1, 1), grade="G7", teacher=self.teacher,
+        )
+        client_id = "70000000-0000-4000-a000-000000000001"
+
+        # First attempt: national_id collides with `other_user` -> error.
+        failing_op = {
+            "client_id": client_id,
+            "resource": "student",
+            "op": "update",
+            "id": str(self.student.id),
+            "data": {"national_id": "S-OTHER-NID"},
+            "base_updated_at": self.student.updated_at.isoformat(),
+        }
+        resp1 = self.client.post("/api/sync/push/", {"ops": [failing_op]}, format="json")
+        self.assertEqual(resp1.status_code, 200)
+        self.assertEqual(resp1.json()["data"]["results"][0]["status"], "error")
+        self.assertFalse(IdempotencyKey.objects.filter(op_id=client_id).exists())
+
+        # Retry with the SAME op_id but corrected data must actually
+        # re-execute (not replay a cached error) and succeed.
+        self.student.refresh_from_db()
+        fixed_op = {
+            "client_id": client_id,
+            "resource": "student",
+            "op": "update",
+            "id": str(self.student.id),
+            "data": {"national_id": "S-FIXED-NID"},
+            "base_updated_at": self.student.updated_at.isoformat(),
+        }
+        resp2 = self.client.post("/api/sync/push/", {"ops": [fixed_op]}, format="json")
+        self.assertEqual(resp2.status_code, 200)
+        self.assertEqual(resp2.json()["data"]["results"][0]["status"], "synced")
+        self.student.user.refresh_from_db()
+        self.assertEqual(self.student.user.national_id, "S-FIXED-NID")
+
+
+class SyncPushSameBatchSequentialEditsTests(SyncPushInBatchRemappingTests):
+    """
+    Two offline edits to the SAME record, queued before either had a chance
+    to sync, both declare the SAME `base_updated_at` (the last
+    server-confirmed value). Previously the second op was checked against
+    the row's LIVE state — already advanced by the first op, its own
+    sibling, within this same batch — so it was misreported as a conflict
+    and silently dropped (see `sync_push`'s batch LWW anchor tracking).
+    """
+
+    def test_two_sequential_updates_in_one_batch_both_apply(self):
+        self.client.force_authenticate(self.admin)
+        base = self.student.updated_at.isoformat()
+
+        ops = [
+            {
+                "client_id": "80000000-0000-4000-a000-000000000001",
+                "resource": "student",
+                "op": "update",
+                "id": str(self.student.id),
+                "data": {"grade": "G8"},
+                "base_updated_at": base,
+            },
+            {
+                "client_id": "80000000-0000-4000-a000-000000000002",
+                "resource": "student",
+                "op": "update",
+                "id": str(self.student.id),
+                "data": {"address": "New Address"},
+                "base_updated_at": base,
+            },
+        ]
+        response = self.client.post("/api/sync/push/", {"ops": ops}, format="json")
+        self.assertEqual(response.status_code, 200)
+
+        results = response.json()["data"]["results"]
+        self.assertEqual(results[0]["status"], "synced")
+        self.assertEqual(
+            results[1]["status"],
+            "synced",
+            msg="second sibling edit must not be reported as a conflict against its own batch-mate",
+        )
+
+        self.student.refresh_from_db()
+        self.assertEqual(self.student.grade, "G8")
+        self.assertEqual(self.student.address, "New Address")
+
+    def test_third_op_with_different_base_still_conflicts(self):
+        """A third op that declares a DIFFERENT (genuinely stale) base must
+        still be reported as a conflict — the batch anchor must not paper
+        over real conflicts, only sibling continuations."""
+        self.client.force_authenticate(self.admin)
+        base = self.student.updated_at.isoformat()
+
+        sibling_op = {
+            "client_id": "80000000-0000-4000-a000-000000000003",
+            "resource": "student",
+            "op": "update",
+            "id": str(self.student.id),
+            "data": {"grade": "G8"},
+            "base_updated_at": base,
+        }
+        stale_op = {
+            "client_id": "80000000-0000-4000-a000-000000000004",
+            "resource": "student",
+            "op": "update",
+            "id": str(self.student.id),
+            "data": {"address": "Stale Address"},
+            "base_updated_at": "2000-01-01T00:00:00Z",
+        }
+        response = self.client.post(
+            "/api/sync/push/", {"ops": [sibling_op, stale_op]}, format="json"
+        )
+        self.assertEqual(response.status_code, 200)
+
+        results = response.json()["data"]["results"]
+        self.assertEqual(results[0]["status"], "synced")
+        self.assertEqual(results[1]["status"], "conflict")
+
+
+class SyncPullExcludesSoftDeletedStudentTests(SyncPushInBatchRemappingTests):
+    """
+    `student_delete` soft-deletes via `user.is_active = False` and writes a
+    tombstone, but `student_list` (which `pull_visible_students` builds on)
+    didn't filter on it — so a deleted student stayed in every subsequent
+    full pull's `students` array, resurrecting it on any device that
+    re-synced after the tombstone had already been consumed.
+    """
+
+    def test_deleted_student_absent_from_full_pull(self):
+        admin = User.objects.create_user(
+            national_id="ADM-DEL", phone_number="970599444444",
+            password="pw", role="admin",
+        )
+        student_id = self.student.id
+        student_delete(student_id=student_id, actor=admin)
+
+        self.client.force_authenticate(admin)
+        response = self.client.get("/api/sync/pull/")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()["data"]
+
+        student_ids = {s["id"] for s in data["resources"]["students"]}
+        self.assertNotIn(str(student_id), student_ids)
+
+        tombstoned_ids = {
+            t["uuid"] for t in data["tombstones"] if t["resource"] == "student"
+        }
+        self.assertIn(str(student_id), tombstoned_ids)
 

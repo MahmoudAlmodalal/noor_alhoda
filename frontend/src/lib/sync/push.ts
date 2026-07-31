@@ -155,7 +155,25 @@ export async function triggerPush(): Promise<PushResult> {
           const res = await api.post<PushResponseData>("/api/sync/push/", { ops });
 
           if (!res.success) {
-            await revertInFlight(opIds);
+            // A batch-level rejection (e.g. the whole request failed
+            // PushBatchSerializer validation) is either permanent — a 4xx,
+            // meaning the request itself is malformed and retrying it
+            // unchanged will fail identically forever — or transient (5xx /
+            // network, code 0). Permanent rejections must NOT go back to
+            // `pending`, or the batch loops forever without ever
+            // incrementing `attempts`, freezing the device (see sync
+            // stability incident: an unsupported `direct_message` op value
+            // 400'd the whole batch and every op in it, forever).
+            const code = res.error.code;
+            const isPermanentRejection =
+              typeof code === "number" && code >= 400 && code < 500;
+            if (isPermanentRejection) {
+              for (const opId of opIds) {
+                await markError(opId, res.error.message);
+              }
+            } else {
+              await revertInFlight(opIds);
+            }
             batchSettled = true;
             return { ok: false, reason: res.error.message };
           }

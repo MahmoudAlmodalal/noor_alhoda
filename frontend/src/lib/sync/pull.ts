@@ -134,6 +134,17 @@ export async function pullSync(): Promise<PullResult> {
           // won't re-clear (generation now matches). Brief empty UI until then.
           return { ok: false, error: full.error.message };
         }
+        if (full.data.sync_generation !== serverGeneration) {
+          // The generation changed again between the reset above and this
+          // full re-pull (e.g. a stale server-side cache on another
+          // request). Applying this response would overwrite the
+          // generation we just reset to with an inconsistent value and
+          // can reignite the reset→clear→reset loop. Bail out without
+          // calling applyPullResponse/updateSyncGeneration; the next
+          // scheduled pull retries cleanly against whatever generation is
+          // now authoritative.
+          return { ok: false, error: "sync generation changed mid-reset" };
+        }
         await applyPullResponse(full.data);
         return { ok: true, server_time: full.data.server_time };
       }

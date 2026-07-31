@@ -8,7 +8,12 @@ from accounts.models import User
 from teacher.models import Teacher
 from students.models import Student
 from progress.models import StudentProgress
-from progress.services.progress_services import progress_create, progress_update
+from progress.services.progress_services import (
+    progress_create,
+    progress_delete,
+    progress_update,
+)
+from sync.models import Tombstone
 
 
 class ProgressTestCase(APITestCase):
@@ -186,3 +191,33 @@ class ProgressTestCase(APITestCase):
         }
         response = self.client.post(url_create, data=payload, format="json")
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_progress_delete_writes_tombstone_without_error(self):
+        """
+        progress_delete previously called tombstone_write(deleted_by=actor,
+        scope_user_id=actor.id) — a TypeError, since tombstone_write's
+        signature takes `actor`, not `deleted_by`. That crashed every
+        progress delete and (via sync push's error handling) got the crash
+        result permanently cached in IdempotencyKey, so retries kept
+        failing forever. This proves the delete completes cleanly and
+        writes a tombstone visible to all devices (scope_user_id=None).
+        """
+        entry = progress_create(
+            actor=self.admin,
+            student_id=self.student.id,
+            surah_number=2,
+            juz_number=1,
+            from_ayah=1,
+            to_ayah=5,
+            type="memorization",
+        )
+        entry_id = entry.id
+
+        progress_delete(progress=entry, actor=self.admin)
+
+        self.assertFalse(StudentProgress.objects.filter(id=entry_id).exists())
+        tombstone = Tombstone.objects.get(
+            resource=Tombstone.Resource.PROGRESS, resource_uuid=entry_id
+        )
+        self.assertEqual(tombstone.deleted_by_id, self.admin.id)
+        self.assertIsNone(tombstone.scope_user_id)

@@ -35,12 +35,21 @@ export function startSyncRunner(): void {
 
   // Recover ops left in `in_flight` by a previous tab/crash before the
   // first sync — otherwise listPending skips them and they're stuck.
+  // Also requeue any `error` ops (including ones that already exhausted
+  // their auto-retry budget) once at boot, so operations that got
+  // permanently stuck by a since-fixed bug resume without the user having
+  // to find the manual retry button.
   void (async () => {
     if (hasSessionKey()) {
       try {
         await revertStaleInFlight();
       } catch {
         // best-effort; the next push will still drain new pending ops
+      }
+      try {
+        await requeueErroredOps();
+      } catch {
+        // best-effort; a permanent failure will simply re-error and stay visible
       }
     }
     await maybeSync();
