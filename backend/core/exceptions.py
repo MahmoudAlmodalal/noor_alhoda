@@ -55,6 +55,14 @@ def _get_error_message(response):
         msg = data.get("detail") or data.get("message")
         if msg:
             return str(msg)
+        field_errors = []
+        for field, errors in data.items():
+            if isinstance(errors, list) and errors:
+                field_errors.append(f"{field}: {errors[0]}")
+            elif isinstance(errors, str) and errors:
+                field_errors.append(f"{field}: {errors}")
+        if field_errors:
+            return "، ".join(field_errors)
     fallback = {
         400: "طلب غير صالح",
         401: "غير مصرح - يرجى تسجيل الدخول",

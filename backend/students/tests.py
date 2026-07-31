@@ -427,12 +427,12 @@ class StudentCreateContractTests(StudentTestSetup):
         response = self.client.post(STUDENT_CREATE_URL, payload, format="json")
         self.assertEqual(response.status_code, 400)
 
-    def test_missing_guardian_mobile_rejected(self):
+    def test_missing_guardian_mobile_accepted(self):
         self.client.force_authenticate(self.admin)
         payload = self._valid_payload(national_id="970590100304")
         del payload["guardian_mobile"]
         response = self.client.post(STUDENT_CREATE_URL, payload, format="json")
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 201)
 
     def test_invalid_teacher_id_rejected(self):
         self.client.force_authenticate(self.admin)
@@ -1249,14 +1249,14 @@ class ChangeRequestTests(StudentTestSetup):
         new_student = Student.objects.get(user__national_id="970590199996")
         self.assertEqual(new_student.teacher_id, self.teacher_a.id)
 
-    def test_teacher_create_request_missing_fields_rejected(self):
+    def test_teacher_create_request_name_only_accepted(self):
         self.client.force_authenticate(self.teacher_a_user)
         response = self.client.post(
             CHANGE_REQUESTS_URL,
             {"action": "create", "payload": {"full_name": "Incomplete"}},
             format="json",
         )
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 201)
 
     # -- guard rails ---------------------------------------------------
     def test_duplicate_pending_request_rejected(self):

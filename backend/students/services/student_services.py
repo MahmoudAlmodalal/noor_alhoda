@@ -175,7 +175,7 @@ def student_create(*, creator: User, id=None, **data) -> Student:
         grade=data.get("grade") or "غ. م",
         address=data.get("address") or "",
         whatsapp=data.get("whatsapp") or "",
-        mobile=data.get("mobile") or "",
+        mobile=data.get("mobile") or data.get("phone_number") or "",
         previous_courses=data.get("previous_courses") or "",
         desired_courses=data.get("desired_courses") or "",
         bank_account_number=data.get("bank_account_number"),
@@ -236,7 +236,7 @@ def student_update(*, student: Student, actor: User, data: dict) -> Student:
         if User.objects.filter(national_id=new_national_id).exclude(pk=student.user_id).exists():
             raise ValidationError({"national_id": "رقم الهوية مسجل مسبقاً."})
         student.user.national_id = new_national_id
-        student.user.save(update_fields=["national_id"])
+        student.user.save(update_fields=["national_id", "updated_at"])
 
     # Update allowed fields on the Student itself
     for field, value in data.items():
@@ -268,10 +268,10 @@ def student_delete(*, student_id, actor: User):
 
     # Soft delete: Deactivate the user and unassign from the roster.
     user.is_active = False
-    user.save(update_fields=["is_active"])
+    user.save(update_fields=["is_active", "updated_at"])
 
     student.teacher = None
-    student.save(update_fields=["teacher"])
+    student.save(update_fields=["teacher", "updated_at"])
 
     tombstone_write(
         resource=Tombstone.Resource.STUDENT,
@@ -402,5 +402,5 @@ def student_set_review_interval(*, student_id, days: int, actor: User) -> Studen
             raise PermissionDenied("لا يمكنك تعديل طالب ليس في حلقتك.")
 
     student.review_interval_days = int(days)
-    student.save(update_fields=["review_interval_days"])
+    student.save(update_fields=["review_interval_days", "updated_at"])
     return student
