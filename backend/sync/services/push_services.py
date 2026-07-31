@@ -57,6 +57,31 @@ def sync_push(*, actor: User, ops: list[dict]) -> dict[str, Any]:
     results: list[dict[str, Any]] = []
     id_map: dict[str, str] = {}
 
+    # LWW anchor tracking: multiple ops in this same batch may target the
+    # same (resource, id) — e.g. two offline edits to the same student
+    # queued before either had a chance to sync. Both independently declare
+    # the SAME `base_updated_at` (the last server-confirmed value the
+    # client knew about when it queued them). Without this, the SECOND
+    # such op is evaluated against the row's LIVE state — which the FIRST
+    # op, its own sibling, already advanced within this same batch — so
+    # the per-op LWW check below misreports it as a conflict with a
+    # different client's edit and silently drops it (see
+    # `frontend/src/lib/db/repos/index.ts::resolveServerUpdatedAt` for the
+    # client-side half of this fix).
+    #
+    # `batch_original_base` records, per (resource, id), the base the FIRST
+    # op in this batch declared for it. `batch_latest_synced_at` records the
+    # `updated_at` each op that actually applied left the row at. A later
+    # op targeting the same (resource, id) whose declared base is either
+    # unset (a create+edit chain, still unconfirmed) or matches the
+    # recorded original base is fast-forwarded to the latest applied value
+    # before dispatch — i.e. treated as a continuation of its own sibling,
+    # not a conflict with it. An op declaring a DIFFERENT base (genuinely
+    # informed by something else) is left untouched and still gets a normal
+    # LWW check.
+    batch_original_base: dict[tuple[str, str], str | None] = {}
+    batch_latest_synced_at: dict[tuple[str, str], str] = {}
+
     for op in ops:
         # Remap any client-generated parent IDs in op["data"] using id_map
         data = op.get("data")
@@ -65,12 +90,34 @@ def sync_push(*, actor: User, ops: list[dict]) -> dict[str, Any]:
                 if isinstance(val, str) and val in id_map:
                     data[key] = id_map[val]
 
+        resource = op.get("resource")
+        target_id = op.get("id")
+        anchor_key = (resource, str(target_id)) if resource and target_id else None
+
+        if anchor_key is not None:
+            declared_base = op.get("base_updated_at")
+            latest = batch_latest_synced_at.get(anchor_key)
+            if latest is not None and (
+                not declared_base
+                or declared_base == batch_original_base.get(anchor_key)
+            ):
+                op["base_updated_at"] = latest
+            if anchor_key not in batch_original_base:
+                batch_original_base[anchor_key] = declared_base
+
         result = _apply_op(actor=actor, op=op)
         results.append(result)
 
-        # Record ID mapping if op returned a server-authoritative row
-        target_id = op.get("id")
         row = result.get("row")
+        if (
+            anchor_key is not None
+            and result.get("status") == "synced"
+            and isinstance(row, dict)
+            and row.get("updated_at")
+        ):
+            batch_latest_synced_at[anchor_key] = row["updated_at"]
+
+        # Record ID mapping if op returned a server-authoritative row
         if target_id and isinstance(row, dict) and "id" in row:
             server_id = str(row["id"])
             id_map[str(target_id)] = server_id
@@ -184,7 +231,7 @@ def _apply_op(*, actor: User, op: dict) -> dict[str, Any]:
 
 def _finalize(*, client_id, actor, resource, action, result) -> dict:
     """Cache the result for idempotent replay, then return it."""
-    if client_id and result.get("status") in ("synced", "conflict", "error"):
+    if client_id and result.get("status") in ("synced", "conflict"):
         IdempotencyKey.objects.update_or_create(
             op_id=client_id,
             user=actor,
@@ -974,6 +1021,20 @@ def _push_notification_update(*, actor: User, op: dict) -> dict:
     }
 
 
+def _push_notification_direct_message(*, actor: User, op: dict) -> dict:
+    from notifications.services.notification_services import direct_message_send
+
+    data = dict(op.get("data") or {})
+    student_id = data.get("student_id") or op.get("id")
+    direct_message_send(
+        sender=actor,
+        student_id=student_id,
+        title=data.get("title", ""),
+        body=data.get("body", ""),
+    )
+    return {"client_id": op.get("client_id"), "status": "synced"}
+
+
 def _push_progress_create(*, actor: User, op: dict) -> dict:
     from progress.services.progress_services import progress_create
 
@@ -1075,6 +1136,7 @@ _DISPATCH: dict[tuple[str, str], Any] = {
     ("student_course", "update"): _push_student_course_update,
     ("student_course", "delete"): _push_student_course_delete,
     ("notification", "update"): _push_notification_update,
+    ("notification", "direct_message"): _push_notification_direct_message,
     ("progress", "create"): _push_progress_create,
     ("progress", "update"): _push_progress_update,
     ("progress", "delete"): _push_progress_delete,

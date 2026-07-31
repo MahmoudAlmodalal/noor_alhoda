@@ -39,7 +39,7 @@ def student_list(*, filters: dict, user: User) -> QuerySet[Student]:
     qs = (
         Student.objects.select_related("user", "teacher")
         .prefetch_related("teacher__courses")
-        .all()
+        .filter(user__is_active=True)
     )
 
     # Role-based filtering

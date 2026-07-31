@@ -1,5 +1,5 @@
 import { getDb } from "../schema";
-import { decryptRow, decryptRows, encryptForRow } from "./index";
+import { decryptRow, decryptRows, encryptForRow, resolveServerUpdatedAt } from "./index";
 
 export interface StudentRecord {
   id: string;
@@ -28,12 +28,14 @@ export interface StudentRecord {
   enrollment_date: string | null;
   created_at: string | null;
   updated_at: string | null;
+  server_updated_at?: string | null;
 }
 
 export async function upsertStudent(s: StudentRecord): Promise<void> {
   const encrypted = await encryptForRow(s, {
     id: s.id,
     updated_at: s.updated_at ?? "",
+    server_updated_at: resolveServerUpdatedAt(s),
     teacher_id: s.teacher_id,
     national_id: s.national_id,
   });
@@ -46,6 +48,7 @@ export async function upsertStudents(rows: StudentRecord[]): Promise<void> {
       encryptForRow(s, {
         id: s.id,
         updated_at: s.updated_at ?? "",
+        server_updated_at: resolveServerUpdatedAt(s),
         teacher_id: s.teacher_id,
         national_id: s.national_id,
       })

@@ -444,29 +444,34 @@ export async function retryErroredOps(): Promise<void> {
 }
 
 /**
- * Auto-retry policy for transient errors. The runner calls this on the
- * `online` event so a brief 502 / server restart / DNS hiccup doesn't
- * park an op until the user finds a manual retry button.
+ * Auto-retry policy for errored ops, including ones that already hit
+ * `MAX_ATTEMPTS` and stopped auto-retrying. The runner calls this on the
+ * `online` event and once at startup so a brief 502 / server restart / DNS
+ * hiccup — or a since-fixed server bug that had permanently stuck an op —
+ * doesn't leave it parked forever waiting on a manual retry button.
  *
- * Capped by `maxAttempts` (default 5) so a permanent failure (validation
- * error, schema mismatch) eventually stops looping and surfaces to the
- * user via the `error` badge for manual `dropErroredOp` / fix.
+ * Resets `attempts` to 0 and `next_retry_at` to null so the requeued op is
+ * both visible to `listPending` (which filters on `next_retry_at <= now`)
+ * and gets a fresh backoff budget, instead of silently no-op'ing ops that
+ * were already maxed out — the exact "stuck forever" failure mode this
+ * exists to recover from.
  */
-export async function requeueErroredOps(maxAttempts = 5): Promise<number> {
+export async function requeueErroredOps(): Promise<number> {
   const db = getDb();
   const errored = await db.outbox.where("status").equals("error").toArray();
-  const eligible = errored.filter((r) => (r.attempts || 0) < maxAttempts);
-  if (eligible.length === 0) return 0;
+  if (errored.length === 0) return 0;
   await db.transaction("rw", db.outbox, async () => {
-    for (const row of eligible) {
+    for (const row of errored) {
       await db.outbox.update(row.op_id, {
         status: "pending",
         last_error: null,
+        next_retry_at: null,
+        attempts: 0,
       });
     }
   });
   emitChange("outbox");
-  return eligible.length;
+  return errored.length;
 }
 
 export async function dropErroredOp(opId: string): Promise<void> {

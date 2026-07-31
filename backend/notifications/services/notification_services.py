@@ -2,6 +2,7 @@ from urllib.parse import quote
 
 from django.db import transaction
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from rest_framework.exceptions import NotFound, PermissionDenied
 
 from notifications.models import Notification
@@ -90,7 +91,9 @@ def notification_mark_read(*, notification_id, user: User) -> Notification:
 @transaction.atomic
 def notification_mark_all_read(*, user: User) -> int:
     """Mark all notifications as read for a user. Returns count updated."""
-    return Notification.objects.filter(recipient=user, is_read=False).update(is_read=True)
+    return Notification.objects.filter(recipient=user, is_read=False).update(
+        is_read=True, updated_at=timezone.now()
+    )
 
 
 def send_absence_notification(*, student, date) -> dict:

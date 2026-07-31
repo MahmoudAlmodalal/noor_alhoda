@@ -666,6 +666,16 @@ export async function sendDirectStudentMessage(
     }
   }
 
+  if (!studentId) {
+    return {
+      success: false,
+      error: {
+        code: 0,
+        message: "لا يمكن إرسال رسالة بدون تحديد الطالب.",
+      },
+    };
+  }
+
   try {
     const { enqueueOp } = await import("@/lib/sync/outbox");
     await enqueueOp({

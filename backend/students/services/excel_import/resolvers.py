@@ -82,7 +82,7 @@ def _resolve_teacher(
 
     if teacher and affiliation and teacher.affiliation != affiliation:
         teacher.affiliation = affiliation
-        teacher.save(update_fields=["affiliation"])
+        teacher.save(update_fields=["affiliation", "updated_at"])
 
     return teacher
 
@@ -165,10 +165,10 @@ def _resolve_parent(
         parent.phone_number = guardian_mobile
         changed_fields.append("phone_number")
     if changed_fields:
-        parent.save(update_fields=changed_fields)
+        parent.save(update_fields=[*changed_fields, "updated_at"])
 
     if guardian_mobile and parent.user.phone_number != guardian_mobile:
         parent.user.phone_number = guardian_mobile
-        parent.user.save(update_fields=["phone_number"])
+        parent.user.save(update_fields=["phone_number", "updated_at"])
 
     return parent

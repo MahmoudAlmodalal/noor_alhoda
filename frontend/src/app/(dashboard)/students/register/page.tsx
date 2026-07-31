@@ -13,6 +13,7 @@ import { RoleGate } from "@/components/auth/RoleGate";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
 import { api } from "@/lib/api";
+import { requiredString } from "@/lib/validators";
 
 function SectionTitle({ number, title }: { number: number; title: string }) {
   return (
@@ -135,11 +136,10 @@ function StudentRegistrationInner() {
   const { user } = useAuth();
   const { showToast } = useToast();
   const isTeacherActor = user?.role === "teacher";
-  const { mutate, isSubmitting: isMutating } = useMutation("student", "create");
+  const { mutate, isSubmitting: isMutating, fieldErrors } = useMutation("student", "create");
   const [isRequestSubmitting, setIsRequestSubmitting] = useState(false);
   const [showOptionalDetails, setShowOptionalDetails] = useState(false);
   const isSubmitting = isMutating || isRequestSubmitting;
-  const fieldErrors: Record<string, string | string[]> | null = null;
 
   const [form, setForm] = useState({
     national_id: "",
@@ -194,8 +194,9 @@ function StudentRegistrationInner() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!form.full_name.trim()) {
-      showToast("يرجى إدخال اسم الطالب الرباعي", "error");
+    const nameCheck = requiredString(form.full_name, "اسم الطالب");
+    if (!nameCheck.ok) {
+      showToast(nameCheck.error, "error");
       return;
     }
 
