@@ -1,5 +1,5 @@
 import { getDb } from "../schema";
-import { decryptRow, decryptRows, encryptForRow } from "./index";
+import { decryptRow, decryptRows, encryptForRow, resolveServerUpdatedAt } from "./index";
 
 export interface ProgressRecord {
   id: string;
@@ -15,6 +15,7 @@ export interface ProgressRecord {
   recorded_at: string | null;
   created_at: string | null;
   updated_at: string | null;
+  server_updated_at?: string | null;
   from_page?: number | null;
   to_page?: number | null;
 }
@@ -23,6 +24,7 @@ export async function upsertProgress(p: ProgressRecord): Promise<void> {
   const encrypted = await encryptForRow(p, {
     id: p.id,
     updated_at: p.updated_at ?? "",
+    server_updated_at: resolveServerUpdatedAt(p),
     student_id: p.student_id,
     recorded_at: p.recorded_at ?? "",
   });
@@ -35,6 +37,7 @@ export async function upsertProgressBulk(rows: ProgressRecord[]): Promise<void> 
       encryptForRow(p, {
         id: p.id,
         updated_at: p.updated_at ?? "",
+        server_updated_at: resolveServerUpdatedAt(p),
         student_id: p.student_id,
         recorded_at: p.recorded_at ?? "",
       })

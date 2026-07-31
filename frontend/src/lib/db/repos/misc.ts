@@ -15,7 +15,7 @@ import {
   type TeacherRow,
   type UserRow,
 } from "../schema";
-import { decryptRows, encryptForRow } from "./index";
+import { decryptRows, encryptForRow, resolveServerUpdatedAt } from "./index";
 
 // Pure plaintext shapes — match the server's pull serializer.
 export interface UserRecord {
@@ -28,6 +28,7 @@ export interface UserRecord {
   is_active: boolean;
   date_joined: string | null;
   updated_at: string | null;
+  server_updated_at?: string | null;
 }
 export interface TeacherRecord {
   id: string;
@@ -49,6 +50,7 @@ export interface TeacherRecord {
   job_title: string;
   created_at: string | null;
   updated_at: string | null;
+  server_updated_at?: string | null;
 }
 export interface ParentRecord {
   id: string;
@@ -57,6 +59,7 @@ export interface ParentRecord {
   phone_number: string;
   created_at: string | null;
   updated_at: string | null;
+  server_updated_at?: string | null;
 }
 export interface ParentStudentLinkRecord {
   id: string;
@@ -64,6 +67,7 @@ export interface ParentStudentLinkRecord {
   student_id: string;
   created_at: string | null;
   updated_at: string | null;
+  server_updated_at?: string | null;
 }
 export interface EvaluationRecord {
   id: string;
@@ -76,6 +80,7 @@ export interface EvaluationRecord {
   created_by_id: string | null;
   created_at: string | null;
   updated_at: string | null;
+  server_updated_at?: string | null;
 }
 export interface NotificationRecord {
   id: string;
@@ -86,6 +91,7 @@ export interface NotificationRecord {
   is_read: boolean;
   created_at: string | null;
   updated_at: string | null;
+  server_updated_at?: string | null;
 }
 export interface CourseRecord {
   id: string;
@@ -93,6 +99,7 @@ export interface CourseRecord {
   description: string;
   created_at: string | null;
   updated_at: string | null;
+  server_updated_at?: string | null;
 }
 export interface StudentCourseRecord {
   id: string;
@@ -102,6 +109,7 @@ export interface StudentCourseRecord {
   completion_date: string | null;
   created_at: string | null;
   updated_at: string | null;
+  server_updated_at?: string | null;
 }
 
 export async function upsertUsers(rows: UserRecord[]): Promise<void> {
@@ -110,6 +118,7 @@ export async function upsertUsers(rows: UserRecord[]): Promise<void> {
       encryptForRow(r, {
         id: r.id,
         updated_at: r.updated_at ?? r.date_joined ?? "",
+        server_updated_at: resolveServerUpdatedAt(r),
         national_id: r.national_id,
         role: r.role,
       })
@@ -124,6 +133,7 @@ export async function upsertTeachers(rows: TeacherRecord[]): Promise<void> {
       encryptForRow(r, {
         id: r.id,
         updated_at: r.updated_at ?? r.created_at ?? "",
+        server_updated_at: resolveServerUpdatedAt(r),
         user_id: r.user_id,
       })
     )
@@ -137,6 +147,7 @@ export async function upsertParents(rows: ParentRecord[]): Promise<void> {
       encryptForRow(r, {
         id: r.id,
         updated_at: r.updated_at ?? r.created_at ?? "",
+        server_updated_at: resolveServerUpdatedAt(r),
         user_id: r.user_id,
       })
     )
@@ -152,6 +163,7 @@ export async function upsertParentStudentLinks(
       encryptForRow(r, {
         id: r.id,
         updated_at: r.updated_at ?? r.created_at ?? "",
+        server_updated_at: resolveServerUpdatedAt(r),
         parent_id: r.parent_id,
         student_id: r.student_id,
       })
@@ -168,6 +180,7 @@ export async function upsertEvaluations(
       encryptForRow(r, {
         id: r.id,
         updated_at: r.updated_at ?? r.created_at ?? "",
+        server_updated_at: resolveServerUpdatedAt(r),
         student_id: r.student_id,
         scheduled_date: r.scheduled_date,
         status: r.status,
@@ -185,6 +198,7 @@ export async function upsertNotifications(
       encryptForRow(r, {
         id: r.id,
         updated_at: r.updated_at ?? r.created_at ?? "",
+        server_updated_at: resolveServerUpdatedAt(r),
         recipient_id: r.recipient_id,
         is_read: r.is_read ? 1 : 0,
         created_at: r.created_at ?? "",
@@ -200,6 +214,7 @@ export async function upsertCourses(rows: CourseRecord[]): Promise<void> {
       encryptForRow(r, {
         id: r.id,
         updated_at: r.updated_at ?? r.created_at ?? "",
+        server_updated_at: resolveServerUpdatedAt(r),
         name: r.name,
       })
     )
@@ -215,6 +230,7 @@ export async function upsertStudentCourses(
       encryptForRow(r, {
         id: r.id,
         updated_at: r.updated_at ?? r.created_at ?? "",
+        server_updated_at: resolveServerUpdatedAt(r),
         student_id: r.student_id,
         course_id: r.course_id,
       })

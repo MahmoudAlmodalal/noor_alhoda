@@ -108,7 +108,7 @@ def _update_existing_teacher(*, teacher: Teacher, normalized: dict) -> Teacher:
         user_changed.append("phone_number")
 
     if user_changed:
-        user.save(update_fields=user_changed)
+        user.save(update_fields=[*user_changed, "updated_at"])
 
     if normalized.get("full_name") and teacher.full_name != normalized["full_name"]:
         teacher.full_name = normalized["full_name"]

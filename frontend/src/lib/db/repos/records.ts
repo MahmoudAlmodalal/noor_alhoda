@@ -1,5 +1,5 @@
 import { getDb } from "../schema";
-import { decryptRows, encryptForRow } from "./index";
+import { decryptRows, encryptForRow, resolveServerUpdatedAt } from "./index";
 
 export interface WeeklyPlanRecord {
   id: string;
@@ -10,6 +10,7 @@ export interface WeeklyPlanRecord {
   total_achieved: number;
   created_at: string | null;
   updated_at: string | null;
+  server_updated_at?: string | null;
 }
 
 export interface DailyRecordRecord {
@@ -27,6 +28,7 @@ export interface DailyRecordRecord {
   recorded_by_id: string | null;
   created_at: string | null;
   updated_at: string | null;
+  server_updated_at?: string | null;
   review_surah_name?: string;
   review_from_ayah?: number | null;
   review_to_ayah?: number | null;
@@ -49,6 +51,7 @@ export interface ReviewRecordRecord {
   recorded_by_id: string | null;
   created_at: string | null;
   updated_at: string | null;
+  server_updated_at?: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -61,6 +64,7 @@ export async function upsertWeeklyPlans(plans: WeeklyPlanRecord[]): Promise<void
       encryptForRow(p, {
         id: p.id,
         updated_at: p.updated_at ?? p.created_at ?? "",
+        server_updated_at: resolveServerUpdatedAt(p),
         student_id: p.student_id,
         week_start: p.week_start,
       })
@@ -105,6 +109,7 @@ export async function upsertDailyRecords(
       encryptForRow(r, {
         id: r.id,
         updated_at: r.updated_at ?? r.created_at ?? "",
+        server_updated_at: resolveServerUpdatedAt(r),
         weekly_plan_id: r.weekly_plan_id,
         date: r.date,
         day: r.day,
@@ -154,6 +159,7 @@ export async function upsertReviewRecords(
       encryptForRow(r, {
         id: r.id,
         updated_at: r.updated_at ?? r.created_at ?? "",
+        server_updated_at: resolveServerUpdatedAt(r),
         student_id: r.student_id,
         reviewed_date: r.reviewed_date,
       })

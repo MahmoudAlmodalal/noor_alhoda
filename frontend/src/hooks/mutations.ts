@@ -85,7 +85,12 @@ interface Handler {
   resource: ResourceName;
   upsertCreate?(id: string, payload: Payload, nowIso: string): Promise<void>;
   readExisting?(id: string): Promise<Payload | undefined>;
-  upsertUpdate?(id: string, merged: Payload, nowIso: string): Promise<void>;
+  upsertUpdate?(
+    id: string,
+    merged: Payload,
+    nowIso: string,
+    serverUpdatedAt: string | null
+  ): Promise<void>;
   deleteLocal?(id: string): Promise<void>;
   readBaseUpdatedAt(id: string): Promise<string | null>;
   serverPayload(id: string, localPatchOrFull: Payload): Payload;
@@ -95,7 +100,14 @@ function nowIso(): string {
   return new Date().toISOString();
 }
 
-async function readCleartextUpdatedAt(
+// The LWW push base: `server_updated_at` is set ONLY from a server-confirmed
+// row (push response / pull delta), never by a local optimistic write —
+// unlike `updated_at`, which every local edit bumps to the client's own
+// clock. Reading the base from `updated_at` instead would make a second
+// offline edit to the same record report a false conflict against the
+// FIRST edit's own client-clock write and silently discard it. See
+// `db/repos/index.ts::resolveServerUpdatedAt`.
+async function readServerUpdatedAt(
   table:
     | "students"
     | "teachers"
@@ -111,7 +123,7 @@ async function readCleartextUpdatedAt(
   id: string
 ): Promise<string | null> {
   const row = await getDb()[table].get(id);
-  return (row as { updated_at?: string } | undefined)?.updated_at ?? null;
+  return (row as { server_updated_at?: string | null } | undefined)?.server_updated_at ?? null;
 }
 
 // ---------------------------------------------------------------------------
@@ -149,6 +161,7 @@ const handlers: Record<MutationResource, Handler> = {
         enrollment_date: now.slice(0, 10),
         created_at: now,
         updated_at: now,
+        server_updated_at: null,
       };
       await upsertStudent(rec);
     },
@@ -156,14 +169,19 @@ const handlers: Record<MutationResource, Handler> = {
       const r = await getStudent(id);
       return r as unknown as Payload | undefined;
     },
-    async upsertUpdate(id, merged, now) {
-      const rec = { ...(merged as unknown as StudentRecord), id, updated_at: now };
+    async upsertUpdate(id, merged, now, serverUpdatedAt) {
+      const rec = {
+        ...(merged as unknown as StudentRecord),
+        id,
+        updated_at: now,
+        server_updated_at: serverUpdatedAt,
+      };
       await upsertStudent(rec);
     },
     async deleteLocal(id) {
       await deleteStudentLocal(id);
     },
-    readBaseUpdatedAt: (id) => readCleartextUpdatedAt("students", id),
+    readBaseUpdatedAt: (id) => readServerUpdatedAt("students", id),
     serverPayload: (_id, payload) => payload,
   },
 
@@ -200,6 +218,7 @@ const handlers: Record<MutationResource, Handler> = {
         job_title: String(payload.job_title ?? ""),
         created_at: now,
         updated_at: now,
+        server_updated_at: null,
       };
       const userRec: UserRecord = {
         id: userId,
@@ -221,12 +240,13 @@ const handlers: Record<MutationResource, Handler> = {
       if (!row) return undefined;
       return (await decryptRow<TeacherRecord>(row)) as unknown as Payload;
     },
-    async upsertUpdate(id, merged, now) {
+    async upsertUpdate(id, merged, now, serverUpdatedAt) {
       const patch = merged as Payload;
       const rec: TeacherRecord = {
         ...(merged as unknown as TeacherRecord),
         id,
         updated_at: now,
+        server_updated_at: serverUpdatedAt,
         course_ids: Array.isArray(patch.course_ids)
           ? (patch.course_ids as string[])
           : ((merged as unknown as TeacherRecord).course_ids ?? []),
@@ -272,7 +292,7 @@ const handlers: Record<MutationResource, Handler> = {
     async deleteLocal(id) {
       await getDb().teachers.delete(id);
     },
-    readBaseUpdatedAt: (id) => readCleartextUpdatedAt("teachers", id),
+    readBaseUpdatedAt: (id) => readServerUpdatedAt("teachers", id),
     serverPayload: (_id, payload) => payload,
   },
 
@@ -285,6 +305,7 @@ const handlers: Record<MutationResource, Handler> = {
         description: String(payload.description ?? ""),
         created_at: now,
         updated_at: now,
+        server_updated_at: null,
       };
       await upsertCourses([rec]);
     },
@@ -293,14 +314,19 @@ const handlers: Record<MutationResource, Handler> = {
       if (!row) return undefined;
       return (await decryptRow<CourseRecord>(row)) as unknown as Payload;
     },
-    async upsertUpdate(id, merged, now) {
-      const rec = { ...(merged as unknown as CourseRecord), id, updated_at: now };
+    async upsertUpdate(id, merged, now, serverUpdatedAt) {
+      const rec = {
+        ...(merged as unknown as CourseRecord),
+        id,
+        updated_at: now,
+        server_updated_at: serverUpdatedAt,
+      };
       await upsertCourses([rec]);
     },
     async deleteLocal(id) {
       await getDb().courses.delete(id);
     },
-    readBaseUpdatedAt: (id) => readCleartextUpdatedAt("courses", id),
+    readBaseUpdatedAt: (id) => readServerUpdatedAt("courses", id),
     serverPayload: (_id, payload) => payload,
   },
 
@@ -316,6 +342,7 @@ const handlers: Record<MutationResource, Handler> = {
         total_achieved: 0,
         created_at: now,
         updated_at: now,
+        server_updated_at: null,
       };
       await upsertWeeklyPlans([rec]);
     },
@@ -324,14 +351,19 @@ const handlers: Record<MutationResource, Handler> = {
       if (!row) return undefined;
       return (await decryptRow<WeeklyPlanRecord>(row)) as unknown as Payload;
     },
-    async upsertUpdate(id, merged, now) {
-      const rec = { ...(merged as unknown as WeeklyPlanRecord), id, updated_at: now };
+    async upsertUpdate(id, merged, now, serverUpdatedAt) {
+      const rec = {
+        ...(merged as unknown as WeeklyPlanRecord),
+        id,
+        updated_at: now,
+        server_updated_at: serverUpdatedAt,
+      };
       await upsertWeeklyPlans([rec]);
     },
     async deleteLocal(id) {
       await getDb().weekly_plans.delete(id);
     },
-    readBaseUpdatedAt: (id) => readCleartextUpdatedAt("weekly_plans", id),
+    readBaseUpdatedAt: (id) => readServerUpdatedAt("weekly_plans", id),
     serverPayload: (_id, payload) => payload,
   },
 
@@ -363,6 +395,7 @@ const handlers: Record<MutationResource, Handler> = {
         next_review_target: String(payload.next_review_target ?? ""),
         next_review_from_ayah: payload.next_review_from_ayah !== null && payload.next_review_from_ayah !== undefined && payload.next_review_from_ayah !== "" ? Number(payload.next_review_from_ayah) : null,
         next_review_to_ayah: payload.next_review_to_ayah !== null && payload.next_review_to_ayah !== undefined && payload.next_review_to_ayah !== "" ? Number(payload.next_review_to_ayah) : null,
+        server_updated_at: null,
       };
       await upsertDailyRecords([rec]);
     },
@@ -371,14 +404,19 @@ const handlers: Record<MutationResource, Handler> = {
       if (!row) return undefined;
       return (await decryptRow<DailyRecordRecord>(row)) as unknown as Payload;
     },
-    async upsertUpdate(id, merged, now) {
-      const rec = { ...(merged as unknown as DailyRecordRecord), id, updated_at: now };
+    async upsertUpdate(id, merged, now, serverUpdatedAt) {
+      const rec = {
+        ...(merged as unknown as DailyRecordRecord),
+        id,
+        updated_at: now,
+        server_updated_at: serverUpdatedAt,
+      };
       await upsertDailyRecords([rec]);
     },
     async deleteLocal(id) {
       await getDb().daily_records.delete(id);
     },
-    readBaseUpdatedAt: (id) => readCleartextUpdatedAt("daily_records", id),
+    readBaseUpdatedAt: (id) => readServerUpdatedAt("daily_records", id),
     serverPayload: (_id, payload) => payload,
   },
 
@@ -395,6 +433,7 @@ const handlers: Record<MutationResource, Handler> = {
         recorded_by_id: null,
         created_at: now,
         updated_at: now,
+        server_updated_at: null,
       };
       await upsertReviewRecords([rec]);
     },
@@ -403,14 +442,19 @@ const handlers: Record<MutationResource, Handler> = {
       if (!row) return undefined;
       return (await decryptRow<ReviewRecordRecord>(row)) as unknown as Payload;
     },
-    async upsertUpdate(id, merged, now) {
-      const rec = { ...(merged as unknown as ReviewRecordRecord), id, updated_at: now };
+    async upsertUpdate(id, merged, now, serverUpdatedAt) {
+      const rec = {
+        ...(merged as unknown as ReviewRecordRecord),
+        id,
+        updated_at: now,
+        server_updated_at: serverUpdatedAt,
+      };
       await upsertReviewRecords([rec]);
     },
     async deleteLocal(id) {
       await getDb().review_records.delete(id);
     },
-    readBaseUpdatedAt: (id) => readCleartextUpdatedAt("review_records", id),
+    readBaseUpdatedAt: (id) => readServerUpdatedAt("review_records", id),
     serverPayload: (_id, payload) => payload,
   },
 
@@ -428,6 +472,7 @@ const handlers: Record<MutationResource, Handler> = {
         created_by_id: null,
         created_at: now,
         updated_at: now,
+        server_updated_at: null,
       };
       await upsertEvaluations([rec]);
     },
@@ -436,14 +481,19 @@ const handlers: Record<MutationResource, Handler> = {
       if (!row) return undefined;
       return (await decryptRow<EvaluationRecord>(row)) as unknown as Payload;
     },
-    async upsertUpdate(id, merged, now) {
-      const rec = { ...(merged as unknown as EvaluationRecord), id, updated_at: now };
+    async upsertUpdate(id, merged, now, serverUpdatedAt) {
+      const rec = {
+        ...(merged as unknown as EvaluationRecord),
+        id,
+        updated_at: now,
+        server_updated_at: serverUpdatedAt,
+      };
       await upsertEvaluations([rec]);
     },
     async deleteLocal(id) {
       await getDb().evaluations.delete(id);
     },
-    readBaseUpdatedAt: (id) => readCleartextUpdatedAt("evaluations", id),
+    readBaseUpdatedAt: (id) => readServerUpdatedAt("evaluations", id),
     serverPayload: (_id, payload) => payload,
   },
 
@@ -456,11 +506,16 @@ const handlers: Record<MutationResource, Handler> = {
       if (!row) return undefined;
       return (await decryptRow<NotificationRecord>(row)) as unknown as Payload;
     },
-    async upsertUpdate(id, merged, now) {
-      const rec = { ...(merged as unknown as NotificationRecord), id, updated_at: now };
+    async upsertUpdate(id, merged, now, serverUpdatedAt) {
+      const rec = {
+        ...(merged as unknown as NotificationRecord),
+        id,
+        updated_at: now,
+        server_updated_at: serverUpdatedAt,
+      };
       await upsertNotifications([rec]);
     },
-    readBaseUpdatedAt: (id) => readCleartextUpdatedAt("notifications", id),
+    readBaseUpdatedAt: (id) => readServerUpdatedAt("notifications", id),
     serverPayload: (_id, payload) => payload,
   },
 
@@ -475,6 +530,7 @@ const handlers: Record<MutationResource, Handler> = {
         completion_date: (payload.completion_date as string) ?? null,
         created_at: now,
         updated_at: now,
+        server_updated_at: null,
       };
       await upsertStudentCourses([rec]);
     },
@@ -483,14 +539,19 @@ const handlers: Record<MutationResource, Handler> = {
       if (!row) return undefined;
       return (await decryptRow<StudentCourseRecord>(row)) as unknown as Payload;
     },
-    async upsertUpdate(id, merged, now) {
-      const rec = { ...(merged as unknown as StudentCourseRecord), id, updated_at: now };
+    async upsertUpdate(id, merged, now, serverUpdatedAt) {
+      const rec = {
+        ...(merged as unknown as StudentCourseRecord),
+        id,
+        updated_at: now,
+        server_updated_at: serverUpdatedAt,
+      };
       await upsertStudentCourses([rec]);
     },
     async deleteLocal(id) {
       await getDb().student_courses.delete(id);
     },
-    readBaseUpdatedAt: (id) => readCleartextUpdatedAt("student_courses", id),
+    readBaseUpdatedAt: (id) => readServerUpdatedAt("student_courses", id),
     serverPayload: (_id, payload) => payload,
   },
 
@@ -504,13 +565,14 @@ const handlers: Record<MutationResource, Handler> = {
         student_id: String(payload.student_id ?? ""),
         created_at: now,
         updated_at: now,
+        server_updated_at: null,
       };
       await upsertParentStudentLinks([rec]);
     },
     async deleteLocal(id) {
       await getDb().parent_student_links.delete(id);
     },
-    readBaseUpdatedAt: (id) => readCleartextUpdatedAt("parent_student_links", id),
+    readBaseUpdatedAt: (id) => readServerUpdatedAt("parent_student_links", id),
     serverPayload: (_id, payload) => payload,
   },
 
@@ -533,13 +595,14 @@ const handlers: Record<MutationResource, Handler> = {
         recorded_at: now,
         created_at: now,
         updated_at: now,
+        server_updated_at: null,
       };
       await upsertProgress(rec);
     },
     async readExisting(id) {
       return (await getProgress(id)) as Payload | undefined;
     },
-    async upsertUpdate(id, merged, now) {
+    async upsertUpdate(id, merged, now, serverUpdatedAt) {
       const surahNum = Number(merged.surah_number ?? 1);
       const surahData = SURAH_BY_NUMBER.get(surahNum);
       const rec: ProgressRecord = {
@@ -556,13 +619,14 @@ const handlers: Record<MutationResource, Handler> = {
         recorded_at: (merged.recorded_at as string) ?? now,
         created_at: (merged.created_at as string) ?? now,
         updated_at: now,
+        server_updated_at: serverUpdatedAt,
       };
       await upsertProgress(rec);
     },
     async deleteLocal(id) {
       await deleteProgressLocal(id);
     },
-    readBaseUpdatedAt: (id) => readCleartextUpdatedAt("progress", id),
+    readBaseUpdatedAt: (id) => readServerUpdatedAt("progress", id),
     serverPayload: (_id, payload) => payload,
   },
 };
@@ -642,7 +706,7 @@ export async function runMutation(args: {
     if (!existing) return { ok: false, error: "السجل غير موجود محلياً." };
     const base = await h.readBaseUpdatedAt(id);
     const merged: Payload = { ...existing, ...args.payload };
-    await h.upsertUpdate(id, merged, now);
+    await h.upsertUpdate(id, merged, now, base);
     await enqueueOp({
       resource: h.resource,
       action: "update",

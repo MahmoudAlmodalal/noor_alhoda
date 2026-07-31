@@ -16,11 +16,16 @@ import Dexie, { type EntityTable } from "dexie";
 import type { EncryptedBlob } from "./crypto";
 
 export const DB_NAME = "noor_alhuda_local";
-export const DB_VERSION = 6;
+export const DB_VERSION = 7;
 
 export interface EncryptedRow extends EncryptedBlob {
   id: string; // UUID (server-assigned)
-  updated_at: string; // ISO, clear for delta queries
+  updated_at: string; // ISO, clear for delta queries — bumped by BOTH local
+  // optimistic writes and server-confirmed rows, so it does NOT reliably
+  // represent "the last value the server confirmed" on its own.
+  server_updated_at: string | null; // ISO, clear. The LWW push base: set ONLY
+  // from a server-confirmed row (push response / pull delta), never by a
+  // local optimistic write. See `db/repos/index.ts::resolveServerUpdatedAt`.
 }
 
 export interface StudentRow extends EncryptedRow {
@@ -129,6 +134,25 @@ export interface AuthRow {
   sync_generation: string | null; // server's current sync generation UUID; null means wipe needed
   created_at: string;
 }
+
+// Domain (encrypted-row) tables that carry `updated_at` / `server_updated_at`.
+// Excludes `tombstones` (no such columns), `outbox` (pending offline writes),
+// and `auth` (the wrapped DB key). Used by the v7 upgrade handler's backfill.
+const SYNCED_DATA_TABLES = [
+  "users",
+  "teachers",
+  "parents",
+  "parent_student_links",
+  "students",
+  "weekly_plans",
+  "daily_records",
+  "review_records",
+  "evaluations",
+  "notifications",
+  "courses",
+  "student_courses",
+  "progress",
+] as const;
 
 export class LocalDb extends Dexie {
   users!: EntityTable<UserRow, "id">;
@@ -319,6 +343,50 @@ export class LocalDb extends Dexie {
         });
       });
 
+    // v7 — split the LWW push base from the local-write clock: every synced
+    // domain table gains `server_updated_at`, set only from server-confirmed
+    // rows (push response / pull delta), never bumped by a local optimistic
+    // write. Before this, `updated_at` served both roles — a second offline
+    // edit to the same record read its LWW base from the FIRST edit's own
+    // client-clock write instead of the true last-known-server value, which
+    // the server then almost always saw as stale, silently discarding the
+    // second edit as a false conflict (see `hooks/mutations.ts` /
+    // `push_services.py::_server_newer_than_client`).
+    this.version(7)
+      .stores({
+        users: "id, updated_at, national_id, role",
+        teachers: "id, updated_at, user_id",
+        parents: "id, updated_at, user_id",
+        parent_student_links: "id, updated_at, parent_id, student_id",
+        students: "id, updated_at, teacher_id, national_id",
+        weekly_plans: "id, updated_at, student_id, week_start",
+        daily_records:
+          "id, updated_at, weekly_plan_id, date, [weekly_plan_id+day]",
+        review_records: "id, updated_at, student_id, reviewed_date",
+        evaluations: "id, updated_at, student_id, scheduled_date, status",
+        notifications: "id, updated_at, recipient_id, is_read, created_at",
+        courses: "id, updated_at, name",
+        student_courses: "id, updated_at, student_id, course_id",
+        progress: "id, updated_at, student_id, recorded_at",
+        tombstones: "key, resource, deleted_at",
+        outbox:
+          "op_id, status, created_at, resource, target_id, [resource+target_id], next_retry_at",
+        auth: "id",
+      })
+      .upgrade(async (tx) => {
+        // Backfill: assume the current `updated_at` is the last
+        // server-confirmed value — true for any row that isn't mid-edit at
+        // migration time. A row with a genuinely pending unconfirmed edit
+        // simply re-derives an accurate base once that edit round-trips.
+        for (const table of SYNCED_DATA_TABLES) {
+          await tx.table(table).toCollection().modify((row) => {
+            if (row.server_updated_at === undefined) {
+              row.server_updated_at = row.updated_at ?? null;
+            }
+          });
+        }
+      });
+
     // Handle IndexedDB version-upgrade blocks: if another tab holds an open
     // connection to an older DB version, the upgrade transaction is blocked
     // until all old connections close. Without this handler the app hangs on
@@ -360,22 +428,7 @@ export async function wipeDb(): Promise<void> {
 // Cached server data (domain tables + delete-trail). Excludes `auth` (the
 // wrapped DB key + offline-login verifier) and `outbox` (pending offline
 // writes) — those must survive a server-side reset.
-const SYNCED_TABLES = [
-  "users",
-  "teachers",
-  "parents",
-  "parent_student_links",
-  "students",
-  "weekly_plans",
-  "daily_records",
-  "review_records",
-  "evaluations",
-  "notifications",
-  "courses",
-  "student_courses",
-  "progress",
-  "tombstones",
-] as const;
+const SYNCED_TABLES = [...SYNCED_DATA_TABLES, "tombstones"] as const;
 
 /**
  * Clear all cached server data (domain tables + delete-trail) WITHOUT touching
