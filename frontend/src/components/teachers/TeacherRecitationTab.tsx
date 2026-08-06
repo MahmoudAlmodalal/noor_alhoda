@@ -119,6 +119,7 @@ export function TeacherRecitationTab({ teacherId, initialStudentId }: Props) {
                 <th className="px-4 py-3 font-bold">الحضور</th>
                 <th className="px-4 py-3 font-bold">سورة الحفظ</th>
                 <th className="px-4 py-3 font-bold">إنجاز الحفظ</th>
+                <th className="px-4 py-3 font-bold">الأسطر</th>
                 <th className="px-4 py-3 font-bold">جودة الحفظ</th>
                 <th className="px-4 py-3 font-bold">سورة المراجعة</th>
                 <th className="px-4 py-3 font-bold">آيات المراجعة</th>
@@ -175,6 +176,9 @@ export function TeacherRecitationTab({ teacherId, initialStudentId }: Props) {
                       ) : (
                         <span className="text-xs text-text-muted">—</span>
                       )}
+                    </td>
+                    <td className="px-4 py-3 text-text-label">
+                      {(r as any).memorized_lines || "—"}
                     </td>
                     <td className="px-4 py-3">
                       <QualityBadge value={r.quality} />

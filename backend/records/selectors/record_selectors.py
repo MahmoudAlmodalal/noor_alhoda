@@ -53,6 +53,7 @@ def weekly_plans_list(*, actor: User, week_start=None) -> list:
             "week_start": str(p.week_start),
             "total_required": p.total_required,
             "total_achieved": p.total_achieved,
+            "total_lines": p.total_lines,
             "completion_rate": p.completion_rate,
         }
         for p in qs
@@ -115,6 +116,9 @@ def weekly_summary(*, student_id, week_start, actor: User) -> dict:
                 "attendance": r.attendance,
                 "required": f"{r.required_verses} آية" if r.required_verses else "-",
                 "achieved": f"{r.achieved_verses} آية" if r.achieved_verses else "-",
+                "from_ayah": r.from_ayah,
+                "to_ayah": r.to_ayah,
+                "memorized_lines": r.memorized_lines,
                 "evaluation": r.quality,
                 "result": r.result,
                 "surah_name": r.surah_name,
@@ -140,6 +144,9 @@ def weekly_summary(*, student_id, week_start, actor: User) -> dict:
                 "attendance": attendance,
                 "required": f"{share} آية" if share else "-",
                 "achieved": "-",
+                "from_ayah": None,
+                "to_ayah": None,
+                "memorized_lines": 0,
                 "evaluation": "none",
                 "result": "none",
                 "surah_name": "",
@@ -163,6 +170,7 @@ def weekly_summary(*, student_id, week_start, actor: User) -> dict:
         "week_start": str(plan.week_start),
         "total_required": plan.total_required,
         "total_achieved": plan.total_achieved,
+        "total_lines": plan.total_lines,
         "completion_rate": plan.completion_rate,
         "days": days_list,
     }

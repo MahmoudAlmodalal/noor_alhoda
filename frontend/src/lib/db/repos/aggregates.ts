@@ -192,6 +192,8 @@ export async function studentStats(student_id: string): Promise<StudentStats> {
   const absentDays = allDaily.filter((r) => r.attendance === "absent").length;
   const totalRequired = allDaily.reduce((s, r) => s + (r.required_verses || 0), 0);
   const totalAchieved = allDaily.reduce((s, r) => s + (r.achieved_verses || 0), 0);
+  const totalLines = allDaily.reduce((s, r) => s + (r.memorized_lines || 0), 0);
+  const totalPages = totalLines > 0 ? Number((totalLines / 15).toFixed(1)) : 0;
   const overallRate = completionRate(totalAchieved, totalRequired);
   const attendanceRate = totalDays === 0 ? 0 : Math.round((presentDays / totalDays) * 100);
 
@@ -244,6 +246,8 @@ export async function studentStats(student_id: string): Promise<StudentStats> {
     total_absent: absentDays,
     total_required_verses: totalRequired,
     total_achieved_verses: totalAchieved,
+    total_lines: totalLines,
+    total_pages: totalPages,
     overall_completion_rate: overallRate,
     overall_rate: `${overallRate}%`,
     avg_grade: avgGrade,
@@ -440,6 +444,7 @@ export async function weeklySummary(
       week_start: ws,
       total_required: 0,
       total_achieved: 0,
+      total_lines: 0,
       completion_rate: 0,
       records: [],
     };
@@ -494,6 +499,7 @@ export async function weeklySummary(
     week_number: plan.week_number,
     total_required: plan.total_required,
     total_achieved: plan.total_achieved,
+    total_lines: plan.total_lines ?? 0,
     completion_rate: completionRate(plan.total_achieved, plan.total_required),
     records,
     catchup,
@@ -826,6 +832,7 @@ export async function listDailyRecordsWithStudentForDate(
 export interface PlanForList extends WeeklyPlanRecord {
   student_name: string;
   completion_rate: number;
+  total_lines: number;
   review_interval_days: number;
 }
 

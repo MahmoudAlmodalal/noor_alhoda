@@ -131,13 +131,25 @@ def daily_record_create(*, teacher: User, id=None, **data) -> DailyRecord:
         if not hasattr(teacher, "teacher_profile") or plan.student.teacher_id != teacher.teacher_profile.id:
             raise PermissionDenied("لا يمكنك التسجيل لطالب ليس في حلقتك.")
 
+    from_ayah = _to_int_or_none(data.get("from_ayah"))
+    to_ayah = _to_int_or_none(data.get("to_ayah"))
+    memorized_lines = _to_int(data.get("memorized_lines"), default=0)
+
+    if from_ayah is not None and to_ayah is not None and to_ayah >= from_ayah:
+        achieved_verses = to_ayah - from_ayah + 1
+    else:
+        achieved_verses = _to_int(data.get("achieved_verses"), default=0)
+
     record_kwargs = dict(
         weekly_plan=plan,
         day=data.get("day"),
         date=data.get("date"),
         attendance=data.get("attendance", "present"),
         required_verses=_to_int(data.get("required_verses"), default=0),
-        achieved_verses=_to_int(data.get("achieved_verses"), default=0),
+        achieved_verses=achieved_verses,
+        from_ayah=from_ayah,
+        to_ayah=to_ayah,
+        memorized_lines=memorized_lines,
         surah_name=data.get("surah_name", ""),
         quality=data.get("quality", "none"),
         review_surah_name=data.get("review_surah_name", ""),
@@ -218,6 +230,7 @@ def daily_record_update(*, record_id, teacher: User, data: dict) -> DailyRecord:
 
     allowed_fields = [
         "attendance", "required_verses", "achieved_verses",
+        "from_ayah", "to_ayah", "memorized_lines",
         "surah_name", "quality", "result", "note",
         "review_surah_name", "review_from_ayah", "review_to_ayah", "review_quality",
         "next_memorization_target", "next_memorization_from_ayah", "next_memorization_to_ayah",
@@ -228,9 +241,11 @@ def daily_record_update(*, record_id, teacher: User, data: dict) -> DailyRecord:
 
     for field, value in data.items():
         if field in allowed_fields:
-            if field in ("required_verses", "achieved_verses"):
+            if field in ("required_verses", "achieved_verses", "memorized_lines"):
                 value = _to_int(value, default=0)
             elif field in (
+                "from_ayah",
+                "to_ayah",
                 "review_from_ayah",
                 "review_to_ayah",
                 "next_memorization_from_ayah",
@@ -240,6 +255,10 @@ def daily_record_update(*, record_id, teacher: User, data: dict) -> DailyRecord:
             ):
                 value = _to_int_or_none(value)
             setattr(record, field, value)
+
+    # Auto-calculate achieved_verses from ayah range if both are set
+    if record.from_ayah is not None and record.to_ayah is not None and record.to_ayah >= record.from_ayah:
+        record.achieved_verses = record.to_ayah - record.from_ayah + 1
 
     record.recorded_by = teacher
     record.full_clean()

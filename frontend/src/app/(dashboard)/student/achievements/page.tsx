@@ -42,6 +42,9 @@ export default function StudentAchievements() {
 
     const overallRate = stats?.overall_rate || "0%";
     const overallGrade = stats?.avg_grade || "-";
+    const totalLines = stats?.total_lines ?? 0;
+    const totalPages = stats?.total_pages ?? 0;
+    const totalAchievedVerses = stats?.total_achieved_verses ?? 0;
 
     const achievements = (history || [])
         .map((h) => ({
@@ -141,6 +144,21 @@ export default function StudentAchievements() {
                     <div className="bg-green-50/50 border border-green-100 rounded-[20px] p-4 flex flex-col items-center justify-center text-center">
                         <span className="text-[10px] text-green-600 font-bold mb-2">التقدير</span>
                         <span className="text-2xl font-black text-green-700">{overallGrade}</span>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-3 mt-4">
+                    <div className="bg-purple-50/50 border border-purple-100 rounded-[16px] p-3 flex flex-col items-center text-center">
+                        <span className="text-[9px] text-purple-600 font-bold mb-1">الآيات المحفوظة</span>
+                        <span className="text-lg font-black text-purple-700">{totalAchievedVerses}</span>
+                    </div>
+                    <div className="bg-amber-50/50 border border-amber-100 rounded-[16px] p-3 flex flex-col items-center text-center">
+                        <span className="text-[9px] text-amber-600 font-bold mb-1">الأسطر المحفوظة</span>
+                        <span className="text-lg font-black text-amber-700">{totalLines}</span>
+                    </div>
+                    <div className="bg-teal-50/50 border border-teal-100 rounded-[16px] p-3 flex flex-col items-center text-center">
+                        <span className="text-[9px] text-teal-600 font-bold mb-1">الصفحات المحفوظة</span>
+                        <span className="text-lg font-black text-teal-700">{totalPages}</span>
                     </div>
                 </div>
             </div>

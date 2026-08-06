@@ -140,6 +140,7 @@ def student_history(*, student_id, actor: User) -> list:
             "week_number": plan.week_number,
             "total_required": plan.total_required,
             "total_achieved": plan.total_achieved,
+            "total_lines": plan.total_lines,
             "completion_rate": plan.completion_rate,
         })
 
@@ -173,10 +174,13 @@ def student_stats(*, student_id, actor: User) -> dict:
     totals = WeeklyPlan.objects.filter(student=student).aggregate(
         total_required=Sum("total_required"),
         total_achieved=Sum("total_achieved"),
+        total_lines=Sum("total_lines"),
     )
 
     total_required = totals["total_required"] or 0
     total_achieved = totals["total_achieved"] or 0
+    total_lines = totals["total_lines"] or 0
+    total_pages = round(total_lines / 15, 1) if total_lines > 0 else 0
 
     overall_completion_rate = round(
         (total_achieved / total_required * 100) if total_required > 0 else 0, 1
@@ -261,6 +265,8 @@ def student_stats(*, student_id, actor: User) -> dict:
         "total_absent": absent_records,
         "total_required_verses": total_required,
         "total_achieved_verses": total_achieved,
+        "total_lines": total_lines,
+        "total_pages": total_pages,
         "overall_completion_rate": overall_completion_rate,
         "overall_rate": f"{round(attendance_rate, 0):.0f}%",
         "avg_grade": avg_grade,

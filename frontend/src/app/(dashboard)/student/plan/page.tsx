@@ -142,6 +142,8 @@ function DayCard({
         (isFuture ? "upcoming" : "absent")) as AttendanceValue;
     const required = record?.required_verses ?? 0;
     const achieved = record?.achieved_verses ?? 0;
+    const lines = record?.memorized_lines ?? 0;
+    const pages = lines > 0 ? (lines / 15).toFixed(1) : null;
     const quality = record?.quality ?? "none";
     const dayPct =
         required > 0 ? Math.round((achieved / required) * 100) : 0;
@@ -203,6 +205,13 @@ function DayCard({
                     </div>
                     <ProgressBar value={dayPct} size="sm" />
                 </>
+            )}
+
+            {lines > 0 && (
+                <div className="mt-1 flex items-center justify-between text-[11px] text-text-muted">
+                    <span>{lines} سطر</span>
+                    <span className="font-bold text-purple-600">{pages} صفحة</span>
+                </div>
             )}
 
             {quality !== "none" && (
@@ -339,6 +348,8 @@ export default function StudentPlanPage() {
 
     const totalRequired = summary?.total_required ?? 0;
     const totalAchieved = summary?.total_achieved ?? 0;
+    const totalLines = summary?.total_lines ?? 0;
+    const totalPages = totalLines > 0 ? (totalLines / 15).toFixed(1) : "0";
     const completionRate = summary?.completion_rate ?? 0;
 
     const attendanceCounts = {
@@ -439,6 +450,14 @@ export default function StudentPlanPage() {
                                 </span>
                                 <span className="text-[14px] font-bold text-success-text">
                                     {totalAchieved} آية
+                                </span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <span className="text-[12px] text-text-muted">
+                                    الصفحات المحفوظة
+                                </span>
+                                <span className="text-[14px] font-bold text-purple-600">
+                                    {totalPages} صفحة
                                 </span>
                             </div>
                             {summary.week_number ? (

@@ -19,10 +19,12 @@ def update_weekly_plan_totals(sender, instance, **kwargs):
     totals = plan.daily_records.aggregate(
         total_req=Sum("required_verses"),
         total_ach=Sum("achieved_verses"),
+        total_ln=Sum("memorized_lines"),
     )
     plan.total_required = totals["total_req"] or 0
     plan.total_achieved = totals["total_ach"] or 0
-    plan.save(update_fields=["total_required", "total_achieved", "updated_at"])
+    plan.total_lines = totals["total_ln"] or 0
+    plan.save(update_fields=["total_required", "total_achieved", "total_lines", "updated_at"])
 
 
 @receiver(post_save, sender=DailyRecord, dispatch_uid="records.infer_daily_record_result")

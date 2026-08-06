@@ -258,6 +258,9 @@ export interface DailyRecord {
   attendance: AttendanceStatus;
   required_verses: number;
   achieved_verses: number;
+  from_ayah?: number | null;
+  to_ayah?: number | null;
+  memorized_lines?: number;
   surah_name: string;
   quality: "excellent" | "good" | "acceptable" | "weak" | "none";
   result: "pass" | "fail" | "pending";
@@ -310,6 +313,8 @@ export interface StudentStats {
   total_absent: number;
   total_required_verses: number;
   total_achieved_verses: number;
+  total_lines: number;
+  total_pages: number;
   overall_completion_rate: number;
   overall_rate: string;
   avg_grade: string;
@@ -341,6 +346,9 @@ export interface HistoryEntry {
   surah_name?: string;
   required_verses?: number;
   achieved_verses?: number;
+  from_ayah?: number | null;
+  to_ayah?: number | null;
+  memorized_lines?: number;
   quality?: string;
   note?: string;
 }
@@ -366,6 +374,7 @@ export interface WeeklySummary {
   week_start: string;
   total_required: number;
   total_achieved: number;
+  total_lines: number;
   completion_rate: number;
   records: HistoryEntry[];
   catchup?: Catchup | null;
@@ -380,6 +389,7 @@ export interface WeeklyPlan {
   week_start: string;
   total_required: number;
   total_achieved: number;
+  total_lines: number;
   completion_rate?: number;
   created_at?: string;
 }

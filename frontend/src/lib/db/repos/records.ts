@@ -8,6 +8,7 @@ export interface WeeklyPlanRecord {
   week_start: string;
   total_required: number;
   total_achieved: number;
+  total_lines: number;
   created_at: string | null;
   updated_at: string | null;
   server_updated_at?: string | null;
@@ -21,6 +22,9 @@ export interface DailyRecordRecord {
   attendance: "present" | "absent" | "late" | "excused";
   required_verses: number;
   achieved_verses: number;
+  from_ayah?: number | null;
+  to_ayah?: number | null;
+  memorized_lines?: number;
   surah_name: string;
   quality: "excellent" | "good" | "acceptable" | "weak" | "none";
   note: string;

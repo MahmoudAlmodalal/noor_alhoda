@@ -152,6 +152,8 @@ export function TeacherPlansTab({ teacherId }: Props) {
                 <th className="px-4 py-3 font-bold">بداية الأسبوع</th>
                 <th className="px-4 py-3 font-bold">المطلوب</th>
                 <th className="px-4 py-3 font-bold">المنجز</th>
+                <th className="px-4 py-3 font-bold">الأسطر</th>
+                <th className="px-4 py-3 font-bold">الصفحات</th>
                 <th className="px-4 py-3 font-bold">النسبة</th>
                 <th className="px-4 py-3 font-bold text-center">إجراءات</th>
               </tr>
@@ -175,6 +177,12 @@ export function TeacherPlansTab({ teacherId }: Props) {
                     </td>
                     <td className="px-4 py-3 text-text-label">
                       {p.total_achieved}
+                    </td>
+                    <td className="px-4 py-3 text-text-label">
+                      {(p as any).total_lines ?? 0}
+                    </td>
+                    <td className="px-4 py-3 font-bold text-purple-600">
+                      {(p as any).total_lines ? ((p as any).total_lines / 15).toFixed(1) : "0"}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">

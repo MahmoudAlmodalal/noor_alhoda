@@ -24,6 +24,7 @@ class WeeklyPlan(models.Model):
     week_start = models.DateField(verbose_name="بداية الأسبوع (السبت)")
     total_required = models.PositiveIntegerField(default=0, verbose_name="إجمالي الآيات المطلوبة")
     total_achieved = models.PositiveIntegerField(default=0, verbose_name="إجمالي الآيات المنجزة")
+    total_lines = models.PositiveIntegerField(default=0, verbose_name="إجمالي الأسطر المحفوظة")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True, verbose_name="آخر تحديث")
 
@@ -101,6 +102,9 @@ class DailyRecord(models.Model):
     )
     required_verses = models.PositiveIntegerField(default=0, verbose_name="الآيات المطلوبة")
     achieved_verses = models.PositiveIntegerField(default=0, verbose_name="الآيات المنجزة")
+    from_ayah = models.PositiveIntegerField(null=True, blank=True, verbose_name="من آية")
+    to_ayah = models.PositiveIntegerField(null=True, blank=True, verbose_name="إلى آية")
+    memorized_lines = models.PositiveIntegerField(default=0, verbose_name="عدد الأسطر المحفوظة")
     surah_name = models.CharField(
         max_length=100,
         blank=True,

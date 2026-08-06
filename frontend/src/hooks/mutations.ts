@@ -340,6 +340,7 @@ const handlers: Record<MutationResource, Handler> = {
         week_start: String(payload.week_start ?? ""),
         total_required: Number(payload.total_required ?? 0),
         total_achieved: 0,
+        total_lines: Number(payload.total_lines ?? 0),
         created_at: now,
         updated_at: now,
         server_updated_at: null,
@@ -370,6 +371,12 @@ const handlers: Record<MutationResource, Handler> = {
   daily_record: {
     resource: "daily_record",
     async upsertCreate(id, payload, now) {
+      const fromAyahVal = payload.from_ayah !== null && payload.from_ayah !== undefined && payload.from_ayah !== "" ? Number(payload.from_ayah) : null;
+      const toAyahVal = payload.to_ayah !== null && payload.to_ayah !== undefined && payload.to_ayah !== "" ? Number(payload.to_ayah) : null;
+      let achVerses = Number(payload.achieved_verses ?? 0);
+      if (fromAyahVal !== null && toAyahVal !== null && toAyahVal >= fromAyahVal) {
+        achVerses = toAyahVal - fromAyahVal + 1;
+      }
       const rec: DailyRecordRecord = {
         id,
         weekly_plan_id: String(payload.weekly_plan_id ?? ""),
@@ -377,7 +384,10 @@ const handlers: Record<MutationResource, Handler> = {
         date: String(payload.date ?? now.slice(0, 10)),
         attendance: (payload.attendance as DailyRecordRecord["attendance"]) ?? "present",
         required_verses: Number(payload.required_verses ?? 0),
-        achieved_verses: Number(payload.achieved_verses ?? 0),
+        achieved_verses: achVerses,
+        from_ayah: fromAyahVal,
+        to_ayah: toAyahVal,
+        memorized_lines: Number(payload.memorized_lines ?? 0),
         surah_name: String(payload.surah_name ?? ""),
         quality: (payload.quality as DailyRecordRecord["quality"]) ?? "none",
         note: String(payload.note ?? ""),
