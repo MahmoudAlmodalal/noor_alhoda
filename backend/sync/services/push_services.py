@@ -362,6 +362,7 @@ def _push_weekly_plan_create(*, actor: User, op: dict) -> dict:
                 week_start=data.get("week_start"),
                 week_number=data.get("week_number"),
                 total_required=data.get("total_required", 0),
+                total_required_lines=data.get("total_required_lines", 0),
                 teacher=actor,
             )
     except (IntegrityError, ValidationError, DjangoValidationError):

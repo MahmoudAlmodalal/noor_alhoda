@@ -7,6 +7,7 @@ export interface WeeklyPlanRecord {
   week_number: number;
   week_start: string;
   total_required: number;
+  total_required_lines?: number;
   total_achieved: number;
   total_lines: number;
   created_at: string | null;

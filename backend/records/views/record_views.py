@@ -137,6 +137,7 @@ class WeeklyPlanInputSerializer(serializers.Serializer):
     week_start = serializers.DateField()
     week_number = serializers.IntegerField(required=False)
     total_required = serializers.IntegerField(required=False, default=0)
+    total_required_lines = serializers.IntegerField(required=False, default=0)
 
 
 # ---------------------------------------------------------------------------
@@ -272,6 +273,7 @@ class WeeklyPlanCreateApi(APIView):
             week_start=serializer.validated_data["week_start"],
             week_number=serializer.validated_data.get("week_number"),
             total_required=serializer.validated_data.get("total_required", 0),
+            total_required_lines=serializer.validated_data.get("total_required_lines", 0),
             teacher=request.user,
         )
 
@@ -284,6 +286,7 @@ class WeeklyPlanCreateApi(APIView):
                     "week_number": plan.week_number,
                     "week_start": str(plan.week_start),
                     "total_required": plan.total_required,
+                    "total_required_lines": plan.total_required_lines,
                 },
             },
             status=status.HTTP_201_CREATED,

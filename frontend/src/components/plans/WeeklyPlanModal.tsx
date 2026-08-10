@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, Save } from "lucide-react";
+import { Loader2, Save, BookOpen } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -37,6 +37,7 @@ interface Props {
   onCreated?: () => void;
   editPlanId?: string;
   initialTotalRequired?: number;
+  initialTotalRequiredLines?: number;
   initialWeekStart?: string;
 }
 
@@ -48,13 +49,14 @@ export function WeeklyPlanModal({
   onCreated,
   editPlanId,
   initialTotalRequired,
+  initialTotalRequiredLines,
   initialWeekStart,
 }: Props) {
   if (!isOpen) return null;
 
   return (
     <WeeklyPlanModalContent
-      key={`${studentId ?? ""}-${editPlanId ?? ""}-${initialWeekStart ?? ""}-${initialTotalRequired ?? ""}`}
+      key={`${studentId ?? ""}-${editPlanId ?? ""}-${initialWeekStart ?? ""}-${initialTotalRequired ?? ""}-${initialTotalRequiredLines ?? ""}`}
       isOpen={isOpen}
       onClose={onClose}
       studentId={studentId}
@@ -62,6 +64,7 @@ export function WeeklyPlanModal({
       onCreated={onCreated}
       editPlanId={editPlanId}
       initialTotalRequired={initialTotalRequired}
+      initialTotalRequiredLines={initialTotalRequiredLines}
       initialWeekStart={initialWeekStart}
     />
   );
@@ -75,13 +78,17 @@ function WeeklyPlanModalContent({
   onCreated,
   editPlanId,
   initialTotalRequired,
+  initialTotalRequiredLines,
   initialWeekStart,
 }: Props) {
   const [selectedId, setSelectedId] = useState(studentId ?? "");
   const [selectedName, setSelectedName] = useState(studentName ?? "");
   const [weekStart, setWeekStart] = useState<string>(initialWeekStart ?? nextSaturday());
   const [totalRequired, setTotalRequired] = useState<number>(initialTotalRequired ?? 20);
+  const [totalRequiredLines, setTotalRequiredLines] = useState<number>(initialTotalRequiredLines ?? 15);
   const [clientError, setClientError] = useState<string | null>(null);
+
+  const calculatedPages = totalRequiredLines > 0 ? (totalRequiredLines / 15).toFixed(1) : "0";
 
   const { mutate: createMutate, isSubmitting: isCreating, error: createError } = useMutation("weekly_plan", "create");
   const { mutate: updateMutate, isSubmitting: isUpdating, error: updateError } = useMutation("weekly_plan", "update");
@@ -107,6 +114,7 @@ function WeeklyPlanModalContent({
         {
           id: editPlanId,
           total_required: Number(totalRequired) || 0,
+          total_required_lines: Number(totalRequiredLines) || 0,
         },
         { successMessage: "تم تعديل الخطة الأسبوعية بنجاح" }
       );
@@ -121,6 +129,7 @@ function WeeklyPlanModalContent({
           week_start: weekStart,
           week_number: getWeekNumber(weekStart),
           total_required: Number(totalRequired) || 0,
+          total_required_lines: Number(totalRequiredLines) || 0,
         },
         { successMessage: "تم إنشاء الخطة الأسبوعية بنجاح" }
       );
@@ -173,17 +182,48 @@ function WeeklyPlanModalContent({
           />
         </div>
 
-        <div className="space-y-1.5">
-          <label className="block text-sm font-bold text-text-body">عدد الآيات المطلوبة</label>
-          <Input
-            type="number"
-            min={1}
-            value={totalRequired}
-            onChange={(e) => setTotalRequired(Number(e.target.value))}
-            aria-label="عدد الآيات المطلوبة"
-            className="h-12 rounded-xl border-border-subtle"
-            dir="ltr"
-          />
+        {/* بند الحفظ: الآيات المطلوبة والأسطر المطلوبة */}
+        <div className="border border-blue-100 bg-blue-50/40 rounded-2xl p-4 space-y-3">
+          <div className="flex items-center gap-2 text-primary font-bold text-sm mb-1">
+            <BookOpen className="w-4 h-4 text-secondary" />
+            <span>مستهدف الحفظ المطلوب</span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-text-body">عدد الآيات المطلوبة</label>
+              <Input
+                type="number"
+                min={1}
+                value={totalRequired}
+                onChange={(e) => setTotalRequired(Number(e.target.value))}
+                aria-label="عدد الآيات المطلوبة"
+                className="h-11 rounded-xl border-border-subtle bg-white text-left font-bold"
+                dir="ltr"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-text-body">عدد الأسطر المطلوبة</label>
+              <Input
+                type="number"
+                min={0}
+                value={totalRequiredLines}
+                onChange={(e) => setTotalRequiredLines(Number(e.target.value))}
+                aria-label="عدد الأسطر المطلوبة"
+                className="h-11 rounded-xl border-border-subtle bg-white text-left font-bold"
+                dir="ltr"
+              />
+            </div>
+          </div>
+
+          {/* الحساب التلقائي للصفحات (15 سطر = 1 صفحة) */}
+          <div className="bg-white border border-blue-100 rounded-xl p-3 flex items-center justify-between text-xs font-bold text-primary">
+            <span className="text-text-body">الصفحات المحتسبة تلقائياً:</span>
+            <span className="bg-primary/10 text-primary px-3 py-1 rounded-lg text-xs font-black">
+              {calculatedPages} صفحة <span className="text-[10px] text-text-muted font-normal">(لكل 15 سطر)</span>
+            </span>
+          </div>
         </div>
 
         {(clientError || error) && (

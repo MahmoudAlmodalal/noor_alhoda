@@ -52,8 +52,11 @@ def weekly_plans_list(*, actor: User, week_start=None) -> list:
             "week_number": p.week_number,
             "week_start": str(p.week_start),
             "total_required": p.total_required,
+            "total_required_lines": p.total_required_lines,
+            "total_required_pages": p.total_required_pages,
             "total_achieved": p.total_achieved,
             "total_lines": p.total_lines,
+            "total_pages": p.total_pages,
             "completion_rate": p.completion_rate,
         }
         for p in qs
@@ -169,8 +172,11 @@ def weekly_summary(*, student_id, week_start, actor: User) -> dict:
         "week_number": plan.week_number,
         "week_start": str(plan.week_start),
         "total_required": plan.total_required,
+        "total_required_lines": plan.total_required_lines,
+        "total_required_pages": plan.total_required_pages,
         "total_achieved": plan.total_achieved,
         "total_lines": plan.total_lines,
+        "total_pages": plan.total_pages,
         "completion_rate": plan.completion_rate,
         "days": days_list,
     }

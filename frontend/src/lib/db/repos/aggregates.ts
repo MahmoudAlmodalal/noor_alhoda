@@ -832,7 +832,10 @@ export async function listDailyRecordsWithStudentForDate(
 export interface PlanForList extends WeeklyPlanRecord {
   student_name: string;
   completion_rate: number;
+  total_required_lines: number;
+  total_required_pages: number;
   total_lines: number;
+  total_pages: number;
   review_interval_days: number;
 }
 
@@ -856,10 +859,16 @@ export async function listPlansForUI(filters?: {
     .map((p) => {
       const s = sById.get(p.student_id);
       if (!s && filters?.teacher_id) return null;
+      const reqLines = p.total_required_lines ?? 0;
+      const achLines = p.total_lines ?? 0;
       return {
         ...p,
         student_name: s?.full_name ?? "",
         completion_rate: completionRate(p.total_achieved, p.total_required),
+        total_required_lines: reqLines,
+        total_required_pages: reqLines > 0 ? Number((reqLines / 15).toFixed(1)) : 0,
+        total_lines: achLines,
+        total_pages: achLines > 0 ? Number((achLines / 15).toFixed(1)) : 0,
         review_interval_days: s?.review_interval_days ?? 14,
       };
     })

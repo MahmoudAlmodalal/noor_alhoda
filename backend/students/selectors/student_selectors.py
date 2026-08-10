@@ -173,11 +173,14 @@ def student_stats(*, student_id, actor: User) -> dict:
     # Memorization stats
     totals = WeeklyPlan.objects.filter(student=student).aggregate(
         total_required=Sum("total_required"),
+        total_required_lines=Sum("total_required_lines"),
         total_achieved=Sum("total_achieved"),
         total_lines=Sum("total_lines"),
     )
 
     total_required = totals["total_required"] or 0
+    total_required_lines = totals["total_required_lines"] or 0
+    total_required_pages = round(total_required_lines / 15, 1) if total_required_lines > 0 else 0
     total_achieved = totals["total_achieved"] or 0
     total_lines = totals["total_lines"] or 0
     total_pages = round(total_lines / 15, 1) if total_lines > 0 else 0
@@ -264,6 +267,8 @@ def student_stats(*, student_id, actor: User) -> dict:
         "total_present": present_records,
         "total_absent": absent_records,
         "total_required_verses": total_required,
+        "total_required_lines": total_required_lines,
+        "total_required_pages": total_required_pages,
         "total_achieved_verses": total_achieved,
         "total_lines": total_lines,
         "total_pages": total_pages,

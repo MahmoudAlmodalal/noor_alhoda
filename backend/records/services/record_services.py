@@ -19,6 +19,7 @@ def weekly_plan_create(
     week_start,
     week_number=None,
     total_required=0,
+    total_required_lines=0,
     teacher: User,
     id=None,
 ) -> WeeklyPlan:
@@ -46,6 +47,7 @@ def weekly_plan_create(
         ),
         week_start=week_start,
         total_required=total_required or 0,
+        total_required_lines=total_required_lines or 0,
     )
     if id is not None:
         plan_kwargs["id"] = id
@@ -65,7 +67,7 @@ def weekly_plan_update(*, plan: WeeklyPlan, actor: User, data: dict) -> WeeklyPl
         if not hasattr(actor, "teacher_profile") or plan.student.teacher_id != actor.teacher_profile.id:
             raise PermissionDenied("لا يمكنك تعديل خطة لطالب ليس في حلقتك.")
 
-    allowed = ["week_number", "total_required"]
+    allowed = ["week_number", "total_required", "total_required_lines"]
     for field, value in data.items():
         if field in allowed:
             setattr(plan, field, value)

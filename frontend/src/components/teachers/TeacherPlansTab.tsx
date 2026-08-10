@@ -37,6 +37,7 @@ export function TeacherPlansTab({ teacherId }: Props) {
     studentId: string;
     studentName: string;
     totalRequired: number;
+    totalRequiredLines?: number;
     weekStart: string;
   } | null>(null);
   const [deletePlan, setDeletePlan] = useState<{ id: string; name: string } | null>(null);
@@ -223,6 +224,7 @@ export function TeacherPlansTab({ teacherId }: Props) {
                               studentId: p.student_id,
                               studentName: p.student_name,
                               totalRequired: p.total_required,
+                              totalRequiredLines: (p as any).total_required_lines,
                               weekStart: p.week_start,
                             });
                           }}
@@ -264,6 +266,7 @@ export function TeacherPlansTab({ teacherId }: Props) {
         studentName={editPlan?.studentName}
         editPlanId={editPlan?.id}
         initialTotalRequired={editPlan?.totalRequired}
+        initialTotalRequiredLines={editPlan?.totalRequiredLines}
         initialWeekStart={editPlan?.weekStart}
       />
 

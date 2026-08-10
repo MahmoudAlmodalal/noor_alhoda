@@ -85,6 +85,40 @@ class RecordTestSetup(APITestCase):
         self.client.force_authenticate(self.teacher_user)
 
 
+class WeeklyPlanLinesAndPagesTests(RecordTestSetup):
+    def test_weekly_plan_lines_and_pages_calculation(self):
+        """Test creating a weekly plan with total_required_lines and page calculations (15 lines = 1 page)."""
+        response = self.client.post(
+            "/api/records/weekly-plans/",
+            {
+                "student_id": str(self.student.id),
+                "week_start": "2026-04-11",
+                "total_required": 50,
+                "total_required_lines": 30,
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201)
+        plan_id = response.data["data"]["id"]
+        plan = WeeklyPlan.objects.get(id=plan_id)
+        self.assertEqual(plan.total_required_lines, 30)
+        self.assertEqual(plan.total_required_pages, 2.0)
+
+        # Create daily record with 15 memorized lines
+        DailyRecord.objects.create(
+            weekly_plan=plan,
+            day="sat",
+            date=date(2026, 4, 11),
+            attendance="present",
+            required_verses=10,
+            achieved_verses=10,
+            memorized_lines=15,
+        )
+        plan.refresh_from_db()
+        self.assertEqual(plan.total_lines, 15)
+        self.assertEqual(plan.total_pages, 1.0)
+
+
 class AbsenceNotificationTests(RecordTestSetup):
     def test_absence_record_creation_creates_notification_and_updates_totals(self):
         """REC-01 / FR-14 + FR-17: Absence creates parent notification and updates weekly totals."""

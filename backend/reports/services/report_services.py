@@ -107,23 +107,31 @@ def generate_student_pdf(*, student_id) -> bytes:
             [
                 _ar("الأسبوع"),
                 _ar("بداية الأسبوع"),
-                _ar("المطلوب"),
-                _ar("المنجز"),
+                _ar("المطلوب (آيات/أسطر/صفحات)"),
+                _ar("المنجز (آيات/أسطر/صفحات)"),
                 _ar("نسبة الإنجاز"),
             ]
         ]
         for plan in plans:
+            req_str = f"{plan.total_required} آية"
+            if plan.total_required_lines > 0:
+                req_str += f" · {plan.total_required_lines} سطر ({plan.total_required_pages} ص)"
+
+            ach_str = f"{plan.total_achieved} آية"
+            if plan.total_lines > 0:
+                ach_str += f" · {plan.total_lines} سطر ({plan.total_pages} ص)"
+
             plan_data.append(
                 [
                     str(plan.week_number),
                     str(plan.week_start),
-                    str(plan.total_required),
-                    str(plan.total_achieved),
+                    _ar(req_str),
+                    _ar(ach_str),
                     f"{plan.completion_rate}%",
                 ]
             )
 
-        plan_table = Table(plan_data, colWidths=[2.5 * cm, 3.5 * cm, 3 * cm, 3 * cm, 4 * cm])
+        plan_table = Table(plan_data, colWidths=[2 * cm, 2.5 * cm, 4.5 * cm, 4.5 * cm, 2.5 * cm])
         plan_table.setStyle(
             TableStyle(
                 [

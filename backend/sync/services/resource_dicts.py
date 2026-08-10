@@ -124,7 +124,9 @@ def weekly_plan_to_dict(p: WeeklyPlan) -> dict[str, Any]:
         "week_number": p.week_number,
         "week_start": str(p.week_start),
         "total_required": p.total_required,
+        "total_required_lines": p.total_required_lines,
         "total_achieved": p.total_achieved,
+        "total_lines": p.total_lines,
         "created_at": _iso(p.created_at),
         "updated_at": _iso(p.updated_at),
     }

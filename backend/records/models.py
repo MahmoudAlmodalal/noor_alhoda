@@ -23,6 +23,7 @@ class WeeklyPlan(models.Model):
     week_number = models.PositiveIntegerField(verbose_name="رقم الأسبوع")
     week_start = models.DateField(verbose_name="بداية الأسبوع (السبت)")
     total_required = models.PositiveIntegerField(default=0, verbose_name="إجمالي الآيات المطلوبة")
+    total_required_lines = models.PositiveIntegerField(default=0, verbose_name="إجمالي الأسطر المطلوبة")
     total_achieved = models.PositiveIntegerField(default=0, verbose_name="إجمالي الآيات المنجزة")
     total_lines = models.PositiveIntegerField(default=0, verbose_name="إجمالي الأسطر المحفوظة")
     created_at = models.DateTimeField(auto_now_add=True)
@@ -47,6 +48,17 @@ class WeeklyPlan(models.Model):
         if self.total_required == 0:
             return 0
         return round((self.total_achieved / self.total_required) * 100, 2)
+
+    @property
+    def total_required_pages(self):
+        """Calculate required pages from required lines (15 lines = 1 page)."""
+        return round(self.total_required_lines / 15, 1) if self.total_required_lines > 0 else 0
+
+    @property
+    def total_pages(self):
+        """Calculate achieved pages from memorized lines (15 lines = 1 page)."""
+        return round(self.total_lines / 15, 1) if self.total_lines > 0 else 0
+
 
 
 class DailyRecord(models.Model):

@@ -19,6 +19,7 @@ export default function PlansPage() {
     studentId: string;
     studentName: string;
     totalRequired: number;
+    totalRequiredLines?: number;
     weekStart: string;
   } | null>(null);
   const [deletePlan, setDeletePlan] = useState<{ id: string; name: string } | null>(null);
@@ -112,8 +113,8 @@ export default function PlansPage() {
                   <th className="px-4 py-3 font-bold">الطالب</th>
                   <th className="px-4 py-3 font-bold text-center">الأسبوع</th>
                   <th className="px-4 py-3 font-bold text-center">بداية الأسبوع</th>
-                  <th className="px-4 py-3 font-bold text-center">المطلوب</th>
-                  <th className="px-4 py-3 font-bold text-center">المنجز</th>
+                  <th className="px-4 py-3 font-bold text-center">المطلوب (آيات / أسطر / صفحات)</th>
+                  <th className="px-4 py-3 font-bold text-center">المنجز (آيات / أسطر / صفحات)</th>
                   <th className="px-4 py-3 font-bold text-center">النسبة</th>
                   <th className="px-4 py-3 font-bold text-center">فترة المراجعة</th>
                   <th className="px-4 py-3 font-bold text-center">الإجراءات</th>
@@ -122,6 +123,8 @@ export default function PlansPage() {
               <tbody>
                 {(plans ?? []).map((plan) => {
                   const rate = plan.completion_rate;
+                  const reqPages = plan.total_required_pages ?? (plan.total_required_lines ? (plan.total_required_lines / 15).toFixed(1) : 0);
+                  const achPages = plan.total_pages ?? (plan.total_lines ? (plan.total_lines / 15).toFixed(1) : 0);
                   return (
                     <tr key={plan.id} className="border-b border-border-card hover:bg-surface-subtle/50">
                       <td className="px-4 py-3">
@@ -138,11 +141,21 @@ export default function PlansPage() {
                       <td className="px-4 py-3 text-center text-text-muted" dir="ltr">
                         {plan.week_start}
                       </td>
-                      <td className="px-4 py-3 text-center text-text-label">
-                        {plan.total_required}
+                      <td className="px-4 py-3 text-center text-text-label text-xs">
+                        <div className="font-bold">{plan.total_required} آية</div>
+                        {plan.total_required_lines > 0 && (
+                          <div className="text-[10px] text-text-muted mt-0.5 font-medium">
+                            {plan.total_required_lines} سطر · ({reqPages} ص)
+                          </div>
+                        )}
                       </td>
-                      <td className="px-4 py-3 text-center text-text-label">
-                        {plan.total_achieved}
+                      <td className="px-4 py-3 text-center text-text-label text-xs">
+                        <div className="font-bold text-primary">{plan.total_achieved} آية</div>
+                        {plan.total_lines > 0 && (
+                          <div className="text-[10px] text-text-muted mt-0.5 font-medium">
+                            {plan.total_lines} سطر · ({achPages} ص)
+                          </div>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-center">
                         <span
@@ -184,6 +197,7 @@ export default function PlansPage() {
                                 studentId: plan.student_id,
                                 studentName: plan.student_name,
                                 totalRequired: plan.total_required,
+                                totalRequiredLines: plan.total_required_lines,
                                 weekStart: plan.week_start,
                               })
                             }
@@ -226,6 +240,7 @@ export default function PlansPage() {
         studentName={editPlan?.studentName}
         editPlanId={editPlan?.id}
         initialTotalRequired={editPlan?.totalRequired}
+        initialTotalRequiredLines={editPlan?.totalRequiredLines}
         initialWeekStart={editPlan?.weekStart}
       />
 

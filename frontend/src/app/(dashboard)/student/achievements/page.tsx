@@ -69,13 +69,21 @@ export default function StudentAchievements() {
             };
         });
 
-    const dailyHistory = (history || []).slice(0, 10).map((item, idx) => ({
-        date: item.date,
-        hifz: (item.achieved_verses ?? 0) > 0
-            ? `${item.achieved_verses}/${item.required_verses}`
-            : "-",
-        murajaah: `الأسبوع ${item.week_number ?? idx + 1}`,
-    }));
+    const dailyHistory = (history || []).slice(0, 10).map((item, idx) => {
+        const achLines = item.memorized_lines ?? 0;
+        const achPages = achLines > 0 ? (achLines / 15).toFixed(1) : 0;
+        const hifzVerses = (item.achieved_verses ?? 0) > 0
+            ? `${item.achieved_verses}/${item.required_verses || "-"}`
+            : "-";
+        const hifzDetails = achLines > 0
+            ? `${hifzVerses} · ${achLines} سطر (${achPages} ص)`
+            : hifzVerses;
+        return {
+            date: item.date,
+            hifz: hifzDetails,
+            murajaah: `الأسبوع ${item.week_number ?? idx + 1}`,
+        };
+    });
 
     const chartWeeks = (history || []).slice(0, 4).reverse();
     const chartPoints = chartWeeks.map((w, i) => {
