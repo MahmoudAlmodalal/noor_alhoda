@@ -150,7 +150,17 @@ def direct_message_send(
         if not teacher_can_message_student(sender, student=student):
             raise PermissionDenied("ليس لديك صلاحية لإرسال رسالة مباشرة لهذا الطالب (خارج حلقتك).")
 
+    # إنشاء سجل الرسالة المباشرة في الشات
+    from notifications.models import DirectMessage
+    DirectMessage.objects.create(
+        sender=sender,
+        student=student,
+        sender_role=sender.role,
+        body=body,
+    )
+
     recipients: list[User] = []
+
     student_user = getattr(student, "user", None)
     if student_user:
         recipients.append(student_user)
@@ -176,5 +186,77 @@ def direct_message_send(
         "student_id": str(student.id),
         "notifications_created": len(notifications),
         "recipients_count": len(recipients),
+    }
+
+
+@transaction.atomic
+def conversation_reply(*, sender, student_id: str, body: str) -> dict:
+    """
+    إرسال رسالة في محادثة (يعمل للطالب والمحفظ والمدير).
+    """
+    from notifications.models import DirectMessage
+    from notifications.selectors.notification_selectors import parent_users_get_for_student
+
+    student = student_get_by_id(student_id)
+    if not student:
+        raise NotFound("الطالب غير موجود.")
+
+    # التحقق من الصلاحيات
+    if sender.role == "student":
+        student_profile = getattr(sender, "student_profile", None)
+        if not student_profile or str(student_profile.id) != str(student.id):
+            raise PermissionDenied("لا يمكنك إرسال رسالة في هذه المحادثة.")
+    elif sender.role == "teacher":
+        if not teacher_can_message_student(sender, student=student):
+            raise PermissionDenied("ليس لديك صلاحية لمراسلة هذا الطالب.")
+    elif not is_admin_user(sender):
+        raise PermissionDenied("ليس لديك صلاحية لإرسال رسالة.")
+
+    # إنشاء الرسالة
+    msg = DirectMessage.objects.create(
+        sender=sender,
+        student=student,
+        sender_role=sender.role,
+        body=body,
+    )
+
+    # إرسال إشعار للطرف الآخر
+    if sender.role == "student":
+        # إشعار المحفظ
+        teacher = student.teacher
+        if teacher and hasattr(teacher, "user") and teacher.user:
+            Notification.objects.create(
+                recipient=teacher.user,
+                type=Notification.NotificationType.DIRECT_MESSAGE,
+                title=f"رسالة جديدة من {student.full_name}",
+                body=body,
+            )
+    else:
+        # إشعار الطالب وأولياء الأمور
+        recipients_list = []
+        student_user = getattr(student, "user", None)
+        if student_user:
+            recipients_list.append(student_user)
+        parent_users = parent_users_get_for_student(student=student)
+        for p_user in parent_users:
+            if p_user not in recipients_list:
+                recipients_list.append(p_user)
+
+        notifications = [
+            Notification(
+                recipient=user,
+                type=Notification.NotificationType.DIRECT_MESSAGE,
+                title="رسالة جديدة من المحفظ",
+                body=body,
+            )
+            for user in recipients_list
+        ]
+        if notifications:
+            Notification.objects.bulk_create(notifications)
+
+    return {
+        "message_id": str(msg.id),
+        "student_id": str(student.id),
+        "created_at": msg.created_at.isoformat(),
     }
 

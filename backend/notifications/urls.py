@@ -8,6 +8,11 @@ from notifications.views.notification_views import (
     DirectMessageCreateApi,
     TeacherCircleAnnounceApi,
 )
+from notifications.views.conversation_views import (
+    ConversationListApi,
+    ConversationDetailApi,
+    ConversationReplyApi,
+)
 
 urlpatterns = [
     path("", NotificationListApi.as_view(), name="notification-list"),
@@ -16,5 +21,7 @@ urlpatterns = [
     path("announce/", AnnouncementCreateApi.as_view(), name="announcement-create"),
     path("direct-message/", DirectMessageCreateApi.as_view(), name="direct-message-create"),
     path("circle-announce/", TeacherCircleAnnounceApi.as_view(), name="circle-announce"),
+    path("conversations/", ConversationListApi.as_view(), name="conversation-list"),
+    path("conversations/<uuid:student_id>/", ConversationDetailApi.as_view(), name="conversation-detail"),
+    path("conversations/<uuid:student_id>/reply/", ConversationReplyApi.as_view(), name="conversation-reply"),
 ]
-

@@ -4,11 +4,13 @@ import {
   BookMarked,
   FileText,
   MessageSquare,
+  MessageCircle,
   PlusCircle,
   UserCog,
   UserMinus,
   UserX,
 } from "lucide-react";
+import Link from "next/link";
 import { Avatar } from "@/components/ui/Avatar";
 import {
   AttendancePill,
@@ -126,6 +128,14 @@ export function StudentHeader({
             إرسال رسالة
           </button>
         ) : null}
+        {/* زر المحادثة — يظهر دائماً عند توفر student.id */}
+        <Link
+          href={`/students/${student.id}/chat`}
+          className="inline-flex items-center gap-2 rounded-xl bg-blue-500/20 px-4 py-2 text-xs font-bold text-white ring-1 ring-blue-400/30 backdrop-blur-sm transition-colors hover:bg-blue-500/30"
+        >
+          <MessageCircle className="h-4 w-4" />
+          المحادثة
+        </Link>
         {onRequestRemove ? (
           <button
             type="button"

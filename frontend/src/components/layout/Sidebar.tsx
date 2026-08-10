@@ -22,6 +22,7 @@ import {
     Building2,
     KeyRound,
     ClipboardList,
+    MessageCircle,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNotifications } from "@/contexts/NotificationsContext";
@@ -54,6 +55,7 @@ export const menuItems: NavItem[] = [
     { name: "لوحة الشرف", href: "/leaderboard", icon: Trophy, roles: ["admin"] },
     { name: "تقارير الحضور", href: "/reports/attendance", icon: BarChart3, roles: ["admin"] },
     { name: "الإشعارات", href: "/notifications", icon: Bell, roles: ["admin", "teacher", "parent"] },
+    { name: "المحادثات", href: "/conversations", icon: MessageCircle, roles: ["admin", "teacher", "student"] },
 
     // المحفظ فقط
     { name: "الحضور والتقييم", href: "/attendance", icon: ClipboardCheck, roles: ["teacher"] },

@@ -710,3 +710,40 @@ export async function sendDirectStudentMessage(
   }
 }
 
+// ─── Conversations (Chat) ───────────────────────────────────────────────────
+
+export interface ConversationSummary {
+  student_id: string;
+  student_name: string;
+  last_message: string;
+  last_message_at: string;
+  last_sender_role: "teacher" | "student" | "admin";
+  unread_count: number;
+}
+
+export interface ChatMessage {
+  id: string;
+  sender_id: string;
+  sender_name: string;
+  sender_role: "teacher" | "student" | "admin";
+  body: string;
+  is_read: boolean;
+  created_at: string;
+}
+
+export async function fetchConversations(): Promise<ApiResponse<ConversationSummary[]>> {
+  return api.get<ConversationSummary[]>("/api/notifications/conversations/");
+}
+
+export async function fetchConversationMessages(
+  studentId: string
+): Promise<ApiResponse<ChatMessage[]>> {
+  return api.get<ChatMessage[]>(`/api/notifications/conversations/${studentId}/`);
+}
+
+export async function sendConversationReply(
+  studentId: string,
+  body: string
+): Promise<ApiResponse<{ message_id: string; student_id: string; created_at: string }>> {
+  return api.post(`/api/notifications/conversations/${studentId}/reply/`, { body });
+}

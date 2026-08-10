@@ -8,6 +8,7 @@ import {
   FileText,
   IdCard,
   MessageSquare,
+  MessageCircle,
   Phone,
   Trash2,
   UserCog,
@@ -170,6 +171,15 @@ export function StudentCard({
             <MessageSquare className="h-[18px] w-[18px]" />
           </Button>
         ) : null}
+        {/* زر فتح المحادثة */}
+        <Link
+          href={`/students/${student.id}/chat`}
+          className="h-10 w-10 rounded-[12px] text-text-muted hover:bg-blue-50 hover:text-blue-600 inline-flex items-center justify-center transition-colors"
+          aria-label={`محادثة مع ${student.full_name}`}
+          title="فتح المحادثة"
+        >
+          <MessageCircle className="h-[18px] w-[18px]" />
+        </Link>
         <Button
           variant="ghost"
           size="icon"

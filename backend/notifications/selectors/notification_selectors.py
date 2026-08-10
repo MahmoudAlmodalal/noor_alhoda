@@ -156,3 +156,77 @@ def teacher_circle_recipients(teacher_user: User) -> list[User]:
                 seen_ids.add(parent_user.id)
 
     return recipients
+
+
+def conversation_messages(*, student_id, user):
+    """
+    جلب كل رسائل المحادثة مع طالب معين.
+    """
+    from notifications.models import DirectMessage
+    return DirectMessage.objects.filter(
+        student_id=student_id,
+    ).select_related("sender").order_by("created_at")
+
+
+def conversation_list_for_user(*, user) -> list:
+    """
+    جلب قائمة المحادثات النشطة للمستخدم.
+    يعيد قائمة بالطلاب اللي فيه رسائل معهم مع آخر رسالة وعدد الغير مقروءة.
+    """
+    from notifications.models import DirectMessage
+    from core.permissions import is_admin_user
+
+    if user.role == "student":
+        student_profile = getattr(user, "student_profile", None)
+        if not student_profile:
+            return []
+        student_ids = list(
+            DirectMessage.objects.filter(
+                student=student_profile,
+            ).values_list("student_id", flat=True).distinct()
+        )
+    elif user.role == "teacher":
+        teacher_profile = getattr(user, "teacher_profile", None)
+        if not teacher_profile:
+            return []
+        student_ids = list(
+            DirectMessage.objects.filter(
+                student__teacher=teacher_profile,
+            ).values_list("student_id", flat=True).distinct()
+        )
+    elif is_admin_user(user):
+        student_ids = list(
+            DirectMessage.objects.values_list(
+                "student_id", flat=True
+            ).distinct()
+        )
+    else:
+        return []
+
+    conversations = []
+    for sid in student_ids:
+        student = student_get_by_id(sid)
+        if not student:
+            continue
+
+        last_msg = DirectMessage.objects.filter(
+            student_id=sid
+        ).order_by("-created_at").first()
+
+        unread_count = DirectMessage.objects.filter(
+            student_id=sid,
+            is_read=False,
+        ).exclude(sender=user).count()
+
+        if last_msg:
+            conversations.append({
+                "student_id": str(sid),
+                "student_name": student.full_name,
+                "last_message": last_msg.body[:100],
+                "last_message_at": last_msg.created_at.isoformat(),
+                "last_sender_role": last_msg.sender_role,
+                "unread_count": unread_count,
+            })
+
+    conversations.sort(key=lambda c: c["last_message_at"], reverse=True)
+    return conversations

@@ -48,3 +48,47 @@ class Notification(models.Model):
 
     def __str__(self):
         return f"{self.title} → {self.recipient.phone_number}"
+
+class DirectMessage(models.Model):
+    """
+    رسالة مباشرة في محادثة بين محفظ وطالب.
+    تُخزّن كل رسالة مع مرسلها والطالب المعني بالمحادثة.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    sender = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="sent_direct_messages",
+        verbose_name="المرسل",
+    )
+    student = models.ForeignKey(
+        "students.Student",
+        on_delete=models.CASCADE,
+        related_name="direct_messages",
+        verbose_name="الطالب",
+    )
+    sender_role = models.CharField(
+        max_length=10,
+        choices=[
+            ("teacher", "محفظ"),
+            ("student", "طالب"),
+            ("admin", "مدير"),
+        ],
+        verbose_name="دور المرسل",
+    )
+    body = models.TextField(verbose_name="نص الرسالة")
+    is_read = models.BooleanField(default=False, verbose_name="مقروءة")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "رسالة مباشرة"
+        verbose_name_plural = "الرسائل المباشرة"
+        ordering = ["created_at"]
+        indexes = [
+            models.Index(fields=["student", "created_at"]),
+            models.Index(fields=["sender", "-created_at"]),
+        ]
+
+    def __str__(self):
+        return f"{self.sender} → {self.student} ({self.created_at:%Y-%m-%d %H:%M})"
