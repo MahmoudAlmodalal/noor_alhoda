@@ -305,18 +305,19 @@ def bulk_attendance_create(*, teacher: User, date, attendance_data: list) -> dic
                 skipped.append({"student_id": str(student_id), "reason": "not_owned"})
                 continue
 
-        # Find or create weekly plan for the current week
-        # Determine the Saturday of the current week
+        # Find weekly plan for the current week
         weekday = date.weekday()  # Monday = 0
-        # Saturday = 5 in Python's weekday(), we need the previous Saturday
         days_since_saturday = (weekday + 2) % 7
         week_start = date - timedelta(days=days_since_saturday)
 
-        plan, _ = WeeklyPlan.objects.get_or_create(
+        plan = WeeklyPlan.objects.filter(
             student=student,
             week_start=week_start,
-            defaults={"week_number": week_start.isocalendar()[1]},
-        )
+        ).first()
+
+        if not plan:
+            skipped.append({"student_id": str(student_id), "reason": "no_plan"})
+            continue
 
         # Determine day code
         day_map = {5: "sat", 6: "sun", 0: "mon", 1: "tue", 2: "wed", 3: "thu"}

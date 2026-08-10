@@ -44,8 +44,8 @@ function weekNumberFor(iso: string): number {
   return Math.floor(diffDays / 7) + 1;
 }
 
-/** Find an existing weekly plan locally or enqueue a new one; returns its id. */
-async function ensureWeeklyPlan(
+/** Find an existing weekly plan locally; returns its id or null. */
+async function findWeeklyPlan(
   student_id: string,
   week_start: string
 ): Promise<string | null> {
@@ -56,17 +56,7 @@ async function ensureWeeklyPlan(
   for (const r of rows) {
     if (r.week_start === week_start) return r.id;
   }
-  const res = await runMutation({
-    resource: "weekly_plan",
-    action: "create",
-    payload: {
-      student_id,
-      week_start,
-      week_number: weekNumberFor(week_start),
-      total_required: 0,
-    },
-  });
-  return res.ok ? res.id ?? null : null;
+  return null;
 }
 
 async function findDailyRecordId(
@@ -207,13 +197,15 @@ function AttendanceContent() {
 
     const dirtyDrafts = Array.from(drafts.values()).filter((d) => d.dirty);
     let failed = 0;
+    let noPlanCount = 0;
 
     for (const d of dirtyDrafts) {
       if (!d.attendance) continue;
 
-      const planId = await ensureWeeklyPlan(d.student_id, ws);
+      const planId = await findWeeklyPlan(d.student_id, ws);
       if (!planId) {
         failed++;
+        noPlanCount++;
         continue;
       }
 
@@ -258,7 +250,13 @@ function AttendanceContent() {
     void triggerPush();
 
     if (failed > 0) {
-      showToast(`تم الحفظ مع ${failed} أخطاء`, "error");
+      if (noPlanCount > 0 && noPlanCount === dirtyDrafts.length) {
+        showToast("يلزم إضافة خطة أسبوعية للطالب قبل التقييم وتسجيل الحضور", "error");
+      } else if (noPlanCount > 0) {
+        showToast(`تعذر التقييم لـ ${noPlanCount} من الطلاب لعدم وجود خطة أسبوعية لهم`, "error");
+      } else {
+        showToast(`تم الحفظ مع ${failed} أخطاء`, "error");
+      }
     } else {
       showToast("تم حفظ الحضور بنجاح", "success");
     }

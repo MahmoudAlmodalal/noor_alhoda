@@ -182,9 +182,9 @@ class BulkAttendanceTests(RecordTestSetup):
         )
         self.assertEqual(response.status_code, 400)
 
-    def test_bulk_attendance_creates_weekly_plan_on_demand(self):
-        """REC-05 / FR-12 + FR-13: Bulk attendance auto-creates WeeklyPlan."""
-        # Delete existing plan to test auto-creation
+    def test_bulk_attendance_skips_student_without_weekly_plan(self):
+        """REC-05 / FR-12: Bulk attendance skips student if no WeeklyPlan exists."""
+        # Delete existing plan to test skipping
         self.plan.delete()
         response = self.client.post(
             "/api/records/bulk-attendance/",
@@ -195,7 +195,11 @@ class BulkAttendanceTests(RecordTestSetup):
             format="json",
         )
         self.assertEqual(response.status_code, 201)
-        self.assertTrue(WeeklyPlan.objects.filter(student=self.student).exists())
+        self.assertFalse(WeeklyPlan.objects.filter(student=self.student).exists())
+        self.assertEqual(
+            response.json()["data"]["skipped"],
+            [{"student_id": str(self.student.id), "reason": "no_plan"}],
+        )
 
     def test_bulk_attendance_skips_other_teachers_students(self):
         """REC-06 / FR-08: Teacher can't record attendance for another teacher's student."""
