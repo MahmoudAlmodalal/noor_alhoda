@@ -387,6 +387,8 @@ const handlers: Record<MutationResource, Handler> = {
         achieved_verses: achVerses,
         from_ayah: fromAyahVal,
         to_ayah: toAyahVal,
+        from_page: payload.from_page !== null && payload.from_page !== undefined && payload.from_page !== "" ? Number(payload.from_page) : null,
+        to_page: payload.to_page !== null && payload.to_page !== undefined && payload.to_page !== "" ? Number(payload.to_page) : null,
         memorized_lines: Number(payload.memorized_lines ?? 0),
         surah_name: String(payload.surah_name ?? ""),
         quality: (payload.quality as DailyRecordRecord["quality"]) ?? "none",

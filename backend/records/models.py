@@ -116,6 +116,8 @@ class DailyRecord(models.Model):
     achieved_verses = models.PositiveIntegerField(default=0, verbose_name="الآيات المنجزة")
     from_ayah = models.PositiveIntegerField(null=True, blank=True, verbose_name="من آية")
     to_ayah = models.PositiveIntegerField(null=True, blank=True, verbose_name="إلى آية")
+    from_page = models.PositiveIntegerField(null=True, blank=True, verbose_name="من صفحة")
+    to_page = models.PositiveIntegerField(null=True, blank=True, verbose_name="إلى صفحة")
     memorized_lines = models.PositiveIntegerField(default=0, verbose_name="عدد الأسطر المحفوظة")
     surah_name = models.CharField(
         max_length=100,

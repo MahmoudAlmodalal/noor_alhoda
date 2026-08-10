@@ -26,6 +26,8 @@ class DailyRecordOutputSerializer(serializers.Serializer):
     achieved_verses = serializers.IntegerField()
     from_ayah = serializers.IntegerField(allow_null=True)
     to_ayah = serializers.IntegerField(allow_null=True)
+    from_page = serializers.IntegerField(allow_null=True)
+    to_page = serializers.IntegerField(allow_null=True)
     memorized_lines = serializers.IntegerField()
     surah_name = serializers.CharField()
     quality = serializers.CharField()
@@ -57,6 +59,8 @@ class DailyRecordInputSerializer(serializers.Serializer):
     achieved_verses = serializers.IntegerField(default=0)
     from_ayah = serializers.IntegerField(required=False, allow_null=True, default=None)
     to_ayah = serializers.IntegerField(required=False, allow_null=True, default=None)
+    from_page = serializers.IntegerField(required=False, allow_null=True, default=None)
+    to_page = serializers.IntegerField(required=False, allow_null=True, default=None)
     memorized_lines = serializers.IntegerField(required=False, default=0)
     surah_name = serializers.CharField(required=False, default="")
     quality = serializers.ChoiceField(

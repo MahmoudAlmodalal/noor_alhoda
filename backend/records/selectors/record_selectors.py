@@ -121,6 +121,8 @@ def weekly_summary(*, student_id, week_start, actor: User) -> dict:
                 "achieved": f"{r.achieved_verses} آية" if r.achieved_verses else "-",
                 "from_ayah": r.from_ayah,
                 "to_ayah": r.to_ayah,
+                "from_page": r.from_page,
+                "to_page": r.to_page,
                 "memorized_lines": r.memorized_lines,
                 "evaluation": r.quality,
                 "result": r.result,

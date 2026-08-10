@@ -25,6 +25,8 @@ export interface DailyRecordRecord {
   achieved_verses: number;
   from_ayah?: number | null;
   to_ayah?: number | null;
+  from_page?: number | null;
+  to_page?: number | null;
   memorized_lines?: number;
   surah_name: string;
   quality: "excellent" | "good" | "acceptable" | "weak" | "none";

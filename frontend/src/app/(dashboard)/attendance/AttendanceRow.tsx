@@ -12,6 +12,8 @@ export interface DraftRecord {
   surah_name: string;
   from_ayah: number | "";
   to_ayah: number | "";
+  from_page: number | "";
+  to_page: number | "";
   required_verses: number;
   achieved_verses: number;
   memorized_lines: number;
@@ -155,6 +157,33 @@ export function AttendanceRow({ draft, onChange }: Props) {
                   placeholder="إلى آية"
                   value={draft.to_ayah}
                   onChange={(e) => onChange({ to_ayah: e.target.value === "" ? "" : Number(e.target.value) })}
+                  className={inputCls}
+                  dir="ltr"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="block text-[11px] font-bold text-text-label">من صفحة</label>
+                <input
+                  type="number"
+                  min={0}
+                  placeholder="من صفحة"
+                  value={draft.from_page}
+                  onChange={(e) => onChange({ from_page: e.target.value === "" ? "" : Number(e.target.value) })}
+                  className={inputCls}
+                  dir="ltr"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="block text-[11px] font-bold text-text-label">إلى صفحة</label>
+                <input
+                  type="number"
+                  min={0}
+                  placeholder="إلى صفحة"
+                  value={draft.to_page}
+                  onChange={(e) => onChange({ to_page: e.target.value === "" ? "" : Number(e.target.value) })}
                   className={inputCls}
                   dir="ltr"
                 />

@@ -135,6 +135,8 @@ def daily_record_create(*, teacher: User, id=None, **data) -> DailyRecord:
 
     from_ayah = _to_int_or_none(data.get("from_ayah"))
     to_ayah = _to_int_or_none(data.get("to_ayah"))
+    from_page = _to_int_or_none(data.get("from_page"))
+    to_page = _to_int_or_none(data.get("to_page"))
     memorized_lines = _to_int(data.get("memorized_lines"), default=0)
 
     if from_ayah is not None and to_ayah is not None and to_ayah >= from_ayah:
@@ -151,6 +153,8 @@ def daily_record_create(*, teacher: User, id=None, **data) -> DailyRecord:
         achieved_verses=achieved_verses,
         from_ayah=from_ayah,
         to_ayah=to_ayah,
+        from_page=from_page,
+        to_page=to_page,
         memorized_lines=memorized_lines,
         surah_name=data.get("surah_name", ""),
         quality=data.get("quality", "none"),
@@ -232,7 +236,7 @@ def daily_record_update(*, record_id, teacher: User, data: dict) -> DailyRecord:
 
     allowed_fields = [
         "attendance", "required_verses", "achieved_verses",
-        "from_ayah", "to_ayah", "memorized_lines",
+        "from_ayah", "to_ayah", "from_page", "to_page", "memorized_lines",
         "surah_name", "quality", "result", "note",
         "review_surah_name", "review_from_ayah", "review_to_ayah", "review_quality",
         "next_memorization_target", "next_memorization_from_ayah", "next_memorization_to_ayah",
