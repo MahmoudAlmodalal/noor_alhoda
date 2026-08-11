@@ -14,7 +14,7 @@
  *   postMessage so the push runner drains the outbox.
  */
 
-const CACHE_VERSION = "v7";
+const CACHE_VERSION = "v8";
 const APP_CACHE = `noor-alhuda-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `noor-alhuda-runtime-${CACHE_VERSION}`;
 
@@ -181,13 +181,40 @@ async function navigationHandler(req) {
     const rootShell = (await appCache.match("/")) || (await runtime.match("/"));
     if (rootShell) return rootShell;
 
-    // 4. Custom offline HTML fallback
-    const offlineHtml = await appCache.match("/offline.html");
+    // 4. Custom offline HTML fallback, searched across every cache
+    const offlineHtml = await caches.match("/offline.html");
     if (offlineHtml) return offlineHtml;
 
-    return new Response("Offline", { status: 503, statusText: "Offline" });
+    return new Response(OFFLINE_FALLBACK_HTML, {
+      status: 503,
+      statusText: "Service Unavailable",
+      headers: { "Content-Type": "text/html; charset=utf-8" },
+    });
   }
 }
+
+const OFFLINE_FALLBACK_HTML = `<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>نور الهدى - غير متصل بالإنترنت</title>
+    <style>
+      body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 1rem; box-sizing: border-box; font-family: system-ui, sans-serif; background: linear-gradient(104deg, #eff6ff, #fff7ed); color: #1e293b; text-align: center; }
+      main { width: min(100%, 28rem); padding: 2rem; box-sizing: border-box; border-radius: 1rem; background: #fff; box-shadow: 0 10px 25px -5px rgb(0 0 0 / 10%); }
+      h1 { margin: 0 0 .75rem; color: #0f172a; font-size: 1.5rem; }
+      p { margin: 0 0 1.5rem; color: #64748b; line-height: 1.7; }
+      button { border: 0; border-radius: .5rem; padding: .75rem 1.5rem; background: #2563eb; color: #fff; font: inherit; cursor: pointer; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>لا يوجد اتصال بالإنترنت</h1>
+      <p>تعذر تحميل هذه الصفحة حالياً. أعد المحاولة عند عودة الاتصال بالإنترنت.</p>
+      <button type="button" onclick="location.reload()">إعادة المحاولة</button>
+    </main>
+  </body>
+</html>`;
 
 async function staleWhileRevalidate(req) {
   const cache = await caches.open(RUNTIME_CACHE);

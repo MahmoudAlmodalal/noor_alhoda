@@ -83,5 +83,7 @@ test.describe("Workflow coverage", () => {
     expect(filePath).toBeTruthy();
     const stat = await fs.stat(filePath!);
     expect(stat.size).toBeGreaterThan(0);
+    const contents = await fs.readFile(filePath!);
+    expect(contents.subarray(0, 5).toString()).toBe("%PDF-");
   });
 });

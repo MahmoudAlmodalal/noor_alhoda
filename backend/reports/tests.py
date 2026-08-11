@@ -9,6 +9,8 @@ from rest_framework.test import APITestCase
 from accounts.models import User
 from teacher.models import Teacher
 from records.models import DailyRecord, WeeklyPlan
+from reports.selectors.report_selectors import attendance_summary_for_report
+from reports.services.report_services import _ar
 from students.models import Student
 
 
@@ -78,6 +80,24 @@ class ReportTestSetup(APITestCase):
             weekly_plan=self.plan_2, day="sat", date=date(2026, 4, 4),
             attendance="present", required_verses=10, achieved_verses=6,
             recorded_by=self.teacher_user_2,
+        )
+
+    def create_daily_record(
+        self,
+        *,
+        student=None,
+        attendance=DailyRecord.Attendance.PRESENT,
+        record_date=date(2026, 4, 5),
+        weekly_plan=None,
+        recorded_by=None,
+    ):
+        return DailyRecord.objects.create(
+            student=student or self.student_1,
+            weekly_plan=weekly_plan,
+            day="sat",
+            date=record_date,
+            attendance=attendance,
+            recorded_by=recorded_by or self.teacher_user_1,
         )
 
 
@@ -165,6 +185,124 @@ class PDFReportTests(ReportTestSetup):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response["Content-Type"], "application/pdf")
         self.assertIn("attachment", response["Content-Disposition"])
+
+
+class StudentPDFReportAttendanceTests(ReportTestSetup):
+    def test_attendance_summary_counts_statuses_and_records_without_a_plan(self):
+        self.create_daily_record(
+            attendance=DailyRecord.Attendance.LATE,
+            record_date=date(2026, 4, 5),
+            weekly_plan=self.plan_1,
+        )
+        self.create_daily_record(
+            attendance=DailyRecord.Attendance.ABSENT,
+            record_date=date(2026, 4, 6),
+            weekly_plan=self.plan_1,
+        )
+        self.create_daily_record(
+            attendance=DailyRecord.Attendance.EXCUSED,
+            record_date=date(2026, 4, 7),
+            weekly_plan=self.plan_1,
+        )
+        self.create_daily_record(
+            attendance=DailyRecord.Attendance.PRESENT,
+            record_date=date(2026, 4, 8),
+        )
+
+        with self.assertNumQueries(1):
+            summary = attendance_summary_for_report(student=self.student_1)
+
+        self.assertEqual(summary, {"present_days": 3, "absent_days": 1})
+
+    def test_pdf_contains_only_allowed_identity_fields_and_attendance_summary(self):
+        self.student_user_1.national_id = ""
+        self.student_user_1.save(update_fields=["national_id"])
+        self.create_daily_record(
+            attendance=DailyRecord.Attendance.LATE,
+            record_date=date(2026, 4, 5),
+            weekly_plan=self.plan_1,
+        )
+        self.create_daily_record(
+            attendance=DailyRecord.Attendance.ABSENT,
+            record_date=date(2026, 4, 6),
+            weekly_plan=self.plan_1,
+        )
+
+        from unittest.mock import patch
+        from reportlab.platypus import Table as ReportLabTable
+
+        with patch("reportlab.platypus.Table", side_effect=ReportLabTable) as table_factory:
+            self.client.force_authenticate(self.admin)
+            response = self.client.get(f"{STUDENT_PDF_URL}{self.student_1.id}/pdf/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.content.startswith(b"%PDF-"))
+        self.assertGreater(len(response.content), 0)
+
+        table_data = [call.args[0] for call in table_factory.call_args_list]
+        info_data = next(
+            data for data in table_data
+            if [row[0] for row in data] == [_ar("الاسم"), _ar("رقم الهوية")]
+        )
+        self.assertEqual(
+            [row[0] for row in info_data],
+            [_ar("الاسم"), _ar("رقم الهوية")],
+        )
+        self.assertEqual(info_data[1][1], _ar("غير متوفر"))
+
+        attendance_data = next(
+            data for data in table_data
+            if [row[0] for row in data] == [_ar("أيام الحضور"), _ar("أيام الغياب")]
+        )
+        self.assertEqual(
+            [row[0] for row in attendance_data],
+            [_ar("أيام الحضور"), _ar("أيام الغياب")],
+        )
+        self.assertEqual(attendance_data[0][1], "2")
+        self.assertEqual(attendance_data[1][1], "1")
+
+        plan_data = next(data for data in table_data if data[0][0] == _ar("الأسبوع"))
+        self.assertEqual(plan_data[0][0], _ar("الأسبوع"))
+        self.assertEqual(plan_data[1][0], "1")
+
+    def test_pdf_with_missing_attendance_and_plans_has_zeroes_and_empty_state(self):
+        user = User.objects.create_user(
+            national_id="970590400050",
+            phone_number="970590400050",
+            password="secret123",
+            role="student",
+        )
+        user.national_id = ""
+        user.save(update_fields=["national_id"])
+        student = Student.objects.create(
+            user=user,
+            full_name="Student Without Records",
+            birthdate=date(2012, 3, 3),
+            grade="Grade 7",
+        )
+
+        from unittest.mock import patch
+        from reportlab.platypus import Paragraph as ReportLabParagraph
+        from reportlab.platypus import Table as ReportLabTable
+
+        with (
+            patch("reportlab.platypus.Table", side_effect=ReportLabTable) as table_factory,
+            patch("reportlab.platypus.Paragraph", side_effect=ReportLabParagraph) as paragraph_factory,
+        ):
+            self.client.force_authenticate(self.admin)
+            response = self.client.get(f"{STUDENT_PDF_URL}{student.id}/pdf/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.content.startswith(b"%PDF-"))
+        table_data = [call.args[0] for call in table_factory.call_args_list]
+        attendance_data = next(
+            data for data in table_data
+            if [row[0] for row in data] == [_ar("أيام الحضور"), _ar("أيام الغياب")]
+        )
+        self.assertEqual(attendance_data[0][1], "0")
+        self.assertEqual(attendance_data[1][1], "0")
+        paragraph_texts = [call.args[0] for call in paragraph_factory.call_args_list]
+        self.assertIn(_ar("لا توجد سجلات حفظية بعد."), paragraph_texts)
 
 
 class StudentStatsTests(ReportTestSetup):

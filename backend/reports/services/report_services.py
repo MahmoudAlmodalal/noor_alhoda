@@ -1,7 +1,11 @@
 import io
 from pathlib import Path
 
-from reports.selectors.report_selectors import student_for_report, weekly_plans_for_report
+from reports.selectors.report_selectors import (
+    attendance_summary_for_report,
+    student_for_report,
+    weekly_plans_for_report,
+)
 
 FONT_PATH = Path(__file__).resolve().parent.parent.parent / "fonts" / "Amiri-Regular.ttf"
 _font_registered = False
@@ -35,6 +39,7 @@ def generate_student_pdf(*, student_id) -> bytes:
         _font_registered = True
 
     student = student_for_report(student_id=student_id)
+    attendance_summary = attendance_summary_for_report(student=student)
 
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=2 * cm, leftMargin=2 * cm)
@@ -56,14 +61,9 @@ def generate_student_pdf(*, student_id) -> bytes:
     elements.append(Spacer(1, 1 * cm))
 
     # Student info table
-    teacher_name = student.teacher.full_name if student.teacher else "غير معيّن"
     info_data = [
         [_ar("الاسم"), _ar(student.full_name)],
-        [_ar("رقم الهوية"), _ar(student.user.national_id)],
-        [_ar("الصف الدراسي"), _ar(student.grade)],
-        [_ar("المحفظ"), _ar(teacher_name)],
-        [_ar("تاريخ الالتحاق"), str(student.enrollment_date)],
-        [_ar("الحالة الصحية"), _ar(student.get_health_status_display())],
+        [_ar("رقم الهوية"), _ar(student.user.national_id or "غير متوفر")],
     ]
 
     info_table = Table(info_data, colWidths=[6 * cm, 10 * cm])
@@ -92,6 +92,27 @@ def generate_student_pdf(*, student_id) -> bytes:
     )
     elements.append(Paragraph(_ar("السجل الحفظي"), heading_style))
     elements.append(Spacer(1, 0.3 * cm))
+
+    attendance_data = [
+        [_ar("أيام الحضور"), str(attendance_summary["present_days"])],
+        [_ar("أيام الغياب"), str(attendance_summary["absent_days"])],
+    ]
+    attendance_table = Table(attendance_data, colWidths=[6 * cm, 4 * cm])
+    attendance_table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (0, -1), colors.HexColor("#1a472a")),
+                ("TEXTCOLOR", (0, 0), (0, -1), colors.white),
+                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                ("FONTNAME", (0, 0), (-1, -1), "Arabic"),
+                ("FONTSIZE", (0, 0), (-1, -1), 11),
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+                ("ROWBACKGROUNDS", (1, 0), (-1, -1), [colors.white, colors.HexColor("#f0f0f0")]),
+            ]
+        )
+    )
+    elements.append(attendance_table)
+    elements.append(Spacer(1, 0.5 * cm))
 
     plans = weekly_plans_for_report(student=student)
 

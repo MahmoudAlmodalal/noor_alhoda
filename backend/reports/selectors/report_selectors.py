@@ -18,6 +18,21 @@ def weekly_plans_for_report(*, student: Student, limit: int = 12) -> QuerySet[We
     return WeeklyPlan.objects.filter(student=student).order_by("-week_start")[:limit]
 
 
+def attendance_summary_for_report(*, student: Student) -> dict[str, int]:
+    """Return historical attendance totals for one student's PDF report."""
+    summary = DailyRecord.objects.filter(student=student).aggregate(
+        present_days=Count(
+            "id",
+            filter=Q(attendance__in=["present", "late"]),
+        ),
+        absent_days=Count("id", filter=Q(attendance="absent")),
+    )
+    return {
+        "present_days": summary["present_days"] or 0,
+        "absent_days": summary["absent_days"] or 0,
+    }
+
+
 def dashboard_data(*, admin_user) -> dict:
     """
     Admin dashboard data (feature 5.1):
