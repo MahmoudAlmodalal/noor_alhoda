@@ -16,6 +16,8 @@ def update_weekly_plan_totals(sender, instance, **kwargs):
     in WeeklyPlan when any DailyRecord is saved.
     """
     plan = instance.weekly_plan
+    if plan is None:
+        return
     totals = plan.daily_records.aggregate(
         total_req=Sum("required_verses"),
         total_ach=Sum("achieved_verses"),

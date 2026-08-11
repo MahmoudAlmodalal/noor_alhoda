@@ -94,9 +94,17 @@ class DailyRecord(models.Model):
         PENDING = "pending", "معلّق"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    student = models.ForeignKey(
+        Student,
+        on_delete=models.CASCADE,
+        related_name="daily_records",
+        verbose_name="الطالب",
+    )
     weekly_plan = models.ForeignKey(
         WeeklyPlan,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name="daily_records",
         verbose_name="الخطة الأسبوعية",
     )
@@ -203,17 +211,28 @@ class DailyRecord(models.Model):
     class Meta:
         verbose_name = "سجل يومي"
         verbose_name_plural = "السجلات اليومية"
-        unique_together = ("weekly_plan", "day")
+        constraints = [
+            models.UniqueConstraint(
+                fields=["student", "date"],
+                name="unique_daily_record_student_date",
+            )
+        ]
         ordering = ["date"]
         indexes = [
+            models.Index(fields=["student"]),
             models.Index(fields=["date"]),
             models.Index(fields=["attendance"]),
             models.Index(fields=["quality"]),
             models.Index(fields=["result"]),
         ]
 
+    def save(self, *args, **kwargs):
+        if self.student_id is None and self.weekly_plan_id is not None:
+            self.student_id = self.weekly_plan.student_id
+        super().save(*args, **kwargs)
+
     def __str__(self):
-        return f"{self.weekly_plan.student.full_name} - {self.get_day_display()} ({self.date})"
+        return f"{self.student.full_name} - {self.get_day_display()} ({self.date})"
 
 
 class ReviewRecord(models.Model):

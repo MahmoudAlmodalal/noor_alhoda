@@ -17,7 +17,8 @@ export interface WeeklyPlanRecord {
 
 export interface DailyRecordRecord {
   id: string;
-  weekly_plan_id: string;
+  student_id: string;
+  weekly_plan_id: string | null;
   day: "sat" | "sun" | "mon" | "tue" | "wed" | "thu";
   date: string;
   attendance: "present" | "absent" | "late" | "excused";
@@ -117,7 +118,8 @@ export async function upsertDailyRecords(
         id: r.id,
         updated_at: r.updated_at ?? r.created_at ?? "",
         server_updated_at: resolveServerUpdatedAt(r),
-        weekly_plan_id: r.weekly_plan_id,
+        student_id: r.student_id,
+        weekly_plan_id: r.weekly_plan_id ?? null,
         date: r.date,
         day: r.day,
       })
@@ -134,6 +136,29 @@ export async function listDailyRecordsByPlan(
     .equals(weekly_plan_id)
     .toArray();
   return decryptRows<DailyRecordRecord>(rows);
+}
+
+export async function listDailyRecordsByStudent(
+  student_id: string
+): Promise<DailyRecordRecord[]> {
+  const rows = await getDb()
+    .daily_records.where("student_id")
+    .equals(student_id)
+    .toArray();
+  return decryptRows<DailyRecordRecord>(rows);
+}
+
+export async function getDailyRecordByStudentAndDate(
+  student_id: string,
+  date: string
+): Promise<DailyRecordRecord | undefined> {
+  const rows = await getDb()
+    .daily_records.where("[student_id+date]")
+    .equals([student_id, date])
+    .toArray();
+  if (rows.length === 0) return undefined;
+  const decrypted = await decryptRows<DailyRecordRecord>(rows);
+  return decrypted[0];
 }
 
 export async function listDailyRecordsInRange(

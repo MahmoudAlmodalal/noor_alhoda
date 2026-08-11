@@ -19,6 +19,6 @@ class WeeklyPlanAdmin(admin.ModelAdmin):
 
 @admin.register(DailyRecord)
 class DailyRecordAdmin(admin.ModelAdmin):
-    list_display = ("weekly_plan", "day", "date", "attendance", "achieved_verses", "quality")
+    list_display = ("student", "weekly_plan", "day", "date", "attendance", "achieved_verses", "quality")
     list_filter = ("attendance", "quality", "day")
-    search_fields = ("weekly_plan__student__full_name",)
+    search_fields = ("student__full_name",)

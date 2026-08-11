@@ -15,15 +15,15 @@ def daily_records_by_date(*, teacher_user: User, date) -> QuerySet[DailyRecord]:
         raise PermissionDenied("ليس لديك صلاحية لعرض السجلات.")
 
     qs = DailyRecord.objects.select_related(
-        "weekly_plan", "weekly_plan__student", "recorded_by"
+        "student", "weekly_plan", "recorded_by"
     ).filter(date=date)
 
     if teacher_user.role == "teacher":
         if not hasattr(teacher_user, "teacher_profile"):
             raise PermissionDenied("حساب المحفظ غير مكتمل.")
-        qs = qs.filter(weekly_plan__student__teacher=teacher_user.teacher_profile)
+        qs = qs.filter(student__teacher=teacher_user.teacher_profile)
 
-    return qs.order_by("weekly_plan__student__full_name")
+    return qs.order_by("student__full_name")
 
 
 def weekly_plans_list(*, actor: User, week_start=None) -> list:

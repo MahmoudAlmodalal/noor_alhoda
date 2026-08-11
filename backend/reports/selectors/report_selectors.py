@@ -34,7 +34,7 @@ def dashboard_data(*, admin_user) -> dict:
     outstanding_count = (
         DailyRecord.objects
         .filter(date=today, quality="excellent")
-        .values("weekly_plan__student")
+        .values("student")
         .distinct()
         .count()
     )
@@ -86,9 +86,9 @@ def attendance_report(*, month: int, year: int, actor: User, teacher_id=None) ->
             raise PermissionDenied("حساب المحفظ غير مكتمل.")
         if teacher_id and str(actor.teacher_profile.id) != str(teacher_id):
             raise PermissionDenied("لا يمكنك عرض تقرير محفظ آخر.")
-        records = records.filter(weekly_plan__student__teacher=actor.teacher_profile)
+        records = records.filter(student__teacher=actor.teacher_profile)
     elif teacher_id:
-        records = records.filter(weekly_plan__student__teacher_id=teacher_id)
+        records = records.filter(student__teacher_id=teacher_id)
 
     total = records.count()
     present = records.filter(attendance__in=["present", "late"]).count()
@@ -100,7 +100,7 @@ def attendance_report(*, month: int, year: int, actor: User, teacher_id=None) ->
     # Per-student breakdown
     student_stats = (
         records
-        .values("weekly_plan__student__id", "weekly_plan__student__full_name")
+        .values("student__id", "student__full_name")
         .annotate(
             total_days=Count("id"),
             present_days=Count("id", filter=Q(attendance__in=["present", "late"])),
@@ -121,8 +121,8 @@ def attendance_report(*, month: int, year: int, actor: User, teacher_id=None) ->
         },
         "students": [
             {
-                "student_id": str(s["weekly_plan__student__id"]),
-                "student_name": s["weekly_plan__student__full_name"],
+                "student_id": str(s["student__id"]),
+                "student_name": s["student__full_name"],
                 "total_days": s["total_days"],
                 "present_days": s["present_days"],
                 "absent_days": s["absent_days"],
@@ -157,12 +157,12 @@ def leaderboard(*, actor: User) -> list:
         scoped = base
     elif actor.role == "teacher" and hasattr(actor, "teacher_profile"):
         scoped = base.filter(
-            weekly_plan__student__teacher=actor.teacher_profile
+            student__teacher=actor.teacher_profile
         )
     elif actor.role == "student" and hasattr(actor, "student_profile"):
         teacher = actor.student_profile.teacher
         scoped = base.filter(
-            weekly_plan__student__teacher=teacher
+            student__teacher=teacher
         ) if teacher else base.none()
     elif actor.role == "parent":
         from accounts.models import ParentStudentLink
@@ -170,13 +170,13 @@ def leaderboard(*, actor: User) -> list:
         teacher_ids = ParentStudentLink.objects.filter(
             parent__user=actor
         ).values_list("student__teacher_id", flat=True)
-        scoped = base.filter(weekly_plan__student__teacher_id__in=teacher_ids)
+        scoped = base.filter(student__teacher_id__in=teacher_ids)
     else:
         scoped = base.none()
 
     top_students = (
         scoped
-        .values("weekly_plan__student__id", "weekly_plan__student__full_name")
+        .values("student__id", "student__full_name")
         .annotate(
             total_achieved=Sum("achieved_verses"),
             total_required=Sum("required_verses"),
@@ -194,8 +194,8 @@ def leaderboard(*, actor: User) -> list:
     return [
         {
             "rank": idx + 1,
-            "student_id": str(s["weekly_plan__student__id"]),
-            "student_name": s["weekly_plan__student__full_name"],
+            "student_id": str(s["student__id"]),
+            "student_name": s["student__full_name"],
             "total_achieved": s["total_achieved"] or 0,
             "total_required": s["total_required"] or 0,
             "present_days": s["present_days"],

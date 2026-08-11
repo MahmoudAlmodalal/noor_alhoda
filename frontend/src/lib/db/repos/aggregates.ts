@@ -136,7 +136,7 @@ export async function studentsOverviewStats(): Promise<StudentsOverviewStats> {
   const presentToday = new Set<string>();
   for (const r of todayRecords) {
     if (r.attendance === "present") {
-      const sid = planToStudent.get(r.weekly_plan_id);
+      const sid = r.student_id || (r.weekly_plan_id ? planToStudent.get(r.weekly_plan_id) : null);
       if (sid) presentToday.add(sid);
     }
   }
@@ -177,15 +177,11 @@ export async function studentStats(student_id: string): Promise<StudentStats> {
   ]);
 
   const planIds = new Set(plans.map((p) => p.id));
-  const allDaily: DailyRecordRecord[] = [];
-  for (const p of plans) {
-    const rows = await getDb()
-      .daily_records.where("weekly_plan_id")
-      .equals(p.id)
-      .toArray();
-    const dec = await decryptRows<DailyRecordRecord>(rows);
-    allDaily.push(...dec);
-  }
+  const dailyRows = await getDb()
+    .daily_records.where("student_id")
+    .equals(student_id)
+    .toArray();
+  const allDaily = await decryptRows<DailyRecordRecord>(dailyRows);
 
   const totalDays = allDaily.length;
   const presentDays = allDaily.filter((r) => r.attendance === "present").length;
@@ -231,7 +227,7 @@ export async function studentStats(student_id: string): Promise<StudentStats> {
   const goalProgress = Math.min(100, Math.round((memorizedParts / 30) * 100));
 
   const todayRec = today.find((r) =>
-    planIds.has(r.weekly_plan_id)
+    r.student_id === student_id || (r.weekly_plan_id ? planIds.has(r.weekly_plan_id) : false)
   );
 
   void totalDays;
@@ -302,27 +298,26 @@ export async function tasksToday(student_id: string): Promise<TodayTasks> {
   ]);
 
   const planIds = new Set(plans.map((p) => p.id));
-  const myToday = todayRecords.find((r) => planIds.has(r.weekly_plan_id));
+  const myToday = todayRecords.find((r) => r.student_id === student_id || (r.weekly_plan_id && planIds.has(r.weekly_plan_id)));
 
   const reviewIntervalDays = student?.review_interval_days ?? 14;
 
   const surahLast = new Map<string, { last_memorized: string; last_review: string | null }>();
   // Last memorized = max date in daily_records where achieved_verses>0
-  for (const p of plans) {
-    const rows = await getDb()
-      .daily_records.where("weekly_plan_id")
-      .equals(p.id)
-      .toArray();
-    const dec = await decryptRows<DailyRecordRecord>(rows);
-    for (const r of dec) {
-      if (!r.surah_name || r.achieved_verses <= 0) continue;
-      const cur = surahLast.get(r.surah_name);
-      if (!cur || cur.last_memorized < r.date) {
-        surahLast.set(r.surah_name, {
-          last_memorized: r.date,
-          last_review: cur?.last_review ?? null,
-        });
-      }
+  const studentDailyRows = await getDb()
+    .daily_records.where("student_id")
+    .equals(student_id)
+    .toArray();
+  const studentDailyRecords = await decryptRows<DailyRecordRecord>(studentDailyRows);
+
+  for (const r of studentDailyRecords) {
+    if (!r.surah_name || r.achieved_verses <= 0) continue;
+    const cur = surahLast.get(r.surah_name);
+    if (!cur || cur.last_memorized < r.date) {
+      surahLast.set(r.surah_name, {
+        last_memorized: r.date,
+        last_review: cur?.last_review ?? null,
+      });
     }
   }
   for (const r of reviews) {
@@ -436,25 +431,22 @@ export async function weeklySummary(
   week_start_iso: string
 ): Promise<WeeklySummary> {
   const ws = weekStartFor(new Date(week_start_iso));
+  const saturdayDate = new Date(ws + "T00:00:00");
+  const thursdayDate = new Date(saturdayDate);
+  thursdayDate.setDate(saturdayDate.getDate() + 5);
+  const thursdayIso = thursdayDate.toISOString().slice(0, 10);
+
   const plans = await listWeeklyPlans({ student_id });
   const plan = plans.find((p) => p.week_start === ws);
 
-  if (!plan) {
-    return {
-      week_start: ws,
-      total_required: 0,
-      total_achieved: 0,
-      total_lines: 0,
-      completion_rate: 0,
-      records: [],
-    };
-  }
-
-  const rows = await getDb()
-    .daily_records.where("weekly_plan_id")
-    .equals(plan.id)
+  const dailyInWeek = await getDb()
+    .daily_records.where("date")
+    .between(ws, thursdayIso, true, true)
     .toArray();
-  const daily = await decryptRows<DailyRecordRecord>(rows);
+  const decryptedInWeek = await decryptRows<DailyRecordRecord>(dailyInWeek);
+  const daily = decryptedInWeek.filter(
+    (r) => r.student_id === student_id || (plan && r.weekly_plan_id === plan.id)
+  );
   daily.sort((a, b) => (a.date < b.date ? -1 : 1));
 
   const records: HistoryEntry[] = daily.map((r) => ({
@@ -474,8 +466,9 @@ export async function weeklySummary(
   // total_required, so "المطلوب" isn't blank before a teacher records anything.
   const WEEK_DAY_CODES = ["sat", "sun", "mon", "tue", "wed", "thu"];
   const recordedDays = new Set(records.map((r) => r.day));
-  const base = Math.floor(plan.total_required / WEEK_DAY_CODES.length);
-  const remainder = plan.total_required % WEEK_DAY_CODES.length;
+  const totalReq = plan?.total_required ?? 0;
+  const base = Math.floor(totalReq / WEEK_DAY_CODES.length);
+  const remainder = totalReq % WEEK_DAY_CODES.length;
   const weekStartDate = new Date(ws);
   WEEK_DAY_CODES.forEach((day, i) => {
     if (recordedDays.has(day)) return;
@@ -494,13 +487,15 @@ export async function weeklySummary(
 
   const catchup = computeCatchup(daily);
 
+  const totalAch = plan?.total_achieved ?? daily.reduce((s, r) => s + (r.achieved_verses || 0), 0);
+
   return {
     week_start: ws,
-    week_number: plan.week_number,
-    total_required: plan.total_required,
-    total_achieved: plan.total_achieved,
-    total_lines: plan.total_lines ?? 0,
-    completion_rate: completionRate(plan.total_achieved, plan.total_required),
+    week_number: plan?.week_number ?? 1,
+    total_required: totalReq,
+    total_achieved: totalAch,
+    total_lines: plan?.total_lines ?? daily.reduce((s, r) => s + (r.memorized_lines || 0), 0),
+    completion_rate: completionRate(totalAch, totalReq),
     records,
     catchup,
   };
@@ -642,14 +637,17 @@ export async function attendanceReport(params: {
     }
   }
 
-  const inScope = daily.filter((r) => planIds.has(r.weekly_plan_id));
+  const studentIds = new Set(students.map((s) => s.id));
+  const inScope = daily.filter((r) =>
+    r.student_id ? studentIds.has(r.student_id) : (r.weekly_plan_id ? planIds.has(r.weekly_plan_id) : false)
+  );
 
   const byStudent = new Map<
     string,
     { total: number; present: number; absent: number }
   >();
   for (const r of inScope) {
-    const sid = planToStudent.get(r.weekly_plan_id);
+    const sid = r.student_id || (r.weekly_plan_id ? planToStudent.get(r.weekly_plan_id) : null);
     if (!sid) continue;
     const v = byStudent.get(sid) ?? { total: 0, present: 0, absent: 0 };
     v.total += 1;
@@ -727,7 +725,7 @@ export async function leaderboard(): Promise<LeaderboardEntry[]> {
     { total_achieved: number; total_required: number; present_days: number }
   >();
   for (const r of daily) {
-    const sid = planToStudent.get(r.weekly_plan_id);
+    const sid = r.student_id || (r.weekly_plan_id ? planToStudent.get(r.weekly_plan_id) : null);
     if (!sid) continue;
     const v = byStudent.get(sid) ?? { total_achieved: 0, total_required: 0, present_days: 0 };
     v.total_achieved += r.achieved_verses ?? 0;
@@ -816,7 +814,7 @@ export async function listDailyRecordsWithStudentForDate(
   const planToStudent = new Map(plans.map((p) => [p.id, p.student_id]));
   return records
     .map((r) => {
-      const sid = planToStudent.get(r.weekly_plan_id);
+      const sid = r.student_id || (r.weekly_plan_id ? planToStudent.get(r.weekly_plan_id) : null);
       if (!sid) return null;
       const s = studentById.get(sid);
       if (!s) return null;
@@ -936,8 +934,9 @@ export async function teacherAggregateStats(
   let avgQuality = "—";
   if (planIdsThisWeek.size > 0) {
     const weekDaily = await listDailyRecordsInRange(ws, weekEndIso);
+    const teacherStudentIds = new Set(students.map((s) => s.id));
     const teacherDaily = weekDaily.filter((r) =>
-      planIdsThisWeek.has(r.weekly_plan_id)
+      r.student_id ? teacherStudentIds.has(r.student_id) : (r.weekly_plan_id ? planIdsThisWeek.has(r.weekly_plan_id) : false)
     );
     const qualityScores = teacherDaily
       .map((r) => QUALITY_GRADE[r.quality] ?? 0)

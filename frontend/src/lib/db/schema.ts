@@ -16,7 +16,7 @@ import Dexie, { type EntityTable } from "dexie";
 import type { EncryptedBlob } from "./crypto";
 
 export const DB_NAME = "noor_alhuda_local";
-export const DB_VERSION = 7;
+export const DB_VERSION = 8;
 
 export interface EncryptedRow extends EncryptedBlob {
   id: string; // UUID (server-assigned)
@@ -39,7 +39,8 @@ export interface WeeklyPlanRow extends EncryptedRow {
 }
 
 export interface DailyRecordRow extends EncryptedRow {
-  weekly_plan_id: string;
+  student_id: string;
+  weekly_plan_id: string | null;
   date: string; // ISO date, clear for range queries
   day: string;
 }
@@ -385,6 +386,48 @@ export class LocalDb extends Dexie {
             }
           });
         }
+      });
+
+    // v8 — daily_records gains cleartext `student_id` column and `[student_id+date]` index,
+    // and `weekly_plan_id` becomes optional.
+    this.version(8)
+      .stores({
+        users: "id, updated_at, national_id, role",
+        teachers: "id, updated_at, user_id",
+        parents: "id, updated_at, user_id",
+        parent_student_links: "id, updated_at, parent_id, student_id",
+        students: "id, updated_at, teacher_id, national_id",
+        weekly_plans: "id, updated_at, student_id, week_start",
+        daily_records:
+          "id, updated_at, student_id, weekly_plan_id, date, [student_id+date], [weekly_plan_id+day]",
+        review_records: "id, updated_at, student_id, reviewed_date",
+        evaluations: "id, updated_at, student_id, scheduled_date, status",
+        notifications: "id, updated_at, recipient_id, is_read, created_at",
+        courses: "id, updated_at, name",
+        student_courses: "id, updated_at, student_id, course_id",
+        progress: "id, updated_at, student_id, recorded_at",
+        tombstones: "key, resource, deleted_at",
+        outbox:
+          "op_id, status, created_at, resource, target_id, [resource+target_id], next_retry_at",
+        auth: "id",
+      })
+      .upgrade(async (tx) => {
+        // Backfill: derive student_id from weekly_plans table if available
+        const plansTable = tx.table("weekly_plans");
+        const plans = await plansTable.toArray();
+        const planToStudent = new Map<string, string>();
+        for (const p of plans) {
+          if (p.id && p.student_id) planToStudent.set(p.id, p.student_id);
+        }
+
+        await tx.table("daily_records").toCollection().modify((row) => {
+          if (!row.student_id) {
+            row.student_id = (row.weekly_plan_id ? planToStudent.get(row.weekly_plan_id) : "") ?? "";
+          }
+          if (row.weekly_plan_id === undefined) {
+            row.weekly_plan_id = null;
+          }
+        });
       });
 
     // Handle IndexedDB version-upgrade blocks: if another tab holds an open

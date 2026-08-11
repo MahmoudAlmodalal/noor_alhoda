@@ -135,7 +135,8 @@ def weekly_plan_to_dict(p: WeeklyPlan) -> dict[str, Any]:
 def daily_record_to_dict(r: DailyRecord) -> dict[str, Any]:
     return {
         "id": str(r.id),
-        "weekly_plan_id": str(r.weekly_plan_id),
+        "student_id": str(r.student_id),
+        "weekly_plan_id": str(r.weekly_plan_id) if r.weekly_plan_id else None,
         "day": r.day,
         "date": str(r.date),
         "attendance": r.attendance,

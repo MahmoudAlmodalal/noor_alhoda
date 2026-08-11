@@ -59,15 +59,25 @@ async function findWeeklyPlan(
   return null;
 }
 
-async function findDailyRecordId(
-  weekly_plan_id: string,
-  day: string
+async function findDailyRecordIdByStudentAndDate(
+  student_id: string,
+  date: string
 ): Promise<string | null> {
-  const rows = await getDb()
-    .daily_records.where("[weekly_plan_id+day]")
-    .equals([weekly_plan_id, day])
-    .toArray();
-  return rows[0]?.id ?? null;
+  const db = getDb();
+  try {
+    const rows = await db.daily_records
+      .where("[student_id+date]")
+      .equals([student_id, date])
+      .toArray();
+    if (rows[0]?.id) return rows[0].id;
+  } catch {
+    // fallback if compound index is building
+  }
+  const allDateRows = await db.daily_records.where("date").equals(date).toArray();
+  for (const r of allDateRows) {
+    if (r.student_id === student_id) return r.id;
+  }
+  return null;
 }
 
 function AttendanceContent() {
@@ -98,17 +108,15 @@ function AttendanceContent() {
   const { data: records } = useQuery<DailyRec[]>("daily_records", { date });
   const { data: teachers } = useQuery<TeacherWithUser[]>(isAdmin ? "teachers" : null);
 
-  // Seed drafts whenever students or records change. Records from the
-  // encrypted table carry weekly_plan_id, not student_id directly — resolve
-  // via the plans table so we can key drafts by student.
+  // Seed drafts whenever students or records change.
   useEffect(() => {
     let cancelled = false;
     const buildDrafts = async () => {
       const map = new Map<string, DraftRecord>();
 
-      // Build a plan_id → student_id map for the records we have.
+      // Build a plan_id → student_id map as fallback for older local records.
       const planIds = new Set<string>();
-      (records ?? []).forEach((r) => planIds.add(r.weekly_plan_id));
+      (records ?? []).forEach((r) => { if (r.weekly_plan_id) planIds.add(r.weekly_plan_id); });
       const planToStudent = new Map<string, string>();
       for (const pid of planIds) {
         const row = await getDb().weekly_plans.get(pid);
@@ -117,7 +125,7 @@ function AttendanceContent() {
 
       const recordsByStudent = new Map<string, DailyRec>();
       (records ?? []).forEach((r) => {
-        const sid = planToStudent.get(r.weekly_plan_id);
+        const sid = r.student_id || (r.weekly_plan_id ? planToStudent.get(r.weekly_plan_id) : null);
         if (sid) recordsByStudent.set(sid, r);
       });
 
@@ -202,22 +210,15 @@ function AttendanceContent() {
 
     const dirtyDrafts = Array.from(drafts.values()).filter((d) => d.dirty);
     let failed = 0;
-    let noPlanCount = 0;
 
     for (const d of dirtyDrafts) {
       if (!d.attendance) continue;
 
       const planId = await findWeeklyPlan(d.student_id, ws);
-      if (!planId) {
-        failed++;
-        noPlanCount++;
-        continue;
-      }
-
-      const existingId = d.record_id ?? (await findDailyRecordId(planId, day));
+      const existingId = d.record_id ?? (await findDailyRecordIdByStudentAndDate(d.student_id, date));
       const payload = {
         student_id: d.student_id,
-        weekly_plan_id: planId,
+        weekly_plan_id: planId ?? null,
         day,
         date,
         attendance: d.attendance,
@@ -260,15 +261,9 @@ function AttendanceContent() {
     void triggerPush();
 
     if (failed > 0) {
-      if (noPlanCount > 0 && noPlanCount === dirtyDrafts.length) {
-        showToast("يلزم إضافة خطة أسبوعية للطالب قبل التقييم وتسجيل الحضور", "error");
-      } else if (noPlanCount > 0) {
-        showToast(`تعذر التقييم لـ ${noPlanCount} من الطلاب لعدم وجود خطة أسبوعية لهم`, "error");
-      } else {
-        showToast(`تم الحفظ مع ${failed} أخطاء`, "error");
-      }
+      showToast(`تم الحفظ مع ${failed} أخطاء`, "error");
     } else {
-      showToast("تم حفظ الحضور بنجاح", "success");
+      showToast("تم حفظ الحضور والتقييم بنجاح", "success");
     }
   };
 

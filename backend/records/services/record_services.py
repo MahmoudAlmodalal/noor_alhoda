@@ -118,19 +118,35 @@ def _to_int_or_none(val) -> int | None:
 
 @transaction.atomic
 def daily_record_create(*, teacher: User, id=None, **data) -> DailyRecord:
-    """Create a daily record for a student."""
+    """Create a daily record for a student. WeeklyPlan is optional."""
     if not (is_admin_user(teacher) or teacher.role == "teacher"):
         raise PermissionDenied("ليس لديك صلاحية لتسجيل السجلات.")
 
+    student_id = data.get("student_id")
     plan_id = data.get("weekly_plan_id")
+
+    plan = None
+    if plan_id:
+        try:
+            plan = WeeklyPlan.objects.select_related("student").get(id=plan_id)
+            if not student_id:
+                student_id = plan.student_id
+            elif str(plan.student_id) != str(student_id):
+                raise ValidationError({"weekly_plan_id": "الخطة الأسبوعية لا تخص هذا الطالب."})
+        except (WeeklyPlan.DoesNotExist, DjangoValidationError, ValueError, TypeError):
+            raise ValidationError({"weekly_plan_id": "الخطة الأسبوعية غير موجودة."})
+
+    if not student_id:
+        raise ValidationError({"student_id": "الطالب مطلوب."})
+
     try:
-        plan = WeeklyPlan.objects.select_related("student").get(id=plan_id)
-    except (WeeklyPlan.DoesNotExist, DjangoValidationError, ValueError, TypeError):
-        raise ValidationError({"weekly_plan_id": "الخطة الأسبوعية غير موجودة."})
+        student = Student.objects.get(id=student_id)
+    except (Student.DoesNotExist, DjangoValidationError, ValueError, TypeError):
+        raise ValidationError({"student_id": "الطالب غير موجود."})
 
     # Check teacher owns this student
     if teacher.role == "teacher":
-        if not hasattr(teacher, "teacher_profile") or plan.student.teacher_id != teacher.teacher_profile.id:
+        if not hasattr(teacher, "teacher_profile") or student.teacher_id != teacher.teacher_profile.id:
             raise PermissionDenied("لا يمكنك التسجيل لطالب ليس في حلقتك.")
 
     from_ayah = _to_int_or_none(data.get("from_ayah"))
@@ -145,8 +161,9 @@ def daily_record_create(*, teacher: User, id=None, **data) -> DailyRecord:
         achieved_verses = _to_int(data.get("achieved_verses"), default=0)
 
     record_kwargs = dict(
+        student=student,
         weekly_plan=plan,
-        day=data.get("day"),
+        day=data.get("day", "sat"),
         date=data.get("date"),
         attendance=data.get("attendance", "present"),
         required_verses=_to_int(data.get("required_verses"), default=0),
@@ -179,7 +196,7 @@ def daily_record_create(*, teacher: User, id=None, **data) -> DailyRecord:
     record.save()
 
     if record.attendance == DailyRecord.Attendance.ABSENT:
-        send_absence_notification(student=plan.student, date=record.date)
+        send_absence_notification(student=student, date=record.date)
 
     return record
 
@@ -190,7 +207,7 @@ def daily_record_delete(*, record: DailyRecord, actor: User) -> None:
     if not is_admin_user(actor):
         if actor.role != "teacher" or not hasattr(actor, "teacher_profile"):
             raise PermissionDenied("ليس لديك صلاحية لحذف السجل.")
-        if record.weekly_plan.student.teacher_id != actor.teacher_profile.id:
+        if record.student.teacher_id != actor.teacher_profile.id:
             raise PermissionDenied("لا يمكنك حذف سجل لطالب ليس في حلقتك.")
 
     from sync.models import Tombstone
@@ -214,7 +231,7 @@ def daily_record_update(*, record_id, teacher: User, data: dict) -> DailyRecord:
     """
     try:
         record = DailyRecord.objects.select_related(
-            "weekly_plan", "weekly_plan__student"
+            "student", "weekly_plan"
         ).get(id=record_id)
     except DailyRecord.DoesNotExist:
         raise ValidationError("السجل غير موجود.")
@@ -231,7 +248,7 @@ def daily_record_update(*, record_id, teacher: User, data: dict) -> DailyRecord:
     if teacher.role == "teacher":
         if not hasattr(teacher, "teacher_profile"):
             raise PermissionDenied("ليس لديك صلاحية.")
-        if record.weekly_plan.student.teacher_id != teacher.teacher_profile.id:
+        if record.student.teacher_id != teacher.teacher_profile.id:
             raise PermissionDenied("لا يمكنك تعديل سجل لطالب ليس في حلقتك.")
 
     allowed_fields = [
@@ -272,7 +289,7 @@ def daily_record_update(*, record_id, teacher: User, data: dict) -> DailyRecord:
 
     if not was_absent and record.attendance == DailyRecord.Attendance.ABSENT:
         send_absence_notification(
-            student=record.weekly_plan.student,
+            student=record.student,
             date=record.date,
         )
 
@@ -311,7 +328,7 @@ def bulk_attendance_create(*, teacher: User, date, attendance_data: list) -> dic
                 skipped.append({"student_id": str(student_id), "reason": "not_owned"})
                 continue
 
-        # Find weekly plan for the current week
+        # Find weekly plan for the current week if exists
         weekday = date.weekday()  # Monday = 0
         days_since_saturday = (weekday + 2) % 7
         week_start = date - timedelta(days=days_since_saturday)
@@ -321,25 +338,22 @@ def bulk_attendance_create(*, teacher: User, date, attendance_data: list) -> dic
             week_start=week_start,
         ).first()
 
-        if not plan:
-            skipped.append({"student_id": str(student_id), "reason": "no_plan"})
-            continue
-
         # Determine day code
         day_map = {5: "sat", 6: "sun", 0: "mon", 1: "tue", 2: "wed", 3: "thu"}
         day_code = day_map.get(date.weekday(), "sat")
 
-        # Create or update record
+        # Create or update record by student and date
         previous_record = DailyRecord.objects.filter(
-            weekly_plan=plan,
-            day=day_code,
+            student=student,
+            date=date,
         ).first()
 
         record, created = DailyRecord.objects.update_or_create(
-            weekly_plan=plan,
-            day=day_code,
+            student=student,
+            date=date,
             defaults={
-                "date": date,
+                "weekly_plan": plan,
+                "day": day_code,
                 "attendance": attendance,
                 "recorded_by": teacher,
             },

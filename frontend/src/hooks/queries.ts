@@ -165,7 +165,7 @@ async function listStudentsWithTeacher(
     StudentWithTeacher["today_attendance_status"]
   >();
   for (const r of todayRecords) {
-    const sid = planToStudent.get(r.weekly_plan_id);
+    const sid = r.student_id || (r.weekly_plan_id ? planToStudent.get(r.weekly_plan_id) : null);
     if (!sid) continue;
     const a = r.attendance;
     if (a === "present" || a === "absent" || a === "late" || a === "excused") {

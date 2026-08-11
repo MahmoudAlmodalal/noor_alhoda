@@ -17,8 +17,9 @@ from records.services.record_services import (
 # ---------------------------------------------------------------------------
 class DailyRecordOutputSerializer(serializers.Serializer):
     id = serializers.UUIDField()
-    student_id = serializers.UUIDField(source="weekly_plan.student_id")
-    student_name = serializers.CharField(source="weekly_plan.student.full_name")
+    student_id = serializers.UUIDField()
+    student_name = serializers.CharField(source="student.full_name")
+    weekly_plan_id = serializers.UUIDField(allow_null=True, required=False)
     day = serializers.CharField()
     date = serializers.DateField()
     attendance = serializers.CharField()
@@ -48,8 +49,9 @@ class DailyRecordOutputSerializer(serializers.Serializer):
 
 
 class DailyRecordInputSerializer(serializers.Serializer):
-    weekly_plan_id = serializers.UUIDField()
-    day = serializers.ChoiceField(choices=["sat", "sun", "mon", "tue", "wed", "thu"])
+    student_id = serializers.UUIDField(required=False, allow_null=True, default=None)
+    weekly_plan_id = serializers.UUIDField(required=False, allow_null=True, default=None)
+    day = serializers.ChoiceField(choices=["sat", "sun", "mon", "tue", "wed", "thu"], required=False, default="sat")
     date = serializers.DateField()
     attendance = serializers.ChoiceField(
         choices=["present", "absent", "late", "excused"],
@@ -226,7 +228,7 @@ class BulkAttendanceApi(APIView):
                 "success": True,
                 "data": {
                     "records": [
-                        {"student_id": str(r.weekly_plan.student_id), "id": str(r.id)}
+                        {"student_id": str(r.student_id), "id": str(r.id)}
                         for r in result["records"]
                     ],
                     "skipped": result["skipped"],

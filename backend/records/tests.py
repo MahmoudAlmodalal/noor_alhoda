@@ -216,9 +216,9 @@ class BulkAttendanceTests(RecordTestSetup):
         )
         self.assertEqual(response.status_code, 400)
 
-    def test_bulk_attendance_skips_student_without_weekly_plan(self):
-        """REC-05 / FR-12: Bulk attendance skips student if no WeeklyPlan exists."""
-        # Delete existing plan to test skipping
+    def test_bulk_attendance_works_for_student_without_weekly_plan(self):
+        """FR-12: Bulk attendance succeeds for student even if no WeeklyPlan exists."""
+        # Delete existing plan to test no-plan attendance
         self.plan.delete()
         response = self.client.post(
             "/api/records/bulk-attendance/",
@@ -230,10 +230,8 @@ class BulkAttendanceTests(RecordTestSetup):
         )
         self.assertEqual(response.status_code, 201)
         self.assertFalse(WeeklyPlan.objects.filter(student=self.student).exists())
-        self.assertEqual(
-            response.json()["data"]["skipped"],
-            [{"student_id": str(self.student.id), "reason": "no_plan"}],
-        )
+        self.assertEqual(len(response.json()["data"]["records"]), 1)
+        self.assertEqual(response.json()["data"]["skipped"], [])
 
     def test_bulk_attendance_skips_other_teachers_students(self):
         """REC-06 / FR-08: Teacher can't record attendance for another teacher's student."""
@@ -771,3 +769,177 @@ class WeeklyPlanCreateExtendedTests(RecordTestSetup):
         )
         self.assertEqual(response.status_code, 201)
         self.assertIsNotNone(response.data["data"]["week_number"])
+
+
+class DailyRecordWithoutPlanTests(RecordTestSetup):
+    """Tests for DailyRecord without a WeeklyPlan (the core new feature)."""
+
+    def test_create_attendance_without_plan(self):
+        """Test 1: Attendance can be created without a weekly plan."""
+        response = self.client.post(
+            "/api/records/create/",
+            {
+                "student_id": str(self.student.id),
+                "weekly_plan_id": None,
+                "day": "sat",
+                "date": "2026-05-02",
+                "attendance": "present",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201)
+        data = response.json()["data"]
+        self.assertEqual(data["student_id"], str(self.student.id))
+        self.assertIsNone(data["weekly_plan_id"])
+
+    def test_create_absent_without_plan(self):
+        """Test 2: Absent can be recorded without a weekly plan."""
+        response = self.client.post(
+            "/api/records/create/",
+            {
+                "student_id": str(self.student.id),
+                "weekly_plan_id": None,
+                "day": "sun",
+                "date": "2026-05-03",
+                "attendance": "absent",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201)
+
+    def test_create_recitation_without_plan(self):
+        """Test 3: Full recitation data can be saved without a weekly plan."""
+        response = self.client.post(
+            "/api/records/create/",
+            {
+                "student_id": str(self.student.id),
+                "weekly_plan_id": None,
+                "day": "mon",
+                "date": "2026-05-04",
+                "attendance": "present",
+                "surah_name": "يس",
+                "from_ayah": 1,
+                "to_ayah": 12,
+                "quality": "good",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201)
+        data = response.json()["data"]
+        self.assertEqual(data["surah_name"], "يس")
+        self.assertEqual(data["from_ayah"], 1)
+        self.assertEqual(data["to_ayah"], 12)
+        self.assertIsNone(data["weekly_plan_id"])
+
+    def test_create_review_without_plan(self):
+        """Test 4: Review data can be saved without a weekly plan."""
+        response = self.client.post(
+            "/api/records/create/",
+            {
+                "student_id": str(self.student.id),
+                "weekly_plan_id": None,
+                "day": "tue",
+                "date": "2026-05-05",
+                "attendance": "present",
+                "review_surah_name": "الفاتحة",
+                "review_from_ayah": 1,
+                "review_to_ayah": 7,
+                "review_quality": "excellent",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201)
+        data = response.json()["data"]
+        self.assertEqual(data["review_surah_name"], "الفاتحة")
+
+    def test_save_twice_same_student_date(self):
+        """Test 7: Saving twice for same student+date updates the record."""
+        today_str = str(timezone.now().date())
+        response = self.client.post(
+            "/api/records/create/",
+            {
+                "student_id": str(self.student.id),
+                "day": "sat",
+                "date": today_str,
+                "attendance": "present",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201)
+        record_id = response.json()["data"]["id"]
+
+        response2 = self.client.patch(
+            f"/api/records/{record_id}/",
+            {"attendance": "absent"},
+            format="json",
+        )
+        self.assertEqual(response2.status_code, 200)
+        count = DailyRecord.objects.filter(student=self.student, date=today_str).count()
+        self.assertEqual(count, 1)
+
+    def test_plan_statistics_not_updated_when_no_plan(self):
+        """Test 10: No WeeklyPlan statistics are updated when plan is None."""
+        record = DailyRecord.objects.create(
+            student=self.student,
+            weekly_plan=None,
+            day="sat",
+            date="2026-07-01",
+            attendance="present",
+            required_verses=10,
+            achieved_verses=10,
+        )
+        self.plan.refresh_from_db()
+        self.assertEqual(self.plan.total_achieved, 0)
+        self.assertEqual(self.plan.total_required, 0)
+
+    def test_teacher_cannot_create_record_for_unowned_student(self):
+        """Test 11: Teacher cannot create records for another teacher's student."""
+        response = self.client.post(
+            "/api/records/create/",
+            {
+                "student_id": str(self.student2.id),
+                "day": "sat",
+                "date": "2026-07-02",
+                "attendance": "present",
+            },
+            format="json",
+        )
+        self.assertIn(response.status_code, [403, 400, 404])
+
+    def test_historical_migration_student_field(self):
+        """Test 9: DailyRecord with weekly_plan has student set correctly."""
+        record = DailyRecord.objects.create(
+            student=self.student,
+            weekly_plan=self.plan,
+            day="sat",
+            date="2026-08-01",
+            attendance="present",
+        )
+        self.assertEqual(record.student, self.student)
+        self.assertEqual(record.weekly_plan, self.plan)
+        self.assertEqual(record.student, self.plan.student)
+
+    def test_actual_exceeds_plan(self):
+        """Test 5: Teacher can save recitation exceeding the plan."""
+        self.plan.total_required = 5
+        self.plan.save()
+        response = self.client.post(
+            "/api/records/create/",
+            {
+                "student_id": str(self.student.id),
+                "weekly_plan_id": str(self.plan.id),
+                "day": "sat",
+                "date": "2026-04-04",
+                "attendance": "present",
+                "from_ayah": 1,
+                "to_ayah": 10,
+                "required_verses": 5,
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201)
+        data = response.json()["data"]
+        self.assertEqual(data["from_ayah"], 1)
+        self.assertEqual(data["to_ayah"], 10)
+        self.assertEqual(data["achieved_verses"], 10)
+
