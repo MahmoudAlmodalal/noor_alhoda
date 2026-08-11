@@ -142,6 +142,7 @@ class WeeklyPlanInputSerializer(serializers.Serializer):
     student_id = serializers.UUIDField()
     week_start = serializers.DateField()
     week_number = serializers.IntegerField(required=False)
+    required_pages = serializers.DecimalField(max_digits=6, decimal_places=2, required=False, default=0)
     total_required = serializers.IntegerField(required=False, default=0)
     total_required_lines = serializers.IntegerField(required=False, default=0)
 

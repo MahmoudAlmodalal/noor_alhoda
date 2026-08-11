@@ -63,8 +63,18 @@ export function CacheWarmer() {
       const reg = await navigator.serviceWorker.ready;
       const target = reg.active ?? navigator.serviceWorker.controller;
       if (!target) return;
+
+      const handleMessage = (e: MessageEvent) => {
+        if (e.data && e.data.type === "WARM_ROUTES_COMPLETE") {
+          if (e.data.success) {
+            sessionStorage.setItem(key, Date.now().toString());
+          }
+          navigator.serviceWorker.removeEventListener("message", handleMessage);
+        }
+      };
+
+      navigator.serviceWorker.addEventListener("message", handleMessage);
       target.postMessage({ type: "WARM_ROUTES", urls });
-      sessionStorage.setItem(key, Date.now().toString());
     };
     void doWarm();
   }, [user, dbUnlocked, needsInitialDownload]);

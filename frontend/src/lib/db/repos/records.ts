@@ -6,6 +6,7 @@ export interface WeeklyPlanRecord {
   student_id: string;
   week_number: number;
   week_start: string;
+  required_pages?: number;
   total_required: number;
   total_required_lines?: number;
   total_achieved: number;

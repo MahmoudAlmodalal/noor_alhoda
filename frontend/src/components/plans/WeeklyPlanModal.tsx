@@ -10,7 +10,6 @@ import { useMutation } from "@/hooks/useMutation";
 import {
   all,
   isSaturday,
-  positiveInt,
   requiredString,
 } from "@/lib/validators";
 
@@ -36,8 +35,7 @@ interface Props {
   studentName?: string;
   onCreated?: () => void;
   editPlanId?: string;
-  initialTotalRequired?: number;
-  initialTotalRequiredLines?: number;
+  initialRequiredPages?: number;
   initialWeekStart?: string;
 }
 
@@ -48,23 +46,21 @@ export function WeeklyPlanModal({
   studentName,
   onCreated,
   editPlanId,
-  initialTotalRequired,
-  initialTotalRequiredLines,
+  initialRequiredPages,
   initialWeekStart,
 }: Props) {
   if (!isOpen) return null;
 
   return (
     <WeeklyPlanModalContent
-      key={`${studentId ?? ""}-${editPlanId ?? ""}-${initialWeekStart ?? ""}-${initialTotalRequired ?? ""}-${initialTotalRequiredLines ?? ""}`}
+      key={`${studentId ?? ""}-${editPlanId ?? ""}-${initialWeekStart ?? ""}-${initialRequiredPages ?? ""}`}
       isOpen={isOpen}
       onClose={onClose}
       studentId={studentId}
       studentName={studentName}
       onCreated={onCreated}
       editPlanId={editPlanId}
-      initialTotalRequired={initialTotalRequired}
-      initialTotalRequiredLines={initialTotalRequiredLines}
+      initialRequiredPages={initialRequiredPages}
       initialWeekStart={initialWeekStart}
     />
   );
@@ -77,18 +73,14 @@ function WeeklyPlanModalContent({
   studentName,
   onCreated,
   editPlanId,
-  initialTotalRequired,
-  initialTotalRequiredLines,
+  initialRequiredPages,
   initialWeekStart,
 }: Props) {
   const [selectedId, setSelectedId] = useState(studentId ?? "");
   const [selectedName, setSelectedName] = useState(studentName ?? "");
   const [weekStart, setWeekStart] = useState<string>(initialWeekStart ?? nextSaturday());
-  const [totalRequired, setTotalRequired] = useState<number>(initialTotalRequired ?? 20);
-  const [totalRequiredLines, setTotalRequiredLines] = useState<number>(initialTotalRequiredLines ?? 15);
+  const [requiredPages, setRequiredPages] = useState<number>(initialRequiredPages ?? 1);
   const [clientError, setClientError] = useState<string | null>(null);
-
-  const calculatedPages = totalRequiredLines > 0 ? (totalRequiredLines / 15).toFixed(1) : "0";
 
   const { mutate: createMutate, isSubmitting: isCreating, error: createError } = useMutation("weekly_plan", "create");
   const { mutate: updateMutate, isSubmitting: isUpdating, error: updateError } = useMutation("weekly_plan", "update");
@@ -102,19 +94,26 @@ function WeeklyPlanModalContent({
     const validation = all(
       requiredString(selectedId, "الطالب"),
       isSaturday(weekStart),
-      positiveInt(totalRequired, "عدد الآيات المطلوبة"),
     );
     if (!validation.ok) {
       setClientError(validation.error);
       return;
     }
 
+    if (requiredPages <= 0) {
+      setClientError("عدد الصفحات المطلوبة يجب أن يكون أكبر من 0");
+      return;
+    }
+
+    const pagesVal = Number(requiredPages) || 0;
+    const reqLinesVal = Math.round(pagesVal * 15);
+
     if (editPlanId) {
       const result = await updateMutate(
         {
           id: editPlanId,
-          total_required: Number(totalRequired) || 0,
-          total_required_lines: Number(totalRequiredLines) || 0,
+          required_pages: pagesVal,
+          total_required_lines: reqLinesVal,
         },
         { successMessage: "تم تعديل الخطة الأسبوعية بنجاح" }
       );
@@ -128,8 +127,8 @@ function WeeklyPlanModalContent({
           student_id: selectedId,
           week_start: weekStart,
           week_number: getWeekNumber(weekStart),
-          total_required: Number(totalRequired) || 0,
-          total_required_lines: Number(totalRequiredLines) || 0,
+          required_pages: pagesVal,
+          total_required_lines: reqLinesVal,
         },
         { successMessage: "تم إنشاء الخطة الأسبوعية بنجاح" }
       );
@@ -182,48 +181,30 @@ function WeeklyPlanModalContent({
           />
         </div>
 
-        {/* بند الحفظ: الآيات المطلوبة والأسطر المطلوبة */}
+        {/* مستهدف الحفظ: عدد الصفحات المطلوبة فقط */}
         <div className="border border-blue-100 bg-blue-50/40 rounded-2xl p-4 space-y-3">
           <div className="flex items-center gap-2 text-primary font-bold text-sm mb-1">
             <BookOpen className="w-4 h-4 text-secondary" />
             <span>مستهدف الحفظ المطلوب</span>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-text-body">عدد الآيات المطلوبة</label>
-              <Input
-                type="number"
-                min={1}
-                value={totalRequired}
-                onChange={(e) => setTotalRequired(Number(e.target.value))}
-                aria-label="عدد الآيات المطلوبة"
-                className="h-11 rounded-xl border-border-subtle bg-white text-left font-bold"
-                dir="ltr"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-text-body">عدد الأسطر المطلوبة</label>
-              <Input
-                type="number"
-                min={0}
-                value={totalRequiredLines}
-                onChange={(e) => setTotalRequiredLines(Number(e.target.value))}
-                aria-label="عدد الأسطر المطلوبة"
-                className="h-11 rounded-xl border-border-subtle bg-white text-left font-bold"
-                dir="ltr"
-              />
-            </div>
+          <div className="space-y-1.5">
+            <label className="block text-xs font-bold text-text-body">عدد الصفحات المطلوبة</label>
+            <Input
+              type="number"
+              min={0.1}
+              step={0.1}
+              value={requiredPages}
+              onChange={(e) => setRequiredPages(Number(e.target.value))}
+              aria-label="عدد الصفحات المطلوبة"
+              className="h-11 rounded-xl border-border-subtle bg-white text-left font-bold"
+              dir="ltr"
+            />
           </div>
 
-          {/* الحساب التلقائي للصفحات (15 سطر = 1 صفحة) */}
-          <div className="bg-white border border-blue-100 rounded-xl p-3 flex items-center justify-between text-xs font-bold text-primary">
-            <span className="text-text-body">الصفحات المحتسبة تلقائياً:</span>
-            <span className="bg-primary/10 text-primary px-3 py-1 rounded-lg text-xs font-black">
-              {calculatedPages} صفحة <span className="text-[10px] text-text-muted font-normal">(لكل 15 سطر)</span>
-            </span>
-          </div>
+          <p className="text-[11px] text-text-muted leading-relaxed">
+            يتم احتساب الصفحات المنجزة تلقائياً من تسجيل التسميع والحضور، كل 15 سطراً = صفحة.
+          </p>
         </div>
 
         {(clientError || error) && (

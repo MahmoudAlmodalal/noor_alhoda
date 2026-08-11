@@ -118,6 +118,41 @@ class WeeklyPlanLinesAndPagesTests(RecordTestSetup):
         self.assertEqual(plan.total_lines, 15)
         self.assertEqual(plan.total_pages, 1.0)
 
+    def test_weekly_plan_required_pages_completion_rate(self):
+        """Test required_pages percentage completion rate based on memorized lines."""
+        plan = WeeklyPlan.objects.create(
+            student=self.student,
+            week_number=2,
+            week_start=date(2026, 4, 18),
+            required_pages=4.00,
+        )
+        self.assertEqual(plan.completion_rate, 0)
+
+        # 15 lines = 1 page -> 25% of 4 pages target
+        DailyRecord.objects.create(
+            weekly_plan=plan,
+            day="sat",
+            date=date(2026, 4, 18),
+            attendance="present",
+            memorized_lines=15,
+        )
+        plan.refresh_from_db()
+        self.assertEqual(plan.total_pages, 1.0)
+        self.assertEqual(plan.completion_rate, 25.0)
+
+        # Add 30 lines -> total 45 lines = 3 pages -> 75%
+        DailyRecord.objects.create(
+            weekly_plan=plan,
+            day="sun",
+            date=date(2026, 4, 19),
+            attendance="present",
+            memorized_lines=30,
+        )
+        plan.refresh_from_db()
+        self.assertEqual(plan.total_lines, 45)
+        self.assertEqual(plan.total_pages, 3.0)
+        self.assertEqual(plan.completion_rate, 75.0)
+
 
 class AbsenceNotificationTests(RecordTestSetup):
     def test_absence_record_creation_creates_notification_and_updates_totals(self):

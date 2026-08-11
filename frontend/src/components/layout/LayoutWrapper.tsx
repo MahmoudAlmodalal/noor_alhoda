@@ -13,14 +13,7 @@ import { StaleDataBanner } from "@/components/offline/StaleDataBanner";
 import { InitialDownloadBanner } from "@/components/offline/InitialDownloadBanner";
 
 async function hardReload() {
-    try {
-        if (typeof caches !== "undefined") {
-            const keys = await caches.keys();
-            await Promise.all(keys.map((k) => caches.delete(k)));
-        }
-    } finally {
-        window.location.reload();
-    }
+    window.location.reload();
 }
 
 export function LayoutWrapper({ children }: { children: React.ReactNode }) {

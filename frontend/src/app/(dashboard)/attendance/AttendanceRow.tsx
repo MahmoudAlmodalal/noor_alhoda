@@ -214,7 +214,7 @@ export function AttendanceRow({ draft, onChange }: Props) {
                 />
               </div>
               <div className="space-y-1">
-                <label className="block text-[11px] font-bold text-text-label">عدد الأسطر المحفوظة</label>
+                <label className="block text-[11px] font-bold text-text-label">عدد الأسطر المحفوظة اليوم</label>
                 <input
                   type="number"
                   min={0}
@@ -228,9 +228,9 @@ export function AttendanceRow({ draft, onChange }: Props) {
 
             {/* مؤشر حساب الصفحات التلقائي (15 سطر = 1 صفحة) */}
             <div className="bg-white border border-blue-100 rounded-xl p-2.5 flex items-center justify-between text-xs font-bold text-primary">
-              <span className="text-text-body">الصفحات المنجزة تلقائياً (لكل 15 سطر = صفحة):</span>
+              <span className="text-text-body">يعادل: {calculatedPages} صفحة ({draft.memorized_lines || 0} سطر)</span>
               <span className="bg-primary/10 text-primary px-3 py-1 rounded-lg text-xs font-black">
-                {calculatedPages} صفحة ({draft.memorized_lines || 0} سطر)
+                سيتم إضافتها تلقائياً إلى إنجاز الخطة الأسبوعية
               </span>
             </div>
 

@@ -387,6 +387,7 @@ export interface WeeklyPlan {
   student_name?: string;
   week_number: number;
   week_start: string;
+  required_pages?: number;
   total_required: number;
   total_achieved: number;
   total_lines: number;
@@ -398,7 +399,9 @@ export interface WeeklyPlanRequest {
   student_id: string;
   week_start: string;
   week_number?: number;
-  total_required: number;
+  required_pages?: number;
+  total_required?: number;
+  total_required_lines?: number;
 }
 
 export interface LeaderboardEntry {

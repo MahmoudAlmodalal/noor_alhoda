@@ -14,13 +14,14 @@
  *   postMessage so the push runner drains the outbox.
  */
 
-const CACHE_VERSION = "v6";
+const CACHE_VERSION = "v7";
 const APP_CACHE = `noor-alhuda-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `noor-alhuda-runtime-${CACHE_VERSION}`;
 
 const PRECACHE_URLS = [
   "/",
   "/login",
+  "/offline.html",
   "/manifest.json",
   "/icons/icon-192x192.png",
   "/icons/icon-256x256.png",
@@ -32,8 +33,6 @@ const PRECACHE_URLS = [
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(APP_CACHE).then(async (cache) => {
-      // Fetch each URL individually so a 404 on one asset doesn't abort
-      // the whole install (e.g., an icon missing in a branch build).
       await Promise.all(
         PRECACHE_URLS.map(async (url) => {
           try {
@@ -68,26 +67,20 @@ self.addEventListener("fetch", (event) => {
 
   const url = new URL(req.url);
 
-  // Never intercept API calls — let them reach the network (or fail fast
-  // so the app can fall back to IndexedDB).
   if (url.pathname.startsWith("/api/")) return;
 
-  // Cross-origin requests: let the browser handle.
   if (url.origin !== self.location.origin) return;
 
-  // Hashed static assets — cache-first.
   if (url.pathname.startsWith("/_next/static/")) {
     event.respondWith(cacheFirst(req));
     return;
   }
 
-  // Navigation requests — network-first, fallback to precache / root shell.
   if (req.mode === "navigate") {
     event.respondWith(navigationHandler(req));
     return;
   }
 
-  // Other same-origin GETs (manifest, icons, fonts) — stale-while-revalidate.
   event.respondWith(staleWhileRevalidate(req));
 });
 
@@ -97,9 +90,6 @@ self.addEventListener("sync", (event) => {
   }
 });
 
-// Allow the page to force-activate a new SW after update, and to request
-// background route warm-up so navigation-capable cached responses exist
-// for a cold-start offline session.
 self.addEventListener("message", (event) => {
   const data = event.data;
   if (!data || typeof data !== "object") return;
@@ -108,30 +98,37 @@ self.addEventListener("message", (event) => {
     return;
   }
   if (data.type === "WARM_ROUTES" && Array.isArray(data.urls)) {
-    event.waitUntil(warmRoutes(data.urls));
+    event.waitUntil(warmRoutes(data.urls, event.source));
   }
 });
 
-async function warmRoutes(urls) {
+async function warmRoutes(urls, client) {
   const cache = await caches.open(RUNTIME_CACHE);
-  // Sequential with small concurrency — avoid hammering the server.
+  let successCount = 0;
   await Promise.all(
     urls.map(async (url) => {
       try {
         const res = await fetch(url, {
           credentials: "same-origin",
-          // Mark as navigation so the network-first handler doesn't try to
-          // re-cache what we're already about to cache here.
           headers: { "X-Warm-Route": "1" },
         });
         if (res.ok && res.status === 200) {
           await cache.put(url, res.clone());
+          successCount++;
         }
       } catch {
         /* silent — we'll retry next login */
       }
     })
   );
+  if (client) {
+    client.postMessage({
+      type: "WARM_ROUTES_COMPLETE",
+      success: successCount > 0,
+      successCount,
+      totalCount: urls.length,
+    });
+  }
 }
 
 async function broadcastTriggerPush() {
@@ -168,14 +165,26 @@ async function navigationHandler(req) {
     }
     return res;
   } catch {
-    // Offline — serve a cached navigation if we have one; otherwise the
-    // root shell so React's client router can render the target route
-    // from IndexedDB.
+    const url = new URL(req.url);
     const runtime = await caches.open(RUNTIME_CACHE);
-    const cachedRoute = await runtime.match(req);
+    const appCache = await caches.open(APP_CACHE);
+
+    // 1. Exact cached route
+    const cachedRoute = (await runtime.match(req)) || (await appCache.match(req));
     if (cachedRoute) return cachedRoute;
-    const rootShell = await caches.match("/");
+
+    // 2. Normalized pathname (e.g. without trailing query params)
+    const normalized = await runtime.match(url.pathname);
+    if (normalized) return normalized;
+
+    // 3. Cached root shell
+    const rootShell = (await appCache.match("/")) || (await runtime.match("/"));
     if (rootShell) return rootShell;
+
+    // 4. Custom offline HTML fallback
+    const offlineHtml = await appCache.match("/offline.html");
+    if (offlineHtml) return offlineHtml;
+
     return new Response("Offline", { status: 503, statusText: "Offline" });
   }
 }

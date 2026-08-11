@@ -361,6 +361,7 @@ def _push_weekly_plan_create(*, actor: User, op: dict) -> dict:
                 student_id=data.get("student_id"),
                 week_start=data.get("week_start"),
                 week_number=data.get("week_number"),
+                required_pages=data.get("required_pages", 0),
                 total_required=data.get("total_required", 0),
                 total_required_lines=data.get("total_required_lines", 0),
                 teacher=actor,

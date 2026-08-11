@@ -829,6 +829,7 @@ export async function listDailyRecordsWithStudentForDate(
 
 export interface PlanForList extends WeeklyPlanRecord {
   student_name: string;
+  required_pages: number;
   completion_rate: number;
   total_required_lines: number;
   total_required_pages: number;
@@ -842,9 +843,10 @@ export async function listPlansForUI(filters?: {
   week_start?: string;
   teacher_id?: string;
 }): Promise<PlanForList[]> {
-  const [plans, students] = await Promise.all([
+  const [plans, students, allDaily] = await Promise.all([
     listWeeklyPlans(filters?.student_id ? { student_id: filters.student_id } : undefined),
     listStudents(filters?.teacher_id ? { teacher_id: filters.teacher_id } : undefined),
+    getDb().daily_records.toArray().then((rows) => decryptRows<DailyRecordRecord>(rows)),
   ]);
   const sById = new Map(students.map((s) => [s.id, s]));
   const scopedPlans = filters?.teacher_id
@@ -853,24 +855,49 @@ export async function listPlansForUI(filters?: {
   const filtered = filters?.week_start
     ? scopedPlans.filter((p) => p.week_start === filters.week_start)
     : scopedPlans;
-  return filtered
-    .map((p) => {
-      const s = sById.get(p.student_id);
-      if (!s && filters?.teacher_id) return null;
-      const reqLines = p.total_required_lines ?? 0;
-      const achLines = p.total_lines ?? 0;
-      return {
-        ...p,
-        student_name: s?.full_name ?? "",
-        completion_rate: completionRate(p.total_achieved, p.total_required),
-        total_required_lines: reqLines,
-        total_required_pages: reqLines > 0 ? Number((reqLines / 15).toFixed(1)) : 0,
-        total_lines: achLines,
-        total_pages: achLines > 0 ? Number((achLines / 15).toFixed(1)) : 0,
-        review_interval_days: s?.review_interval_days ?? 14,
-      };
-    })
-    .filter((p): p is PlanForList => p !== null);
+
+  const achievedLinesByPlan = new Map<string, number>();
+  for (const r of allDaily) {
+    if (r.weekly_plan_id && (r.memorized_lines ?? 0) > 0) {
+      const prev = achievedLinesByPlan.get(r.weekly_plan_id) ?? 0;
+      achievedLinesByPlan.set(r.weekly_plan_id, prev + (r.memorized_lines ?? 0));
+    }
+  }
+
+  const mapped = filtered.map((p) => {
+    const s = sById.get(p.student_id);
+    if (!s && filters?.teacher_id) return null;
+
+    const reqPages = p.required_pages && p.required_pages > 0
+      ? p.required_pages
+      : (p.total_required_lines && p.total_required_lines > 0 ? p.total_required_lines / 15 : 0);
+
+    const achLines = achievedLinesByPlan.has(p.id)
+      ? achievedLinesByPlan.get(p.id)!
+      : (p.total_lines ?? 0);
+
+    const achPages = achLines > 0 ? Number((achLines / 15).toFixed(1)) : 0;
+
+    let rate = 0;
+    if (reqPages > 0) {
+      rate = Math.min(100, Math.round(((achLines / (reqPages * 15)) * 100) * 10) / 10);
+    }
+
+    const planItem: PlanForList = {
+      ...p,
+      student_name: s?.full_name ?? "",
+      required_pages: reqPages,
+      completion_rate: rate,
+      total_required_lines: p.total_required_lines ?? (reqPages * 15),
+      total_required_pages: Number(reqPages.toFixed(1)),
+      total_lines: achLines,
+      total_pages: achPages,
+      review_interval_days: s?.review_interval_days ?? 14,
+    };
+    return planItem;
+  });
+
+  return mapped.filter((p): p is PlanForList => p !== null);
 }
 
 // ---------------------------------------------------------------------------

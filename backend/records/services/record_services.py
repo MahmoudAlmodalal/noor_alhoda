@@ -18,6 +18,7 @@ def weekly_plan_create(
     student_id,
     week_start,
     week_number=None,
+    required_pages=0,
     total_required=0,
     total_required_lines=0,
     teacher: User,
@@ -46,6 +47,7 @@ def weekly_plan_create(
             week_start.isocalendar()[1] if hasattr(week_start, "isocalendar") else 1
         ),
         week_start=week_start,
+        required_pages=required_pages or 0,
         total_required=total_required or 0,
         total_required_lines=total_required_lines or 0,
     )
@@ -67,7 +69,7 @@ def weekly_plan_update(*, plan: WeeklyPlan, actor: User, data: dict) -> WeeklyPl
         if not hasattr(actor, "teacher_profile") or plan.student.teacher_id != actor.teacher_profile.id:
             raise PermissionDenied("لا يمكنك تعديل خطة لطالب ليس في حلقتك.")
 
-    allowed = ["week_number", "total_required", "total_required_lines"]
+    allowed = ["week_number", "required_pages", "total_required", "total_required_lines"]
     for field, value in data.items():
         if field in allowed:
             setattr(plan, field, value)

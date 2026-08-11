@@ -22,6 +22,12 @@ class WeeklyPlan(models.Model):
     )
     week_number = models.PositiveIntegerField(verbose_name="رقم الأسبوع")
     week_start = models.DateField(verbose_name="بداية الأسبوع (السبت)")
+    required_pages = models.DecimalField(
+        max_digits=6,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        verbose_name="عدد الصفحات المطلوبة",
+    )
     total_required = models.PositiveIntegerField(default=0, verbose_name="إجمالي الآيات المطلوبة")
     total_required_lines = models.PositiveIntegerField(default=0, verbose_name="إجمالي الأسطر المطلوبة")
     total_achieved = models.PositiveIntegerField(default=0, verbose_name="إجمالي الآيات المنجزة")
@@ -44,14 +50,18 @@ class WeeklyPlan(models.Model):
 
     @property
     def completion_rate(self):
-        """Calculate completion rate as percentage."""
-        if self.total_required == 0:
+        """Calculate completion rate as percentage based on required_pages and total_lines."""
+        if not self.required_pages or float(self.required_pages) <= 0:
             return 0
-        return round((self.total_achieved / self.total_required) * 100, 2)
+        required_lines = float(self.required_pages) * 15
+        rate = (self.total_lines / required_lines) * 100
+        return min(round(rate, 2), 100.0)
 
     @property
     def total_required_pages(self):
-        """Calculate required pages from required lines (15 lines = 1 page)."""
+        """Return required_pages as float or fallback to required lines conversion."""
+        if self.required_pages and float(self.required_pages) > 0:
+            return float(self.required_pages)
         return round(self.total_required_lines / 15, 1) if self.total_required_lines > 0 else 0
 
     @property
