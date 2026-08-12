@@ -1,6 +1,9 @@
 import uuid
 
+from django.core.exceptions import ValidationError
+from django.core.validators import MinValueValidator
 from django.db import models
+from decimal import Decimal
 
 from accounts.models import User
 from students.models import Student
@@ -14,6 +17,10 @@ class Evaluation(models.Model):
         PASSED = "passed", "ناجح"
         FAILED = "failed", "راسب"
         MISSED = "missed", "متغيّب"
+
+    class EvaluationType(models.TextChoices):
+        SCATTERED = "scattered", "متفرقة"
+        COMBINED = "combined", "مجتمعة"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     student = models.ForeignKey(
@@ -37,6 +44,27 @@ class Evaluation(models.Model):
         verbose_name="الحالة",
     )
     result_note = models.TextField(blank=True, default="", verbose_name="ملاحظة النتيجة")
+    evaluation_type = models.CharField(
+        max_length=20,
+        choices=EvaluationType.choices,
+        default=EvaluationType.SCATTERED,
+        verbose_name="نوع الاختبار",
+    )
+    score = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("0"))],
+        verbose_name="الدرجة",
+    )
+    max_score = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal("100"),
+        validators=[MinValueValidator(Decimal("0.01"))],
+        verbose_name="الدرجة القصوى",
+    )
     created_by = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
@@ -55,6 +83,13 @@ class Evaluation(models.Model):
             models.Index(fields=["student", "scheduled_date"]),
             models.Index(fields=["status"]),
         ]
+
+    def clean(self):
+        super().clean()
+        if self.max_score is not None and self.max_score <= 0:
+            raise ValidationError({"max_score": "الدرجة القصوى يجب أن تكون أكبر من صفر."})
+        if self.score is not None and self.max_score is not None and self.score > self.max_score:
+            raise ValidationError({"score": "الدرجة لا يمكن أن تتجاوز الدرجة القصوى."})
 
     def __str__(self):
         return f"{self.student.full_name} - {self.title} ({self.scheduled_date})"

@@ -62,6 +62,9 @@ def evaluation_create(
     title: str,
     scheduled_date,
     surah_range: str = "",
+    evaluation_type: str = Evaluation.EvaluationType.SCATTERED,
+    score=None,
+    max_score=100,
     actor: User,
     id=None,
 ) -> Evaluation:
@@ -80,6 +83,9 @@ def evaluation_create(
         title=str(title).strip(),
         surah_range=surah_range or "",
         scheduled_date=scheduled_date,
+        evaluation_type=evaluation_type or Evaluation.EvaluationType.SCATTERED,
+        score=score,
+        max_score=max_score,
         created_by=actor,
     )
     if id is not None:
@@ -114,7 +120,16 @@ def evaluation_update(
 
     previous_status = evaluation.status
 
-    allowed = ["title", "surah_range", "scheduled_date", "status", "result_note"]
+    allowed = [
+        "title",
+        "surah_range",
+        "scheduled_date",
+        "status",
+        "result_note",
+        "evaluation_type",
+        "score",
+        "max_score",
+    ]
     for field, value in (data or {}).items():
         if field in allowed:
             setattr(evaluation, field, value)

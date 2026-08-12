@@ -163,7 +163,7 @@ export default function StudentEvaluationDetailPage() {
                     <div className="flex items-center gap-2">
                         <GraduationCap className="h-5 w-5 text-primary" />
                         <span className="text-[12px] font-bold text-text-muted">
-                            اختبار
+                            اختبار {evaluation.evaluation_type === "combined" ? "مجمع" : "متفرق"}
                         </span>
                     </div>
                     <span
@@ -304,6 +304,14 @@ export default function StudentEvaluationDetailPage() {
                     >
                         {meta.label}
                     </p>
+                    <div className="mb-3 rounded-[12px] border border-border-card bg-white/70 px-3 py-2">
+                        <span className="text-[12px] text-text-muted">الدرجة: </span>
+                        <span className="text-[14px] font-bold text-text-body">
+                            {evaluation.score === null || evaluation.score === undefined
+                                ? "لم تسجل بعد"
+                                : `${evaluation.score} / ${evaluation.max_score}`}
+                        </span>
+                    </div>
                     {evaluation.result_note ? (
                         <p className="text-[13px] text-text-body leading-[1.9] border-t border-border-card pt-3">
                             {evaluation.result_note}

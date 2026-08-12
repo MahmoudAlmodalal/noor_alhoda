@@ -17,6 +17,9 @@ class EvaluationOutputSerializer(serializers.Serializer):
     scheduled_date = serializers.DateField()
     status = serializers.CharField()
     result_note = serializers.CharField()
+    evaluation_type = serializers.CharField()
+    score = serializers.DecimalField(max_digits=5, decimal_places=2, allow_null=True)
+    max_score = serializers.DecimalField(max_digits=5, decimal_places=2)
     created_at = serializers.DateTimeField()
     updated_at = serializers.DateTimeField()
 
@@ -26,6 +29,15 @@ class EvaluationCreateSerializer(serializers.Serializer):
     title = serializers.CharField(max_length=200)
     surah_range = serializers.CharField(max_length=200, required=False, allow_blank=True, default="")
     scheduled_date = serializers.DateField()
+    evaluation_type = serializers.ChoiceField(
+        choices=["scattered", "combined"], required=False, default="scattered"
+    )
+    score = serializers.DecimalField(
+        max_digits=5, decimal_places=2, required=False, allow_null=True
+    )
+    max_score = serializers.DecimalField(
+        max_digits=5, decimal_places=2, required=False, default=100
+    )
 
 
 class EvaluationUpdateSerializer(serializers.Serializer):
@@ -37,6 +49,13 @@ class EvaluationUpdateSerializer(serializers.Serializer):
         required=False,
     )
     result_note = serializers.CharField(required=False, allow_blank=True)
+    evaluation_type = serializers.ChoiceField(
+        choices=["scattered", "combined"], required=False
+    )
+    score = serializers.DecimalField(
+        max_digits=5, decimal_places=2, required=False, allow_null=True
+    )
+    max_score = serializers.DecimalField(max_digits=5, decimal_places=2, required=False)
 
 
 class EvaluationListCreateApi(APIView):
@@ -78,6 +97,9 @@ class EvaluationListCreateApi(APIView):
             title=serializer.validated_data["title"],
             surah_range=serializer.validated_data.get("surah_range", ""),
             scheduled_date=serializer.validated_data["scheduled_date"],
+            evaluation_type=serializer.validated_data.get("evaluation_type", "scattered"),
+            score=serializer.validated_data.get("score"),
+            max_score=serializer.validated_data.get("max_score", 100),
             actor=request.user,
         )
         return Response(

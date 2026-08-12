@@ -563,18 +563,22 @@ export interface Evaluation {
   surah_range: string;
   scheduled_date: string;
   status: "scheduled" | "passed" | "failed" | "missed";
-  result_note: string;
+    result_note: string;
+  evaluation_type: "scattered" | "combined";
+  score: string | null;
+  max_score: string;
   created_at: string;
   updated_at: string;
 }
-
 export interface CreateEvaluationRequest {
   student_id: string;
   title: string;
-  surah_range?: string;
+    surah_range?: string;
   scheduled_date: string;
+  evaluation_type?: "scattered" | "combined";
+  score?: string | number | null;
+  max_score?: string | number;
 }
-
 // ─── Courses ─────────────────────────────────────────────────────────────────
 
 export interface Course {

@@ -77,6 +77,9 @@ export interface EvaluationRecord {
   scheduled_date: string;
   status: string;
   result_note: string;
+  evaluation_type: "scattered" | "combined";
+  score: string | null;
+  max_score: string;
   created_by_id: string | null;
   created_at: string | null;
   updated_at: string | null;
