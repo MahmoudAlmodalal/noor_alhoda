@@ -4,12 +4,13 @@ from datetime import date
 from rest_framework.test import APITestCase
 
 from accounts.models import Parent, ParentStudentLink, User
-from notifications.models import Notification
+from notifications.models import DirectMessage, Notification
 from students.models import Student
 from teacher.models import Teacher
 
 
 DIRECT_MESSAGE_URL = "/api/notifications/direct-message/"
+CONVERSATION_URL = "/api/notifications/conversations/{student_id}/"
 
 
 class DirectMessagingTestSetup(APITestCase):
@@ -301,3 +302,48 @@ class AdminDirectMessagingTests(DirectMessagingTestSetup):
         self.assertEqual(created_recipients, {student_user3.id, self.parent1_user.id})
 
 
+
+
+class ConversationAuthorizationTests(DirectMessagingTestSetup):
+    def setUp(self):
+        super().setUp()
+        self.message = DirectMessage.objects.create(
+            sender=self.admin,
+            student=self.student2,
+            sender_role="admin",
+            body="محتوى محادثة خاص",
+        )
+
+    def test_assigned_teacher_can_read_student_conversation(self):
+        self.client.force_authenticate(self.teacher2_user)
+
+        response = self.client.get(
+            CONVERSATION_URL.format(student_id=self.student2.id)
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["data"][0]["body"], "محتوى محادثة خاص")
+        self.message.refresh_from_db()
+        self.assertTrue(self.message.is_read)
+
+    def test_unassigned_teacher_cannot_read_or_mark_conversation(self):
+        self.client.force_authenticate(self.teacher1_user)
+
+        response = self.client.get(
+            CONVERSATION_URL.format(student_id=self.student2.id)
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.message.refresh_from_db()
+        self.assertFalse(self.message.is_read)
+
+    def test_other_student_cannot_read_conversation(self):
+        self.client.force_authenticate(self.student1_user)
+
+        response = self.client.get(
+            CONVERSATION_URL.format(student_id=self.student2.id)
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.message.refresh_from_db()
+        self.assertFalse(self.message.is_read)

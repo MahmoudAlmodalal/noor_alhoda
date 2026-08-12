@@ -160,11 +160,18 @@ def teacher_circle_recipients(teacher_user: User) -> list[User]:
 
 def conversation_messages(*, student_id, user):
     """
-    جلب كل رسائل المحادثة مع طالب معين.
+    جلب رسائل المحادثة بعد تطبيق صلاحيات الوصول على الطالب.
+
+    The caller must never be able to use a student UUID as an IDOR probe.
+    Reuse the canonical student selector so admin, teacher, student, and
+    parent access rules stay consistent across the API.
     """
     from notifications.models import DirectMessage
+    from students.selectors.student_selectors import student_get
+
+    student = student_get(student_id=student_id, actor=user)
     return DirectMessage.objects.filter(
-        student_id=student_id,
+        student=student,
     ).select_related("sender").order_by("created_at")
 
 

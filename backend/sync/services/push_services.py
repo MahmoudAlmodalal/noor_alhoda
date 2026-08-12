@@ -24,6 +24,7 @@ from django.utils.dateparse import parse_datetime
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
 from accounts.models import ParentStudentLink, Parent, User
+from core.permissions import is_admin_user
 from teacher.models import Teacher
 from courses.models import Course, StudentCourse
 from evaluations.models import Evaluation
@@ -294,6 +295,36 @@ def _conflict_row(resource: str, instance) -> dict:
     return row
 
 
+_STUDENT_SCOPED_RESOURCES = {
+    "weekly_plan",
+    "daily_record",
+    "review_record",
+    "evaluation",
+    "student_course",
+    "progress",
+}
+
+
+def _ensure_sync_scope(*, actor: User, resource: str, instance) -> None:
+    """Authorize a target before any LWW check can serialize it.
+
+    Mutation services still enforce write permissions. This guard closes the
+    separate disclosure path where an out-of-scope row was serialized as a
+    conflict before those services ran.
+    """
+    if resource in _STUDENT_SCOPED_RESOURCES:
+        from students.selectors.student_selectors import student_get
+
+        student = getattr(instance, "student", None)
+        if student is None:
+            raise PermissionDenied("لا يمكن تحديد نطاق السجل.")
+        student_get(student_id=student.id, actor=actor)
+        return
+
+    if resource in {"teacher", "parent", "course"} and not is_admin_user(actor):
+        raise PermissionDenied("ليس لديك صلاحية الوصول إلى هذا السجل.")
+
+
 # ---------------------------------------------------------------------------
 # Per-resource handlers
 # ---------------------------------------------------------------------------
@@ -407,6 +438,7 @@ def _push_weekly_plan_update(*, actor: User, op: dict) -> dict:
     if plan is None:
         return {"client_id": op.get("client_id"), "status": "synced"}
 
+    _ensure_sync_scope(actor=actor, resource="weekly_plan", instance=plan)
     if _server_newer_than_client(plan.updated_at, base):
         return {
             "client_id": op.get("client_id"),
@@ -429,6 +461,7 @@ def _push_weekly_plan_delete(*, actor: User, op: dict) -> dict:
     plan = WeeklyPlan.objects.filter(id=target_id).first()
     if plan is None:
         return {"client_id": op.get("client_id"), "status": "synced"}
+    _ensure_sync_scope(actor=actor, resource="weekly_plan", instance=plan)
     if _server_newer_than_client(plan.updated_at, base):
         return {
             "client_id": op.get("client_id"),
@@ -554,6 +587,7 @@ def _push_daily_record_update(*, actor: User, op: dict) -> dict:
     if record is None:
         return {"client_id": op.get("client_id"), "status": "synced"}
 
+    _ensure_sync_scope(actor=actor, resource="daily_record", instance=record)
     if _server_newer_than_client(record.updated_at, base):
         return {
             "client_id": op.get("client_id"),
@@ -596,6 +630,7 @@ def _push_daily_record_delete(*, actor: User, op: dict) -> dict:
     record = DailyRecord.objects.filter(id=target_id).first()
     if record is None:
         return {"client_id": op.get("client_id"), "status": "synced"}
+    _ensure_sync_scope(actor=actor, resource="daily_record", instance=record)
     if _server_newer_than_client(record.updated_at, base):
         return {
             "client_id": op.get("client_id"),
@@ -634,6 +669,7 @@ def _push_review_record_update(*, actor: User, op: dict) -> dict:
             "status": "error",
             "error": {"code": "not_found", "message": "سجل المراجعة غير موجود."},
         }
+    _ensure_sync_scope(actor=actor, resource="review_record", instance=record)
     if _server_newer_than_client(record.updated_at, base):
         return {
             "client_id": op.get("client_id"),
@@ -656,6 +692,7 @@ def _push_review_record_delete(*, actor: User, op: dict) -> dict:
     record = ReviewRecord.objects.filter(id=target_id).first()
     if record is None:
         return {"client_id": op.get("client_id"), "status": "synced"}
+    _ensure_sync_scope(actor=actor, resource="review_record", instance=record)
     if _server_newer_than_client(record.updated_at, base):
         return {
             "client_id": op.get("client_id"),
@@ -691,6 +728,7 @@ def _push_evaluation_update(*, actor: User, op: dict) -> dict:
             "status": "error",
             "error": {"code": "not_found", "message": "الاختبار غير موجود."},
         }
+    _ensure_sync_scope(actor=actor, resource="evaluation", instance=ev)
     if _server_newer_than_client(ev.updated_at, base):
         return {
             "client_id": op.get("client_id"),
@@ -713,6 +751,7 @@ def _push_evaluation_delete(*, actor: User, op: dict) -> dict:
     ev = Evaluation.objects.filter(id=target_id).first()
     if ev is None:
         return {"client_id": op.get("client_id"), "status": "synced"}
+    _ensure_sync_scope(actor=actor, resource="evaluation", instance=ev)
     if _server_newer_than_client(ev.updated_at, base):
         return {
             "client_id": op.get("client_id"),
@@ -752,6 +791,7 @@ def _push_teacher_update(*, actor: User, op: dict) -> dict:
             "status": "error",
             "error": {"code": "not_found", "message": "المحفظ غير موجود."},
         }
+    _ensure_sync_scope(actor=actor, resource="teacher", instance=teacher)
     if _server_newer_than_client(teacher.updated_at, base):
         return {
             "client_id": op.get("client_id"),
@@ -777,6 +817,7 @@ def _push_teacher_delete(*, actor: User, op: dict) -> dict:
     teacher = Teacher.objects.filter(id=target_id).first()
     if teacher is None:
         return {"client_id": op.get("client_id"), "status": "synced"}
+    _ensure_sync_scope(actor=actor, resource="teacher", instance=teacher)
     if _server_newer_than_client(teacher.updated_at, base):
         return {
             "client_id": op.get("client_id"),
@@ -812,6 +853,7 @@ def _push_parent_update(*, actor: User, op: dict) -> dict:
             "status": "error",
             "error": {"code": "not_found", "message": "ولي الأمر غير موجود."},
         }
+    _ensure_sync_scope(actor=actor, resource="parent", instance=parent)
     if _server_newer_than_client(parent.updated_at, base):
         return {
             "client_id": op.get("client_id"),
@@ -834,6 +876,7 @@ def _push_parent_delete(*, actor: User, op: dict) -> dict:
     parent = Parent.objects.filter(id=target_id).first()
     if parent is None:
         return {"client_id": op.get("client_id"), "status": "synced"}
+    _ensure_sync_scope(actor=actor, resource="parent", instance=parent)
     if _server_newer_than_client(parent.updated_at, base):
         return {
             "client_id": op.get("client_id"),
@@ -897,6 +940,7 @@ def _push_course_update(*, actor: User, op: dict) -> dict:
             "status": "error",
             "error": {"code": "not_found", "message": "الدورة غير موجودة."},
         }
+    _ensure_sync_scope(actor=actor, resource="course", instance=course)
     if _server_newer_than_client(course.updated_at, base):
         return {
             "client_id": op.get("client_id"),
@@ -919,6 +963,7 @@ def _push_course_delete(*, actor: User, op: dict) -> dict:
     course = Course.objects.filter(id=target_id).first()
     if course is None:
         return {"client_id": op.get("client_id"), "status": "synced"}
+    _ensure_sync_scope(actor=actor, resource="course", instance=course)
     if _server_newer_than_client(course.updated_at, base):
         return {
             "client_id": op.get("client_id"),
@@ -960,6 +1005,7 @@ def _push_student_course_update(*, actor: User, op: dict) -> dict:
             "status": "error",
             "error": {"code": "not_found", "message": "التسجيل غير موجود."},
         }
+    _ensure_sync_scope(actor=actor, resource="student_course", instance=sc)
     if _server_newer_than_client(sc.updated_at, base):
         return {
             "client_id": op.get("client_id"),
@@ -982,6 +1028,7 @@ def _push_student_course_delete(*, actor: User, op: dict) -> dict:
     sc = StudentCourse.objects.filter(id=target_id).first()
     if sc is None:
         return {"client_id": op.get("client_id"), "status": "synced"}
+    _ensure_sync_scope(actor=actor, resource="student_course", instance=sc)
     if _server_newer_than_client(sc.updated_at, base):
         return {
             "client_id": op.get("client_id"),
@@ -1063,6 +1110,7 @@ def _push_progress_update(*, actor: User, op: dict) -> dict:
             "status": "error",
             "error": {"code": "not_found", "message": "سجل التقدم غير موجود."},
         }
+    _ensure_sync_scope(actor=actor, resource="progress", instance=entry)
     if _server_newer_than_client(entry.updated_at, base):
         return {
             "client_id": op.get("client_id"),
@@ -1085,6 +1133,7 @@ def _push_progress_delete(*, actor: User, op: dict) -> dict:
     entry = StudentProgress.objects.select_related("student").filter(id=target_id).first()
     if entry is None:
         return {"client_id": op.get("client_id"), "status": "synced"}
+    _ensure_sync_scope(actor=actor, resource="progress", instance=entry)
     if _server_newer_than_client(entry.updated_at, base):
         return {
             "client_id": op.get("client_id"),

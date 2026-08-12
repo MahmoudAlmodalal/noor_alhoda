@@ -8,7 +8,7 @@ export async function loginViaApi(page: Page, role: Role) {
   const credentials = seededUsers[role];
   const response = await page.request.post(`${apiBaseUrl}/api/auth/login/`, {
     data: {
-      phone_number: credentials.phone,
+      national_id: credentials.phone,
       password: credentials.password,
     },
   });
@@ -35,7 +35,7 @@ export async function loginViaUi(page: Page, role: Role) {
   const credentials = seededUsers[role];
 
   await page.goto("/login");
-  await page.getByLabel("رقم الجوال").fill(credentials.phone);
+  await page.getByLabel("رقم الهوية").fill(credentials.phone);
   await page.getByLabel("كلمة المرور").fill(credentials.password);
   await page.getByRole("button", { name: "تسجيل الدخول" }).click();
 }

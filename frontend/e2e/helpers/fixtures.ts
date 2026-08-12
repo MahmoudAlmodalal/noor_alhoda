@@ -3,20 +3,20 @@ export const apiBaseUrl =
 
 export const seededUsers = {
   admin: {
-    phone: "970599100001",
-    password: "AdminPass123!",
+    phone: "0599100001",
+    password: "0001",
   },
   teacher: {
-    phone: "970599100010",
-    password: "TeacherPass123!",
+    phone: "0599100010",
+    password: "0010",
   },
   student: {
-    phone: "970599100020",
-    password: "StudentPass123!",
+    phone: "0599100020",
+    password: "0020",
   },
   parent: {
-    phone: "970599100030",
-    password: "ParentPass123!",
+    phone: "0599100030",
+    password: "0030",
   },
 } as const;
 

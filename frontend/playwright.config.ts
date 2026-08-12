@@ -22,8 +22,12 @@ export default defineConfig({
       command:
         "python3 manage.py migrate --noinput && python3 manage.py seed_e2e --quiet && python3 manage.py runserver 127.0.0.1:8000",
       cwd: "../backend",
-      url: apiUrl,
-      reuseExistingServer: true,
+      env: {
+        ...process.env,
+        LOGIN_THROTTLE_RATE: "100/min",
+      },
+      url: `${apiUrl}/health`,
+      reuseExistingServer: false,
       timeout: 120_000,
     },
     {

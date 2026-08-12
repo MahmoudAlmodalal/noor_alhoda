@@ -1,5 +1,6 @@
 from datetime import timedelta
 
+from django.core.cache import cache
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
@@ -86,6 +87,9 @@ class Command(BaseCommand):
             self.stdout.write(f"Known OTP for seeded student: {otp_code}")
 
     def _clear_fixture_data(self):
+        # E2E tests call this command between scenarios. Clear DRF throttle
+        # counters as well as fixture rows so login/OTP tests are isolated.
+        cache.clear()
         User.objects.filter(phone_number__in=E2E_PHONES.values()).delete()
         Course.objects.filter(name__in=E2E_COURSE_NAMES).delete()
 

@@ -782,3 +782,64 @@ class SyncPullExcludesSoftDeletedStudentTests(SyncPushInBatchRemappingTests):
         }
         self.assertIn(str(student_id), tombstoned_ids)
 
+
+
+class SyncPushConflictAuthorizationTests(SyncPushInBatchRemappingTests):
+    def setUp(self):
+        super().setUp()
+        self.other_teacher_user = User.objects.create_user(
+            national_id="TEA-OTHER",
+            phone_number="970599333333",
+            password="pw",
+            role="teacher",
+        )
+        self.other_teacher = Teacher.objects.create(
+            user=self.other_teacher_user,
+            full_name="Teacher Other",
+            max_students=25,
+        )
+        self.other_student_user = User.objects.create_user(
+            national_id="S-OTHER",
+            phone_number="970599444444",
+            password="pw",
+            role="student",
+        )
+        self.other_student = Student.objects.create(
+            user=self.other_student_user,
+            full_name="Student Other",
+            birthdate=date(2012, 2, 2),
+            grade="G7",
+            teacher=self.other_teacher,
+        )
+
+    def test_out_of_scope_weekly_plan_conflict_has_no_row(self):
+        plan = WeeklyPlan.objects.create(
+            student=self.other_student,
+            week_number=1,
+            week_start=date(2026, 8, 8),
+            total_required=9,
+        )
+        self.client.force_authenticate(self.teacher_user)
+
+        response = self.client.post(
+            "/api/sync/push/",
+            {
+                "ops": [
+                    {
+                        "client_id": "71000000-0000-4000-8000-000000000001",
+                        "resource": "weekly_plan",
+                        "op": "update",
+                        "id": str(plan.id),
+                        "base_updated_at": "2020-01-01T00:00:00Z",
+                        "data": {"total_required": 999},
+                    }
+                ]
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        result = response.data["data"]["results"][0]
+        self.assertEqual(result["status"], "error")
+        self.assertEqual(result["error"]["code"], "forbidden")
+        self.assertNotIn("row", result)

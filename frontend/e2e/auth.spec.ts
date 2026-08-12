@@ -34,18 +34,20 @@ test.describe("Authentication flows", () => {
   }) => {
     await page.goto("/login");
 
-    await page.getByLabel("رقم الجوال").fill(seededUsers.student.phone);
+    await page.getByLabel("رقم الهوية").fill(seededUsers.student.phone);
     await page.getByLabel("كلمة المرور").fill("wrong-password");
 
     for (let attempt = 0; attempt < 5; attempt += 1) {
       await page.getByRole("button", { name: "تسجيل الدخول" }).click();
       await expect(
-        page.getByText("رقم الجوال أو كلمة المرور غير صحيحة.")
+        page.getByText("رقم الهوية أو كلمة المرور غير صحيحة.")
       ).toBeVisible();
     }
 
     await page.getByRole("button", { name: "تسجيل الدخول" }).click();
-    await expect(page.getByText("الحساب مقفل")).toBeVisible();
+    await expect(
+      page.getByText("تم قفل الحساب مؤقتًا بسبب محاولات تسجيل الدخول الفاشلة المتكررة.")
+    ).toBeVisible();
   });
 
   test("password reset guards invalid entry and supports a successful reset", async ({
@@ -58,7 +60,7 @@ test.describe("Authentication flows", () => {
     await expect(page).toHaveURL(/\/login\/forgot-password$/);
 
     await page.goto("/login/forgot-password");
-    await page.getByLabel("رقم الجوال").fill(seededUsers.student.phone);
+    await page.getByLabel("رقم الهوية").fill(seededUsers.student.phone);
     await page.getByRole("button", { name: "إرسال رمز التحقق" }).click();
     await expect(page).toHaveURL(/\/login\/verify-otp$/);
 
@@ -83,7 +85,7 @@ test.describe("Authentication flows", () => {
 
     await expect(page).toHaveURL(/\/login/);
 
-    await page.getByLabel("رقم الجوال").fill(seededUsers.student.phone);
+    await page.getByLabel("رقم الهوية").fill(seededUsers.student.phone);
     await page.getByLabel("كلمة المرور").fill("NewStudentPass123!");
     await page.getByRole("button", { name: "تسجيل الدخول" }).click();
     await expect(page).toHaveURL("/student");

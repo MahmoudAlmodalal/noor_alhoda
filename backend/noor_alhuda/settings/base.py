@@ -148,6 +148,8 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # ---------------------------------------------------------------------------
 # Django REST Framework
 # ---------------------------------------------------------------------------
+LOGIN_THROTTLE_RATE = config("LOGIN_THROTTLE_RATE", default="5/min")
+
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
@@ -168,7 +170,7 @@ REST_FRAMEWORK = {
         "rest_framework.throttling.ScopedRateThrottle",
     ),
     "DEFAULT_THROTTLE_RATES": {
-        "login": "5/min",
+        "login": LOGIN_THROTTLE_RATE,
         "otp": "3/min",
     },
 }
