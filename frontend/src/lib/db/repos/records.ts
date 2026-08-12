@@ -32,6 +32,7 @@ export interface DailyRecordRecord {
   memorized_lines?: number;
   surah_name: string;
   quality: "excellent" | "good" | "acceptable" | "weak" | "none";
+  morals_rating?: "excellent" | "good" | "acceptable" | "weak" | "none";
   note: string;
   result: "pass" | "fail" | "pending";
   recorded_by_id: string | null;
@@ -41,6 +42,8 @@ export interface DailyRecordRecord {
   review_surah_name?: string;
   review_from_ayah?: number | null;
   review_to_ayah?: number | null;
+  review_from_page?: number | null;
+  review_to_page?: number | null;
   review_quality?: "excellent" | "good" | "acceptable" | "weak" | "none";
   next_memorization_target?: string;
   next_memorization_from_ayah?: number | null;

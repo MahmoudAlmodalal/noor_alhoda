@@ -98,6 +98,13 @@ class DailyRecord(models.Model):
         WEAK = "weak", "ضعيف"
         NONE = "none", "لم يُسمّع"
 
+    class MoralsRating(models.TextChoices):
+        EXCELLENT = "excellent", "ممتاز"
+        GOOD = "good", "جيد"
+        ACCEPTABLE = "acceptable", "مقبول"
+        WEAK = "weak", "يحتاج متابعة"
+        NONE = "none", "غير مقيم"
+
     class Result(models.TextChoices):
         PASS = "pass", "ناجح"
         FAIL = "fail", "راسب"
@@ -148,6 +155,12 @@ class DailyRecord(models.Model):
         default=Quality.NONE,
         verbose_name="جودة الحفظ",
     )
+    morals_rating = models.CharField(
+        max_length=20,
+        choices=MoralsRating.choices,
+        default=MoralsRating.NONE,
+        verbose_name="تقييم الأخلاق",
+    )
     review_surah_name = models.CharField(
         max_length=100,
         blank=True,
@@ -162,6 +175,16 @@ class DailyRecord(models.Model):
         null=True,
         blank=True,
         verbose_name="مراجعة إلى آية",
+    )
+    review_from_page = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="مراجعة من صفحة",
+    )
+    review_to_page = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="مراجعة إلى صفحة",
     )
     review_quality = models.CharField(
         max_length=10,
