@@ -79,7 +79,15 @@ def pull_weekly_plans_for_students(*, student_ids: list) -> QuerySet[WeeklyPlan]
 
 
 def pull_daily_records_for_students(*, student_ids: list) -> QuerySet[DailyRecord]:
-    return DailyRecord.objects.filter(weekly_plan__student_id__in=student_ids)
+    """Return records by their authoritative student link, with legacy plan fallback.
+
+    DailyRecord.weekly_plan is nullable. Attendance writes can therefore be
+    validly persisted with only ``student_id``; filtering exclusively through
+    ``weekly_plan`` silently drops those records from student/parent pulls.
+    """
+    return DailyRecord.objects.filter(
+        Q(student_id__in=student_ids) | Q(weekly_plan__student_id__in=student_ids)
+    ).distinct()
 
 
 def pull_review_records_for_students(*, student_ids: list) -> QuerySet[ReviewRecord]:

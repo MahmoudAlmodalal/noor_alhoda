@@ -261,6 +261,29 @@ class SyncPullStudentTests(SyncPullRBACSetup):
         self.assertNotIn(str(self.student_b1_user.id), user_ids)
         self.assertNotIn(str(self.student_b2_user.id), user_ids)
 
+    def test_student_pulls_directly_linked_daily_record_without_weekly_plan(self):
+        """A valid attendance record must sync through its student FK even
+        when the optional weekly-plan relation is null."""
+        DailyRecord.objects.create(
+            student=self.student_a1,
+            weekly_plan=None,
+            day=DailyRecord.Day.MON,
+            date=date(2026, 8, 17),
+            attendance=DailyRecord.Attendance.PRESENT,
+            recorded_by=self.teacher_a_user,
+        )
+
+        self.client.force_authenticate(self.student_a1_user)
+        res = self._pull()
+
+        direct_records = [
+            row for row in res["daily_records"]
+            if row["date"] == "2026-08-17"
+        ]
+        self.assertEqual(len(direct_records), 1)
+        self.assertEqual(direct_records[0]["student_id"], str(self.student_a1.id))
+        self.assertIsNone(direct_records[0]["weekly_plan_id"])
+
 
 class SyncPullParentTests(SyncPullRBACSetup):
     def test_parent_pulls_only_linked_children(self):
