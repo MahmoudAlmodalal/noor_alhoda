@@ -1,5 +1,8 @@
 # Environment variables / secrets
 .*
+!.github/
+!.github/workflows/
+!.github/workflows/*.yml
 specs
 .env
 .env.*
