@@ -21,6 +21,7 @@ export interface DailyRecordRecord {
   id: string;
   student_id: string;
   weekly_plan_id: string | null;
+  evaluation_id?: string | null;
   day: "sat" | "sun" | "mon" | "tue" | "wed" | "thu";
   date: string;
   attendance: "present" | "absent" | "late" | "excused";

@@ -384,6 +384,7 @@ const handlers: Record<MutationResource, Handler> = {
         id,
         student_id: String(payload.student_id ?? ""),
         weekly_plan_id: payload.weekly_plan_id ? String(payload.weekly_plan_id) : null,
+        evaluation_id: payload.evaluation_id ? String(payload.evaluation_id) : null,
         day: (payload.day as DailyRecordRecord["day"]) ?? "sat",
         date: String(payload.date ?? now.slice(0, 10)),
         attendance: (payload.attendance as DailyRecordRecord["attendance"]) ?? "present",

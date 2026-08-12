@@ -5,6 +5,7 @@ from django.db import models
 
 from accounts.models import User
 from students.models import Student
+from evaluations.models import Evaluation
 
 
 class WeeklyPlan(models.Model):
@@ -130,6 +131,14 @@ class DailyRecord(models.Model):
         blank=True,
         related_name="daily_records",
         verbose_name="الخطة الأسبوعية",
+    )
+    evaluation = models.ForeignKey(
+        Evaluation,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="daily_records",
+        verbose_name="الاختبار المرتبط",
     )
     day = models.CharField(
         max_length=3,

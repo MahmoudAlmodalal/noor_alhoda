@@ -20,6 +20,7 @@ class DailyRecordOutputSerializer(serializers.Serializer):
     student_id = serializers.UUIDField()
     student_name = serializers.CharField(source="student.full_name")
     weekly_plan_id = serializers.UUIDField(allow_null=True, required=False)
+    evaluation_id = serializers.UUIDField(source="evaluation.id", allow_null=True, required=False)
     day = serializers.CharField()
     date = serializers.DateField()
     attendance = serializers.CharField()
@@ -51,6 +52,7 @@ class DailyRecordOutputSerializer(serializers.Serializer):
 class DailyRecordInputSerializer(serializers.Serializer):
     student_id = serializers.UUIDField(required=False, allow_null=True, default=None)
     weekly_plan_id = serializers.UUIDField(required=False, allow_null=True, default=None)
+    evaluation_id = serializers.UUIDField(required=False, allow_null=True, default=None)
     day = serializers.ChoiceField(choices=["sat", "sun", "mon", "tue", "wed", "thu"], required=False, default="sat")
     date = serializers.DateField()
     attendance = serializers.ChoiceField(
@@ -91,6 +93,7 @@ class DailyRecordInputSerializer(serializers.Serializer):
 
 
 class DailyRecordUpdateSerializer(serializers.Serializer):
+    evaluation_id = serializers.UUIDField(required=False, allow_null=True)
     attendance = serializers.ChoiceField(
         choices=["present", "absent", "late", "excused"],
         required=False,

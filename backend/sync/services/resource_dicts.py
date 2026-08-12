@@ -139,6 +139,7 @@ def daily_record_to_dict(r: DailyRecord) -> dict[str, Any]:
         "id": str(r.id),
         "student_id": str(r.student_id),
         "weekly_plan_id": str(r.weekly_plan_id) if r.weekly_plan_id else None,
+        "evaluation_id": str(r.evaluation_id) if r.evaluation_id else None,
         "day": r.day,
         "date": str(r.date),
         "attendance": r.attendance,

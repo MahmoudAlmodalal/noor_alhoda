@@ -171,6 +171,13 @@ def daily_record_create(*, teacher: User, id=None, **data) -> DailyRecord:
     except (Student.DoesNotExist, DjangoValidationError, ValueError, TypeError):
         raise ValidationError({"student_id": "الطالب غير موجود."})
 
+    evaluation = None
+    if data.get("evaluation_id"):
+        from evaluations.models import Evaluation
+        evaluation = Evaluation.objects.filter(id=data["evaluation_id"], student=student).first()
+        if evaluation is None:
+            raise ValidationError({"evaluation_id": "الاختبار غير موجود لهذا الطالب."})
+
     # Check teacher owns this student
     if teacher.role == "teacher":
         if not hasattr(teacher, "teacher_profile") or student.teacher_id != teacher.teacher_profile.id:
@@ -190,6 +197,7 @@ def daily_record_create(*, teacher: User, id=None, **data) -> DailyRecord:
     record_kwargs = dict(
         student=student,
         weekly_plan=plan,
+        evaluation=evaluation,
         day=data.get("day", "sat"),
         date=data.get("date"),
         attendance=data.get("attendance", "present"),
@@ -288,7 +296,7 @@ def daily_record_update(*, record_id, teacher: User, data: dict) -> DailyRecord:
             raise PermissionDenied("لا يمكنك تعديل سجل لطالب ليس في حلقتك.")
 
     allowed_fields = [
-        "attendance", "required_verses", "achieved_verses",
+        "attendance", "required_verses", "achieved_verses", "evaluation_id",
         "from_ayah", "to_ayah", "from_page", "to_page", "memorized_lines",
         "surah_name", "quality", "morals_rating", "result", "note",
         "review_surah_name", "review_from_ayah", "review_to_ayah",
@@ -301,6 +309,12 @@ def daily_record_update(*, record_id, teacher: User, data: dict) -> DailyRecord:
 
     for field, value in data.items():
         if field in allowed_fields:
+            if field == "evaluation_id":
+                from evaluations.models import Evaluation
+                value = Evaluation.objects.filter(id=value, student=record.student).first()
+                if value is None:
+                    raise ValidationError({"evaluation_id": "الاختبار غير موجود لهذا الطالب."})
+                field = "evaluation"
             if field in ("required_verses", "achieved_verses", "memorized_lines"):
                 value = _to_int(value, default=0)
             elif field in (
