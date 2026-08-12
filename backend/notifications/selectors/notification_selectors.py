@@ -203,6 +203,10 @@ def conversation_list_for_user(*, user) -> list:
     else:
         return []
 
+    # Keep the invariant explicit even if a future query or join introduces
+    # duplicate student IDs despite SQL DISTINCT.
+    student_ids = list(dict.fromkeys(student_ids))
+
     conversations = []
     for sid in student_ids:
         student = student_get_by_id(sid)

@@ -32,7 +32,20 @@ export default function ConversationsPage() {
   const load = useCallback(async () => {
     const res = await fetchConversations();
     if (res.success && res.data) {
-      setConversations(res.data);
+      const deduped = Array.from(
+        res.data.reduce((map, conversation) => {
+          const previous = map.get(conversation.student_id);
+          if (
+            !previous ||
+            new Date(conversation.last_message_at).getTime() >=
+              new Date(previous.last_message_at).getTime()
+          ) {
+            map.set(conversation.student_id, conversation);
+          }
+          return map;
+        }, new Map<string, ConversationSummary>()).values()
+      );
+      setConversations(deduped);
     }
     setIsLoading(false);
   }, []);
