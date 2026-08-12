@@ -50,6 +50,17 @@ function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+function achievedPages(record: DailyRecordRecord): number {
+  if (record.from_page != null && record.to_page != null && record.to_page >= record.from_page) {
+    return Math.max(0, record.to_page - record.from_page + 1);
+  }
+  return Math.max(0, Number(record.memorized_lines ?? 0) / 15);
+}
+
+function requiredPages(record: DailyRecordRecord): number {
+  return Math.max(0, Number(record.required_verses ?? 0) / 15);
+}
+
 function weekdayKey(d: Date): string {
   return ["sun", "mon", "tue", "wed", "thu", "fri", "sat"][d.getDay()];
 }
@@ -728,8 +739,8 @@ export async function leaderboard(): Promise<LeaderboardEntry[]> {
     const sid = r.student_id || (r.weekly_plan_id ? planToStudent.get(r.weekly_plan_id) : null);
     if (!sid) continue;
     const v = byStudent.get(sid) ?? { total_achieved: 0, total_required: 0, present_days: 0 };
-    v.total_achieved += r.achieved_verses ?? 0;
-    v.total_required += r.required_verses ?? 0;
+    v.total_achieved += achievedPages(r);
+    v.total_required += requiredPages(r);
     if (r.attendance === "present" || r.attendance === "late") v.present_days += 1;
     byStudent.set(sid, v);
   }
@@ -738,7 +749,7 @@ export async function leaderboard(): Promise<LeaderboardEntry[]> {
   for (const s of students) {
     const v = byStudent.get(s.id);
     if (!v) continue;
-    const score = v.total_achieved + v.present_days * 5;
+    const score = Math.round((v.total_achieved + v.present_days * 5) * 10) / 10;
     if (score === 0) continue;
     rows.push({
       rank: 0,
