@@ -72,3 +72,23 @@ jobs:
 
       - name: Production build
         run: npm run build
+
+  deploy:
+    name: Deploy Render and Vercel
+    needs: [backend, frontend]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Render deployment
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: |
+          test -n "$RENDER_DEPLOY_HOOK_URL" || { echo "Missing RENDER_DEPLOY_HOOK_URL repository secret"; exit 1; }
+          curl --fail --silent --show-error --request POST "$RENDER_DEPLOY_HOOK_URL"
+
+      - name: Trigger Vercel deployment
+        env:
+          VERCEL_DEPLOY_HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
+        run: |
+          test -n "$VERCEL_DEPLOY_HOOK_URL" || { echo "Missing VERCEL_DEPLOY_HOOK_URL repository secret"; exit 1; }
+          curl --fail --silent --show-error --request POST "$VERCEL_DEPLOY_HOOK_URL"
