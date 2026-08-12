@@ -7,6 +7,7 @@ export interface WeeklyPlanRecord {
   week_number: number;
   week_start: string;
   required_pages?: number;
+  review_required_pages?: number;
   total_required: number;
   total_required_lines?: number;
   total_achieved: number;

@@ -26,7 +26,13 @@ class WeeklyPlan(models.Model):
         max_digits=6,
         decimal_places=2,
         default=Decimal("0.00"),
-        verbose_name="عدد الصفحات المطلوبة",
+        verbose_name="عدد صفحات الحفظ المطلوبة",
+    )
+    review_required_pages = models.DecimalField(
+        max_digits=6,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        verbose_name="عدد صفحات المراجعة المطلوبة",
     )
     total_required = models.PositiveIntegerField(default=0, verbose_name="إجمالي الآيات المطلوبة")
     total_required_lines = models.PositiveIntegerField(default=0, verbose_name="إجمالي الأسطر المطلوبة")

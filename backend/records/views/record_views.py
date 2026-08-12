@@ -143,6 +143,7 @@ class WeeklyPlanInputSerializer(serializers.Serializer):
     week_start = serializers.DateField()
     week_number = serializers.IntegerField(required=False)
     required_pages = serializers.DecimalField(max_digits=6, decimal_places=2, required=False, default=0)
+    review_required_pages = serializers.DecimalField(max_digits=6, decimal_places=2, required=False, default=0)
     total_required = serializers.IntegerField(required=False, default=0)
     total_required_lines = serializers.IntegerField(required=False, default=0)
 
@@ -279,6 +280,8 @@ class WeeklyPlanCreateApi(APIView):
             student_id=serializer.validated_data["student_id"],
             week_start=serializer.validated_data["week_start"],
             week_number=serializer.validated_data.get("week_number"),
+            required_pages=serializer.validated_data.get("required_pages", 0),
+            review_required_pages=serializer.validated_data.get("review_required_pages", 0),
             total_required=serializer.validated_data.get("total_required", 0),
             total_required_lines=serializer.validated_data.get("total_required_lines", 0),
             teacher=request.user,
@@ -292,6 +295,8 @@ class WeeklyPlanCreateApi(APIView):
                     "student": plan.student.full_name,
                     "week_number": plan.week_number,
                     "week_start": str(plan.week_start),
+                    "required_pages": float(plan.required_pages or 0),
+                    "review_required_pages": float(plan.review_required_pages or 0),
                     "total_required": plan.total_required,
                     "total_required_lines": plan.total_required_lines,
                 },

@@ -339,6 +339,7 @@ const handlers: Record<MutationResource, Handler> = {
         week_number: Number(payload.week_number ?? 0),
         week_start: String(payload.week_start ?? ""),
         required_pages: Number(payload.required_pages ?? 0),
+        review_required_pages: Number(payload.review_required_pages ?? 0),
         total_required: Number(payload.total_required ?? 0),
         total_required_lines: Number(payload.total_required_lines ?? 0),
         total_achieved: 0,
