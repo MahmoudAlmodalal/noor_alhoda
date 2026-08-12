@@ -60,6 +60,7 @@ export const menuItems: NavItem[] = [
     // المحفظ فقط
     { name: "الحضور والتقييم", href: "/attendance", icon: ClipboardCheck, roles: ["teacher"] },
     { name: "خطط التسميع", href: "/plans", icon: BookOpen, roles: ["teacher"] },
+    { name: "الاختبارات", href: "/evaluations", icon: GraduationCap, roles: ["teacher"] },
     { name: "تقارير الحضور", href: "/reports/attendance", icon: BarChart3, roles: ["teacher"] },
     { name: "لوحة الشرف", href: "/leaderboard", icon: Trophy, roles: ["teacher"] },
 
