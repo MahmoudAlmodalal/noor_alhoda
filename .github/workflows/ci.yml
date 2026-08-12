@@ -21,7 +21,6 @@ jobs:
       run:
         working-directory: backend
     env:
-      DJANGO_SETTINGS_MODULE: config.settings
       SECRET_KEY: ci-secret-key
       DEBUG: "False"
       DATABASE_URL: sqlite:///ci.sqlite3
