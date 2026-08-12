@@ -12,6 +12,27 @@ from notifications.services.notification_services import send_absence_notificati
 from core.permissions import is_admin_user
 
 
+def recalculate_student_current_position(student: Student) -> None:
+    """Rebuild current surah/page from the newest record with new memorization."""
+    latest = (
+        DailyRecord.objects.filter(
+            student=student,
+            surah_name__isnull=False,
+        )
+        .exclude(surah_name="")
+        .filter(to_page__isnull=False)
+        .order_by("-date", "-updated_at")
+        .first()
+    )
+    if latest is None:
+        student.current_surah = ""
+        student.current_page = None
+    else:
+        student.current_surah = latest.surah_name
+        student.current_page = latest.to_page
+    student.save(update_fields=["current_surah", "current_page", "updated_at"])
+
+
 @transaction.atomic
 def weekly_plan_create(
     *,
@@ -204,6 +225,7 @@ def daily_record_create(*, teacher: User, id=None, **data) -> DailyRecord:
 
     if record.attendance == DailyRecord.Attendance.ABSENT:
         send_absence_notification(student=student, date=record.date)
+    recalculate_student_current_position(student)
 
     return record
 
@@ -221,7 +243,9 @@ def daily_record_delete(*, record: DailyRecord, actor: User) -> None:
     from sync.services.tombstone_service import tombstone_write
 
     deleted_uuid = record.id
+    student = record.student
     record.delete()
+    recalculate_student_current_position(student)
     tombstone_write(
         resource=Tombstone.Resource.DAILY_RECORD,
         resource_uuid=deleted_uuid,
@@ -305,6 +329,7 @@ def daily_record_update(*, record_id, teacher: User, data: dict) -> DailyRecord:
             student=record.student,
             date=record.date,
         )
+    recalculate_student_current_position(record.student)
 
     return record
 
