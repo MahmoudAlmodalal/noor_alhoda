@@ -7,8 +7,8 @@ import {
   Users,
   CheckCircle2,
   Star,
-  Calendar,
   BookOpen,
+  Calendar,
   Clock,
   UserX,
 } from "lucide-react";
@@ -22,29 +22,13 @@ import type {
   DailyRecordRecord,
   StudentWithTeacher,
 } from "@/hooks/queries";
-import type { DashboardStats, ScheduleItem } from "@/types/api";
+import type { DashboardStats } from "@/types/api";
 import { WeeklyPlanModal } from "@/components/plans/WeeklyPlanModal";
 import { AnnounceModal } from "@/components/notifications/AnnounceModal";
 import { cn } from "@/lib/utils";
 
-const HIJRI_PLACEHOLDER = "اليوم";
-
-const SESSION_DAY_LABELS: Record<string, string> = {
-  sat: "السبت",
-  sun: "الأحد",
-  mon: "الاثنين",
-  tue: "الثلاثاء",
-  wed: "الأربعاء",
-  thu: "الخميس",
-};
-
 function todayKey(): string {
   return new Date().toISOString().slice(0, 10);
-}
-
-function todayWeekday(): string {
-  const map = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
-  return map[new Date().getDay()];
 }
 
 export default function Dashboard() {
@@ -106,27 +90,6 @@ export default function Dashboard() {
       };
     }
     return { totalStudents: 0, attendanceToday: 0, ringsCount: 0, outstanding: 0 };
-  })();
-
-  const schedule: ScheduleItem[] = (() => {
-    const today = todayWeekday();
-    const todayLabel = SESSION_DAY_LABELS[today];
-    return [
-      {
-        id: "morning",
-        title: "حلقة الفجر (مراجعة وتثبيت)",
-        time: "من بعد صلاة الفجر إلى الإشراق",
-        active: true,
-        actionText: "بدء الحلقة",
-      },
-      {
-        id: "afternoon",
-        title: `حلقة العصر (${todayLabel})`,
-        time: "من صلاة العصر إلى المغرب",
-        active: false,
-        actionText: "تجهيز الحلقة",
-      },
-    ];
   })();
 
   const followUpStudents = (rosterData ?? [])
@@ -220,72 +183,28 @@ export default function Dashboard() {
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <SectionCard padding="md" radius="xl">
-          <div className="flex items-center gap-2 mb-5">
-            <Calendar className="w-5 h-5 text-secondary" />
-            <h3 className="font-bold text-lg text-text-body">جدول اليوم</h3>
-            <span className="ms-auto text-xs bg-border-card px-3 py-1 rounded-full text-text-label font-medium">{HIJRI_PLACEHOLDER}</span>
-          </div>
-
-          <div className="space-y-3">
-            {schedule.map((session) => (
-              <div
-                key={session.id}
-                className={`p-4 rounded-[14px] border flex items-center justify-between ${
-                  session.active ? "border-primary/20 bg-tile-blue" : "border-border-card"
-                }`}
-              >
-                <div>
-                  <h4 className={`font-bold text-sm ${session.active ? "text-primary" : "text-text-body"}`}>{session.title}</h4>
-                  <p className="text-xs text-text-muted mt-1">{session.time}</p>
+      <SectionCard padding="md" radius="xl">
+        <div className="flex items-center gap-2 mb-5">
+          <Users className="w-5 h-5 text-primary" />
+          <h3 className="font-bold text-lg text-text-body">طلاب يحتاجون متابعة</h3>
+        </div>
+        <div className="space-y-3">
+          {followUpStudents.length === 0 ? (
+            <p className="text-xs text-text-muted text-center py-4">لا يوجد طلاب بحاجة لمتابعة</p>
+          ) : (
+            followUpStudents.map((student) => (
+              <Link key={student.id} href={`/students/${student.id}`} className="p-3 rounded-[14px] border border-border-card flex items-center gap-3 hover:border-primary/30 transition-colors">
+                <div className="w-10 h-10 bg-tile-blue text-primary font-bold rounded-full flex items-center justify-center shrink-0">{student.avatar}</div>
+                <div className="flex-1">
+                  <h4 className="text-sm font-bold text-text-body">{student.name}</h4>
+                  <p className="text-xs text-text-muted">{student.subtitle}</p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => router.push("/attendance")}
-                  className={`text-xs px-4 py-2 font-bold rounded-[10px] shrink-0 ${
-                    session.active ? "bg-primary text-white shadow-sm" : "bg-border-card text-text-muted"
-                  }`}
-                >
-                  {session.actionText}
-                </button>
-              </div>
-            ))}
-          </div>
-        </SectionCard>
-
-        <SectionCard padding="md" radius="xl">
-          <div className="flex items-center gap-2 mb-5">
-            <Users className="w-5 h-5 text-primary" />
-            <h3 className="font-bold text-lg text-text-body">طلاب يحتاجون متابعة</h3>
-          </div>
-
-          <div className="space-y-3">
-            {followUpStudents.length === 0 ? (
-              <p className="text-xs text-text-muted text-center py-4">لا يوجد طلاب بحاجة لمتابعة</p>
-            ) : (
-              followUpStudents.map((student) => (
-                <Link
-                  key={student.id}
-                  href={`/students/${student.id}`}
-                  className="p-3 rounded-[14px] border border-border-card flex items-center gap-3 hover:border-primary/30 transition-colors"
-                >
-                  <div className="w-10 h-10 bg-tile-blue text-primary font-bold rounded-full flex items-center justify-center shrink-0">
-                    {student.avatar}
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="text-sm font-bold text-text-body">{student.name}</h4>
-                    <p className="text-xs text-text-muted">{student.subtitle}</p>
-                  </div>
-                  <span className="text-[10px] px-2 py-0.5 rounded-full font-bold text-primary bg-role-admin-bg border border-primary/20">
-                    {student.badge}
-                  </span>
-                </Link>
-              ))
-            )}
-          </div>
-        </SectionCard>
-      </div>
+                <span className="text-[10px] px-2 py-0.5 rounded-full font-bold text-primary bg-role-admin-bg border border-primary/20">{student.badge}</span>
+              </Link>
+            ))
+          )}
+        </div>
+      </SectionCard>
 
       <div className={cn("grid grid-cols-1 gap-6", isAdmin && "lg:grid-cols-3")}>
         <div className={cn(isAdmin && "lg:col-span-2", "space-y-6")}>
