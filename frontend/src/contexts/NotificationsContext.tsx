@@ -4,6 +4,8 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
+  useRef,
   useMemo,
   type ReactNode,
 } from "react";
@@ -48,6 +50,18 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   );
 
   const unreadCount = useMemo(() => items.filter((n) => !n.is_read).length, [items]);
+  const knownNotificationIds = useRef(new Set<string>());
+
+  useEffect(() => {
+    if (user?.role !== "parent" || typeof window === "undefined" || !("Notification" in window)) return;
+    const newUnread = items.filter((item) => !item.is_read && !knownNotificationIds.current.has(item.id));
+    for (const item of newUnread) {
+      if (window.Notification.permission === "granted") {
+        new window.Notification(item.title, { body: item.body, tag: item.id });
+      }
+      knownNotificationIds.current.add(item.id);
+    }
+  }, [items, user?.role]);
 
   const refetch = useCallback(async () => {
     await refetchQuery();
