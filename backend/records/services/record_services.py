@@ -123,6 +123,8 @@ def daily_record_create(*, teacher: User, id=None, **data) -> DailyRecord:
     """Create a daily record for a student. WeeklyPlan is optional."""
     if not (is_admin_user(teacher) or teacher.role == "teacher"):
         raise PermissionDenied("ليس لديك صلاحية لتسجيل السجلات.")
+    if data.get("attendance") == DailyRecord.Attendance.LATE and not is_admin_user(teacher):
+        raise ValidationError({"attendance": "حالة متأخر لم تعد متاحة للسجلات الجديدة."})
 
     student_id = data.get("student_id")
     plan_id = data.get("weekly_plan_id")
@@ -248,6 +250,9 @@ def daily_record_update(*, record_id, teacher: User, data: dict) -> DailyRecord:
             raise PermissionDenied(
                 "لا يمكنك تعديل سجلات أقدم من 7 أيام. تواصل مع المدير."
             )
+
+    if data.get("attendance") == DailyRecord.Attendance.LATE and not is_admin_user(teacher):
+        raise ValidationError({"attendance": "حالة متأخر لم تعد متاحة للتعديل."})
 
     # Teacher ownership check
     if teacher.role == "teacher":

@@ -35,7 +35,6 @@ export interface DraftRecord {
 const STATUS_OPTIONS: { value: AttendanceStatus; label: string; color: string }[] = [
   { value: "present", label: "حاضر", color: "bg-attend-present-bg text-attend-present-text border-attend-present-text/30" },
   { value: "absent",  label: "غائب",  color: "bg-attend-absent-bg text-attend-absent-text border-attend-absent-text/30" },
-  { value: "late",    label: "متأخر", color: "bg-attend-late-bg text-attend-late-text border-attend-late-text/30" },
   { value: "excused", label: "مستأذن", color: "bg-attend-excused-bg text-attend-excused-text border-attend-excused-text/30" },
 ];
 

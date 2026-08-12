@@ -101,7 +101,7 @@ export default function Dashboard() {
       return {
         totalStudents: list.length,
         attendanceToday: records.filter((r) => r.attendance === "present").length,
-        ringsCount: records.filter((r) => r.attendance === "late").length,
+        ringsCount: records.filter((r) => r.attendance === "excused").length,
         outstanding: records.filter((r) => r.attendance === "absent").length,
       };
     }
@@ -201,7 +201,7 @@ export default function Dashboard() {
             )
           }
           tileBg={isTeacher ? "yellow" : "amber"}
-          label={isTeacher ? "المتأخرين" : "عدد الحلقات"}
+          label={isTeacher ? "المستأذنين" : "عدد الحلقات"}
           value={stats.ringsCount}
           valueClassName={`text-[30px] font-bold leading-9 ${isTeacher ? "text-amber-600" : "text-secondary"}`}
         />
