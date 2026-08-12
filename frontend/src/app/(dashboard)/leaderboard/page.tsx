@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Trophy, Medal } from "lucide-react";
 import { PageLoading } from "@/components/ui/LoadingSpinner";
@@ -20,7 +20,14 @@ function LeaderboardContent() {
 
   const { data, isLoading } = useQuery<LeaderboardEntry[]>("leaderboard");
 
-  const entries = data ?? [];
+  const [criterion, setCriterion] = useState<"score" | "pages" | "attendance">("score");
+  const entries = useMemo(() => {
+    const rows = [...(data ?? [])];
+    if (criterion === "pages") rows.sort((a, b) => b.total_achieved - a.total_achieved);
+    else if (criterion === "attendance") rows.sort((a, b) => b.present_days - a.present_days);
+    else rows.sort((a, b) => b.score - a.score);
+    return rows.map((entry, index) => ({ ...entry, rank: index + 1 }));
+  }, [data, criterion]);
   const top3 = entries.slice(0, 3);
   const rest = entries.slice(3);
 
@@ -34,6 +41,16 @@ function LeaderboardContent() {
           <h1 className="text-xl font-bold text-primary">لوحة الشرف</h1>
           <p className="text-xs text-text-muted">المتميزون هذا الأسبوع</p>
         </div>
+        <select
+          value={criterion}
+          onChange={(event) => setCriterion(event.target.value as typeof criterion)}
+          className="rounded-[10px] border border-border-subtle bg-surface-subtle px-2 py-2 text-xs font-bold text-text-body"
+          aria-label="معيار الترتيب"
+        >
+          <option value="score">النقاط</option>
+          <option value="pages">صفحات الحفظ</option>
+          <option value="attendance">أيام الحضور</option>
+        </select>
       </SectionCard>
 
       {isLoading && entries.length === 0 ? (
@@ -61,7 +78,7 @@ function LeaderboardContent() {
                     <h3 className="font-bold text-sm sm:text-base text-text-body leading-tight break-words mb-1 min-h-[2.5rem] sm:min-h-0">{entry.student_name}</h3>
                     <p className="text-2xl sm:text-[30px] font-bold leading-tight sm:leading-9 text-primary">{entry.score}</p>
                     <p className="text-[11px] text-text-muted mt-1">
-                      {entry.total_achieved} آية · {entry.present_days} يوم
+                      {criterion === "pages" ? `${entry.total_achieved} صفحة` : criterion === "attendance" ? `${entry.present_days} يوم حضور` : `${entry.total_achieved} صفحة · ${entry.present_days} يوم`}
                     </p>
                     {entry.ring_name && (
                       <p className="text-[11px] text-text-muted mt-1 line-clamp-1">{entry.ring_name}</p>
