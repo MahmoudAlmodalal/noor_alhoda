@@ -52,7 +52,7 @@ export function EvaluationGradeModal({ isOpen, onClose, evaluation }: Props) {
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!status || !scoreIsValid) return;
+    if (!status || !scoreIsValid || !evaluation) return;
 
     const maxScore = Number(evaluation.max_score || MAX_SCORE);
     const result = await mutate(
