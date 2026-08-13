@@ -13,9 +13,6 @@ export interface DraftRecord {
   from_ayah: number | "";
   to_ayah: number | "";
   from_page: number | "";
-  to_page: number | "";
-  required_verses: number;
-  achieved_verses: number;
   memorized_lines: number;
   quality: string;
   note: string;
@@ -162,7 +159,7 @@ export function AttendanceRow({ draft, onChange }: Props) {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               <div className="space-y-1">
                 <label className="block text-[11px] font-bold text-text-label">من صفحة</label>
                 <input
@@ -171,43 +168,6 @@ export function AttendanceRow({ draft, onChange }: Props) {
                   placeholder="من صفحة"
                   value={draft.from_page}
                   onChange={(e) => onChange({ from_page: e.target.value === "" ? "" : Number(e.target.value) })}
-                  className={inputCls}
-                  dir="ltr"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="block text-[11px] font-bold text-text-label">إلى صفحة</label>
-                <input
-                  type="number"
-                  min={0}
-                  placeholder="إلى صفحة"
-                  value={draft.to_page}
-                  onChange={(e) => onChange({ to_page: e.target.value === "" ? "" : Number(e.target.value) })}
-                  className={inputCls}
-                  dir="ltr"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div className="space-y-1">
-                <label className="block text-[11px] font-bold text-text-label">عدد الآيات المطلوبة</label>
-                <input
-                  type="number"
-                  min={0}
-                  value={draft.required_verses}
-                  onChange={(e) => onChange({ required_verses: Number(e.target.value) })}
-                  className={inputCls}
-                  dir="ltr"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="block text-[11px] font-bold text-text-label">عدد الآيات المنجزة</label>
-                <input
-                  type="number"
-                  min={0}
-                  value={draft.achieved_verses}
-                  onChange={(e) => onChange({ achieved_verses: Number(e.target.value) })}
                   className={inputCls}
                   dir="ltr"
                 />
