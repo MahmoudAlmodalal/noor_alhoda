@@ -47,7 +47,10 @@ export default function StudentChatPage({
 
   // التحميل الأول
   useEffect(() => {
-    void loadMessages();
+    const timeoutId = window.setTimeout(() => {
+      void loadMessages();
+    }, 0);
+    return () => window.clearTimeout(timeoutId);
   }, [loadMessages]);
 
   // Auto-scroll لآخر رسالة

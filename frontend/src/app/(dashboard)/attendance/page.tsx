@@ -37,12 +37,6 @@ function weekdayKey(d: Date): "sat" | "sun" | "mon" | "tue" | "wed" | "thu" | "f
   return (["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const)[d.getDay()];
 }
 
-function weekNumberFor(iso: string): number {
-  const d = new Date(iso);
-  const firstDay = new Date(Date.UTC(d.getFullYear(), 0, 1));
-  const diffDays = Math.floor((d.getTime() - firstDay.getTime()) / 86_400_000);
-  return Math.floor(diffDays / 7) + 1;
-}
 
 /** Find an existing weekly plan locally; returns its id or null. */
 async function findWeeklyPlan(

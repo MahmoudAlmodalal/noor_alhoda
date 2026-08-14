@@ -179,10 +179,10 @@ export function TeacherPlansTab({ teacherId }: Props) {
                       {p.total_achieved}
                     </td>
                     <td className="px-4 py-3 text-text-label">
-                      {(p as any).total_lines ?? 0}
+                      {p.total_lines ?? 0}
                     </td>
                     <td className="px-4 py-3 font-bold text-purple-600">
-                      {(p as any).total_lines ? ((p as any).total_lines / 15).toFixed(1) : "0"}
+                      {p.total_lines ? (p.total_lines / 15).toFixed(1) : "0"}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
@@ -222,7 +222,7 @@ export function TeacherPlansTab({ teacherId }: Props) {
                               id: p.id,
                               studentId: p.student_id,
                               studentName: p.student_name,
-                              requiredPages: (p as any).required_pages,
+                              requiredPages: p.required_pages,
                               weekStart: p.week_start,
                             });
                           }}

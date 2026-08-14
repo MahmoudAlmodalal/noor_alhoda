@@ -178,7 +178,7 @@ export function TeacherRecitationTab({ teacherId, initialStudentId }: Props) {
                       )}
                     </td>
                     <td className="px-4 py-3 text-text-label">
-                      {(r as any).memorized_lines || "—"}
+                      {r.memorized_lines || "—"}
                     </td>
                     <td className="px-4 py-3">
                       <QualityBadge value={r.quality} />

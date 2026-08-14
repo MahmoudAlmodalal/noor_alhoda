@@ -35,10 +35,13 @@ export function EvaluationGradeModal({ isOpen, onClose, evaluation }: Props) {
 
   useEffect(() => {
     if (!isOpen || !evaluation) return;
-    setStatus(isGradeStatus(evaluation.status) ? evaluation.status : "");
-    setScore(evaluation.score ?? "");
-    setResultNote(evaluation.result_note ?? "");
-    reset();
+    const timeoutId = window.setTimeout(() => {
+      setStatus(isGradeStatus(evaluation.status) ? evaluation.status : "");
+      setScore(evaluation.score ?? "");
+      setResultNote(evaluation.result_note ?? "");
+      reset();
+    }, 0);
+    return () => window.clearTimeout(timeoutId);
   }, [evaluation, isOpen, reset]);
 
   if (!isOpen || !evaluation) return null;

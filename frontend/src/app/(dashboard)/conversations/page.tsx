@@ -51,7 +51,10 @@ export default function ConversationsPage() {
   }, []);
 
   useEffect(() => {
-    void load();
+    const timeoutId = window.setTimeout(() => {
+      void load();
+    }, 0);
+    return () => window.clearTimeout(timeoutId);
   }, [load]);
 
   const totalUnread = conversations.reduce((s, c) => s + c.unread_count, 0);
