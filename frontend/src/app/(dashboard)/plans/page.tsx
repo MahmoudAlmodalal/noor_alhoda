@@ -75,26 +75,6 @@ export default function PlansPage() {
         </div>
       </div>
 
-      {plans && plans.length > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <SummaryCard label="عدد الخطط" value={plans.length} />
-          <SummaryCard
-            label="إجمالي المطلوب"
-            value={`${Number(plans.reduce((s, p) => s + (p.required_pages || p.total_required_pages || 0), 0).toFixed(1))} صفحة`}
-          />
-          <SummaryCard
-            label="إجمالي المنجز"
-            value={`${Number(plans.reduce((s, p) => s + (p.total_pages || 0), 0).toFixed(1))} صفحة`}
-          />
-          <SummaryCard
-            label="متوسط الإنجاز"
-            value={`${Math.round(
-              plans.reduce((s, p) => s + p.completion_rate, 0) / plans.length
-            )}%`}
-          />
-        </div>
-      )}
-
       {isLoading && !plans ? (
         <PageLoading />
       ) : (plans ?? []).length === 0 ? (
@@ -257,11 +237,3 @@ export default function PlansPage() {
   );
 }
 
-function SummaryCard({ label, value }: { label: string; value: string | number }) {
-  return (
-    <div className="bg-white rounded-[24px] p-5 border border-border-card shadow-sm text-center">
-      <p className="text-xs text-text-muted font-medium mb-2">{label}</p>
-      <h3 className="text-xl font-black text-primary">{value}</h3>
-    </div>
-  );
-}
