@@ -161,29 +161,7 @@ export function AttendanceRow({ draft, onChange }: Props) {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div className="space-y-1">
-                <label className="block text-[11px] font-bold text-text-label">عدد الآيات المطلوبة</label>
-                <input
-                  type="number"
-                  min={0}
-                  value={draft.required_verses}
-                  onChange={(e) => onChange({ required_verses: Number(e.target.value) })}
-                  className={inputCls}
-                  dir="ltr"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="block text-[11px] font-bold text-text-label">عدد الآيات المنجزة</label>
-                <input
-                  type="number"
-                  min={0}
-                  value={draft.achieved_verses}
-                  onChange={(e) => onChange({ achieved_verses: Number(e.target.value) })}
-                  className={inputCls}
-                  dir="ltr"
-                />
-              </div>
+            <div className="grid grid-cols-1 gap-3">
               <div className="space-y-1">
                 <label className="block text-[11px] font-bold text-text-label">عدد الأسطر المحفوظة</label>
                 <input
