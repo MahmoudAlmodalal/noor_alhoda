@@ -123,6 +123,15 @@ async function listTeachersWithUser(): Promise<TeacherWithUser[]> {
   });
 }
 
+function memorizedPartsForStudent(
+  student: StudentRecord,
+  achievedVerses = 0
+): number {
+  const currentJuz = student.current_juz ?? 0;
+  const calculatedJuz = Math.floor(achievedVerses / 600);
+  return Math.min(30, Math.max(currentJuz, calculatedJuz));
+}
+
 async function listStudentsWithTeacher(
   params: QueryParams = {}
 ): Promise<StudentWithTeacher[]> {
@@ -190,7 +199,10 @@ async function listStudentsWithTeacher(
     bank_account_type: null,
     affiliation: "",
     today_attendance_status: todayByStudent.get(s.id) ?? null,
-    memorized_ajza_count: Math.floor((achievedByStudent.get(s.id) ?? 0) / 600),
+    memorized_ajza_count: memorizedPartsForStudent(
+      s,
+      achievedByStudent.get(s.id) ?? 0
+    ),
   }));
 }
 
@@ -227,7 +239,7 @@ const QUERIES: Record<QueryKey, QueryDef> = {
         bank_account_type: null,
         affiliation: "",
         today_attendance_status: null,
-        memorized_ajza_count: 0,
+        memorized_ajza_count: memorizedPartsForStudent(s),
       };
       return enriched;
     },
