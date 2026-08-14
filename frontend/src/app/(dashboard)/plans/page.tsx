@@ -1,19 +1,16 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { BookOpen, Edit, GraduationCap, PlusCircle, Trash2 } from "lucide-react";
+import { BookOpen, Edit, PlusCircle, Trash2 } from "lucide-react";
 import { PageLoading } from "@/components/ui/LoadingSpinner";
 import { useQuery } from "@/hooks/useApi";
 import { WeeklyPlanModal } from "@/components/plans/WeeklyPlanModal";
-import { EvaluationCreateModal } from "@/components/modals/EvaluationCreateModal";
 import { ConfirmDeleteModal } from "@/components/modals/TeacherModals";
-import { ReviewIntervalInput } from "@/components/plans/ReviewIntervalInput";
 import type { PlanForList } from "@/lib/db/repos/aggregates";
 
 export default function PlansPage() {
   const [planModalOpen, setPlanModalOpen] = useState(false);
   const [weekFilter, setWeekFilter] = useState<string>("");
-  const [evalTarget, setEvalTarget] = useState<{ id: string; name: string } | null>(null);
   const [editPlan, setEditPlan] = useState<{
     id: string;
     studentId: string;
@@ -115,7 +112,6 @@ export default function PlansPage() {
                   <th className="px-4 py-3 font-bold text-center">المطلوب</th>
                   <th className="px-4 py-3 font-bold text-center">المنجز</th>
                   <th className="px-4 py-3 font-bold text-center">النسبة</th>
-                  <th className="px-4 py-3 font-bold text-center">فترة المراجعة</th>
                   <th className="px-4 py-3 font-bold text-center">الإجراءات</th>
                 </tr>
               </thead>
@@ -163,24 +159,7 @@ export default function PlansPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-center">
-                        <ReviewIntervalInput
-                          studentId={plan.student_id}
-                          initialDays={plan.review_interval_days}
-                        />
-                      </td>
-                      <td className="px-4 py-3 text-center">
                         <div className="flex items-center justify-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setEvalTarget({ id: plan.student_id, name: plan.student_name })
-                            }
-                            className="inline-flex items-center gap-1 rounded-[10px] border border-primary/30 px-2.5 py-1 text-[11px] font-bold text-primary hover:bg-primary/5"
-                            title="اختبار"
-                          >
-                            <GraduationCap className="h-3.5 w-3.5" />
-                            اختبار
-                          </button>
                           <button
                             type="button"
                             onClick={() =>
@@ -242,15 +221,6 @@ export default function PlansPage() {
           resource="weekly_plan"
           targetId={deletePlan.id}
           onSuccess={() => setDeletePlan(null)}
-        />
-      )}
-
-      {evalTarget && (
-        <EvaluationCreateModal
-          isOpen
-          onClose={() => setEvalTarget(null)}
-          studentId={evalTarget.id}
-          studentName={evalTarget.name}
         />
       )}
     </div>
