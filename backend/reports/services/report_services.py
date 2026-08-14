@@ -3,6 +3,7 @@ from pathlib import Path
 
 from reports.selectors.report_selectors import (
     attendance_summary_for_report,
+    evaluated_evaluations_for_report,
     student_for_report,
     weekly_plans_for_report,
 )
@@ -170,5 +171,67 @@ def generate_student_pdf(*, student_id) -> bytes:
     else:
         elements.append(Paragraph(_ar("لا توجد سجلات حفظية بعد."), normal_style))
 
+    evaluations = evaluated_evaluations_for_report(student=student)
+    elements.append(Spacer(1, 0.7 * cm))
+    elements.append(Paragraph(_ar("سجل الاختبارات"), heading_style))
+    elements.append(Spacer(1, 0.3 * cm))
+    if evaluations:
+        status_labels = {
+            "passed": "ناجح",
+            "failed": "لم ينجح",
+            "missed": "متغيب",
+        }
+        evaluation_data = [
+            [
+                _ar("التاريخ"),
+                _ar("الاختبار"),
+                _ar("نطاق السور"),
+                _ar("النتيجة"),
+                _ar("الدرجة"),
+                _ar("ملاحظة المعلم"),
+            ]
+        ]
+        for evaluation in evaluations:
+            score = (
+                "—"
+                if evaluation.score is None
+                else f"{evaluation.score.normalize():f}/{evaluation.max_score.normalize():f}"
+            )
+            evaluation_data.append(
+                [
+                    str(evaluation.scheduled_date),
+                    _ar(evaluation.title),
+                    _ar(evaluation.surah_range or "—"),
+                    _ar(status_labels.get(evaluation.status, evaluation.status)),
+                    score,
+                    _ar(evaluation.result_note or "—"),
+                ]
+            )
+        evaluation_table = Table(
+            evaluation_data,
+            colWidths=[2 * cm, 3 * cm, 3.5 * cm, 2 * cm, 2 * cm, 4.5 * cm],
+            repeatRows=1,
+        )
+        evaluation_table.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1a472a")),
+                    ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                    ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                    ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                    ("FONTNAME", (0, 0), (-1, -1), "Arabic"),
+                    ("FONTSIZE", (0, 0), (-1, -1), 9),
+                    ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+                    ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f0f0f0")]),
+                    ("TOPPADDING", (0, 0), (-1, -1), 6),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+                ]
+            )
+        )
+        elements.append(evaluation_table)
+    else:
+        elements.append(Paragraph(_ar("لا توجد اختبارات مقيّمة بعد."), normal_style))
+
     doc.build(elements)
+
     return buffer.getvalue()

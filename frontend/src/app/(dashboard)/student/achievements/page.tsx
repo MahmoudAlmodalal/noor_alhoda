@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@/hooks/useApi";
 import { api } from "@/lib/api";
 import { PageLoading } from "@/components/ui/LoadingSpinner";
-import type { StudentWithTeacher } from "@/hooks/queries";
+import type { EvaluationRecord, StudentWithTeacher } from "@/hooks/queries";
 import type { HistoryEntry as HistoryEntryBase, StudentStats } from "@/types/api";
 import { Award, Trophy, TrendingUp, FileText, Book, Download } from "lucide-react";
 
@@ -35,6 +35,10 @@ export default function StudentAchievements() {
         studentProfileId ? "student_history" : null,
         studentProfileId ? { student_id: studentProfileId } : undefined
     );
+    const { data: evaluations } = useQuery<EvaluationRecord[]>(
+        studentProfileId ? "evaluations" : null,
+        studentProfileId ? { student_id: studentProfileId } : undefined
+    );
 
     if (isProfileLoading || isStatsLoading) {
         return <PageLoading />;
@@ -46,7 +50,7 @@ export default function StudentAchievements() {
     const totalPages = stats?.total_pages ?? 0;
     const totalAchievedVerses = stats?.total_achieved_verses ?? 0;
 
-    const achievements = (history || [])
+    const weeklyAchievements = (history || [])
         .map((h) => ({
             ...h,
             rate:
@@ -55,7 +59,6 @@ export default function StudentAchievements() {
                     : 0,
         }))
         .filter((h) => h.rate >= 75)
-        .slice(0, 5)
         .map((h, idx) => {
             const colors = ["bg-blue-600", "bg-green-500", "bg-purple-500", "bg-amber-500", "bg-rose-500"];
             const gradeLabel = h.rate >= 90 ? "ممتاز" : h.rate >= 75 ? "جيد جداً" : "جيد";
@@ -65,11 +68,44 @@ export default function StudentAchievements() {
                 date: h.date,
                 grade: gradeLabel,
                 color: colors[idx % colors.length],
-                badgeColor: "text-text-label bg-surface-subtle border-border-card",
+                                badgeColor: "text-text-label bg-surface-subtle border-border-card",
             };
         });
-
+    const evaluatedTests = (evaluations || [])
+        .filter((evaluation) => evaluation.status !== "scheduled")
+        .map((evaluation) => {
+            const resultLabel = evaluation.status === "passed"
+                ? "ناجح"
+                : evaluation.status === "failed"
+                    ? "لم ينجح"
+                    : evaluation.status === "missed"
+                        ? "متغيب"
+                        : evaluation.status;
+            const scoreLabel = evaluation.score === null
+                ? resultLabel
+                : `${resultLabel} · ${evaluation.score}/${evaluation.max_score || "100"}`;
+            return {
+                id: `evaluation-${evaluation.id}`,
+                title: `اختبار: ${evaluation.title}`,
+                date: evaluation.scheduled_date,
+                grade: scoreLabel,
+                color: evaluation.status === "passed"
+                    ? "bg-green-500"
+                    : evaluation.status === "failed"
+                        ? "bg-red-500"
+                        : "bg-amber-500",
+                badgeColor: evaluation.status === "passed"
+                    ? "text-green-700 bg-green-50 border-green-200"
+                    : evaluation.status === "failed"
+                        ? "text-red-700 bg-red-50 border-red-200"
+                        : "text-amber-700 bg-amber-50 border-amber-200",
+            };
+        });
+    const achievements = [...evaluatedTests, ...weeklyAchievements]
+        .sort((a, b) => b.date.localeCompare(a.date))
+        .slice(0, 5);
     const dailyHistory = (history || []).slice(0, 10).map((item, idx) => {
+
         const achLines = item.memorized_lines ?? 0;
         const achPages = achLines > 0 ? (achLines / 15).toFixed(1) : 0;
         const hifzVerses = (item.achieved_verses ?? 0) > 0

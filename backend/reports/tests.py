@@ -3,12 +3,14 @@ Report Tests
 Covers: Features 5.1-5.5
 """
 from datetime import date
+from decimal import Decimal
 
 from rest_framework.test import APITestCase
 
 from accounts.models import User
 from teacher.models import Teacher
 from records.models import DailyRecord, WeeklyPlan
+from evaluations.models import Evaluation
 from reports.selectors.report_selectors import attendance_summary_for_report
 from reports.services.report_services import _ar
 from students.models import Student
@@ -305,7 +307,61 @@ class StudentPDFReportAttendanceTests(ReportTestSetup):
         self.assertIn(_ar("لا توجد سجلات حفظية بعد."), paragraph_texts)
 
 
+class StudentPDFReportEvaluationTests(ReportTestSetup):
+
+    def test_pdf_includes_evaluated_tests_and_excludes_scheduled_tests(self):
+        Evaluation.objects.create(
+            student=self.student_1,
+            title="اختبار التجويد",
+            surah_range="سورة الملك",
+            scheduled_date=date(2026, 4, 9),
+            status=Evaluation.Status.PASSED,
+            score=Decimal("92"),
+            max_score=Decimal("100"),
+            result_note="أداء متقن",
+            created_by=self.teacher_user_1,
+        )
+        Evaluation.objects.create(
+            student=self.student_1,
+            title="اختبار مؤجل",
+            scheduled_date=date(2026, 4, 12),
+            status=Evaluation.Status.SCHEDULED,
+            created_by=self.teacher_user_1,
+        )
+
+        from unittest.mock import patch
+        from reportlab.platypus import Table as ReportLabTable
+
+        with patch("reportlab.platypus.Table", side_effect=ReportLabTable) as table_factory:
+            self.client.force_authenticate(self.admin)
+            response = self.client.get(f"{STUDENT_PDF_URL}{self.student_1.id}/pdf/")
+
+        self.assertEqual(response.status_code, 200)
+        table_data = [call.args[0] for call in table_factory.call_args_list]
+        evaluation_data = next(
+            data
+            for data in table_data
+            if data[0]
+            == [
+                _ar("التاريخ"),
+                _ar("الاختبار"),
+                _ar("نطاق السور"),
+                _ar("النتيجة"),
+                _ar("الدرجة"),
+                _ar("ملاحظة المعلم"),
+            ]
+        )
+        self.assertEqual(len(evaluation_data), 2)
+        self.assertEqual(evaluation_data[1][0], "2026-04-09")
+        self.assertEqual(evaluation_data[1][1], _ar("اختبار التجويد"))
+        self.assertEqual(evaluation_data[1][2], _ar("سورة الملك"))
+        self.assertEqual(evaluation_data[1][3], _ar("ناجح"))
+        self.assertEqual(evaluation_data[1][4], "92/100")
+        self.assertEqual(evaluation_data[1][5], _ar("أداء متقن"))
+
+
 class StudentStatsTests(ReportTestSetup):
+
     def test_student_stats_returns_attendance_rate(self):
         """REP-09: Student stats includes attendance data."""
         self.client.force_authenticate(self.admin)

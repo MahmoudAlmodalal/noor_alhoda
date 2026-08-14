@@ -4,6 +4,7 @@ from rest_framework.exceptions import PermissionDenied
 
 from students.models import Student
 from records.models import DailyRecord, WeeklyPlan
+from evaluations.models import Evaluation
 from accounts.models import User
 from teacher.models import Teacher
 
@@ -16,6 +17,17 @@ def student_for_report(*, student_id) -> Student:
 def weekly_plans_for_report(*, student: Student, limit: int = 12) -> QuerySet[WeeklyPlan]:
     """Most recent `limit` weekly plans for a student, newest first."""
     return WeeklyPlan.objects.filter(student=student).order_by("-week_start")[:limit]
+
+
+def evaluated_evaluations_for_report(
+    *, student: Student, limit: int = 20
+) -> QuerySet[Evaluation]:
+    """Most recent completed evaluations for a student's PDF report."""
+    return (
+        Evaluation.objects.filter(student=student)
+        .exclude(status=Evaluation.Status.SCHEDULED)
+        .order_by("-scheduled_date", "-updated_at")[:limit]
+    )
 
 
 def attendance_summary_for_report(*, student: Student) -> dict[str, int]:
