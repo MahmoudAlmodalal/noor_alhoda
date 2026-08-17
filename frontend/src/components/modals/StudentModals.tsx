@@ -117,6 +117,7 @@ export function EditStudentModal({
     bank_account_type: student.bank_account_type || "",
     current_juz: student.current_juz != null ? String(student.current_juz) : "",
     memorized_verses: String(student.memorized_verses ?? 0),
+    last_course_reached: student.last_course_reached ?? "",
   });
 
   const [health, setHealth] = useState({
@@ -179,6 +180,7 @@ export function EditStudentModal({
       skills: skillsPayload,
       current_juz: form.current_juz ? Number(form.current_juz) : null,
       memorized_verses: Number(form.memorized_verses || 0),
+      last_course_reached: form.last_course_reached,
     };
 
     if (isTeacherActor) {
@@ -344,6 +346,10 @@ export function EditStudentModal({
           <div className="space-y-1.5">
             <label className="block text-sm font-bold text-text-body">الجزء الحالي</label>
             <Input type="number" dir="ltr" value={form.current_juz} onChange={(e) => handleChange("current_juz", e.target.value)} aria-label="الجزء الحالي" className="h-12 rounded-xl border-border-subtle" />
+          </div>
+          <div className="space-y-1.5">
+            <label className="block text-sm font-bold text-text-body">آخر دورة وصل إليها</label>
+            <Input value={form.last_course_reached} onChange={(e) => handleChange("last_course_reached", e.target.value)} aria-label="آخر دورة وصل إليها" className="h-12 rounded-xl border-border-subtle" />
           </div>
           <div className="space-y-1.5">
             <label className="block text-sm font-bold text-text-body">عدد الآيات المحفوظة</label>

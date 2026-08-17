@@ -176,6 +176,16 @@ class DailyRecord(models.Model):
         default=MoralsRating.NONE,
         verbose_name="تقييم الأخلاق",
     )
+    scattered_test_score = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="اختبار أجزاء متفرقة",
+    )
+    combined_test_score = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="اختبار أجزاء مجمعة",
+    )
     review_surah_name = models.CharField(
         max_length=100,
         blank=True,

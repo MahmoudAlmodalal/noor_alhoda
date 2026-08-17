@@ -144,6 +144,12 @@ class Student(models.Model):
         blank=True,
         verbose_name="الصفحة الحالية",
     )
+    last_course_reached = models.CharField(
+        max_length=100,
+        blank=True,
+        default="",
+        verbose_name="آخر دورة وصل إليها",
+    )
 
     enrollment_date = models.DateField(auto_now_add=True, verbose_name="تاريخ الالتحاق")
     created_at = models.DateTimeField(auto_now_add=True)

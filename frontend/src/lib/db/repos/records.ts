@@ -35,6 +35,8 @@ export interface DailyRecordRecord {
   surah_name: string;
   quality: "excellent" | "good" | "acceptable" | "weak" | "none";
   morals_rating?: "excellent" | "good" | "acceptable" | "weak" | "none";
+  scattered_test_score?: number | null;
+  combined_test_score?: number | null;
   note: string;
   result: "pass" | "fail" | "pending";
   recorded_by_id: string | null;

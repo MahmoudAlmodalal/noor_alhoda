@@ -136,6 +136,9 @@ function AttendanceContent() {
           from_page: existing?.from_page ?? "",
           memorized_lines: existing?.memorized_lines ?? 0,
           quality: existing?.quality ?? "none",
+          morals_rating: existing?.morals_rating ?? "none",
+          scattered_test_score: existing?.scattered_test_score ?? "",
+          combined_test_score: existing?.combined_test_score ?? "",
           note: existing?.note ?? "",
           review_surah_name: existing?.review_surah_name ?? "",
           review_from_ayah: existing?.review_from_ayah ?? "",
@@ -219,6 +222,9 @@ function AttendanceContent() {
         from_page: d.from_page === "" ? null : Number(d.from_page),
         memorized_lines: d.memorized_lines,
         quality: d.quality,
+        morals_rating: d.morals_rating,
+        scattered_test_score: d.scattered_test_score === "" ? null : Number(d.scattered_test_score),
+        combined_test_score: d.combined_test_score === "" ? null : Number(d.combined_test_score),
         note: d.note,
         review_surah_name: d.review_surah_name,
         review_from_ayah: d.review_from_ayah === "" ? null : Number(d.review_from_ayah),
@@ -262,9 +268,8 @@ function AttendanceContent() {
     const total = all.length;
     const present = all.filter((d) => d.attendance === "present").length;
     const absent = all.filter((d) => d.attendance === "absent").length;
-    const late = all.filter((d) => d.attendance === "late").length;
     const recorded = all.filter((d) => d.attendance).length;
-    return { total, present, absent, late, recorded };
+    return { total, present, absent, recorded };
   }, [drafts]);
 
   // Side-effect: silence unused imports warnings in stripped build
@@ -344,10 +349,6 @@ function AttendanceContent() {
           <SectionCard padding="sm" radius="md" className="text-center">
             <p className="text-[10px] text-text-muted font-medium mb-1">الغائبون</p>
             <h3 className="text-2xl font-black text-attend-absent-text">{attendanceStats.absent}</h3>
-          </SectionCard>
-          <SectionCard padding="sm" radius="md" className="text-center">
-            <p className="text-[10px] text-text-muted font-medium mb-1">المتأخرون</p>
-            <h3 className="text-2xl font-black text-attend-late-text">{attendanceStats.late}</h3>
           </SectionCard>
           <SectionCard padding="sm" radius="md" className="text-center">
             <p className="text-[10px] text-text-muted font-medium mb-1">تم التسجيل</p>

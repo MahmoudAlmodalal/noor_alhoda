@@ -58,6 +58,7 @@ class StudentInputSerializer(serializers.Serializer):
     health_note = serializers.CharField(required=False, allow_blank=True, default="")
     skills = serializers.JSONField(required=False, default=dict)
     password = serializers.CharField(required=False, allow_blank=True, default="")
+    last_course_reached = serializers.CharField(required=False, allow_blank=True, default="")
 
 
 class StudentOutputSerializer(serializers.Serializer):
@@ -90,6 +91,7 @@ class StudentOutputSerializer(serializers.Serializer):
     current_juz = serializers.IntegerField(allow_null=True, default=None)
     memorized_verses = serializers.IntegerField(default=0)
     current_page = serializers.IntegerField(allow_null=True, default=None)
+    last_course_reached = serializers.CharField(default="")
 
     enrollment_date = serializers.DateField()
 
@@ -137,6 +139,7 @@ class StudentUpdateSerializer(serializers.Serializer):
     current_juz = serializers.IntegerField(required=False, allow_null=True, min_value=1, max_value=30)
     memorized_verses = serializers.IntegerField(required=False, min_value=0)
     current_page = serializers.IntegerField(required=False, allow_null=True, min_value=1, max_value=604)
+    last_course_reached = serializers.CharField(required=False, allow_blank=True)
 
 
 class AssignTeacherSerializer(serializers.Serializer):

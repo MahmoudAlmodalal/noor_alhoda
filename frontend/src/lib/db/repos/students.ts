@@ -25,6 +25,7 @@ export interface StudentRecord {
   current_juz: number | null;
   memorized_verses: number;
   current_page: number | null;
+  last_course_reached: string;
   enrollment_date: string | null;
   created_at: string | null;
   updated_at: string | null;

@@ -191,6 +191,7 @@ def student_create(*, creator: User, id=None, **data) -> Student:
         current_surah=data.get("current_surah") or "",
         current_juz=data.get("current_juz"),
         memorized_verses=data.get("memorized_verses") or 0,
+        last_course_reached=data.get("last_course_reached") or "",
     )
     if id is not None:
         student_kwargs["id"] = id
@@ -227,7 +228,7 @@ def student_update(*, student: Student, actor: User, data: dict) -> Student:
         # Health and Skills
         "health_status", "health_note", "skills",
         # Quran Progress
-        "current_surah", "current_juz", "memorized_verses",
+        "current_surah", "current_juz", "memorized_verses", "last_course_reached",
     ]
 
     # national_id is stored on the related User (USERNAME_FIELD). Route it there.

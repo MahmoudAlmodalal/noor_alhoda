@@ -15,6 +15,9 @@ export interface DraftRecord {
   from_page: number | "";
   memorized_lines: number;
   quality: string;
+  morals_rating: string;
+  scattered_test_score: number | "";
+  combined_test_score: number | "";
   note: string;
   dirty: boolean;
   review_surah_name: string;
@@ -209,6 +212,18 @@ export function AttendanceRow({ draft, onChange }: Props) {
                 </select>
               </div>
               <div className="space-y-1">
+                <label className="block text-[11px] font-bold text-text-label">تقييم الأخلاق والسلوك</label>
+                <select
+                  value={draft.morals_rating}
+                  onChange={(e) => onChange({ morals_rating: e.target.value })}
+                  className={inputCls}
+                >
+                  {QUALITY_OPTIONS.map((q) => (
+                    <option key={q.value} value={q.value}>{q.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1">
                 <label className="block text-[11px] font-bold text-text-label">ملاحظات الحفظ</label>
                 <input
                   type="text"
@@ -216,6 +231,33 @@ export function AttendanceRow({ draft, onChange }: Props) {
                   value={draft.note}
                   onChange={(e) => onChange({ note: e.target.value })}
                   className={inputCls}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+              <div className="space-y-1">
+                <label className="block text-[11px] font-bold text-text-label">اختبار أجزاء متفرقة (%)</label>
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={draft.scattered_test_score}
+                  onChange={(e) => onChange({ scattered_test_score: e.target.value === "" ? "" : Number(e.target.value) })}
+                  className={inputCls}
+                  dir="ltr"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="block text-[11px] font-bold text-text-label">اختبار أجزاء مجمعة (%)</label>
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={draft.combined_test_score}
+                  onChange={(e) => onChange({ combined_test_score: e.target.value === "" ? "" : Number(e.target.value) })}
+                  className={inputCls}
+                  dir="ltr"
                 />
               </div>
             </div>

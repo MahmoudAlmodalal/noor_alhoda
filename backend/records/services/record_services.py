@@ -211,6 +211,8 @@ def daily_record_create(*, teacher: User, id=None, **data) -> DailyRecord:
         surah_name=data.get("surah_name", ""),
         quality=data.get("quality", "none"),
         morals_rating=data.get("morals_rating", "none"),
+        scattered_test_score=_to_int_or_none(data.get("scattered_test_score")),
+        combined_test_score=_to_int_or_none(data.get("combined_test_score")),
         review_surah_name=data.get("review_surah_name", ""),
         review_from_ayah=_to_int_or_none(data.get("review_from_ayah")),
         review_to_ayah=_to_int_or_none(data.get("review_to_ayah")),
@@ -298,7 +300,7 @@ def daily_record_update(*, record_id, teacher: User, data: dict) -> DailyRecord:
     allowed_fields = [
         "attendance", "required_verses", "achieved_verses", "evaluation_id",
         "from_ayah", "to_ayah", "from_page", "to_page", "memorized_lines",
-        "surah_name", "quality", "morals_rating", "result", "note",
+        "surah_name", "quality", "morals_rating", "scattered_test_score", "combined_test_score", "result", "note",
         "review_surah_name", "review_from_ayah", "review_to_ayah",
         "review_from_page", "review_to_page", "review_quality",
         "next_memorization_target", "next_memorization_from_ayah", "next_memorization_to_ayah",
@@ -317,6 +319,8 @@ def daily_record_update(*, record_id, teacher: User, data: dict) -> DailyRecord:
                 field = "evaluation"
             if field in ("required_verses", "achieved_verses", "memorized_lines"):
                 value = _to_int(value, default=0)
+            elif field in ("scattered_test_score", "combined_test_score"):
+                value = _to_int_or_none(value)
             elif field in (
                 "from_ayah",
                 "to_ayah",

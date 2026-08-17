@@ -192,6 +192,7 @@ export interface Student {
   current_juz: number | null;
   memorized_verses: number;
   current_page: number | null;
+  last_course_reached: string;
 }
 
 export interface CreateStudentRequest {
@@ -219,6 +220,7 @@ export interface CreateStudentRequest {
   current_juz?: number | null;
   memorized_verses?: number;
   current_page?: number | null;
+  last_course_reached?: string;
 }
 
 export interface AssignTeacherRequest {
@@ -263,6 +265,9 @@ export interface DailyRecord {
   memorized_lines?: number;
   surah_name: string;
   quality: "excellent" | "good" | "acceptable" | "weak" | "none";
+  morals_rating?: "excellent" | "good" | "acceptable" | "weak" | "none";
+  scattered_test_score?: number | null;
+  combined_test_score?: number | null;
   result: "pass" | "fail" | "pending";
   note: string;
   student_id?: string;
@@ -290,6 +295,9 @@ export interface CreateRecordRequest {
   achieved_verses?: number;
   surah_name?: string;
   quality?: string;
+  morals_rating?: string;
+  scattered_test_score?: number | null;
+  combined_test_score?: number | null;
   note?: string;
 }
 
@@ -299,6 +307,9 @@ export interface UpdateRecordRequest {
   achieved_verses?: number;
   surah_name?: string;
   quality?: string;
+  morals_rating?: string;
+  scattered_test_score?: number | null;
+  combined_test_score?: number | null;
   note?: string;
   result?: string;
 }

@@ -33,6 +33,9 @@ class DailyRecordOutputSerializer(serializers.Serializer):
     memorized_lines = serializers.IntegerField()
     surah_name = serializers.CharField()
     quality = serializers.CharField()
+    morals_rating = serializers.CharField()
+    scattered_test_score = serializers.IntegerField(allow_null=True, required=False)
+    combined_test_score = serializers.IntegerField(allow_null=True, required=False)
     review_surah_name = serializers.CharField()
     review_from_ayah = serializers.IntegerField(allow_null=True)
     review_to_ayah = serializers.IntegerField(allow_null=True)
@@ -71,6 +74,12 @@ class DailyRecordInputSerializer(serializers.Serializer):
         choices=["excellent", "good", "acceptable", "weak", "none"],
         default="none",
     )
+    morals_rating = serializers.ChoiceField(
+        choices=["excellent", "good", "acceptable", "weak", "none"],
+        default="none",
+    )
+    scattered_test_score = serializers.IntegerField(required=False, allow_null=True, min_value=0, max_value=100, default=None)
+    combined_test_score = serializers.IntegerField(required=False, allow_null=True, min_value=0, max_value=100, default=None)
     review_surah_name = serializers.CharField(required=False, default="")
     review_from_ayah = serializers.IntegerField(required=False, allow_null=True, default=None)
     review_to_ayah = serializers.IntegerField(required=False, allow_null=True, default=None)
@@ -108,6 +117,12 @@ class DailyRecordUpdateSerializer(serializers.Serializer):
         choices=["excellent", "good", "acceptable", "weak", "none"],
         required=False,
     )
+    morals_rating = serializers.ChoiceField(
+        choices=["excellent", "good", "acceptable", "weak", "none"],
+        required=False,
+    )
+    scattered_test_score = serializers.IntegerField(required=False, allow_null=True, min_value=0, max_value=100)
+    combined_test_score = serializers.IntegerField(required=False, allow_null=True, min_value=0, max_value=100)
     review_surah_name = serializers.CharField(required=False)
     review_from_ayah = serializers.IntegerField(required=False, allow_null=True)
     review_to_ayah = serializers.IntegerField(required=False, allow_null=True)

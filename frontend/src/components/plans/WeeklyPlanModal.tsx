@@ -36,6 +36,7 @@ interface Props {
   onCreated?: () => void;
   editPlanId?: string;
   initialRequiredPages?: number;
+  initialReviewRequiredPages?: number;
   initialWeekStart?: string;
 }
 
@@ -47,13 +48,14 @@ export function WeeklyPlanModal({
   onCreated,
   editPlanId,
   initialRequiredPages,
+  initialReviewRequiredPages,
   initialWeekStart,
 }: Props) {
   if (!isOpen) return null;
 
   return (
     <WeeklyPlanModalContent
-      key={`${studentId ?? ""}-${editPlanId ?? ""}-${initialWeekStart ?? ""}-${initialRequiredPages ?? ""}`}
+      key={`${studentId ?? ""}-${editPlanId ?? ""}-${initialWeekStart ?? ""}-${initialRequiredPages ?? ""}-${initialReviewRequiredPages ?? ""}`}
       isOpen={isOpen}
       onClose={onClose}
       studentId={studentId}
@@ -61,6 +63,7 @@ export function WeeklyPlanModal({
       onCreated={onCreated}
       editPlanId={editPlanId}
       initialRequiredPages={initialRequiredPages}
+      initialReviewRequiredPages={initialReviewRequiredPages}
       initialWeekStart={initialWeekStart}
     />
   );
@@ -74,12 +77,14 @@ function WeeklyPlanModalContent({
   onCreated,
   editPlanId,
   initialRequiredPages,
+  initialReviewRequiredPages,
   initialWeekStart,
 }: Props) {
   const [selectedId, setSelectedId] = useState(studentId ?? "");
   const [selectedName, setSelectedName] = useState(studentName ?? "");
   const [weekStart, setWeekStart] = useState<string>(initialWeekStart ?? nextSaturday());
   const [requiredPages, setRequiredPages] = useState<number>(initialRequiredPages ?? 1);
+  const [reviewRequiredPages, setReviewRequiredPages] = useState<number>(initialReviewRequiredPages ?? 0);
   const [clientError, setClientError] = useState<string | null>(null);
 
   const { mutate: createMutate, isSubmitting: isCreating, error: createError } = useMutation("weekly_plan", "create");
@@ -113,9 +118,10 @@ function WeeklyPlanModalContent({
         {
           id: editPlanId,
           required_pages: pagesVal,
+          review_required_pages: Number(reviewRequiredPages) || 0,
           total_required_lines: reqLinesVal,
         },
-        { successMessage: "تم تعديل الخطة الأسبوعية بنجاح" }
+        { successMessage: "تم تعديل الخطة الشهرية بنجاح" }
       );
       if (result !== null) {
         onCreated?.();
@@ -128,9 +134,10 @@ function WeeklyPlanModalContent({
           week_start: weekStart,
           week_number: getWeekNumber(weekStart),
           required_pages: pagesVal,
+          review_required_pages: Number(reviewRequiredPages) || 0,
           total_required_lines: reqLinesVal,
         },
-        { successMessage: "تم إنشاء الخطة الأسبوعية بنجاح" }
+        { successMessage: "تم إنشاء الخطة الشهرية بنجاح" }
       );
       if (result !== null) {
         onCreated?.();
@@ -142,7 +149,7 @@ function WeeklyPlanModalContent({
   return (
     <Modal isOpen={isOpen} onClose={onClose} className="max-w-md">
       <h2 className="text-xl font-bold text-primary mb-6">
-        {editPlanId ? "تعديل الخطة الأسبوعية" : "إضافة خطة أسبوعية"}
+        {editPlanId ? "تعديل الخطة الشهرية" : "إضافة خطة شهرية"}
       </h2>
 
       <div className="space-y-4 mb-8">
@@ -169,7 +176,7 @@ function WeeklyPlanModalContent({
         )}
 
         <div className="space-y-1.5">
-          <label className="block text-sm font-bold text-text-body">بداية الأسبوع (السبت)</label>
+          <label className="block text-sm font-bold text-text-body">بداية الخطة (السبت)</label>
           <Input
             type="date"
             value={weekStart}
@@ -181,7 +188,7 @@ function WeeklyPlanModalContent({
           />
         </div>
 
-        {/* مستهدف الحفظ: عدد الصفحات المطلوبة فقط */}
+        {/* مستهدف الحفظ والمراجعة */}
         <div className="border border-blue-100 bg-blue-50/40 rounded-2xl p-4 space-y-3">
           <div className="flex items-center gap-2 text-primary font-bold text-sm mb-1">
             <BookOpen className="w-4 h-4 text-secondary" />
@@ -205,6 +212,20 @@ function WeeklyPlanModalContent({
           <p className="text-[11px] text-text-muted leading-relaxed">
             يتم احتساب الصفحات المنجزة تلقائياً من تسجيل التسميع والحضور، كل 15 سطراً = صفحة.
           </p>
+
+          <div className="space-y-1.5 pt-2 border-t border-blue-100">
+            <label className="block text-xs font-bold text-text-body">عدد صفحات المراجعة المطلوبة</label>
+            <Input
+              type="number"
+              min={0}
+              step={0.1}
+              value={reviewRequiredPages}
+              onChange={(e) => setReviewRequiredPages(Number(e.target.value))}
+              aria-label="عدد صفحات المراجعة المطلوبة"
+              className="h-11 rounded-xl border-border-subtle bg-white text-left font-bold"
+              dir="ltr"
+            />
+          </div>
         </div>
 
         {(clientError || error) && (
@@ -226,7 +247,7 @@ function WeeklyPlanModalContent({
           className="flex-[1.5] h-12 rounded-xl font-bold gap-2"
         >
           {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-          {editPlanId ? "تعديل الخطة" : "حفظ الخطة"}
+          {editPlanId ? "تعديل الخطة" : "حفظ الخطة الشهرية"}
         </Button>
       </div>
     </Modal>
