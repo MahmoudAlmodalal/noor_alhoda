@@ -162,30 +162,16 @@ export function AttendanceRow({ draft, onChange }: Props) {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-              <div className="space-y-1">
-                <label className="block text-[11px] font-bold text-text-label">من صفحة</label>
-                <input
-                  type="number"
-                  min={0}
-                  placeholder="من صفحة"
-                  value={draft.from_page}
-                  onChange={(e) => onChange({ from_page: e.target.value === "" ? "" : Number(e.target.value) })}
-                  className={inputCls}
-                  dir="ltr"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="block text-[11px] font-bold text-text-label">عدد الأسطر المحفوظة اليوم</label>
-                <input
-                  type="number"
-                  min={0}
-                  value={draft.memorized_lines}
-                  onChange={(e) => onChange({ memorized_lines: Number(e.target.value) })}
-                  className={inputCls}
-                  dir="ltr"
-                />
-              </div>
+            <div className="space-y-1">
+              <label className="block text-[11px] font-bold text-text-label">عدد الأسطر المحفوظة اليوم</label>
+              <input
+                type="number"
+                min={0}
+                value={draft.memorized_lines}
+                onChange={(e) => onChange({ memorized_lines: Number(e.target.value) })}
+                className={inputCls}
+                dir="ltr"
+              />
             </div>
 
             {/* مؤشر حساب الصفحات التلقائي (15 سطر = 1 صفحة) */}
@@ -263,47 +249,6 @@ export function AttendanceRow({ draft, onChange }: Props) {
             </div>
           </div>
 
-          {/* المطلوب تسميعه غداً (حفظ) */}
-          <div className="space-y-3 pt-2">
-            <div className="text-xs font-bold text-amber-600 pb-0.5 border-b border-border-card/50">المطلوب تسميعه غداً (حفظ)</div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div className="space-y-1">
-                <label className="block text-[11px] font-bold text-text-label">السورة</label>
-                <input
-                  type="text"
-                  placeholder="اسم السورة"
-                  value={draft.next_memorization_target}
-                  onChange={(e) => onChange({ next_memorization_target: e.target.value })}
-                  className={inputCls}
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="block text-[11px] font-bold text-text-label">من آية</label>
-                <input
-                  type="number"
-                  min={0}
-                  placeholder="من آية"
-                  value={draft.next_memorization_from_ayah}
-                  onChange={(e) => onChange({ next_memorization_from_ayah: e.target.value === "" ? "" : Number(e.target.value) })}
-                  className={inputCls}
-                  dir="ltr"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="block text-[11px] font-bold text-text-label">إلى آية</label>
-                <input
-                  type="number"
-                  min={0}
-                  placeholder="إلى آية"
-                  value={draft.next_memorization_to_ayah}
-                  onChange={(e) => onChange({ next_memorization_to_ayah: e.target.value === "" ? "" : Number(e.target.value) })}
-                  className={inputCls}
-                  dir="ltr"
-                />
-              </div>
-            </div>
-          </div>
-
           {/* المراجعة */}
           <div className="space-y-3 pt-2">
             <div className="text-xs font-bold text-primary pb-0.5 border-b border-border-card/50">المراجعة</div>
@@ -360,6 +305,48 @@ export function AttendanceRow({ draft, onChange }: Props) {
               </div>
             </div>
           </div>
+          {/* المطلوب تسميعه غداً (حفظ) */}
+          <div className="space-y-3 pt-2">
+            <div className="text-xs font-bold text-amber-600 pb-0.5 border-b border-border-card/50">المطلوب تسميعه غداً (حفظ)</div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="space-y-1">
+                <label className="block text-[11px] font-bold text-text-label">السورة</label>
+                <input
+                  type="text"
+                  placeholder="اسم السورة"
+                  value={draft.next_memorization_target}
+                  onChange={(e) => onChange({ next_memorization_target: e.target.value })}
+                  className={inputCls}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="block text-[11px] font-bold text-text-label">من آية</label>
+                <input
+                  type="number"
+                  min={0}
+                  placeholder="من آية"
+                  value={draft.next_memorization_from_ayah}
+                  onChange={(e) => onChange({ next_memorization_from_ayah: e.target.value === "" ? "" : Number(e.target.value) })}
+                  className={inputCls}
+                  dir="ltr"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="block text-[11px] font-bold text-text-label">إلى آية</label>
+                <input
+                  type="number"
+                  min={0}
+                  placeholder="إلى آية"
+                  value={draft.next_memorization_to_ayah}
+                  onChange={(e) => onChange({ next_memorization_to_ayah: e.target.value === "" ? "" : Number(e.target.value) })}
+                  className={inputCls}
+                  dir="ltr"
+                />
+              </div>
+            </div>
+          </div>
+
+
 
         </div>
       )}

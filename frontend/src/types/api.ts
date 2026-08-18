@@ -402,6 +402,9 @@ export interface WeeklyPlan {
   total_required: number;
   total_achieved: number;
   total_lines: number;
+  review_required_pages?: number;
+  review_total_pages?: number;
+  review_completion_rate?: number;
   completion_rate?: number;
   created_at?: string;
 }
@@ -422,6 +425,9 @@ export interface LeaderboardEntry {
   total_achieved: number;
   total_required: number;
   present_days: number;
+  review_pages: number;
+  morals_score: number;
+  test_score: number;
   score: number;
   ring_name?: string;
 }

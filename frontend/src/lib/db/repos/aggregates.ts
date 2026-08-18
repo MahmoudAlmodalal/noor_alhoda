@@ -61,6 +61,20 @@ function requiredPages(record: DailyRecordRecord): number {
   return Math.max(0, Number(record.required_verses ?? 0) / 15);
 }
 
+function reviewPages(record: DailyRecordRecord): number {
+  if (record.review_from_page != null && record.review_to_page != null && record.review_to_page >= record.review_from_page) {
+    return Math.max(0, record.review_to_page - record.review_from_page + 1);
+  }
+  if (record.review_from_ayah != null && record.review_to_ayah != null && record.review_to_ayah >= record.review_from_ayah) {
+    return Math.max(0, (record.review_to_ayah - record.review_from_ayah + 1) / 15);
+  }
+  return 0;
+}
+
+function qualityScore(value: string | null | undefined): number {
+  return ({ excellent: 100, good: 75, acceptable: 50, weak: 25 } as Record<string, number>)[value ?? ""] ?? 0;
+}
+
 function weekdayKey(d: Date): string {
   return ["sun", "mon", "tue", "wed", "thu", "fri", "sat"][d.getDay()];
 }
@@ -718,36 +732,65 @@ export async function leaderboard(): Promise<LeaderboardEntry[]> {
 
   // الأسبوع الحالي: من السبت إلى الخميس
   const today = new Date();
-  const dayOfWeek = today.getDay(); // 0=Sun, 1=Mon, …, 6=Sat
-  const daysSinceSat = (dayOfWeek + 1) % 7; // السبت = يوم 0 في حسابنا
+  const dayOfWeek = today.getDay();
+  const daysSinceSat = (dayOfWeek + 1) % 7;
   const weekStart = new Date(today);
   weekStart.setDate(today.getDate() - daysSinceSat);
   const weekEnd = new Date(weekStart);
-  weekEnd.setDate(weekStart.getDate() + 5); // الخميس
-
+  weekEnd.setDate(weekStart.getDate() + 5);
   const weekFrom = weekStart.toISOString().slice(0, 10);
-  const weekTo   = weekEnd.toISOString().slice(0, 10);
+  const weekTo = weekEnd.toISOString().slice(0, 10);
 
   const daily = await listDailyRecordsInRange(weekFrom, weekTo);
-
   const planToStudent = new Map<string, string>();
   for (const s of students) {
     const plans = await listWeeklyPlans({ student_id: s.id });
     for (const p of plans) planToStudent.set(p.id, s.id);
   }
 
-  const byStudent = new Map<
-    string,
-    { total_achieved: number; total_required: number; present_days: number }
-  >();
+  const byStudent = new Map<string, {
+    total_achieved: number;
+    total_required: number;
+    present_days: number;
+    review_pages: number;
+    morals_total: number;
+    morals_count: number;
+    test_total: number;
+    test_count: number;
+  }>();
+  const evaluationIdsWithRecord = new Set<string>();
   for (const r of daily) {
     const sid = r.student_id || (r.weekly_plan_id ? planToStudent.get(r.weekly_plan_id) : null);
     if (!sid) continue;
-    const v = byStudent.get(sid) ?? { total_achieved: 0, total_required: 0, present_days: 0 };
+    const v = byStudent.get(sid) ?? {
+      total_achieved: 0, total_required: 0, present_days: 0, review_pages: 0,
+      morals_total: 0, morals_count: 0, test_total: 0, test_count: 0,
+    };
     v.total_achieved += achievedPages(r);
     v.total_required += requiredPages(r);
+    v.review_pages += reviewPages(r);
     if (r.attendance === "present" || r.attendance === "late") v.present_days += 1;
+    const morals = qualityScore(r.morals_rating);
+    if (morals > 0) { v.morals_total += morals; v.morals_count += 1; }
+    for (const score of [r.scattered_test_score, r.combined_test_score]) {
+      if (score != null) { v.test_total += Number(score); v.test_count += 1; }
+    }
+    if (r.evaluation_id) evaluationIdsWithRecord.add(r.evaluation_id);
     byStudent.set(sid, v);
+  }
+
+  for (const s of students) {
+    const evaluations = await listEvaluationsForStudent(s.id);
+    const v = byStudent.get(s.id) ?? {
+      total_achieved: 0, total_required: 0, present_days: 0, review_pages: 0,
+      morals_total: 0, morals_count: 0, test_total: 0, test_count: 0,
+    };
+    for (const ev of evaluations) {
+      if (!ev.score || evaluationIdsWithRecord.has(ev.id)) continue;
+      const score = Number(ev.score);
+      if (Number.isFinite(score)) { v.test_total += score; v.test_count += 1; }
+    }
+    if (v.test_count > 0) byStudent.set(s.id, v);
   }
 
   const rows: LeaderboardEntry[] = [];
@@ -755,26 +798,27 @@ export async function leaderboard(): Promise<LeaderboardEntry[]> {
     const v = byStudent.get(s.id);
     if (!v) continue;
     const score = Math.round((v.total_achieved + v.present_days * 5) * 10) / 10;
-    if (score === 0) continue;
+    const moralsScore = v.morals_count ? Math.round((v.morals_total / v.morals_count) * 10) / 10 : 0;
+    const testScore = v.test_count ? Math.round((v.test_total / v.test_count) * 10) / 10 : 0;
+    if (score === 0 && v.review_pages === 0 && moralsScore === 0 && testScore === 0) continue;
     rows.push({
       rank: 0,
       student_id: s.id,
       student_name: s.full_name,
-      total_achieved: v.total_achieved,
-      total_required: v.total_required,
+      total_achieved: Math.round(v.total_achieved * 10) / 10,
+      total_required: Math.round(v.total_required * 10) / 10,
       present_days: v.present_days,
+      review_pages: Math.round(v.review_pages * 10) / 10,
+      morals_score: moralsScore,
+      test_score: testScore,
       score,
       ring_name: s.teacher_id ? teacherById.get(s.teacher_id)?.ring_name : undefined,
     });
   }
 
-  rows.sort((a, b) => {
-    if (b.score !== a.score) return b.score - a.score;
-    return b.total_achieved - a.total_achieved;
-  });
+  rows.sort((a, b) => b.score - a.score || b.total_achieved - a.total_achieved);
   rows.forEach((r, i) => (r.rank = i + 1));
-
-  return rows.slice(0, 10);
+  return rows;
 }
 
 // ---------------------------------------------------------------------------
@@ -852,6 +896,9 @@ export interface PlanForList extends WeeklyPlanRecord {
   total_lines: number;
   total_pages: number;
   review_interval_days: number;
+  review_required_pages: number;
+  review_total_pages: number;
+  review_completion_rate: number;
 }
 
 export async function listPlansForUI(filters?: {
@@ -873,10 +920,17 @@ export async function listPlansForUI(filters?: {
     : scopedPlans;
 
   const achievedLinesByPlan = new Map<string, number>();
+  const achievedReviewPagesByPlan = new Map<string, number>();
   for (const r of allDaily) {
-    if (r.weekly_plan_id && (r.memorized_lines ?? 0) > 0) {
+    if (!r.weekly_plan_id) continue;
+    if ((r.memorized_lines ?? 0) > 0) {
       const prev = achievedLinesByPlan.get(r.weekly_plan_id) ?? 0;
       achievedLinesByPlan.set(r.weekly_plan_id, prev + (r.memorized_lines ?? 0));
+    }
+    const review = reviewPages(r);
+    if (review > 0) {
+      const prev = achievedReviewPagesByPlan.get(r.weekly_plan_id) ?? 0;
+      achievedReviewPagesByPlan.set(r.weekly_plan_id, prev + review);
     }
   }
 
@@ -899,6 +953,12 @@ export async function listPlansForUI(filters?: {
       rate = Math.min(100, Math.round(((achLines / (reqPages * 15)) * 100) * 10) / 10);
     }
 
+    const reviewRequiredPages = Math.max(0, Number(p.review_required_pages ?? 0));
+    const reviewAchievedPages = Math.round((achievedReviewPagesByPlan.get(p.id) ?? 0) * 10) / 10;
+    const reviewRate = reviewRequiredPages > 0
+      ? Math.min(100, Math.round((reviewAchievedPages / reviewRequiredPages) * 1000) / 10)
+      : 0;
+
     const planItem: PlanForList = {
       ...p,
       student_name: s?.full_name ?? "",
@@ -909,6 +969,9 @@ export async function listPlansForUI(filters?: {
       total_lines: achLines,
       total_pages: achPages,
       review_interval_days: s?.review_interval_days ?? 14,
+      review_required_pages: reviewRequiredPages,
+      review_total_pages: reviewAchievedPages,
+      review_completion_rate: reviewRate,
     };
     return planItem;
   });

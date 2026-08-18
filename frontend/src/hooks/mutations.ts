@@ -22,6 +22,7 @@ import { emitChange, type ResourceName } from "@/lib/db/events";
 import { getDb } from "@/lib/db/schema";
 import { enqueueOp, type OutboxAction } from "@/lib/sync/outbox";
 import {
+  listEvaluationsForStudent,
   upsertCourses,
   upsertEvaluations,
   upsertNotifications,
@@ -59,6 +60,49 @@ import {
   type ProgressRecord,
 } from "@/lib/db/repos/progress";
 import { SURAH_BY_NUMBER } from "@/lib/data/surahs";
+
+
+async function syncEvaluationScoresLocally(
+  payload: Record<string, unknown>,
+  now: string
+): Promise<void> {
+  const studentId = String(payload.student_id ?? "");
+  const date = String(payload.date ?? now.slice(0, 10));
+  if (!studentId) return;
+
+  const candidates = ([
+    { type: "scattered" as const, value: payload.scattered_test_score },
+    { type: "combined" as const, value: payload.combined_test_score },
+  ]).filter((item) => item.value !== null && item.value !== undefined && item.value !== "");
+  if (candidates.length === 0) return;
+
+  const evaluations = await listEvaluationsForStudent(studentId);
+  const used = new Set<string>();
+  const updates: EvaluationRecord[] = [];
+  for (const candidate of candidates) {
+    const explicitId = payload.evaluation_id ? String(payload.evaluation_id) : null;
+    const target = evaluations.find((item) => {
+      if (used.has(item.id) || item.evaluation_type !== candidate.type) return false;
+      if (explicitId) return item.id === explicitId;
+      return item.scheduled_date === date && item.status === "scheduled";
+    });
+    if (!target) continue;
+    used.add(target.id);
+    const score = Number(candidate.value);
+    const updated: EvaluationRecord = {
+      ...target,
+      score: String(score),
+      status: score >= Number(target.max_score) ? "passed" : "failed",
+      updated_at: now,
+      server_updated_at: null,
+    };
+    updates.push(updated);
+  }
+  if (updates.length > 0) {
+    await upsertEvaluations(updates);
+    emitChange("evaluation");
+  }
+}
 
 export type MutationResource =
   | "student"
@@ -421,6 +465,7 @@ const handlers: Record<MutationResource, Handler> = {
         server_updated_at: null,
       };
       await upsertDailyRecords([rec]);
+      await syncEvaluationScoresLocally(payload, now);
     },
     async readExisting(id) {
       const row = await getDb().daily_records.get(id);
@@ -435,6 +480,7 @@ const handlers: Record<MutationResource, Handler> = {
         server_updated_at: serverUpdatedAt,
       };
       await upsertDailyRecords([rec]);
+      await syncEvaluationScoresLocally(rec as unknown as Record<string, unknown>, now);
     },
     async deleteLocal(id) {
       await getDb().daily_records.delete(id);

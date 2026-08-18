@@ -108,11 +108,13 @@ export default function PlansPage() {
               <thead className="text-[10px] text-text-muted bg-surface-subtle/80">
                 <tr>
                   <th className="px-4 py-3 font-bold">الطالب</th>
-                  <th className="px-4 py-3 font-bold text-center">الخطة</th>
                   <th className="px-4 py-3 font-bold text-center">بداية الخطة</th>
-                  <th className="px-4 py-3 font-bold text-center">المطلوب</th>
-                  <th className="px-4 py-3 font-bold text-center">المنجز</th>
-                  <th className="px-4 py-3 font-bold text-center">النسبة</th>
+                  <th className="px-4 py-3 font-bold text-center">المطلوب حفظه</th>
+                  <th className="px-4 py-3 font-bold text-center">منجز الحفظ</th>
+                  <th className="px-4 py-3 font-bold text-center">نسبة الحفظ</th>
+                  <th className="px-4 py-3 font-bold text-center">المطلوب مراجعته</th>
+                  <th className="px-4 py-3 font-bold text-center">منجز المراجعة</th>
+                  <th className="px-4 py-3 font-bold text-center">نسبة المراجعة</th>
                   <th className="px-4 py-3 font-bold text-center">الإجراءات</th>
                 </tr>
               </thead>
@@ -131,9 +133,6 @@ export default function PlansPage() {
                           <span className="font-bold text-text-body">{plan.student_name}</span>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-center text-text-label font-bold">
-                        #{plan.week_number}
-                      </td>
                       <td className="px-4 py-3 text-center text-text-muted" dir="ltr">
                         {plan.week_start}
                       </td>
@@ -147,17 +146,16 @@ export default function PlansPage() {
                         </div>
                       </td>
                       <td className="px-4 py-3 text-center">
-                        <span
-                          className={`text-xs font-bold px-2.5 py-1 rounded-md ${
-                            rate >= 80
-                              ? "bg-green-50 text-green-600"
-                              : rate >= 50
-                              ? "bg-orange-50 text-orange-600"
-                              : "bg-tile-red text-danger-text"
-                          }`}
-                        >
-                          {rate}%
-                        </span>
+                        <span className="text-xs font-bold px-2.5 py-1 rounded-md bg-green-50 text-green-600">{rate}%</span>
+                      </td>
+                      <td className="px-4 py-3 text-center text-text-label text-xs">
+                        <div className="font-bold">{plan.review_required_pages} صفحة</div>
+                      </td>
+                      <td className="px-4 py-3 text-center text-text-label text-xs">
+                        <div className="font-bold text-primary">{plan.review_total_pages} صفحة</div>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <span className="text-xs font-bold px-2.5 py-1 rounded-md bg-blue-50 text-primary">{plan.review_completion_rate}%</span>
                       </td>
                       <td className="px-4 py-3 text-center">
                         <div className="flex items-center justify-center gap-2">

@@ -1,6 +1,8 @@
 from datetime import timedelta
 
 from django.core.exceptions import ValidationError as DjangoValidationError
+from decimal import Decimal
+
 from django.db import transaction
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError, PermissionDenied
@@ -141,6 +143,49 @@ def _to_int_or_none(val) -> int | None:
         return None
 
 
+def _sync_evaluation_scores(*, student: Student, date, evaluation, scattered_score, combined_score) -> None:
+    """Copy attendance-screen test scores into same-day evaluations.
+
+    An explicitly linked evaluation wins. Otherwise the first scheduled
+    evaluation for the student/date/type is updated. Missing schedules are
+    intentionally ignored so attendance saving remains valid.
+    """
+    from evaluations.models import Evaluation
+
+    scores = {
+        Evaluation.EvaluationType.SCATTERED: _to_int_or_none(scattered_score),
+        Evaluation.EvaluationType.COMBINED: _to_int_or_none(combined_score),
+    }
+    for evaluation_type, score in scores.items():
+        if score is None:
+            continue
+        target = None
+        if evaluation is not None and evaluation.evaluation_type == evaluation_type:
+            target = evaluation
+        if target is None:
+            target = (
+                Evaluation.objects
+                .filter(
+                    student=student,
+                    scheduled_date=date,
+                    evaluation_type=evaluation_type,
+                    status=Evaluation.Status.SCHEDULED,
+                )
+                .order_by("created_at")
+                .first()
+            )
+        if target is None:
+            continue
+        target.score = Decimal(str(score))
+        target.status = (
+            Evaluation.Status.PASSED
+            if target.score >= target.max_score
+            else Evaluation.Status.FAILED
+        )
+        target.full_clean()
+        target.save(update_fields=["score", "status", "updated_at"])
+
+
 @transaction.atomic
 def daily_record_create(*, teacher: User, id=None, **data) -> DailyRecord:
     """Create a daily record for a student. WeeklyPlan is optional."""
@@ -234,6 +279,13 @@ def daily_record_create(*, teacher: User, id=None, **data) -> DailyRecord:
     record = DailyRecord(**record_kwargs)
     record.full_clean()
     record.save()
+    _sync_evaluation_scores(
+        student=student,
+        date=record.date,
+        evaluation=evaluation,
+        scattered_score=record.scattered_test_score,
+        combined_score=record.combined_test_score,
+    )
 
     if record.attendance == DailyRecord.Attendance.ABSENT:
         send_absence_notification(student=student, date=record.date)
@@ -343,6 +395,13 @@ def daily_record_update(*, record_id, teacher: User, data: dict) -> DailyRecord:
     record.recorded_by = teacher
     record.full_clean()
     record.save()
+    _sync_evaluation_scores(
+        student=record.student,
+        date=record.date,
+        evaluation=record.evaluation,
+        scattered_score=record.scattered_test_score,
+        combined_score=record.combined_test_score,
+    )
 
     if not was_absent and record.attendance == DailyRecord.Attendance.ABSENT:
         send_absence_notification(
