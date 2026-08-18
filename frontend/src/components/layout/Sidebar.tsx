@@ -66,7 +66,7 @@ export const menuItems: NavItem[] = [
 
     // الطالب فقط
     { name: "مهامي اليومية", href: "/student/tasks", icon: ClipboardCheck, roles: ["student"] },
-    { name: "الخطة الأسبوعية", href: "/student/plan", icon: Calendar, roles: ["student"] },
+    { name: "الخطة الشهرية", href: "/student/plan", icon: Calendar, roles: ["student"] },
     { name: "الاختبارات", href: "/student/evaluations", icon: GraduationCap, roles: ["student"] },
     { name: "سجل الإنجاز", href: "/student/achievements", icon: Trophy, roles: ["student"] },
 

@@ -638,7 +638,7 @@ export default function StudentDashboard() {
                     <div className="flex items-center gap-2">
                         <Calendar className="h-5 w-5 text-primary" />
                         <h3 className="text-[18px] font-bold text-text-body">
-                            الخطة الأسبوعية الحالية
+                            الخطة الشهرية الحالية
                         </h3>
                     </div>
                     <Link
@@ -685,7 +685,7 @@ export default function StudentDashboard() {
                     </div>
                 ) : (
                     <p className="text-[13px] text-text-muted text-center py-6">
-                        لا توجد خطة أسبوعية حالياً
+                        لا توجد خطة شهرية حالياً
                     </p>
                 )}
             </div>

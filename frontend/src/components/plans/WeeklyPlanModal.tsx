@@ -121,7 +121,7 @@ function WeeklyPlanModalContent({
           review_required_pages: Number(reviewRequiredPages) || 0,
           total_required_lines: reqLinesVal,
         },
-        { successMessage: "تم تعديل الخطة الأسبوعية بنجاح" }
+        { successMessage: "تم تعديل الخطة الشهرية بنجاح" }
       );
       if (result !== null) {
         onCreated?.();
@@ -137,7 +137,7 @@ function WeeklyPlanModalContent({
           review_required_pages: Number(reviewRequiredPages) || 0,
           total_required_lines: reqLinesVal,
         },
-        { successMessage: "تم إنشاء الخطة الأسبوعية بنجاح" }
+        { successMessage: "تم إنشاء الخطة الشهرية بنجاح" }
       );
       if (result !== null) {
         onCreated?.();
@@ -149,7 +149,7 @@ function WeeklyPlanModalContent({
   return (
     <Modal isOpen={isOpen} onClose={onClose} className="max-w-md">
       <h2 className="text-xl font-bold text-primary mb-6">
-        {editPlanId ? "تعديل الخطة الأسبوعية" : "إضافة خطة أسبوعية"}
+        {editPlanId ? "تعديل الخطة الشهرية" : "إضافة خطة شهرية"}
       </h2>
 
       <div className="space-y-4 mb-8">
@@ -176,7 +176,7 @@ function WeeklyPlanModalContent({
         )}
 
         <div className="space-y-1.5">
-          <label className="block text-sm font-bold text-text-body">بداية الأسبوع (السبت)</label>
+          <label className="block text-sm font-bold text-text-body">بداية الخطة (السبت)</label>
           <Input
             type="date"
             value={weekStart}
@@ -247,7 +247,7 @@ function WeeklyPlanModalContent({
           className="flex-[1.5] h-12 rounded-xl font-bold gap-2"
         >
           {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-          {editPlanId ? "تعديل الخطة" : "حفظ الخطة الأسبوعية"}
+          {editPlanId ? "تعديل الخطة" : "حفظ الخطة الشهرية"}
         </Button>
       </div>
     </Modal>

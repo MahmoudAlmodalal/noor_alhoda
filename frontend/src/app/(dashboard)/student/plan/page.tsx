@@ -410,7 +410,7 @@ export default function StudentPlanPage() {
             <div className="motion-fade-up rounded-[24px] border border-border-card bg-white p-5 shadow-sm">
                 <div className="mb-3">
                     <h1 className="text-[18px] font-bold text-text-title">
-                        الخطة الأسبوعية
+                        الخطة الشهرية
                     </h1>
                     <p className="text-[12px] text-text-muted">
                         {satDual.gregorian} — {thuDual.gregorian}

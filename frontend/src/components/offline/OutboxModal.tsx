@@ -20,7 +20,7 @@ const RESOURCE_LABELS: Record<string, string> = {
   teacher: "محفظ",
   parent: "ولي أمر",
   parent_student_link: "ربط ولي أمر",
-  weekly_plan: "خطة أسبوعية",
+  weekly_plan: "خطة شهرية",
   daily_record: "سجل يومي",
   review_record: "سجل مراجعة",
   evaluation: "اختبار",

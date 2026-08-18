@@ -192,7 +192,7 @@ export function AttendanceRow({ draft, onChange }: Props) {
             <div className="bg-white border border-blue-100 rounded-xl p-2.5 flex items-center justify-between text-xs font-bold text-primary">
               <span className="text-text-body">يعادل: {calculatedPages} صفحة ({draft.memorized_lines || 0} سطر)</span>
               <span className="bg-primary/10 text-primary px-3 py-1 rounded-lg text-xs font-black">
-                سيتم إضافتها تلقائياً إلى إنجاز الخطة الأسبوعية
+                سيتم إضافتها تلقائياً إلى إنجاز الخطة الشهرية
               </span>
             </div>
 
