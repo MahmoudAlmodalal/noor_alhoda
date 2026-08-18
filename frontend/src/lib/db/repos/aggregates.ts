@@ -213,8 +213,13 @@ export async function studentStats(student_id: string): Promise<StudentStats> {
       : Math.round(qualityScores.reduce((a, b) => a + b, 0) / qualityScores.length);
   const avgGrade = avgGradeNum >= 90 ? "ممتاز" : avgGradeNum >= 80 ? "جيد جدًا" : avgGradeNum >= 70 ? "جيد" : avgGradeNum >= 50 ? "مقبول" : "—";
 
-  // Memorized parts: rough heuristic — every 600 verses ≈ 1 جزء.
-  const memorizedParts = Math.floor(totalAchieved / 600);
+  // Keep the student dashboard aligned with the teacher view: the profile's
+  // current_juz is authoritative when it is ahead of the locally derived
+  // verse total, while the derived value still reflects recorded progress.
+  const memorizedParts = Math.min(
+    30,
+    Math.max(student?.current_juz ?? 0, Math.floor(totalAchieved / 600)),
+  );
 
   // Streak: consecutive recorded days (any day with achieved>0 or present)
   // ending at today, walking back. Cap at 365 to avoid runaway loops.

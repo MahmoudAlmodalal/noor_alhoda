@@ -37,13 +37,13 @@ export default function PlansPage() {
           </div>
           <div>
             <h1 className="text-xl font-bold text-primary">خطط التسميع</h1>
-            <p className="text-xs text-text-muted">إدارة الخطط الشهرية لطلاب الحلقة</p>
+            <p className="text-xs text-text-muted">إدارة الخطط الأسبوعية لطلاب الحلقة</p>
           </div>
         </div>
 
         <div className="flex items-center gap-3 flex-wrap mt-4">
           <div className="space-y-1.5">
-            <label className="block text-xs font-bold text-text-body">فلترة ببداية الخطة</label>
+            <label className="block text-xs font-bold text-text-body">فلترة بالأسبوع</label>
             <input
               type="date"
               value={weekFilter}
@@ -98,7 +98,7 @@ export default function PlansPage() {
       ) : (plans ?? []).length === 0 ? (
         <div className="bg-white rounded-[24px] p-12 text-center border border-border-card">
           <BookOpen className="w-12 h-12 text-border-subtle mx-auto mb-3" />
-          <p className="text-sm text-text-muted font-medium">لا توجد خطط شهرية</p>
+          <p className="text-sm text-text-muted font-medium">لا توجد خطط أسبوعية</p>
           <p className="text-xs text-text-muted mt-1">أنشئ خطة جديدة لطلابك</p>
         </div>
       ) : (
@@ -108,8 +108,8 @@ export default function PlansPage() {
               <thead className="text-[10px] text-text-muted bg-surface-subtle/80">
                 <tr>
                   <th className="px-4 py-3 font-bold">الطالب</th>
-                  <th className="px-4 py-3 font-bold text-center">الخطة</th>
-                  <th className="px-4 py-3 font-bold text-center">بداية الخطة</th>
+                  <th className="px-4 py-3 font-bold text-center">الأسبوع</th>
+                  <th className="px-4 py-3 font-bold text-center">بداية الأسبوع</th>
                   <th className="px-4 py-3 font-bold text-center">المطلوب</th>
                   <th className="px-4 py-3 font-bold text-center">المنجز</th>
                   <th className="px-4 py-3 font-bold text-center">النسبة</th>
@@ -220,7 +220,7 @@ export default function PlansPage() {
         <ConfirmDeleteModal
           isOpen={!!deletePlan}
           onClose={() => setDeletePlan(null)}
-          targetName={`${deletePlan.name} (خطة شهرية ${plans?.find((r) => r.id === deletePlan.id)?.week_start || ""})`}
+          targetName={`${deletePlan.name} (خطة أسبوعية ${plans?.find((r) => r.id === deletePlan.id)?.week_start || ""})`}
           resource="weekly_plan"
           targetId={deletePlan.id}
           onSuccess={() => setDeletePlan(null)}

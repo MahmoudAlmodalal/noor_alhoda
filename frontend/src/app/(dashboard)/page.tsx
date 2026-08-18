@@ -274,7 +274,7 @@ export default function Dashboard() {
                   <Calendar className="w-5 h-5" />
                 </div>
                 <div>
-                  <h4 className="text-sm font-bold">خطة شهرية</h4>
+                  <h4 className="text-sm font-bold">خطة أسبوعية</h4>
                   <p className="text-[10px] text-white/60">توزيع الحفظ والمراجعة</p>
                 </div>
               </button>

@@ -98,7 +98,7 @@ export function StudentCard({
 
         <div className="flex flex-wrap items-center gap-2">
           <Badge className="rounded-md bg-tile-blue px-2.5 py-0.5 text-[11px] font-bold text-primary hover:bg-tile-blue">
-            الصف {student.grade || "—"}
+            الصف
           </Badge>
           {hasTeacher ? (
             <Badge className="rounded-md bg-role-admin-bg px-2.5 py-0.5 text-[11px] font-bold text-primary hover:bg-role-admin-bg">

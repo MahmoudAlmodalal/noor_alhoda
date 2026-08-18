@@ -175,7 +175,6 @@ export default function StudentDashboard() {
     const fullName = profile?.full_name || user?.full_name || "";
     const memorizationLevel = stats?.memorization_level || "-";
     const subtitleParts = [
-        profile?.grade || "",
         profile?.teacher_name ? `الشيخ ${profile.teacher_name}` : "",
     ].filter(Boolean);
 

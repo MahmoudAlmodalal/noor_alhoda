@@ -75,7 +75,7 @@ export function StudentHeader({
           </p>
           <div className="flex flex-wrap items-center gap-2">
             <span className="rounded-md bg-white/15 px-2.5 py-0.5 text-[11px] font-bold text-white ring-1 ring-white/20 backdrop-blur-sm">
-              الصف {student.grade || "—"}
+              الصف
             </span>
             <span className="inline-flex items-center gap-1 rounded-md bg-white/15 px-2.5 py-0.5 text-[11px] font-bold text-white ring-1 ring-white/20 backdrop-blur-sm">
               <UserCog className="h-3 w-3" />
