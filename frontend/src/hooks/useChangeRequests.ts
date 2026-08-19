@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import type { ChangeRequestAction, ChangeRequestStatus, StudentChangeRequest } from "@/types/api";
 
@@ -14,14 +14,19 @@ export function useChangeRequests(params?: { status?: ChangeRequestStatus; actio
   const [data, setData] = useState<StudentChangeRequest[] | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const latestRequestRef = useRef(0);
 
   const run = useCallback(async () => {
+    const requestId = ++latestRequestRef.current;
     setIsLoading(true);
     setError(null);
     const res = await api.get<StudentChangeRequest[]>("/api/students/teacher-requests/", {
       status: params?.status,
       action: params?.action,
     });
+    // Switching tabs can leave the previous request in flight. Only the
+    // newest tab request may update the list or loading state.
+    if (requestId !== latestRequestRef.current) return;
     if (res.success) {
       setData(res.data);
     } else {
