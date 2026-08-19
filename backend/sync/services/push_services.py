@@ -391,6 +391,7 @@ def _push_weekly_plan_create(*, actor: User, op: dict) -> dict:
                 id=op.get("id"),
                 student_id=data.get("student_id"),
                 week_start=data.get("week_start"),
+                month_start=data.get("month_start"),
                 week_number=data.get("week_number"),
                 required_pages=data.get("required_pages", 0),
                 total_required=data.get("total_required", 0),
@@ -404,6 +405,11 @@ def _push_weekly_plan_create(*, actor: User, op: dict) -> dict:
             if op.get("id")
             else None
         )
+        if existing is None and data.get("student_id") and data.get("month_start"):
+            existing = WeeklyPlan.objects.filter(
+                student_id=data.get("student_id"),
+                month_start=data.get("month_start"),
+            ).first()
         if existing is None and data.get("student_id") and data.get("week_start"):
             existing = WeeklyPlan.objects.filter(
                 student_id=data.get("student_id"),
@@ -430,6 +436,11 @@ def _push_weekly_plan_update(*, actor: User, op: dict) -> dict:
     base = _parse_base(op.get("base_updated_at"))
     data = dict(op.get("data") or {})
     plan = WeeklyPlan.objects.filter(id=target_id).first()
+    if plan is None and data.get("student_id") and data.get("month_start"):
+        plan = WeeklyPlan.objects.filter(
+            student_id=data.get("student_id"),
+            month_start=data.get("month_start"),
+        ).first()
     if plan is None and data.get("student_id") and data.get("week_start"):
         plan = WeeklyPlan.objects.filter(
             student_id=data.get("student_id"),

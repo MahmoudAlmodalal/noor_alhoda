@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import date as date_cls, timedelta
 
 from django.core.exceptions import ValidationError as DjangoValidationError
 from decimal import Decimal
@@ -39,7 +39,8 @@ def recalculate_student_current_position(student: Student) -> None:
 def weekly_plan_create(
     *,
     student_id,
-    week_start,
+    week_start=None,
+    month_start=None,
     week_number=None,
     required_pages=0,
     review_required_pages=0,
@@ -48,9 +49,15 @@ def weekly_plan_create(
     teacher: User,
     id=None,
 ) -> WeeklyPlan:
-    """Create a weekly plan for a student."""
+    """Create a legacy weekly plan or a calendar-month plan for a student."""
     if not (is_admin_user(teacher) or teacher.role == "teacher"):
-        raise PermissionDenied("ليس لديك صلاحية لإنشاء خطة أسبوعية.")
+        raise PermissionDenied("ليس لديك صلاحية لإنشاء خطة حفظ.")
+    if month_start and not week_start:
+        if isinstance(month_start, str):
+            month_start = date_cls.fromisoformat(month_start)
+        week_start = month_start
+    if week_start is None:
+        raise ValidationError({"month_start": "يجب تحديد بداية الشهر."})
 
     try:
         student = Student.objects.get(id=student_id)
@@ -62,15 +69,19 @@ def weekly_plan_create(
         if not hasattr(teacher, "teacher_profile") or student.teacher_id != teacher.teacher_profile.id:
             raise PermissionDenied("لا يمكنك إنشاء خطة لطالب ليس في حلقتك.")
 
-    if WeeklyPlan.objects.filter(student=student, week_start=week_start).exists():
-        raise ValidationError("توجد خطة مسبقة لهذا الأسبوع.")
+    if month_start:
+        if WeeklyPlan.objects.filter(student=student, month_start=month_start).exists():
+            raise ValidationError("توجد خطة مسبقة لهذا الشهر.")
+    elif WeeklyPlan.objects.filter(student=student, week_start=week_start).exists():
+        raise ValidationError("توجد خطة مسبقة لهذه الفترة.")
 
     plan_kwargs = dict(
         student=student,
         week_number=week_number or (
-            week_start.isocalendar()[1] if hasattr(week_start, "isocalendar") else 1
+            week_start.isocalendar()[1] if hasattr(week_start, "isocalendar") else 0
         ),
         week_start=week_start,
+        month_start=month_start,
         required_pages=required_pages or 0,
         review_required_pages=review_required_pages or 0,
         total_required=total_required or 0,
@@ -87,14 +98,14 @@ def weekly_plan_create(
 
 @transaction.atomic
 def weekly_plan_update(*, plan: WeeklyPlan, actor: User, data: dict) -> WeeklyPlan:
-    """Update a weekly plan. Admin or owning teacher only."""
+    """Update a plan. Admin or owning teacher only."""
     if not (is_admin_user(actor) or actor.role == "teacher"):
-        raise PermissionDenied("ليس لديك صلاحية لتعديل الخطة الأسبوعية.")
+        raise PermissionDenied("ليس لديك صلاحية لتعديل خطة الحفظ.")
     if actor.role == "teacher":
         if not hasattr(actor, "teacher_profile") or plan.student.teacher_id != actor.teacher_profile.id:
             raise PermissionDenied("لا يمكنك تعديل خطة لطالب ليس في حلقتك.")
 
-    allowed = ["week_number", "required_pages", "review_required_pages", "total_required", "total_required_lines"]
+    allowed = ["week_number", "required_pages", "review_required_pages", "total_required", "total_required_lines", "month_start"]
     for field, value in data.items():
         if field in allowed:
             setattr(plan, field, value)
@@ -105,9 +116,9 @@ def weekly_plan_update(*, plan: WeeklyPlan, actor: User, data: dict) -> WeeklyPl
 
 @transaction.atomic
 def weekly_plan_delete(*, plan: WeeklyPlan, actor: User) -> None:
-    """Delete a weekly plan. Admin or owning teacher only (cascades daily records)."""
+    """Delete a plan. Admin or owning teacher only (cascades daily records)."""
     if not (is_admin_user(actor) or actor.role == "teacher"):
-        raise PermissionDenied("فقط المدير أو المحفظ يمكنه حذف الخطة الأسبوعية.")
+        raise PermissionDenied("فقط المدير أو المحفظ يمكنه حذف خطة الحفظ.")
     if actor.role == "teacher":
         if not hasattr(actor, "teacher_profile") or plan.student.teacher_id != actor.teacher_profile.id:
             raise PermissionDenied("لا يمكنك حذف خطة لطالب ليس في حلقتك.")

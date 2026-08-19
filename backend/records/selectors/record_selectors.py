@@ -182,3 +182,94 @@ def weekly_summary(*, student_id, week_start, actor: User) -> dict:
         "completion_rate": plan.completion_rate,
         "days": days_list,
     }
+
+
+def monthly_summary(*, student_id, month_start, actor: User) -> dict:
+    """Return one calendar-month plan with all daily records in that month."""
+    from calendar import monthrange
+    from datetime import date as date_cls
+    from students.selectors.student_selectors import student_get
+
+    student = student_get(student_id=student_id, actor=actor)
+    first = date_cls.fromisoformat(str(month_start)).replace(day=1)
+    last = first.replace(day=monthrange(first.year, first.month)[1])
+
+    monthly_plans = list(
+        WeeklyPlan.objects.filter(student=student, month_start=first)
+        .prefetch_related("daily_records")
+        .order_by("created_at")
+    )
+    if monthly_plans:
+        plans = monthly_plans
+    else:
+        # Legacy weekly rows remain readable until the user creates a monthly
+        # plan for the same student and month.
+        plans = list(
+            WeeklyPlan.objects.filter(
+                student=student,
+                week_start__gte=first,
+                week_start__lte=last,
+            ).prefetch_related("daily_records").order_by("week_start")
+        )
+
+    if not plans:
+        return {
+            "student_id": str(student.id),
+            "student_name": student.full_name,
+            "month_start": str(first),
+            "month_end": str(last),
+            "total_required": 0,
+            "total_required_lines": 0,
+            "total_required_pages": 0,
+            "total_achieved": 0,
+            "total_lines": 0,
+            "total_pages": 0,
+            "completion_rate": 0,
+            "days": [],
+            "message": "لا توجد خطة لهذا الشهر.",
+        }
+
+    records = list(
+        DailyRecord.objects.filter(
+            student=student,
+            date__gte=first,
+            date__lte=last,
+            weekly_plan__in=plans,
+        ).select_related("evaluation").order_by("date")
+    )
+    total_required = sum(r.required_verses or 0 for r in records)
+    total_achieved = sum(r.achieved_verses or 0 for r in records)
+    total_lines = sum(r.memorized_lines or 0 for r in records)
+    required_pages = sum(float(p.required_pages or 0) for p in plans)
+    total_required_lines = sum(p.total_required_lines or 0 for p in plans)
+    if required_pages <= 0 and total_required_lines > 0:
+        required_pages = total_required_lines / 15
+    if required_pages <= 0 and total_required > 0:
+        required_pages = total_required / 15
+    total_pages = round(total_lines / 15, 1) if total_lines else 0
+    completion = min(round((total_pages / required_pages) * 100, 2), 100) if required_pages else 0
+
+    def record_dict(r):
+        return {
+            "id": str(r.id), "date": str(r.date), "day": r.get_day_display(),
+            "attendance": r.attendance, "required_verses": r.required_verses,
+            "achieved_verses": r.achieved_verses, "from_ayah": r.from_ayah,
+            "to_ayah": r.to_ayah, "from_page": r.from_page, "to_page": r.to_page,
+            "memorized_lines": r.memorized_lines, "surah_name": r.surah_name,
+            "quality": r.quality, "note": r.note, "result": r.result,
+        }
+
+    return {
+        "student_id": str(student.id),
+        "student_name": student.full_name,
+        "month_start": str(first),
+        "month_end": str(last),
+        "total_required": total_required,
+        "total_required_lines": total_required_lines,
+        "total_required_pages": round(required_pages, 1),
+        "total_achieved": total_achieved,
+        "total_lines": total_lines,
+        "total_pages": total_pages,
+        "completion_rate": completion,
+        "days": [record_dict(r) for r in records],
+    }

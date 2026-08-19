@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework import status, serializers
 
 from core.permissions import IsAdminOrTeacher, IsAdminOrTeacherOrSelf
-from records.selectors.record_selectors import daily_records_by_date, weekly_plans_list, weekly_summary
+from records.selectors.record_selectors import daily_records_by_date, weekly_plans_list, weekly_summary, monthly_summary
 from records.services.record_services import (
     daily_record_create,
     daily_record_update,
@@ -158,7 +158,8 @@ class BulkAttendanceInputSerializer(serializers.Serializer):
 
 class WeeklyPlanInputSerializer(serializers.Serializer):
     student_id = serializers.UUIDField()
-    week_start = serializers.DateField()
+    week_start = serializers.DateField(required=False)
+    month_start = serializers.DateField(required=False)
     week_number = serializers.IntegerField(required=False)
     required_pages = serializers.DecimalField(max_digits=6, decimal_places=2, required=False, default=0)
     review_required_pages = serializers.DecimalField(max_digits=6, decimal_places=2, required=False, default=0)
@@ -280,6 +281,26 @@ class WeeklySummaryApi(APIView):
         return Response({"success": True, "data": data}, status=status.HTTP_200_OK)
 
 
+class MonthlySummaryApi(APIView):
+    """GET /api/records/monthly-summary/<student_id>/?month_start=YYYY-MM-DD"""
+
+    permission_classes = [IsAdminOrTeacherOrSelf]
+
+    def get(self, request, student_id):
+        month_start = request.query_params.get("month_start")
+        if not month_start:
+            return Response(
+                {"success": False, "error": "يجب تحديد بداية الشهر (month_start=YYYY-MM-DD)."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        data = monthly_summary(
+            student_id=student_id,
+            month_start=month_start,
+            actor=request.user,
+        )
+        return Response({"success": True, "data": data}, status=status.HTTP_200_OK)
+
+
 class WeeklyPlanCreateApi(APIView):
     """GET/POST /api/records/weekly-plans/ — عرض وإنشاء الخطط الأسبوعية"""
 
@@ -296,7 +317,8 @@ class WeeklyPlanCreateApi(APIView):
 
         plan = weekly_plan_create(
             student_id=serializer.validated_data["student_id"],
-            week_start=serializer.validated_data["week_start"],
+            week_start=serializer.validated_data.get("week_start"),
+            month_start=serializer.validated_data.get("month_start"),
             week_number=serializer.validated_data.get("week_number"),
             required_pages=serializer.validated_data.get("required_pages", 0),
             review_required_pages=serializer.validated_data.get("review_required_pages", 0),
@@ -313,6 +335,7 @@ class WeeklyPlanCreateApi(APIView):
                     "student": plan.student.full_name,
                     "week_number": plan.week_number,
                     "week_start": str(plan.week_start),
+                    "month_start": str(plan.month_start) if plan.month_start else None,
                     "required_pages": float(plan.required_pages or 0),
                     "review_required_pages": float(plan.review_required_pages or 0),
                     "total_required": plan.total_required,
