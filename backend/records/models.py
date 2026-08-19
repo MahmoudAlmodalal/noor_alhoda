@@ -21,8 +21,16 @@ class WeeklyPlan(models.Model):
         related_name="weekly_plans",
         verbose_name="الطالب",
     )
-    week_number = models.PositiveIntegerField(verbose_name="رقم الأسبوع")
-    week_start = models.DateField(verbose_name="بداية الأسبوع (السبت)")
+    week_number = models.PositiveIntegerField(verbose_name="رقم الأسبوع", default=0)
+    week_start = models.DateField(verbose_name="بداية الفترة")
+    # Calendar-month anchor for new monthly plans. Legacy weekly rows keep
+    # month_start null and continue to use week_start as their period anchor.
+    month_start = models.DateField(
+        null=True,
+        blank=True,
+        db_index=True,
+        verbose_name="بداية الشهر",
+    )
     required_pages = models.DecimalField(
         max_digits=6,
         decimal_places=2,
@@ -43,8 +51,8 @@ class WeeklyPlan(models.Model):
     updated_at = models.DateTimeField(auto_now=True, verbose_name="آخر تحديث")
 
     class Meta:
-        verbose_name = "خطة أسبوعية"
-        verbose_name_plural = "الخطط الأسبوعية"
+        verbose_name = "خطة حفظ"
+        verbose_name_plural = "خطط الحفظ"
         ordering = ["-week_start"]
         unique_together = ("student", "week_start")
         indexes = [
@@ -53,7 +61,8 @@ class WeeklyPlan(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.student.full_name} - الأسبوع {self.week_number}"
+        period = self.month_start.strftime("%Y-%m") if self.month_start else f"أسبوع {self.week_number}"
+        return f"{self.student.full_name} - {period}"
 
     @property
     def completion_rate(self):
