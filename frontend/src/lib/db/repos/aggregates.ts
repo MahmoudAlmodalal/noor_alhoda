@@ -16,6 +16,7 @@ import type {
   DashboardStats,
   HistoryEntry,
   LeaderboardEntry,
+  MonthlySummary,
   StudentCourseStatus,
   StudentStats,
   TodayTasks,
@@ -455,6 +456,66 @@ export async function tasksToday(student_id: string): Promise<TodayTasks> {
 // ---------------------------------------------------------------------------
 // Weekly summary
 // ---------------------------------------------------------------------------
+
+function monthEndFor(monthStartIso: string): string {
+  const d = new Date(`${monthStartIso.slice(0, 7)}-01T00:00:00`);
+  d.setMonth(d.getMonth() + 1, 0);
+  return d.toISOString().slice(0, 10);
+}
+
+export async function monthlySummary(
+  student_id: string,
+  month_start_iso: string,
+): Promise<MonthlySummary> {
+  const monthStart = `${month_start_iso.slice(0, 7)}-01`;
+  const monthEnd = monthEndFor(monthStart);
+  const [plans, rows] = await Promise.all([
+    listWeeklyPlans({ student_id }),
+    getDb().daily_records.where("date").between(monthStart, monthEnd, true, true).toArray(),
+  ]);
+  const decrypted = await decryptRows<DailyRecordRecord>(rows);
+  const planIds = new Set(
+    plans
+      .filter((p) => (p.month_start ?? p.week_start.slice(0, 7) + "-01") === monthStart)
+      .map((p) => p.id),
+  );
+  const daily = decrypted
+    .filter((r) => r.student_id === student_id && (!r.weekly_plan_id || planIds.has(r.weekly_plan_id)))
+    .sort((a, b) => (a.date < b.date ? -1 : 1));
+  const matchingPlans = plans.filter(
+    (p) => (p.month_start ?? p.week_start.slice(0, 7) + "-01") === monthStart,
+  );
+  const totalRequired = daily.reduce((sum, r) => sum + (r.required_verses || 0), 0);
+  const totalAchieved = daily.reduce((sum, r) => sum + (r.achieved_verses || 0), 0);
+  const totalLines = daily.reduce((sum, r) => sum + (r.memorized_lines || 0), 0);
+  const requiredPages = matchingPlans.reduce(
+    (sum, p) => sum + Number(p.required_pages || (p.total_required_lines || 0) / 15),
+    0,
+  ) || totalRequired / 15;
+  const achievedPages = totalLines / 15;
+  return {
+    month_start: monthStart,
+    month_end: monthEnd,
+    total_required: totalRequired,
+    total_achieved: totalAchieved,
+    total_lines: totalLines,
+    completion_rate: completionRate(achievedPages, requiredPages),
+    records: daily.map((r) => ({
+      id: r.id,
+      date: r.date,
+      day: r.day,
+      attendance: r.attendance,
+      surah_name: r.surah_name,
+      required_verses: r.required_verses,
+      achieved_verses: r.achieved_verses,
+      memorized_lines: r.memorized_lines,
+      quality: r.quality,
+      note: r.note,
+    })),
+    message: matchingPlans.length === 0 ? "لا توجد خطة لهذا الشهر." : undefined,
+  };
+}
+
 
 export async function weeklySummary(
   student_id: string,
@@ -904,6 +965,7 @@ export interface PlanForList extends WeeklyPlanRecord {
 export async function listPlansForUI(filters?: {
   student_id?: string;
   week_start?: string;
+  month_start?: string;
   teacher_id?: string;
 }): Promise<PlanForList[]> {
   const [plans, students, allDaily] = await Promise.all([
@@ -915,9 +977,11 @@ export async function listPlansForUI(filters?: {
   const scopedPlans = filters?.teacher_id
     ? plans.filter((p) => sById.has(p.student_id))
     : plans;
-  const filtered = filters?.week_start
-    ? scopedPlans.filter((p) => p.week_start === filters.week_start)
-    : scopedPlans;
+  const filtered = filters?.month_start
+    ? scopedPlans.filter((p) => (p.month_start ?? p.week_start).slice(0, 7) === filters.month_start)
+    : filters?.week_start
+      ? scopedPlans.filter((p) => p.week_start === filters.week_start)
+      : scopedPlans;
 
   const achievedLinesByPlan = new Map<string, number>();
   const achievedReviewPagesByPlan = new Map<string, number>();

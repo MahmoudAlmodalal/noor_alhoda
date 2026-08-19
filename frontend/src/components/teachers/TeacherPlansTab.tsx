@@ -10,19 +10,12 @@ import { useQuery } from "@/hooks/useApi";
 import type { PlanForList } from "@/lib/db/repos/aggregates";
 import { cn } from "@/lib/utils";
 
-type WeekFilter = "current" | "last" | "all";
+type MonthFilter = "current" | "last" | "all";
 
-function weekStartFor(d: Date): string {
-  const copy = new Date(d.getTime());
-  const diff = (copy.getDay() - 6 + 7) % 7;
-  copy.setDate(copy.getDate() - diff);
-  return copy.toISOString().slice(0, 10);
-}
-
-function lastWeekStart(): string {
-  const d = new Date();
-  d.setDate(d.getDate() - 7);
-  return weekStartFor(d);
+function monthStartFor(offset: number): string {
+  const now = new Date();
+  const date = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
 }
 
 interface Props {
@@ -30,33 +23,33 @@ interface Props {
 }
 
 export function TeacherPlansTab({ teacherId }: Props) {
-  const [weekFilter, setWeekFilter] = useState<WeekFilter>("current");
+  const [monthFilter, setMonthFilter] = useState<MonthFilter>("current");
   const [modalOpen, setModalOpen] = useState(false);
   const [editPlan, setEditPlan] = useState<{
     id: string;
     studentId: string;
     studentName: string;
     requiredPages?: number;
-    weekStart: string;
+    monthStart: string;
   } | null>(null);
   const [deletePlan, setDeletePlan] = useState<{ id: string; name: string } | null>(null);
 
-  const weekStart = useMemo(() => {
-    if (weekFilter === "current") return weekStartFor(new Date());
-    if (weekFilter === "last") return lastWeekStart();
+  const monthStart = useMemo(() => {
+    if (monthFilter === "current") return monthStartFor(0);
+    if (monthFilter === "last") return monthStartFor(-1);
     return undefined;
-  }, [weekFilter]);
+  }, [monthFilter]);
 
   const { data: plans, isLoading } = useQuery<PlanForList[]>("plans_for_ui", {
     teacher_id: teacherId,
-    ...(weekStart ? { week_start: weekStart } : {}),
+    ...(monthStart ? { month_start: monthStart } : {}),
   });
 
   const rows = useMemo(
     () =>
       (plans ?? []).slice().sort((a, b) => {
-        if (a.week_start !== b.week_start)
-          return b.week_start.localeCompare(a.week_start);
+        if (a.month_start !== b.month_start)
+          return (b.month_start ?? b.week_start).localeCompare(a.month_start ?? a.week_start);
         return a.student_name.localeCompare(b.student_name, "ar");
       }),
     [plans]
@@ -75,22 +68,22 @@ export function TeacherPlansTab({ teacherId }: Props) {
         <div className="flex items-center gap-2">
           <Calendar className="h-5 w-5 text-primary" />
           <h2 className="text-base font-bold text-text-body">
-            الخطط الأسبوعية
+            الخطط الشهرية
             <span className="ms-2 text-xs font-medium text-text-muted">
               ({totals.count})
             </span>
           </h2>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Segmented<WeekFilter>
+          <Segmented<MonthFilter>
             size="sm"
             options={[
-              { value: "current", label: "هذا الأسبوع" },
-              { value: "last", label: "الأسبوع الماضي" },
+              { value: "current", label: "هذا الشهر" },
+              { value: "last", label: "الشهر الماضي" },
               { value: "all", label: "الكل" },
             ]}
-            value={weekFilter}
-            onChange={setWeekFilter}
+            value={monthFilter}
+            onChange={setMonthFilter}
           />
           <button
             type="button"
@@ -137,9 +130,9 @@ export function TeacherPlansTab({ teacherId }: Props) {
             tone="soft"
             title="لا توجد خطط للفترة المحددة"
             description={
-              weekFilter === "current"
-                ? "أنشئ خطة جديدة لطلاب حلقتك لهذا الأسبوع."
-                : "غيّر عامل تصفية الأسبوع لعرض خطط أخرى."
+                monthFilter === "current"
+                ? "أنشئ خطة شهرية جديدة لطلاب حلقتك."
+                : "غيّر عامل تصفية الشهر لعرض خطط أخرى."
             }
           />
         </div>
@@ -149,7 +142,7 @@ export function TeacherPlansTab({ teacherId }: Props) {
             <thead className="bg-surface-subtle/80 text-xs text-text-muted">
               <tr>
                 <th className="px-4 py-3 font-bold">الطالب</th>
-                <th className="px-4 py-3 font-bold">بداية الأسبوع</th>
+                <th className="px-4 py-3 font-bold">شهر الخطة</th>
                 <th className="px-4 py-3 font-bold">المطلوب</th>
                 <th className="px-4 py-3 font-bold">المنجز</th>
                 <th className="px-4 py-3 font-bold">الأسطر</th>
@@ -170,7 +163,7 @@ export function TeacherPlansTab({ teacherId }: Props) {
                       {p.student_name}
                     </td>
                     <td className="px-4 py-3 text-text-label" dir="ltr">
-                      {p.week_start}
+                      {(p.month_start ?? p.week_start).slice(0, 7)}
                     </td>
                     <td className="px-4 py-3 text-text-label">
                       {p.total_required}
@@ -223,7 +216,7 @@ export function TeacherPlansTab({ teacherId }: Props) {
                               studentId: p.student_id,
                               studentName: p.student_name,
                               requiredPages: p.required_pages,
-                              weekStart: p.week_start,
+                              monthStart: p.month_start ?? p.week_start,
                             });
                           }}
                           className="p-1 text-text-muted hover:text-primary transition-colors"
@@ -264,14 +257,14 @@ export function TeacherPlansTab({ teacherId }: Props) {
         studentName={editPlan?.studentName}
         editPlanId={editPlan?.id}
         initialRequiredPages={editPlan?.requiredPages}
-        initialWeekStart={editPlan?.weekStart}
+        initialMonthStart={editPlan?.monthStart}
       />
 
       {deletePlan && (
         <ConfirmDeleteModal
           isOpen={!!deletePlan}
           onClose={() => setDeletePlan(null)}
-          targetName={`${deletePlan.name} (خطة أسبوع ${rows.find((r) => r.id === deletePlan.id)?.week_start || ""})`}
+          targetName={`${deletePlan.name} (خطة شهرية ${(rows.find((r) => r.id === deletePlan.id)?.month_start ?? rows.find((r) => r.id === deletePlan.id)?.week_start ?? "").slice(0, 7)})`}
           resource="weekly_plan"
           targetId={deletePlan.id}
           onSuccess={() => setDeletePlan(null)}

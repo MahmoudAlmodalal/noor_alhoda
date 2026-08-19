@@ -6,6 +6,7 @@ export interface WeeklyPlanRecord {
   student_id: string;
   week_number: number;
   week_start: string;
+  month_start?: string | null;
   required_pages?: number;
   review_required_pages?: number;
   total_required: number;
@@ -83,6 +84,7 @@ export async function upsertWeeklyPlans(plans: WeeklyPlanRecord[]): Promise<void
         server_updated_at: resolveServerUpdatedAt(p),
         student_id: p.student_id,
         week_start: p.week_start,
+        month_start: p.month_start ?? null,
       })
     )
   );

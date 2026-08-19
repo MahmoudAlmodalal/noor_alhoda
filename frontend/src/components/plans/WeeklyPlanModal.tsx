@@ -7,25 +7,11 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { StudentPicker } from "@/components/ui/StudentPicker";
 import { useMutation } from "@/hooks/useMutation";
-import {
-  all,
-  isSaturday,
-  requiredString,
-} from "@/lib/validators";
+import { requiredString } from "@/lib/validators";
 
-function nextSaturday(): string {
+function currentMonth(): string {
   const d = new Date();
-  const day = d.getDay();
-  const offset = (6 - day + 7) % 7 || 7;
-  d.setDate(d.getDate() + offset);
-  return d.toISOString().slice(0, 10);
-}
-
-function getWeekNumber(weekStart: string): number {
-  const d = new Date(weekStart);
-  const firstDay = new Date(Date.UTC(d.getFullYear(), 0, 1));
-  const diffDays = Math.floor((d.getTime() - firstDay.getTime()) / 86_400_000);
-  return Math.floor(diffDays / 7) + 1;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
 interface Props {
@@ -37,7 +23,7 @@ interface Props {
   editPlanId?: string;
   initialRequiredPages?: number;
   initialReviewRequiredPages?: number;
-  initialWeekStart?: string;
+  initialMonthStart?: string;
 }
 
 export function WeeklyPlanModal({
@@ -49,13 +35,13 @@ export function WeeklyPlanModal({
   editPlanId,
   initialRequiredPages,
   initialReviewRequiredPages,
-  initialWeekStart,
+  initialMonthStart,
 }: Props) {
   if (!isOpen) return null;
 
   return (
     <WeeklyPlanModalContent
-      key={`${studentId ?? ""}-${editPlanId ?? ""}-${initialWeekStart ?? ""}-${initialRequiredPages ?? ""}-${initialReviewRequiredPages ?? ""}`}
+      key={`${studentId ?? ""}-${editPlanId ?? ""}-${initialMonthStart ?? ""}-${initialRequiredPages ?? ""}-${initialReviewRequiredPages ?? ""}`}
       isOpen={isOpen}
       onClose={onClose}
       studentId={studentId}
@@ -64,7 +50,7 @@ export function WeeklyPlanModal({
       editPlanId={editPlanId}
       initialRequiredPages={initialRequiredPages}
       initialReviewRequiredPages={initialReviewRequiredPages}
-      initialWeekStart={initialWeekStart}
+      initialMonthStart={initialMonthStart}
     />
   );
 }
@@ -78,11 +64,11 @@ function WeeklyPlanModalContent({
   editPlanId,
   initialRequiredPages,
   initialReviewRequiredPages,
-  initialWeekStart,
+  initialMonthStart,
 }: Props) {
   const [selectedId, setSelectedId] = useState(studentId ?? "");
   const [selectedName, setSelectedName] = useState(studentName ?? "");
-  const [weekStart, setWeekStart] = useState<string>(initialWeekStart ?? nextSaturday());
+  const [monthStart, setMonthStart] = useState<string>(initialMonthStart?.slice(0, 7) ?? currentMonth());
   const [requiredPages, setRequiredPages] = useState<number>(initialRequiredPages ?? 1);
   const [reviewRequiredPages, setReviewRequiredPages] = useState<number>(initialReviewRequiredPages ?? 0);
   const [clientError, setClientError] = useState<string | null>(null);
@@ -96,12 +82,13 @@ function WeeklyPlanModalContent({
   const handleSubmit = async () => {
     setClientError(null);
 
-    const validation = all(
-      requiredString(selectedId, "الطالب"),
-      isSaturday(weekStart),
-    );
+    const validation = requiredString(selectedId, "الطالب");
     if (!validation.ok) {
       setClientError(validation.error);
+      return;
+    }
+    if (!/^\d{4}-\d{2}$/.test(monthStart)) {
+      setClientError("يجب اختيار شهر صحيح.");
       return;
     }
 
@@ -131,8 +118,7 @@ function WeeklyPlanModalContent({
       const result = await createMutate(
         {
           student_id: selectedId,
-          week_start: weekStart,
-          week_number: getWeekNumber(weekStart),
+          month_start: `${monthStart}-01`,
           required_pages: pagesVal,
           review_required_pages: Number(reviewRequiredPages) || 0,
           total_required_lines: reqLinesVal,
@@ -176,12 +162,12 @@ function WeeklyPlanModalContent({
         )}
 
         <div className="space-y-1.5">
-          <label className="block text-sm font-bold text-text-body">بداية الخطة (السبت)</label>
+          <label className="block text-sm font-bold text-text-body">شهر الخطة</label>
           <Input
-            type="date"
-            value={weekStart}
-            onChange={(e) => setWeekStart(e.target.value)}
-            aria-label="بداية الأسبوع"
+            type="month"
+            value={monthStart}
+            onChange={(e) => setMonthStart(e.target.value)}
+            aria-label="شهر الخطة"
             className="h-12 rounded-xl border-border-subtle"
             dir="ltr"
             disabled={!!editPlanId}

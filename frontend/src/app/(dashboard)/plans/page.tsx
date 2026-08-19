@@ -10,20 +10,20 @@ import type { PlanForList } from "@/lib/db/repos/aggregates";
 
 export default function PlansPage() {
   const [planModalOpen, setPlanModalOpen] = useState(false);
-  const [weekFilter, setWeekFilter] = useState<string>("");
+  const [monthFilter, setMonthFilter] = useState<string>("");
   const [editPlan, setEditPlan] = useState<{
     id: string;
     studentId: string;
     studentName: string;
     requiredPages?: number;
     reviewRequiredPages?: number;
-    weekStart: string;
+    monthStart: string;
   } | null>(null);
   const [deletePlan, setDeletePlan] = useState<{ id: string; name: string } | null>(null);
 
   const params = useMemo<Record<string, string | undefined>>(
-    () => ({ week_start: weekFilter || undefined }),
-    [weekFilter]
+    () => ({ month_start: monthFilter || undefined }),
+    [monthFilter]
   );
 
   const { data: plans, isLoading } = useQuery<PlanForList[]>("plans_for_ui", params);
@@ -43,19 +43,19 @@ export default function PlansPage() {
 
         <div className="flex items-center gap-3 flex-wrap mt-4">
           <div className="space-y-1.5">
-            <label className="block text-xs font-bold text-text-body">فلترة ببداية الخطة</label>
+            <label className="block text-xs font-bold text-text-body">فلترة بالشهر</label>
             <input
-              type="date"
-              value={weekFilter}
-              onChange={(e) => setWeekFilter(e.target.value)}
+              type="month"
+              value={monthFilter}
+              onChange={(e) => setMonthFilter(e.target.value)}
               className="h-11 rounded-xl border border-border-subtle bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
               dir="ltr"
             />
           </div>
-          {weekFilter && (
+          {monthFilter && (
             <button
               type="button"
-              onClick={() => setWeekFilter("")}
+              onClick={() => setMonthFilter("")}
               className="mt-6 text-xs text-primary font-bold hover:underline"
             >
               عرض الكل
@@ -108,7 +108,7 @@ export default function PlansPage() {
               <thead className="text-[10px] text-text-muted bg-surface-subtle/80">
                 <tr>
                   <th className="px-4 py-3 font-bold">الطالب</th>
-                  <th className="px-4 py-3 font-bold text-center">بداية الخطة</th>
+                  <th className="px-4 py-3 font-bold text-center">شهر الخطة</th>
                   <th className="px-4 py-3 font-bold text-center">المطلوب حفظه</th>
                   <th className="px-4 py-3 font-bold text-center">منجز الحفظ</th>
                   <th className="px-4 py-3 font-bold text-center">نسبة الحفظ</th>
@@ -134,7 +134,7 @@ export default function PlansPage() {
                         </div>
                       </td>
                       <td className="px-4 py-3 text-center text-text-muted" dir="ltr">
-                        {plan.week_start}
+                        {(plan.month_start ?? plan.week_start).slice(0, 7)}
                       </td>
                       <td className="px-4 py-3 text-center text-text-label text-xs">
                         <div className="font-bold">{reqPages} صفحة</div>
@@ -168,7 +168,7 @@ export default function PlansPage() {
                                 studentName: plan.student_name,
                                 requiredPages: plan.required_pages ?? plan.total_required_pages,
                                 reviewRequiredPages: plan.review_required_pages ?? 0,
-                                weekStart: plan.week_start,
+                                monthStart: plan.month_start ?? plan.week_start,
                               })
                             }
                             className="p-1 text-text-muted hover:text-primary transition-colors"
@@ -211,14 +211,14 @@ export default function PlansPage() {
         editPlanId={editPlan?.id}
         initialRequiredPages={editPlan?.requiredPages}
         initialReviewRequiredPages={editPlan?.reviewRequiredPages}
-        initialWeekStart={editPlan?.weekStart}
+        initialMonthStart={editPlan?.monthStart}
       />
 
       {deletePlan && (
         <ConfirmDeleteModal
           isOpen={!!deletePlan}
           onClose={() => setDeletePlan(null)}
-          targetName={`${deletePlan.name} (خطة شهرية ${plans?.find((r) => r.id === deletePlan.id)?.week_start || ""})`}
+          targetName={`${deletePlan.name} (خطة شهرية ${(plans?.find((r) => r.id === deletePlan.id)?.month_start ?? plans?.find((r) => r.id === deletePlan.id)?.week_start ?? "").slice(0, 7)})`}
           resource="weekly_plan"
           targetId={deletePlan.id}
           onSuccess={() => setDeletePlan(null)}

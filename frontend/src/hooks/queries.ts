@@ -16,6 +16,7 @@ import {
   listEvaluationsForTeacher,
   listPlansForUI,
   listReviewsForTeacher,
+  monthlySummary,
   studentCoursesForStudent,
   studentHistory,
   studentStats,
@@ -77,6 +78,7 @@ export type QueryKey =
   | "tasks_today"
   | "student_history"
   | "weekly_summary"
+  | "monthly_summary"
   | "attendance_report"
   | "leaderboard"
   | "teacher_aggregate_stats"
@@ -274,6 +276,7 @@ const QUERIES: Record<QueryKey, QueryDef> = {
       listPlansForUI({
         student_id: typeof p?.student_id === "string" ? p.student_id : undefined,
         week_start: typeof p?.week_start === "string" ? p.week_start : undefined,
+        month_start: typeof p?.month_start === "string" ? p.month_start : undefined,
         teacher_id: typeof p?.teacher_id === "string" ? p.teacher_id : undefined,
       }),
     depends: ["weekly_plan", "daily_record", "student"],
@@ -373,6 +376,14 @@ const QUERIES: Record<QueryKey, QueryDef> = {
       const sid = typeof p?.student_id === "string" ? p.student_id : "";
       const ws = typeof p?.week_start === "string" ? p.week_start : "";
       return sid && ws ? weeklySummary(sid, ws) : Promise.resolve(null);
+    },
+    depends: ["weekly_plan", "daily_record", "evaluation"],
+  },
+  monthly_summary: {
+    fn: (p) => {
+      const sid = typeof p?.student_id === "string" ? p.student_id : "";
+      const ms = typeof p?.month_start === "string" ? p.month_start : "";
+      return sid && ms ? monthlySummary(sid, ms) : Promise.resolve(null);
     },
     depends: ["weekly_plan", "daily_record", "evaluation"],
   },

@@ -392,12 +392,24 @@ export interface WeeklySummary {
   week_number?: number;
 }
 
+export interface MonthlySummary {
+  month_start: string;
+  month_end: string;
+  total_required: number;
+  total_achieved: number;
+  total_lines: number;
+  completion_rate: number;
+  records: HistoryEntry[];
+  message?: string;
+}
+
 export interface WeeklyPlan {
   id: string;
   student_id: string;
   student_name?: string;
   week_number: number;
   week_start: string;
+  month_start?: string | null;
   required_pages?: number;
   total_required: number;
   total_achieved: number;
@@ -411,7 +423,8 @@ export interface WeeklyPlan {
 
 export interface WeeklyPlanRequest {
   student_id: string;
-  week_start: string;
+  week_start?: string;
+  month_start?: string;
   week_number?: number;
   required_pages?: number;
   total_required?: number;
