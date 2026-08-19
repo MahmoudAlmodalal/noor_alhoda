@@ -198,6 +198,16 @@ export function AttendanceRow({ draft, onChange }: Props) {
                 </select>
               </div>
               <div className="space-y-1">
+                <label className="block text-[11px] font-bold text-text-label">ملاحظات الحفظ</label>
+                <input
+                  type="text"
+                  placeholder="ملاحظات"
+                  value={draft.note}
+                  onChange={(e) => onChange({ note: e.target.value })}
+                  className={inputCls}
+                />
+              </div>
+              <div className="space-y-1">
                 <label className="block text-[11px] font-bold text-text-label">تقييم الأخلاق والسلوك</label>
                 <select
                   value={draft.morals_rating}
@@ -209,21 +219,12 @@ export function AttendanceRow({ draft, onChange }: Props) {
                   ))}
                 </select>
               </div>
-              <div className="space-y-1">
-                <label className="block text-[11px] font-bold text-text-label">ملاحظات الحفظ</label>
-                <input
-                  type="text"
-                  placeholder="ملاحظات"
-                  value={draft.note}
-                  onChange={(e) => onChange({ note: e.target.value })}
-                  className={inputCls}
-                />
-              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
               <div className="space-y-1">
                 <label className="block text-[11px] font-bold text-text-label">اختبار أجزاء متفرقة (%)</label>
+                <p className="text-[10px] leading-4 text-text-muted">اختبار آيات أو مقاطع مختارة من مواضع مختلفة من المحفوظ.</p>
                 <input
                   type="number"
                   min={0}
@@ -236,6 +237,7 @@ export function AttendanceRow({ draft, onChange }: Props) {
               </div>
               <div className="space-y-1">
                 <label className="block text-[11px] font-bold text-text-label">اختبار أجزاء مجمعة (%)</label>
+                <p className="text-[10px] leading-4 text-text-muted">اختبار المقاطع المحفوظة متتابعة ومجتمعة ضمن تسميع واحد.</p>
                 <input
                   type="number"
                   min={0}
