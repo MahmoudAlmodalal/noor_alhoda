@@ -30,23 +30,32 @@ export function useQuery<T>(
 
   const paramsRef = useRef<QueryParams | undefined>(params);
   const paramsKey = params ? JSON.stringify(params) : "";
+  const latestRunRef = useRef(0);
   paramsRef.current = params;
 
   const run = useCallback(async () => {
+    const runId = ++latestRunRef.current;
+
     if (!resource || !dbUnlocked) {
-      setIsLoading(false);
-      setData(null);
+      if (runId === latestRunRef.current) {
+        setIsLoading(false);
+        setData(null);
+      }
       return;
     }
     const def = getQueryDef(resource);
-    setError(null);
+    if (runId === latestRunRef.current) setError(null);
     try {
       const result = await def.fn(paramsRef.current ?? {});
-      setData(result as T);
+      // A change event can start a newer read while this one is still in
+      // flight. Never let the older response overwrite fresh page data.
+      if (runId === latestRunRef.current) setData(result as T);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "خطأ غير متوقع");
+      if (runId === latestRunRef.current) {
+        setError(err instanceof Error ? err.message : "خطأ غير متوقع");
+      }
     } finally {
-      setIsLoading(false);
+      if (runId === latestRunRef.current) setIsLoading(false);
     }
   }, [resource, dbUnlocked]);
 
