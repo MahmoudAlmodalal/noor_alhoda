@@ -63,6 +63,9 @@ function requiredPages(record: DailyRecordRecord): number {
 }
 
 function reviewPages(record: DailyRecordRecord): number {
+  if ((record.review_lines ?? 0) > 0) {
+    return Math.max(0, Number(record.review_lines) / 15);
+  }
   if (record.review_from_page != null && record.review_to_page != null && record.review_to_page >= record.review_from_page) {
     return Math.max(0, record.review_to_page - record.review_from_page + 1);
   }

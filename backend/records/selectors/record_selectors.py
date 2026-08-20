@@ -131,6 +131,7 @@ def weekly_summary(*, student_id, week_start, actor: User) -> dict:
                 "review_surah_name": r.review_surah_name,
                 "review_from_ayah": r.review_from_ayah,
                 "review_to_ayah": r.review_to_ayah,
+                "review_lines": r.review_lines,
                 "review_quality": r.review_quality,
                 "next_memorization_target": r.next_memorization_target,
                 "next_memorization_from_ayah": r.next_memorization_from_ayah,
@@ -159,6 +160,7 @@ def weekly_summary(*, student_id, week_start, actor: User) -> dict:
                 "review_surah_name": "",
                 "review_from_ayah": None,
                 "review_to_ayah": None,
+                "review_lines": 0,
                 "review_quality": "none",
                 "next_memorization_target": "",
                 "next_memorization_from_ayah": None,
@@ -224,6 +226,8 @@ def monthly_summary(*, student_id, month_start, actor: User) -> dict:
             "total_achieved": 0,
             "total_lines": 0,
             "total_pages": 0,
+            "total_review_lines": 0,
+            "total_review_pages": 0,
             "completion_rate": 0,
             "days": [],
             "message": "لا توجد خطة لهذا الشهر.",
@@ -240,6 +244,7 @@ def monthly_summary(*, student_id, month_start, actor: User) -> dict:
     total_required = sum(r.required_verses or 0 for r in records)
     total_achieved = sum(r.achieved_verses or 0 for r in records)
     total_lines = sum(r.memorized_lines or 0 for r in records)
+    total_review_lines = sum(r.review_lines or 0 for r in records)
     required_pages = sum(float(p.required_pages or 0) for p in plans)
     total_required_lines = sum(p.total_required_lines or 0 for p in plans)
     if required_pages <= 0 and total_required_lines > 0:
@@ -247,6 +252,7 @@ def monthly_summary(*, student_id, month_start, actor: User) -> dict:
     if required_pages <= 0 and total_required > 0:
         required_pages = total_required / 15
     total_pages = round(total_lines / 15, 1) if total_lines else 0
+    total_review_pages = round(total_review_lines / 15, 1) if total_review_lines else 0
     completion = min(round((total_pages / required_pages) * 100, 2), 100) if required_pages else 0
 
     def record_dict(r):
@@ -270,6 +276,8 @@ def monthly_summary(*, student_id, month_start, actor: User) -> dict:
         "total_achieved": total_achieved,
         "total_lines": total_lines,
         "total_pages": total_pages,
+        "total_review_lines": total_review_lines,
+        "total_review_pages": total_review_pages,
         "completion_rate": completion,
         "days": [record_dict(r) for r in records],
     }

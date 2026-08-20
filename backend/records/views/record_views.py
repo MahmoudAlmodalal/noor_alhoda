@@ -39,6 +39,7 @@ class DailyRecordOutputSerializer(serializers.Serializer):
     review_surah_name = serializers.CharField()
     review_from_ayah = serializers.IntegerField(allow_null=True)
     review_to_ayah = serializers.IntegerField(allow_null=True)
+    review_lines = serializers.IntegerField()
     review_quality = serializers.CharField()
     next_memorization_target = serializers.CharField(required=False, allow_blank=True, default="")
     next_memorization_from_ayah = serializers.IntegerField(required=False, allow_null=True, default=None)
@@ -83,6 +84,7 @@ class DailyRecordInputSerializer(serializers.Serializer):
     review_surah_name = serializers.CharField(required=False, default="")
     review_from_ayah = serializers.IntegerField(required=False, allow_null=True, default=None)
     review_to_ayah = serializers.IntegerField(required=False, allow_null=True, default=None)
+    review_lines = serializers.IntegerField(required=False, default=0, min_value=0)
     review_quality = serializers.ChoiceField(
         choices=["excellent", "good", "acceptable", "weak", "none"],
         default="none",
@@ -126,6 +128,7 @@ class DailyRecordUpdateSerializer(serializers.Serializer):
     review_surah_name = serializers.CharField(required=False)
     review_from_ayah = serializers.IntegerField(required=False, allow_null=True)
     review_to_ayah = serializers.IntegerField(required=False, allow_null=True)
+    review_lines = serializers.IntegerField(required=False, min_value=0)
     review_quality = serializers.ChoiceField(
         choices=["excellent", "good", "acceptable", "weak", "none"],
         required=False,

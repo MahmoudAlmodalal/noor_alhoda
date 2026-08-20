@@ -360,6 +360,7 @@ export interface HistoryEntry {
   from_ayah?: number | null;
   to_ayah?: number | null;
   memorized_lines?: number;
+  review_lines?: number;
   quality?: string;
   note?: string;
 }
@@ -398,6 +399,8 @@ export interface MonthlySummary {
   total_required: number;
   total_achieved: number;
   total_lines: number;
+  total_review_lines?: number;
+  total_review_pages?: number;
   completion_rate: number;
   records: HistoryEntry[];
   message?: string;

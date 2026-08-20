@@ -167,6 +167,7 @@ def daily_record_to_dict(r: DailyRecord) -> dict[str, Any]:
         "review_to_ayah": r.review_to_ayah,
         "review_from_page": r.review_from_page,
         "review_to_page": r.review_to_page,
+        "review_lines": r.review_lines,
         "review_quality": r.review_quality,
         "next_memorization_target": r.next_memorization_target,
         "next_memorization_from_ayah": r.next_memorization_from_ayah,

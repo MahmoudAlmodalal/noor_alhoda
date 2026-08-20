@@ -23,6 +23,7 @@ export interface DraftRecord {
   review_surah_name: string;
   review_from_ayah: number | "";
   review_to_ayah: number | "";
+  review_lines: number;
   review_quality: string;
   next_memorization_target: string;
   next_memorization_from_ayah: number | "";
@@ -291,6 +292,17 @@ export function AttendanceRow({ draft, onChange }: Props) {
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="space-y-1">
+                <label className="block text-[11px] font-bold text-text-label">عدد أسطر المراجعة</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={draft.review_lines}
+                  onChange={(e) => onChange({ review_lines: Number(e.target.value) })}
+                  className={inputCls}
+                  dir="ltr"
+                />
+              </div>
               <div className="space-y-1">
                 <label className="block text-[11px] font-bold text-text-label">تقدير المراجعة</label>
                 <select

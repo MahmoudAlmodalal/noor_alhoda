@@ -220,6 +220,10 @@ class DailyRecord(models.Model):
         blank=True,
         verbose_name="مراجعة إلى صفحة",
     )
+    review_lines = models.PositiveIntegerField(
+        default=0,
+        verbose_name="عدد أسطر المراجعة",
+    )
     review_quality = models.CharField(
         max_length=10,
         choices=Quality.choices,
