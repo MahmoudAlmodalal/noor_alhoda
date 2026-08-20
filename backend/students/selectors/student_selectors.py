@@ -100,50 +100,70 @@ def student_get(*, student_id, actor: User) -> Student:
 
 
 def student_history(*, student_id, actor: User) -> list:
-    """
-    Return full memorization history (WeeklyPlans) for a student,
-    enriched with title and rating for frontend display.
-    """
+    """Return a student's monthly progress summaries for the detail page."""
+    from calendar import monthrange
+    from collections import defaultdict
+    from datetime import date as date_cls
     from records.models import WeeklyPlan
+    from evaluations.models import Evaluation
 
     student = student_get(student_id=student_id, actor=actor)
-    plans = WeeklyPlan.objects.filter(
-        student=student
-    ).prefetch_related("daily_records").order_by("-week_start")
+    plans = list(
+        WeeklyPlan.objects.filter(student=student)
+        .prefetch_related("daily_records")
+        .order_by("-week_start")
+    )
+    groups = defaultdict(lambda: {"plans": [], "records": []})
+    for plan in plans:
+        month_start = plan.month_start or plan.week_start.replace(day=1)
+        key = str(month_start)
+        groups[key]["plans"].append(plan)
+        groups[key]["records"].extend(plan.daily_records.all())
 
     history = []
-    for plan in plans:
-        records = sorted(plan.daily_records.all(), key=lambda r: r.date, reverse=True)
-        last_record = records[0] if records else None
-
-        # Build a meaningful title from the surah name
-        title = f"الأسبوع {plan.week_number}"
-        if last_record and last_record.surah_name:
-            title = f"تسميع {last_record.surah_name}"
-
-        # Derive rating from completion rate
-        rate = plan.completion_rate
-        if rate >= 90:
-            rating = "excellent"
-        elif rate >= 75:
-            rating = "very_good"
-        elif rate >= 50:
-            rating = "good"
-        else:
-            rating = "none"
-
+    for month_start, group in sorted(groups.items(), reverse=True):
+        first = date_cls.fromisoformat(month_start)
+        last = first.replace(day=monthrange(first.year, first.month)[1])
+        plans_for_month = group["plans"]
+        records = group["records"]
+        total_required = sum(r.required_verses or 0 for r in records)
+        total_achieved = sum(r.achieved_verses or 0 for r in records)
+        total_lines = sum(r.memorized_lines or 0 for r in records)
+        review_lines = sum(r.review_lines or 0 for r in records)
+        required_pages = sum(float(p.required_pages or 0) for p in plans_for_month)
+        if required_pages <= 0:
+            required_pages = sum(p.total_required_lines or 0 for p in plans_for_month) / 15
+        if required_pages <= 0:
+            required_pages = total_required / 15
+        achieved_pages = total_lines / 15
+        completion_rate = min(round((achieved_pages / required_pages) * 100, 2), 100) if required_pages else 0
+        attendance_present = sum(1 for r in records if r.attendance in ("present", "late"))
+        attendance_absent = sum(1 for r in records if r.attendance == "absent")
+        attendance_excused = sum(1 for r in records if r.attendance == "excused")
+        evaluation_count = Evaluation.objects.filter(
+            student=student, scheduled_date__gte=first, scheduled_date__lte=last
+        ).count()
+        rating = "excellent" if completion_rate >= 90 else "very_good" if completion_rate >= 75 else "good" if completion_rate >= 50 else "none"
         history.append({
-            "id": str(plan.id),
-            "title": title,
-            "date": str(plan.week_start),
+            "id": month_start,
+            "title": f"السجل الشهري — {first.strftime('%Y-%m')}",
+            "date": month_start,
+            "month_start": month_start,
+            "month_end": str(last),
             "rating": rating,
-            "week_number": plan.week_number,
-            "total_required": plan.total_required,
-            "total_achieved": plan.total_achieved,
-            "total_lines": plan.total_lines,
-            "completion_rate": plan.completion_rate,
+            "total_required": total_required,
+            "total_achieved": total_achieved,
+            "total_lines": total_lines,
+            "total_pages": round(achieved_pages, 1),
+            "total_review_lines": review_lines,
+            "total_review_pages": round(review_lines / 15, 1),
+            "required_pages": round(required_pages, 1),
+            "completion_rate": completion_rate,
+            "present_days": attendance_present,
+            "absent_days": attendance_absent,
+            "excused_days": attendance_excused,
+            "evaluation_count": evaluation_count,
         })
-
     return history
 
 

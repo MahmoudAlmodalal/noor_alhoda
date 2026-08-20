@@ -361,6 +361,25 @@ export interface HistoryEntry {
   to_ayah?: number | null;
   memorized_lines?: number;
   review_lines?: number;
+  review_surah_name?: string;
+  review_from_ayah?: number | null;
+  review_to_ayah?: number | null;
+  review_quality?: string;
+  month_start?: string;
+  month_end?: string;
+  total_required?: number;
+  total_achieved?: number;
+  total_lines?: number;
+  total_pages?: number;
+  total_review_lines?: number;
+  total_review_pages?: number;
+  required_pages?: number;
+  completion_rate?: number;
+  present_days?: number;
+  absent_days?: number;
+  excused_days?: number;
+  evaluation_count?: number;
+  evaluation_id?: string | null;
   quality?: string;
   note?: string;
 }
@@ -399,6 +418,7 @@ export interface MonthlySummary {
   total_required: number;
   total_achieved: number;
   total_lines: number;
+  total_pages?: number;
   total_review_lines?: number;
   total_review_pages?: number;
   completion_rate: number;

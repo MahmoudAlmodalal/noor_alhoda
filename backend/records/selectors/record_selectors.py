@@ -262,6 +262,10 @@ def monthly_summary(*, student_id, month_start, actor: User) -> dict:
             "achieved_verses": r.achieved_verses, "from_ayah": r.from_ayah,
             "to_ayah": r.to_ayah, "from_page": r.from_page, "to_page": r.to_page,
             "memorized_lines": r.memorized_lines, "surah_name": r.surah_name,
+            "review_surah_name": r.review_surah_name,
+            "review_from_ayah": r.review_from_ayah, "review_to_ayah": r.review_to_ayah,
+            "review_lines": r.review_lines, "review_quality": r.review_quality,
+            "evaluation_id": str(r.evaluation_id) if r.evaluation_id else None,
             "quality": r.quality, "note": r.note, "result": r.result,
         }
 
