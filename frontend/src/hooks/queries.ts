@@ -166,7 +166,7 @@ async function listStudentsWithTeacher(
     filtered = filtered.filter((s) => allowed.has(s.id));
   }
 
-  const teacherById = new Map(teachers.map((t) => [t.id, t.full_name]));
+  const teacherById = new Map(teachers.map((t) => [t.id, t]));
 
   const planToStudent = new Map<string, string>();
   for (const p of allPlans) planToStudent.set(p.id, p.student_id);
@@ -194,12 +194,12 @@ async function listStudentsWithTeacher(
 
   return filtered.map((s) => ({
     ...s,
-    teacher_name: s.teacher_id ? teacherById.get(s.teacher_id) ?? null : null,
+    teacher_name: s.teacher_id ? teacherById.get(s.teacher_id)?.full_name ?? null : null,
     is_active: true,
-    bank_account_number: null,
-    bank_account_name: null,
-    bank_account_type: null,
-    affiliation: "",
+    bank_account_number: s.bank_account_number ?? null,
+    bank_account_name: s.bank_account_name ?? null,
+    bank_account_type: s.bank_account_type ?? null,
+    affiliation: s.affiliation ?? (s.teacher_id ? teacherById.get(s.teacher_id)?.affiliation ?? "" : ""),
     today_attendance_status: todayByStudent.get(s.id) ?? null,
     memorized_ajza_count: memorizedPartsForStudent(
       s,

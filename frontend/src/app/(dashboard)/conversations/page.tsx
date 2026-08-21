@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { MessageCircle, Clock, ChevronLeft } from "lucide-react";
 import { PageLoading } from "@/components/ui/LoadingSpinner";
+import { RoleGate } from "@/components/auth/RoleGate";
 import { Avatar } from "@/components/ui/Avatar";
 import { fetchConversations, type ConversationSummary } from "@/lib/api";
 
@@ -60,7 +61,8 @@ export default function ConversationsPage() {
   const totalUnread = conversations.reduce((s, c) => s + c.unread_count, 0);
 
   return (
-    <div className="max-w-2xl mx-auto space-y-5 pb-10">
+    <RoleGate roles={["teacher", "student"]}>
+      <div className="max-w-2xl mx-auto space-y-5 pb-10">
       {/* Header */}
       <div className="bg-white rounded-[24px] p-6 shadow-sm border border-border-card flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -142,6 +144,7 @@ export default function ConversationsPage() {
           </ul>
         )}
       </div>
-    </div>
+      </div>
+    </RoleGate>
   );
 }

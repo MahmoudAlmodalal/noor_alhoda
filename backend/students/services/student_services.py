@@ -232,7 +232,7 @@ def student_update(*, student: Student, actor: User, data: dict) -> Student:
     ]
 
     # national_id is stored on the related User (USERNAME_FIELD). Route it there.
-    new_national_id = data.get("national_id")
+    new_national_id = str(data.get("national_id") or "").strip()
     if new_national_id and new_national_id != student.user.national_id:
         if User.objects.filter(national_id=new_national_id).exclude(pk=student.user_id).exists():
             raise ValidationError({"national_id": "رقم الهوية مسجل مسبقاً."})

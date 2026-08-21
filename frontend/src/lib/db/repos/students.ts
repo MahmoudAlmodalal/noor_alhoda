@@ -16,6 +16,10 @@ export interface StudentRecord {
   guardian_name: string;
   guardian_national_id: string;
   guardian_mobile: string;
+  bank_account_number?: string | null;
+  bank_account_name?: string | null;
+  bank_account_type?: string | null;
+  affiliation?: string;
   teacher_id: string | null;
   health_status: string;
   health_note: string;

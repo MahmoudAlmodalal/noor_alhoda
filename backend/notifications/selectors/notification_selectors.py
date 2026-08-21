@@ -1,5 +1,6 @@
 import uuid
 from django.db.models import QuerySet
+from rest_framework.exceptions import PermissionDenied
 
 from notifications.models import Notification
 from accounts.models import Parent, ParentStudentLink, User
@@ -159,16 +160,12 @@ def teacher_circle_recipients(teacher_user: User) -> list[User]:
 
 
 def conversation_messages(*, student_id, user):
-    """
-    جلب رسائل المحادثة بعد تطبيق صلاحيات الوصول على الطالب.
-
-    The caller must never be able to use a student UUID as an IDOR probe.
-    Reuse the canonical student selector so admin, teacher, student, and
-    parent access rules stay consistent across the API.
-    """
+    """Return a teacher/student conversation, never for administration."""
     from notifications.models import DirectMessage
     from students.selectors.student_selectors import student_get
-
+    from core.permissions import is_admin_user
+    if is_admin_user(user):
+        raise PermissionDenied("المحادثات متاحة بين المحفظ والطلاب فقط.")
     student = student_get(student_id=student_id, actor=user)
     return DirectMessage.objects.filter(
         student=student,
@@ -202,11 +199,7 @@ def conversation_list_for_user(*, user) -> list:
             ).values_list("student_id", flat=True).distinct()
         )
     elif is_admin_user(user):
-        student_ids = list(
-            DirectMessage.objects.values_list(
-                "student_id", flat=True
-            ).distinct()
-        )
+        return []
     else:
         return []
 

@@ -3,10 +3,11 @@
 import type { ChangeEvent } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Search } from "lucide-react";
+import { RoleGate } from "@/components/auth/RoleGate";
 import { useToast } from "@/contexts/ToastContext";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useQuery } from "@/hooks/useApi";
-import type { CourseRecord, TeacherWithUser } from "@/hooks/queries";
+import type { CourseRecord, StudentWithTeacher, TeacherWithUser } from "@/hooks/queries";
 import { api } from "@/lib/api";
 import type {
   BulkStudentImportResult,
@@ -305,6 +306,11 @@ export default function StudentsDbPage() {
   const debouncedSearch = useDebounce(search);
   const { data: teachers } = useQuery<TeacherWithUser[]>("teachers");
   const { data: courses } = useQuery<CourseRecord[]>("courses");
+  const { data: syncedStudents = [] } = useQuery<StudentWithTeacher[]>("students_with_teacher", {
+    search: debouncedSearch || undefined,
+    teacher_id: teacherFilter || undefined,
+    course_id: courseFilter || undefined,
+  });
 
   const fetchStudents = useCallback(
     async (pageToLoad = page) => {
@@ -599,17 +605,33 @@ export default function StudentsDbPage() {
     }
   };
 
-  const students = studentsPage?.items ?? [];
-  const totalPages = studentsPage?.total_pages ?? 1;
-  const rowOffset = ((studentsPage?.page ?? 1) - 1) * PAGE_SIZE;
+  const localFallbackStudents: Student[] = (syncedStudents ?? []).map((student) => ({
+    ...student,
+    birthdate: student.birthdate ?? "",
+    address: student.address ?? "",
+    whatsapp: student.whatsapp ?? "",
+    mobile: student.mobile ?? "",
+    guardian_national_id: student.guardian_national_id || null,
+    bank_account_number: student.bank_account_number ?? null,
+    bank_account_name: student.bank_account_name ?? null,
+    bank_account_type: student.bank_account_type ?? null,
+    enrollment_date: student.enrollment_date ?? "",
+    skills: student.skills as StudentSkills | null,
+  }));
+  const students = studentsPage && studentsPage.items.length > 0
+    ? studentsPage.items
+    : localFallbackStudents.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const totalPages = studentsPage?.total_pages ?? Math.max(1, Math.ceil(localFallbackStudents.length / PAGE_SIZE));
+  const rowOffset = studentsPage ? ((studentsPage.page ?? 1) - 1) * PAGE_SIZE : (page - 1) * PAGE_SIZE;
 
   return (
-    <div dir="rtl" className="min-h-screen space-y-4 bg-surface-subtle p-6">
+    <RoleGate roles={["admin"]}>
+      <div dir="rtl" className="min-h-screen space-y-4 bg-surface-subtle p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-text-body">قاعدة بيانات الطلاب</h1>
           <p className="mt-1 text-sm text-text-muted">
-            عرض {students.length} من أصل {studentsPage?.count ?? 0} سجل
+            عرض {students.length} من أصل {studentsPage?.count ?? localFallbackStudents.length} سجل
           </p>
         </div>
 
@@ -734,17 +756,18 @@ export default function StudentsDbPage() {
         </div>
       </div>
 
-      {studentsPage && totalPages > 1 && (
+      {totalPages > 1 && (
         <PaginationBar
           page={page}
           totalPages={totalPages}
-          count={studentsPage.count}
+          count={studentsPage?.count ?? localFallbackStudents.length}
           onPageChange={(nextPage) => {
             setPage(nextPage);
             void fetchStudents(nextPage);
           }}
         />
       )}
-    </div>
+      </div>
+    </RoleGate>
   );
 }

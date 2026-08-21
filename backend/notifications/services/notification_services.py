@@ -201,6 +201,10 @@ def conversation_reply(*, sender, student_id: str, body: str) -> dict:
     if not student:
         raise NotFound("الطالب غير موجود.")
 
+    # المحادثات محصورة بين المحفظ والطالب، ولا تشمل الإدارة.
+    if is_admin_user(sender):
+        raise PermissionDenied("المحادثات متاحة بين المحفظ والطلاب فقط.")
+
     # التحقق من الصلاحيات
     if sender.role == "student":
         student_profile = getattr(sender, "student_profile", None)
@@ -209,7 +213,7 @@ def conversation_reply(*, sender, student_id: str, body: str) -> dict:
     elif sender.role == "teacher":
         if not teacher_can_message_student(sender, student=student):
             raise PermissionDenied("ليس لديك صلاحية لمراسلة هذا الطالب.")
-    elif not is_admin_user(sender):
+    else:
         raise PermissionDenied("ليس لديك صلاحية لإرسال رسالة.")
 
     # إنشاء الرسالة
