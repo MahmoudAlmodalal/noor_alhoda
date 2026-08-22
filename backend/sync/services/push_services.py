@@ -484,7 +484,10 @@ def _push_weekly_plan_delete(*, actor: User, op: dict) -> dict:
 
 
 def _push_daily_record_create(*, actor: User, op: dict) -> dict:
-    from records.services.record_services import daily_record_create
+    from records.services.record_services import (
+        _find_plan_for_student_date,
+        daily_record_create,
+    )
     from django.utils.dateparse import parse_date
 
     data = dict(op.get("data") or {})
@@ -505,14 +508,13 @@ def _push_daily_record_create(*, actor: User, op: dict) -> dict:
             try:
                 rec_date = parse_datetime(str(date_str)).date() if "T" in str(date_str) else parse_date(str(date_str))
                 if rec_date:
-                    from datetime import timedelta
-                    days_since_sat = (rec_date.weekday() + 2) % 7
-                    ws = rec_date - timedelta(days=days_since_sat)
-                    
                     existing_plan = None
                     if student_id:
                         try:
-                            existing_plan = WeeklyPlan.objects.filter(student_id=student_id, week_start=ws).first()
+                            existing_plan = _find_plan_for_student_date(
+                                student_id=student_id,
+                                record_date=rec_date,
+                            )
                         except Exception:
                             pass
 
