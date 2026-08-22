@@ -860,18 +860,19 @@ class DailyRecordWithoutPlanTests(RecordTestSetup):
 
     def test_update_repairs_existing_record_without_plan(self):
         """Editing a pre-fix plan-less record attaches it to a new monthly plan."""
+        recent_date = timezone.now().date() - timedelta(days=1)
         record = DailyRecord.objects.create(
             student=self.student,
             weekly_plan=None,
-            day="wed",
-            date=date(2026, 7, 15),
+            day="sat",
+            date=recent_date,
             attendance="present",
         )
         monthly_plan = WeeklyPlan.objects.create(
             student=self.student,
             week_number=20,
-            week_start=date(2026, 7, 1),
-            month_start=date(2026, 7, 1),
+            week_start=recent_date.replace(day=1),
+            month_start=recent_date.replace(day=1),
         )
 
         response = self.client.patch(
