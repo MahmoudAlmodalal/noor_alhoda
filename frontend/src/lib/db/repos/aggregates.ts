@@ -393,12 +393,13 @@ export async function tasksToday(student_id: string): Promise<TodayTasks> {
     .sort((a, b) => b.overdue_days - a.overdue_days);
 
   const upcoming = evals
-    .filter((e) => e.scheduled_date >= today && e.status === "scheduled")
+    .filter((e) => e.scheduled_date.slice(0, 7) >= today.slice(0, 7) && e.status === "scheduled")
     .map((e) => ({
       id: e.id,
       title: e.title,
       surah_range: e.surah_range,
       scheduled_date: e.scheduled_date,
+      evaluated_date: e.evaluated_date,
       status: e.status as "scheduled" | "passed" | "failed" | "missed",
     }));
 
@@ -1182,8 +1183,8 @@ export async function teacherAggregateStats(
         return evs.filter(
           (e) =>
             e.status === "scheduled" &&
-            e.scheduled_date >= todayStr &&
-            e.scheduled_date <= in14Iso
+            e.scheduled_date.slice(0, 7) >= todayStr.slice(0, 7) &&
+            e.scheduled_date.slice(0, 7) <= in14Iso.slice(0, 7)
         ).length;
       })
     ),

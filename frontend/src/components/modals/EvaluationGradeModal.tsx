@@ -6,6 +6,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useMutation } from "@/hooks/useMutation";
+import { todayISOInTimeZone } from "@/lib/dates/local";
 import type { EvaluationForTeacher } from "@/lib/db/repos/aggregates";
 
 const MAX_SCORE = 100;
@@ -65,6 +66,9 @@ export function EvaluationGradeModal({ isOpen, onClose, evaluation }: Props) {
         score: status === "missed" ? null : String(scoreNumber),
         max_score: String(Number.isFinite(maxScore) && maxScore > 0 ? maxScore : MAX_SCORE),
         result_note: resultNote.trim(),
+        // Preserve the first grading date when an existing evaluation is
+        // edited; otherwise record the actual day this grade is saved.
+        evaluated_date: evaluation.evaluated_date ?? todayISOInTimeZone(),
       },
       { successMessage: "تم حفظ تقييم الاختبار" },
     );
@@ -90,8 +94,12 @@ export function EvaluationGradeModal({ isOpen, onClose, evaluation }: Props) {
             <strong className="text-text-title">{evaluation.title}</strong>
           </div>
           <div className="flex items-start justify-between gap-3">
-            <span className="text-text-muted">تاريخ الاختبار</span>
-            <strong className="text-text-title" dir="ltr">{evaluation.scheduled_date}</strong>
+            <span className="text-text-muted">شهر الاختبار</span>
+            <strong className="text-text-title" dir="ltr">{evaluation.scheduled_date.slice(0, 7)}</strong>
+          </div>
+          <div className="flex items-start justify-between gap-3">
+            <span className="text-text-muted">تاريخ التقييم الفعلي</span>
+            <strong className="text-text-title" dir="ltr">{evaluation.evaluated_date ?? "يُسجّل عند الحفظ"}</strong>
           </div>
           {evaluation.surah_range ? (
             <div className="flex items-start justify-between gap-3">

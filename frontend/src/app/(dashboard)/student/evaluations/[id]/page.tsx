@@ -8,8 +8,6 @@ import { useQuery } from "@/hooks/useApi";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState, ClipboardIllustration } from "@/components/ui/EmptyState";
 import { ProgressRing } from "@/components/ui/ProgressRing";
-import { Countdown } from "@/components/ui/Countdown";
-import { formatDualDate } from "@/lib/dates/hijri";
 import { parseSurahRange } from "@/lib/quran/surahRange";
 import { cn } from "@/lib/utils";
 import type { EvaluationRecord } from "@/hooks/queries";
@@ -24,6 +22,14 @@ import {
     Sparkles,
     XCircle,
 } from "lucide-react";
+
+function formatMonthLabel(value: string): string {
+    const [year, month] = value.slice(0, 7).split("-").map(Number);
+    if (!year || !month) return value;
+    return new Intl.DateTimeFormat("ar", { month: "long", year: "numeric" }).format(
+        new Date(year, month - 1, 1),
+    );
+}
 
 const STATUS_META: Record<
     string,
@@ -135,8 +141,6 @@ export default function StudentEvaluationDetailPage() {
         );
     }
 
-    const scheduledDate = new Date(evaluation.scheduled_date);
-    const dual = formatDualDate(scheduledDate);
     const meta = STATUS_META[evaluation.status] ?? STATUS_META.scheduled;
     const isPast = evaluation.status !== "scheduled";
     const questionsCount = 0; // Groundwork: no endpoint yet. Will be wired later.
@@ -190,21 +194,18 @@ export default function StudentEvaluationDetailPage() {
                     </div>
                 ) : null}
 
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-3">
                     <div className="flex flex-col">
                         <span className="text-[13px] font-bold text-text-body">
-                            {dual.gregorian}
+                            شهر {formatMonthLabel(evaluation.scheduled_date)}
                         </span>
-                        <span className="text-[11px] text-text-muted">
-                            {dual.hijri}
-                        </span>
+                        {evaluation.evaluated_date ? (
+                            <span className="text-[11px] text-text-muted">
+                                تم التقييم في: <span dir="ltr">{evaluation.evaluated_date}</span>
+                            </span>
+                        ) : null}
                     </div>
-                    {!isPast ? (
-                        <Countdown
-                            target={evaluation.scheduled_date}
-                            compact={false}
-                        />
-                    ) : null}
+                    {!isPast ? <span className="text-[11px] font-bold text-primary">بانتظار التقييم خلال الشهر</span> : null}
                 </div>
             </div>
 

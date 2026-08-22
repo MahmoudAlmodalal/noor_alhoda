@@ -582,6 +582,7 @@ export interface UpcomingTest {
   title: string;
   surah_range: string;
   scheduled_date: string;
+  evaluated_date: string | null;
   status: "scheduled" | "passed" | "failed" | "missed";
 }
 
@@ -618,6 +619,7 @@ export interface Evaluation {
   title: string;
   surah_range: string;
   scheduled_date: string;
+  evaluated_date: string | null;
   status: "scheduled" | "passed" | "failed" | "missed";
     result_note: string;
   evaluation_type: "scattered" | "combined";

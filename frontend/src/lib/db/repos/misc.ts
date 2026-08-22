@@ -75,6 +75,7 @@ export interface EvaluationRecord {
   title: string;
   surah_range: string;
   scheduled_date: string;
+  evaluated_date: string | null;
   status: string;
   result_note: string;
   evaluation_type: "scattered" | "combined";
@@ -186,6 +187,7 @@ export async function upsertEvaluations(
         server_updated_at: resolveServerUpdatedAt(r),
         student_id: r.student_id,
         scheduled_date: r.scheduled_date,
+        evaluated_date: r.evaluated_date,
         status: r.status,
       })
     )

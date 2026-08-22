@@ -312,8 +312,9 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
                     <div className="space-y-2">
                       {(evaluations ?? []).filter((e) => e.scheduled_date.startsWith(selectedMonth?.slice(0, 7) ?? "")).map((evaluation) => (
                         <div key={evaluation.id} className="rounded-xl bg-white p-3 text-xs">
-                          <div className="flex justify-between gap-2"><b className="text-text-body">{evaluation.title}</b><span dir="ltr">{evaluation.scheduled_date}</span></div>
+                          <div className="flex justify-between gap-2"><b className="text-text-body">{evaluation.title}</b><span dir="ltr">شهر {evaluation.scheduled_date.slice(0, 7)}</span></div>
                           <p className="mt-1 text-text-muted">{evaluation.status} {evaluation.score !== null ? `— ${evaluation.score} / ${evaluation.max_score}` : ""}</p>
+                          {evaluation.evaluated_date ? <p className="mt-1 text-text-muted">تم التقييم في: <span dir="ltr">{evaluation.evaluated_date}</span></p> : null}
                           {evaluation.result_note ? <p className="mt-1 text-text-muted">{evaluation.result_note}</p> : null}
                         </div>
                       ))}

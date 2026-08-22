@@ -365,6 +365,7 @@ class StudentPDFReportEvaluationTests(ReportTestSetup):
             title="اختبار التجويد",
             surah_range="سورة الملك",
             scheduled_date=date(2026, 4, 9),
+            evaluated_date=date(2026, 4, 15),
             status=Evaluation.Status.PASSED,
             score=Decimal("92"),
             max_score=Decimal("100"),
@@ -393,21 +394,23 @@ class StudentPDFReportEvaluationTests(ReportTestSetup):
             for data in table_data
             if data[0]
             == [
-                _ar("التاريخ"),
-                _ar("الاختبار"),
-                _ar("نطاق السور"),
-                _ar("النتيجة"),
-                _ar("الدرجة"),
-                _ar("ملاحظة المعلم"),
+                    _ar("شهر الاختبار"),
+                    _ar("تاريخ التقييم"),
+                    _ar("الاختبار"),
+                    _ar("نطاق السور"),
+                    _ar("النتيجة"),
+                    _ar("الدرجة"),
+                    _ar("ملاحظة المعلم"),
             ]
         )
         self.assertEqual(len(evaluation_data), 2)
-        self.assertEqual(evaluation_data[1][0], "2026-04-09")
-        self.assertEqual(evaluation_data[1][1], _ar("اختبار التجويد"))
-        self.assertEqual(evaluation_data[1][2], _ar("سورة الملك"))
-        self.assertEqual(evaluation_data[1][3], _ar("ناجح"))
-        self.assertEqual(evaluation_data[1][4], "92/100")
-        self.assertEqual(evaluation_data[1][5], _ar("أداء متقن"))
+        self.assertEqual(evaluation_data[1][0], "2026-04")
+        self.assertEqual(evaluation_data[1][1], "2026-04-15")
+        self.assertEqual(evaluation_data[1][2], _ar("اختبار التجويد"))
+        self.assertEqual(evaluation_data[1][3], _ar("سورة الملك"))
+        self.assertEqual(evaluation_data[1][4], _ar("ناجح"))
+        self.assertEqual(evaluation_data[1][5], "92/100")
+        self.assertEqual(evaluation_data[1][6], _ar("أداء متقن"))
 
         history_data = next(data for data in table_data if data[0][0] == _ar("الشهر"))
         self.assertEqual(history_data[1][0], "2026-04")

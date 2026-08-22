@@ -48,6 +48,7 @@ export interface DailyRecordRow extends EncryptedRow {
 export interface EvaluationRow extends EncryptedRow {
   student_id: string;
   scheduled_date: string;
+  evaluated_date: string | null;
   status: string;
 }
 

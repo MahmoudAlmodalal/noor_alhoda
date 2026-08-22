@@ -6,8 +6,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@/hooks/useApi";
 import { EvaluationListSkeleton } from "@/components/ui/Skeleton";
 import { EmptyState, ClipboardIllustration } from "@/components/ui/EmptyState";
-import { Countdown } from "@/components/ui/Countdown";
-import { formatDualDate } from "@/lib/dates/hijri";
 import { cn } from "@/lib/utils";
 import type { EvaluationRecord } from "@/hooks/queries";
 import {
@@ -52,6 +50,14 @@ const STATUS_STYLES: Record<
         icon: XCircle,
     },
 };
+
+function formatMonthLabel(value: string): string {
+    const [year, month] = value.slice(0, 7).split("-").map(Number);
+    if (!year || !month) return value;
+    return new Intl.DateTimeFormat("ar", { month: "long", year: "numeric" }).format(
+        new Date(year, month - 1, 1),
+    );
+}
 
 function StatusBadge({ status }: { status: string }) {
     const s = STATUS_STYLES[status] ?? STATUS_STYLES.scheduled;
@@ -181,7 +187,6 @@ export default function StudentEvaluationsPage() {
             ) : (
                 <ul className="space-y-3">
                     {filtered.map((ev) => {
-                        const dual = formatDualDate(new Date(ev.scheduled_date));
                         return (
                             <li key={ev.id}>
                                 <Link
@@ -199,23 +204,18 @@ export default function StudentEvaluationsPage() {
                                             {ev.surah_range}
                                         </p>
                                     ) : null}
-                                    <div className="flex items-center justify-between">
+                                    <div className="flex items-center justify-between gap-3">
                                         <div className="flex flex-col">
                                             <span className="text-[11px] font-bold text-text-body">
-                                                {dual.gregorian}
+                                                شهر {formatMonthLabel(ev.scheduled_date)}
                                             </span>
-                                            <span className="text-[10px] text-text-muted">
-                                                {dual.hijri}
-                                            </span>
+                                            {ev.evaluated_date ? (
+                                                <span className="text-[10px] text-text-muted">
+                                                    تم التقييم في: <span dir="ltr">{ev.evaluated_date}</span>
+                                                </span>
+                                            ) : null}
                                         </div>
-                                        {ev.status === "scheduled" ? (
-                                            <Countdown
-                                                target={ev.scheduled_date}
-                                                compact
-                                            />
-                                        ) : (
-                                            <ChevronLeft className="h-4 w-4 text-text-muted" />
-                                        )}
+                                        <ChevronLeft className="h-4 w-4 text-text-muted" />
                                     </div>
                                 </Link>
                             </li>
