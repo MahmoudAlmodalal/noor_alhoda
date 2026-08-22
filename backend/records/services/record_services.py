@@ -154,6 +154,42 @@ def _to_int_or_none(val) -> int | None:
         return None
 
 
+def _saturday_for_date(record_date):
+    """Return the Saturday that starts the legacy weekly period for a date."""
+    return record_date - timedelta(days=(record_date.weekday() + 2) % 7)
+
+
+def _find_plan_for_student_date(*, student_id, record_date):
+    """Find the plan that owns a dated record.
+
+    New plans are calendar-month plans, while older plans are Saturday-based
+    weekly rows. Prefer the matching month so records saved on any day of the
+    month contribute to the same monthly page total, then fall back to a
+    legacy weekly row.
+    """
+    if not student_id or record_date is None:
+        return None
+
+    month_plan = (
+        WeeklyPlan.objects
+        .filter(student_id=student_id, month_start=record_date.replace(day=1))
+        .order_by("-updated_at")
+        .first()
+    )
+    if month_plan is not None:
+        return month_plan
+
+    return (
+        WeeklyPlan.objects
+        .filter(
+            student_id=student_id,
+            month_start__isnull=True,
+            week_start=_saturday_for_date(record_date),
+        )
+        .first()
+    )
+
+
 def _sync_evaluation_scores(*, student: Student, date, evaluation, scattered_score, combined_score) -> None:
     """Copy attendance-screen test scores into same-day evaluations.
 
@@ -226,6 +262,11 @@ def daily_record_create(*, teacher: User, id=None, **data) -> DailyRecord:
         student = Student.objects.get(id=student_id)
     except (Student.DoesNotExist, DjangoValidationError, ValueError, TypeError):
         raise ValidationError({"student_id": "الطالب غير موجود."})
+
+    # Monthly plans are anchored on the first day of the month, so a daily
+    # record must be linked by its record date rather than by Saturday week_start.
+    if plan is None:
+        plan = _find_plan_for_student_date(student_id=student.id, record_date=data.get("date"))
 
     evaluation = None
     if data.get("evaluation_id"):
@@ -405,6 +446,17 @@ def daily_record_update(*, record_id, teacher: User, data: dict) -> DailyRecord:
         record.achieved_verses = record.to_ayah - record.from_ayah + 1
 
     record.recorded_by = teacher
+
+    # Repair records created before date-based plan resolution was introduced.
+    # This lets an edit immediately make their pages count toward the plan.
+    if record.weekly_plan_id is None:
+        resolved_plan = _find_plan_for_student_date(
+            student_id=record.student_id,
+            record_date=record.date,
+        )
+        if resolved_plan is not None:
+            record.weekly_plan = resolved_plan
+
     record.full_clean()
     record.save()
     _sync_evaluation_scores(
@@ -457,15 +509,11 @@ def bulk_attendance_create(*, teacher: User, date, attendance_data: list) -> dic
                 skipped.append({"student_id": str(student_id), "reason": "not_owned"})
                 continue
 
-        # Find weekly plan for the current week if exists
-        weekday = date.weekday()  # Monday = 0
-        days_since_saturday = (weekday + 2) % 7
-        week_start = date - timedelta(days=days_since_saturday)
-
-        plan = WeeklyPlan.objects.filter(
-            student=student,
-            week_start=week_start,
-        ).first()
+        # Match the calendar-month plan first, with legacy weekly fallback.
+        plan = _find_plan_for_student_date(
+            student_id=student.id,
+            record_date=date,
+        )
 
         # Determine day code
         day_map = {5: "sat", 6: "sun", 0: "mon", 1: "tue", 2: "wed", 3: "thu"}
