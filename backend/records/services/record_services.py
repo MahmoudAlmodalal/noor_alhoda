@@ -240,7 +240,9 @@ def _sync_evaluation_scores(*, student: Student, date, evaluation, scattered_sco
             if target.score >= target.max_score
             else Evaluation.Status.FAILED
         )
-        target.full_clean()
+        # Score/status updates should not fail because a legacy evaluation
+        # has no created_by value; that field is unrelated to this write.
+        target.full_clean(exclude=["created_by"])
         target.save(update_fields=["score", "status", "updated_at"])
 
 
