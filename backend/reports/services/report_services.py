@@ -5,8 +5,8 @@ from reports.selectors.report_selectors import (
     attendance_summary_for_report,
     evaluated_evaluations_for_report,
     student_for_report,
-    weekly_plans_for_report,
 )
+from students.selectors.student_selectors import monthly_history_for_student
 
 FONT_PATH = Path(__file__).resolve().parent.parent.parent / "fonts" / "Amiri-Regular.ttf"
 _font_registered = False
@@ -84,14 +84,17 @@ def generate_student_pdf(*, student_id) -> bytes:
     elements.append(info_table)
     elements.append(Spacer(1, 1 * cm))
 
-    # Weekly plans summary
+    # Monthly history summary — this is the same aggregation used by the
+    # student detail page. WeeklyPlan totals are denormalized cache fields and
+    # can lag briefly after an offline record is synchronized, so the report
+    # must derive its values from the linked DailyRecord rows.
     heading_style = ParagraphStyle(
         "ArabicHeading",
         parent=styles["Heading2"],
         fontName="Arabic",
         alignment=2,  # Right
     )
-    elements.append(Paragraph(_ar("السجل الحفظي"), heading_style))
+    elements.append(Paragraph(_ar("السجل الشهري"), heading_style))
     elements.append(Spacer(1, 0.3 * cm))
 
     attendance_data = [
@@ -115,59 +118,74 @@ def generate_student_pdf(*, student_id) -> bytes:
     elements.append(attendance_table)
     elements.append(Spacer(1, 0.5 * cm))
 
-    plans = weekly_plans_for_report(student=student)
-
     normal_style = ParagraphStyle(
         "ArabicNormal",
         parent=styles["Normal"],
         fontName="Arabic",
         alignment=2,  # Right
     )
+    history = monthly_history_for_student(student=student)
 
-    if plans:
-        plan_data = [
+    if history:
+        history_data = [
             [
-                _ar("الأسبوع"),
-                _ar("بداية الأسبوع"),
-                _ar("المطلوب (آيات/أسطر/صفحات)"),
-                _ar("المنجز (آيات/أسطر/صفحات)"),
+                _ar("الشهر"),
+                _ar("المطلوب"),
+                _ar("الحفظ المنجز"),
+                _ar("المراجعة"),
+                _ar("الحضور"),
+                _ar("الاختبارات"),
                 _ar("نسبة الإنجاز"),
             ]
         ]
-        for plan in plans:
-            req_str = f"{plan.total_required} آية"
-            if plan.total_required_lines > 0:
-                req_str += f" · {plan.total_required_lines} سطر ({plan.total_required_pages} ص)"
-
-            ach_str = f"{plan.total_achieved} آية"
-            if plan.total_lines > 0:
-                ach_str += f" · {plan.total_lines} سطر ({plan.total_pages} ص)"
-
-            plan_data.append(
+        for month in history:
+            required = f"{month['required_pages']:.1f} ص"
+            saved = f"{month['total_pages']:.1f} ص · {month['total_lines']} سطر"
+            saved += f"\n({month['total_achieved']} آية)"
+            review = f"{month['total_review_pages']:.1f} ص · {month['total_review_lines']} سطر"
+            review_required = month.get("required_review_pages", 0)
+            if review_required:
+                review = f"{review}\n(المطلوب {review_required:.1f} ص)"
+            tests = (
+                f"{month['evaluated_evaluation_count']}/{month['evaluation_count']}"
+                f" ({month['evaluation_completion_rate']:.0f}%)"
+                if month["evaluation_count"]
+                else "0"
+            )
+            history_data.append(
                 [
-                    str(plan.week_number),
-                    str(plan.week_start),
-                    _ar(req_str),
-                    _ar(ach_str),
-                    f"{plan.completion_rate}%",
+                    str(month["month_start"])[:7],
+                    _ar(required),
+                    _ar(saved),
+                    _ar(review),
+                    str(month["present_days"]),
+                    tests,
+                    f"{month['completion_rate']:.2f}%",
                 ]
             )
 
-        plan_table = Table(plan_data, colWidths=[2 * cm, 2.5 * cm, 4.5 * cm, 4.5 * cm, 2.5 * cm])
-        plan_table.setStyle(
+        history_table = Table(
+            history_data,
+            colWidths=[2 * cm, 2.2 * cm, 3.4 * cm, 3.4 * cm, 1.7 * cm, 2.2 * cm, 2.2 * cm],
+            repeatRows=1,
+        )
+        history_table.setStyle(
             TableStyle(
                 [
                     ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1a472a")),
                     ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
                     ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                    ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
                     ("FONTNAME", (0, 0), (-1, -1), "Arabic"),
-                    ("FONTSIZE", (0, 0), (-1, -1), 10),
+                    ("FONTSIZE", (0, 0), (-1, -1), 8),
                     ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
                     ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f0f0f0")]),
+                    ("TOPPADDING", (0, 0), (-1, -1), 5),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
                 ]
             )
         )
-        elements.append(plan_table)
+        elements.append(history_table)
     else:
         elements.append(Paragraph(_ar("لا توجد سجلات حفظية بعد."), normal_style))
 
