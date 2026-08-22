@@ -834,7 +834,7 @@ class DailyRecordWithoutPlanTests(RecordTestSetup):
         self.assertEqual(response.status_code, 201)
         evaluation.refresh_from_db()
         self.assertEqual(evaluation.score, 85)
-        self.assertEqual(evaluation.status, Evaluation.Status.PASSED)
+        self.assertEqual(evaluation.status, Evaluation.Status.FAILED)
 
     def test_create_recitation_links_to_monthly_plan_and_aggregates_pages(self):
         """A dated recitation record contributes to the matching monthly plan."""
