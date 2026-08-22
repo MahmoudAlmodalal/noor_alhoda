@@ -63,6 +63,9 @@ function requiredPages(record: DailyRecordRecord): number {
 }
 
 function reviewPages(record: DailyRecordRecord): number {
+  if ((record.review_lines ?? 0) > 0) {
+    return Math.max(0, Number(record.review_lines) / 15);
+  }
   if (record.review_from_page != null && record.review_to_page != null && record.review_to_page >= record.review_from_page) {
     return Math.max(0, record.review_to_page - record.review_from_page + 1);
   }
@@ -488,6 +491,7 @@ export async function monthlySummary(
   const totalRequired = daily.reduce((sum, r) => sum + (r.required_verses || 0), 0);
   const totalAchieved = daily.reduce((sum, r) => sum + (r.achieved_verses || 0), 0);
   const totalLines = daily.reduce((sum, r) => sum + (r.memorized_lines || 0), 0);
+  const totalReviewLines = daily.reduce((sum, r) => sum + (r.review_lines || 0), 0);
   const requiredPages = matchingPlans.reduce(
     (sum, p) => sum + Number(p.required_pages || (p.total_required_lines || 0) / 15),
     0,
@@ -499,6 +503,8 @@ export async function monthlySummary(
     total_required: totalRequired,
     total_achieved: totalAchieved,
     total_lines: totalLines,
+    total_review_lines: totalReviewLines,
+    total_review_pages: Number((totalReviewLines / 15).toFixed(1)),
     completion_rate: completionRate(achievedPages, requiredPages),
     records: daily.map((r) => ({
       id: r.id,
@@ -509,7 +515,14 @@ export async function monthlySummary(
       required_verses: r.required_verses,
       achieved_verses: r.achieved_verses,
       memorized_lines: r.memorized_lines,
+      review_lines: r.review_lines,
+      review_surah_name: r.review_surah_name,
+      review_from_ayah: r.review_from_ayah,
+      review_to_ayah: r.review_to_ayah,
+      review_quality: r.review_quality,
+      evaluation_id: r.evaluation_id,
       quality: r.quality,
+      result: r.result,
       note: r.note,
     })),
     message: matchingPlans.length === 0 ? "لا توجد خطة لهذا الشهر." : undefined,
@@ -676,26 +689,59 @@ function computeCatchup(daily: DailyRecordRecord[]): {
 }
 
 // ---------------------------------------------------------------------------
-// Student history (weekly rollups)
+// Student history (monthly rollups)
 // ---------------------------------------------------------------------------
 
 export async function studentHistory(
   student_id: string
 ): Promise<HistoryEntry[]> {
-  const plans = await listWeeklyPlans({ student_id });
-  return plans.map((p) => ({
-    id: p.id,
-    date: p.week_start,
-    attendance: "present",
-    required_verses: p.total_required,
-    achieved_verses: p.total_achieved,
-    quality:
-      p.total_required > 0 && p.total_achieved / p.total_required >= 0.85
-        ? "excellent"
-        : p.total_required > 0 && p.total_achieved / p.total_required >= 0.7
-          ? "good"
-          : "acceptable",
-  }));
+  const [plans, rows] = await Promise.all([
+    listWeeklyPlans({ student_id }),
+    getDb().daily_records.where("student_id").equals(student_id).toArray(),
+  ]);
+  const records = await decryptRows<DailyRecordRecord>(rows);
+  const groups = new Map<string, { plans: WeeklyPlanRecord[]; records: DailyRecordRecord[] }>();
+  for (const plan of plans) {
+    const month = (plan.month_start ?? `${plan.week_start.slice(0, 7)}-01`).slice(0, 10);
+    const group = groups.get(month) ?? { plans: [], records: [] };
+    group.plans.push(plan);
+    groups.set(month, group);
+  }
+  for (const record of records) {
+    const month = `${record.date.slice(0, 7)}-01`;
+    const group = groups.get(month) ?? { plans: [], records: [] };
+    group.records.push(record);
+    groups.set(month, group);
+  }
+
+  return Array.from(groups.entries()).sort(([a], [b]) => b.localeCompare(a)).map(([month, group]) => {
+    const required = group.records.reduce((sum, r) => sum + (r.required_verses || 0), 0);
+    const achieved = group.records.reduce((sum, r) => sum + (r.achieved_verses || 0), 0);
+    const lines = group.records.reduce((sum, r) => sum + (r.memorized_lines || 0), 0);
+    const reviewLines = group.records.reduce((sum, r) => sum + (r.review_lines || 0), 0);
+    const requiredPages = group.plans.reduce(
+      (sum, p) => sum + Number(p.required_pages || (p.total_required_lines || 0) / 15),
+      0,
+    ) || required / 15;
+    const pages = lines / 15;
+    const rate = requiredPages > 0 ? Math.min(100, Math.round((pages / requiredPages) * 10000) / 100) : 0;
+    return {
+      id: month,
+      date: month,
+      month_start: month,
+      total_required: required,
+      total_achieved: achieved,
+      total_lines: lines,
+      total_pages: Number(pages.toFixed(1)),
+      total_review_lines: reviewLines,
+      total_review_pages: Number((reviewLines / 15).toFixed(1)),
+      required_pages: Number(requiredPages.toFixed(1)),
+      completion_rate: rate,
+      present_days: group.records.filter((r) => r.attendance === "present" || r.attendance === "late").length,
+      absent_days: group.records.filter((r) => r.attendance === "absent").length,
+      excused_days: group.records.filter((r) => r.attendance === "excused").length,
+    };
+  });
 }
 
 // ---------------------------------------------------------------------------

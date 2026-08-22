@@ -12,7 +12,10 @@ import { useToast } from "@/contexts/ToastContext";
 import { runMutation } from "@/hooks/mutations";
 import { getDb } from "@/lib/db/schema";
 import { decryptRow } from "@/lib/db/repos/index";
-import type { DailyRecordRecord } from "@/lib/db/repos/records";
+import type {
+  DailyRecordRecord,
+  WeeklyPlanRecord,
+} from "@/lib/db/repos/records";
 import { triggerPush } from "@/lib/sync/push";
 import type {
   DailyRecordRecord as DailyRec,
@@ -38,19 +41,31 @@ function weekdayKey(d: Date): "sat" | "sun" | "mon" | "tue" | "wed" | "thu" | "f
 }
 
 
-/** Find an existing weekly plan locally; returns its id or null. */
-async function findWeeklyPlan(
+/** Find the plan for a record date; monthly plans take precedence over legacy weekly rows. */
+async function findPlanForDate(
   student_id: string,
-  week_start: string
+  date: string
 ): Promise<string | null> {
   const rows = await getDb()
     .weekly_plans.where("student_id")
     .equals(student_id)
     .toArray();
-  for (const r of rows) {
-    if (r.week_start === week_start) return r.id;
-  }
-  return null;
+  const plans = await Promise.all(
+    rows.map(async (row) => ({
+      id: row.id,
+      plan: await decryptRow<WeeklyPlanRecord>(row),
+    }))
+  );
+
+  const monthStart = `${date.slice(0, 7)}-01`;
+  const monthlyPlan = plans.find(({ plan }) => plan.month_start === monthStart);
+  if (monthlyPlan) return monthlyPlan.id;
+
+  const weekStart = weekStartFor(new Date(`${date}T00:00:00`));
+  const weeklyPlan = plans.find(
+    ({ plan }) => !plan.month_start && plan.week_start === weekStart
+  );
+  return weeklyPlan?.id ?? null;
 }
 
 async function findDailyRecordIdByStudentAndDate(
@@ -143,6 +158,7 @@ function AttendanceContent() {
           review_surah_name: existing?.review_surah_name ?? "",
           review_from_ayah: existing?.review_from_ayah ?? "",
           review_to_ayah: existing?.review_to_ayah ?? "",
+          review_lines: existing?.review_lines ?? 0,
           review_quality: existing?.review_quality ?? "none",
           next_memorization_target: existing?.next_memorization_target ?? "",
           next_memorization_from_ayah: existing?.next_memorization_from_ayah ?? "",
@@ -199,8 +215,7 @@ function AttendanceContent() {
 
     setIsSaving(true);
 
-    const ws = weekStartFor(new Date(date));
-    const day = weekdayKey(new Date(date));
+    const day = weekdayKey(new Date(`${date}T00:00:00`));
 
     const dirtyDrafts = Array.from(drafts.values()).filter((d) => d.dirty);
     let failed = 0;
@@ -208,7 +223,7 @@ function AttendanceContent() {
     for (const d of dirtyDrafts) {
       if (!d.attendance) continue;
 
-      const planId = await findWeeklyPlan(d.student_id, ws);
+      const planId = await findPlanForDate(d.student_id, date);
       const existingId = d.record_id ?? (await findDailyRecordIdByStudentAndDate(d.student_id, date));
       const payload = {
         student_id: d.student_id,
@@ -229,6 +244,7 @@ function AttendanceContent() {
         review_surah_name: d.review_surah_name,
         review_from_ayah: d.review_from_ayah === "" ? null : Number(d.review_from_ayah),
         review_to_ayah: d.review_to_ayah === "" ? null : Number(d.review_to_ayah),
+        review_lines: d.review_lines,
         review_quality: d.review_quality,
         next_memorization_target: d.next_memorization_target,
         next_memorization_from_ayah: d.next_memorization_from_ayah === "" ? null : Number(d.next_memorization_from_ayah),

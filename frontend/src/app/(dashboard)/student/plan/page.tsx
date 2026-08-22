@@ -92,6 +92,7 @@ export default function StudentPlanPage() {
 
   const records = summary?.records ?? [];
   const totalPages = ((summary?.total_lines ?? 0) / 15).toFixed(1);
+  const totalReviewPages = (summary?.total_review_pages ?? ((summary?.total_review_lines ?? 0) / 15)).toFixed(1);
   const completionRate = summary?.completion_rate ?? 0;
   const presentDays = records.filter((r) => r.attendance === "present" || r.attendance === "late").length;
   const pendingDays = records.filter((r) => r.attendance === "absent").length;
@@ -158,6 +159,10 @@ export default function StudentPlanPage() {
               <div className="flex items-center justify-between text-[12px]">
                 <span className="text-text-muted">الصفحات المحفوظة</span>
                 <span className="font-bold text-purple-600">{totalPages} صفحة</span>
+              </div>
+              <div className="flex items-center justify-between text-[12px]">
+                <span className="text-text-muted">صفحات المراجعة</span>
+                <span className="font-bold text-primary">{totalReviewPages} صفحة</span>
               </div>
             </div>
           </div>

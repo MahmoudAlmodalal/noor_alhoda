@@ -5,6 +5,10 @@ import Link from "next/link";
 import {
   ArrowRight,
   BookMarked,
+  CalendarDays,
+  CheckCircle2,
+  ClipboardCheck,
+  FileText,
 } from "lucide-react";
 import { PageLoading } from "@/components/ui/LoadingSpinner";
 import { Modal } from "@/components/ui/Modal";
@@ -23,9 +27,11 @@ import { RequestDeleteStudentModal } from "@/components/students/RequestDeleteSt
 import { DirectMessageModal } from "@/components/notifications/DirectMessageModal";
 import type {
   HistoryEntry,
+  MonthlySummary,
   StudentCourseStatus,
   StudentStats,
 } from "@/types/api";
+import type { EvaluationRecord } from "@/lib/db/repos/misc";
 
 export default function StudentDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -34,6 +40,7 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
   const [messageOpen, setMessageOpen] = useState(false);
   const [removeOpen, setRemoveOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
   const [togglingCourseId, setTogglingCourseId] = useState<string | null>(null);
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
@@ -44,6 +51,11 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
   );
   const { data: stats } = useQuery<StudentStats>("student_stats", { student_id: id });
   const { data: history } = useQuery<HistoryEntry[]>("student_history", { student_id: id });
+  const { data: evaluations = [] } = useQuery<EvaluationRecord[]>("evaluations", { student_id: id });
+  const { data: monthlyReport, isLoading: monthlyReportLoading } = useQuery<MonthlySummary>(
+    selectedMonth ? "monthly_summary" : null,
+    selectedMonth ? { student_id: id, month_start: selectedMonth } : undefined,
+  );
   const {
     data: studentCourses,
     isLoading: coursesLoading,
@@ -194,45 +206,54 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
         <StatCard label="المعدل العام" value={stats?.avg_grade ?? "—"} />
       </div>
 
-      <div className="bg-white rounded-[24px] shadow-sm border border-border-card overflow-hidden">
-        <div className="px-5 py-4 border-b border-border-card">
-          <h2 className="font-bold text-base text-text-body">السجل الأسبوعي</h2>
+      <div className="overflow-hidden rounded-[24px] border border-border-card bg-white shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-card px-5 py-4">
+          <div>
+            <h2 className="font-bold text-base text-text-body">السجل الشهري</h2>
+            <p className="mt-1 text-xs text-text-muted">اختر الشهر لعرض تقرير الطالب الكامل.</p>
+          </div>
+          <CalendarDays className="h-5 w-5 text-primary" />
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm text-right">
-            <thead className="text-xs text-text-muted bg-surface-subtle/80">
+          <table className="w-full text-right text-sm">
+            <thead className="bg-surface-subtle/80 text-xs text-text-muted">
               <tr>
-                <th className="px-4 py-3 font-bold">بداية الأسبوع</th>
-                <th className="px-4 py-3 font-bold">المطلوب</th>
+                <th className="px-4 py-3 font-bold">الشهر</th>
+                <th className="px-4 py-3 font-bold">الخطة</th>
                 <th className="px-4 py-3 font-bold">المنجز</th>
-                <th className="px-4 py-3 font-bold">النسبة</th>
+                <th className="px-4 py-3 font-bold">الحضور</th>
+                <th className="px-4 py-3 font-bold">الاختبارات</th>
+                <th className="px-4 py-3 font-bold">التفاصيل</th>
               </tr>
             </thead>
             <tbody>
               {(history ?? []).length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="text-center py-8 text-sm text-text-muted">
-                    لا يوجد سجل بعد
-                  </td>
+                  <td colSpan={6} className="py-8 text-center text-sm text-text-muted">لا يوجد سجل شهري بعد</td>
                 </tr>
               ) : (
-                (history ?? []).map((w) => {
-                  const required = w.required_verses ?? 0;
-                  const achieved = w.achieved_verses ?? 0;
-                  const rate = required > 0 ? Math.round((achieved / required) * 100) : 0;
+                (history ?? []).map((month) => {
+                  const rate = month.completion_rate ?? 0;
+                  const monthKey = month.month_start ?? month.date.slice(0, 7) + "-01";
                   return (
-                    <tr key={w.id} className="border-b border-border-card">
-                      <td className="px-4 py-3 text-text-label" dir="ltr">{w.date}</td>
-                      <td className="px-4 py-3 text-text-label">{required}</td>
-                      <td className="px-4 py-3 text-text-label">{achieved}</td>
+                    <tr key={month.id} className="border-b border-border-card last:border-b-0">
+                      <td className="px-4 py-3 font-bold text-text-body" dir="ltr">{monthKey.slice(0, 7)}</td>
+                      <td className="px-4 py-3 text-text-label">{month.required_pages ?? ((month.total_required ?? 0) / 15).toFixed(1)} صفحة</td>
+                      <td className="px-4 py-3 text-text-label">
+                        {month.total_pages ?? ((month.total_lines ?? 0) / 15).toFixed(1)} صفحة
+                        <span className="mt-1 block text-[11px] text-text-muted">{month.total_achieved ?? 0} آية</span>
+                      </td>
+                      <td className="px-4 py-3 text-text-label">{month.present_days ?? 0} يوم</td>
+                      <td className="px-4 py-3 text-text-label">{month.evaluation_count ?? 0}</td>
                       <td className="px-4 py-3">
-                        <span className={`text-xs font-bold px-2 py-1 rounded-md ${
-                          rate >= 80 ? "bg-green-50 text-green-600" :
-                          rate >= 50 ? "bg-orange-50 text-orange-600" :
-                          "bg-red-50 text-red-600"
-                        }`}>
-                          {rate}%
-                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedMonth(monthKey)}
+                          className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-bold text-white hover:bg-primary/90"
+                        >
+                          <FileText className="h-3.5 w-3.5" /> عرض التفاصيل
+                        </button>
+                        <span className={`mt-1 block text-[11px] font-bold ${rate >= 80 ? "text-emerald-600" : rate >= 50 ? "text-amber-600" : "text-red-600"}`}>{rate}% إنجاز</span>
                       </td>
                     </tr>
                   );
@@ -242,6 +263,70 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
           </table>
         </div>
       </div>
+
+      <Modal isOpen={Boolean(selectedMonth)} onClose={() => setSelectedMonth(null)} className="max-w-5xl">
+        <div dir="rtl" className="space-y-5">
+          <div className="flex items-start justify-between gap-3 border-b border-border-card pb-4">
+            <div>
+              <h2 className="text-lg font-bold text-primary">التقرير الشهري الكامل</h2>
+              <p className="mt-1 text-sm font-bold text-text-body">{student.full_name} — {selectedMonth?.slice(0, 7)}</p>
+            </div>
+            <ClipboardCheck className="h-6 w-6 text-primary" />
+          </div>
+
+          {monthlyReportLoading || !monthlyReport ? (
+            <div className="py-12 text-center text-sm text-text-muted">جارٍ تجهيز التقرير...</div>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+                <ReportStat label="إنجاز الخطة" value={`${monthlyReport.completion_rate ?? 0}%`} />
+                <ReportStat label="صفحات الحفظ" value={`${monthlyReport.total_pages ?? ((monthlyReport.total_lines ?? 0) / 15).toFixed(1)} صفحة`} />
+                <ReportStat label="صفحات المراجعة" value={`${monthlyReport.total_review_pages ?? ((monthlyReport.total_review_lines ?? 0) / 15).toFixed(1)} صفحة`} />
+                <ReportStat label="أيام الحضور" value={`${monthlyReport.records.filter((r) => r.attendance === "present" || r.attendance === "late").length} يوم`} />
+                <ReportStat label="أيام الغياب" value={`${monthlyReport.records.filter((r) => r.attendance === "absent").length} يوم`} />
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="rounded-2xl border border-border-card bg-surface-subtle p-4">
+                  <h3 className="mb-3 flex items-center gap-2 text-sm font-bold text-text-body"><CheckCircle2 className="h-4 w-4 text-primary" />ملخص الخطة</h3>
+                  <div className="space-y-2 text-xs text-text-muted">
+                    <p className="flex justify-between"><span>المطلوب</span><b className="text-text-body">{monthlyReport.total_required ?? 0} آية</b></p>
+                    <p className="flex justify-between"><span>المنجز</span><b className="text-emerald-600">{monthlyReport.total_achieved ?? 0} آية</b></p>
+                    <p className="flex justify-between"><span>الأسطر المحفوظة</span><b className="text-text-body">{monthlyReport.total_lines ?? 0} سطر</b></p>
+                    <p className="flex justify-between"><span>أسطر المراجعة</span><b className="text-text-body">{monthlyReport.total_review_lines ?? 0} سطر</b></p>
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-border-card bg-surface-subtle p-4">
+                  <h3 className="mb-3 flex items-center gap-2 text-sm font-bold text-text-body"><ClipboardCheck className="h-4 w-4 text-primary" />اختبارات الشهر</h3>
+                  {(evaluations ?? []).filter((e) => e.scheduled_date.startsWith(selectedMonth?.slice(0, 7) ?? "")).length === 0 ? (
+                    <p className="text-xs text-text-muted">لا توجد اختبارات مسجلة في هذا الشهر.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {(evaluations ?? []).filter((e) => e.scheduled_date.startsWith(selectedMonth?.slice(0, 7) ?? "")).map((evaluation) => (
+                        <div key={evaluation.id} className="rounded-xl bg-white p-3 text-xs">
+                          <div className="flex justify-between gap-2"><b className="text-text-body">{evaluation.title}</b><span dir="ltr">{evaluation.scheduled_date}</span></div>
+                          <p className="mt-1 text-text-muted">{evaluation.status} {evaluation.score !== null ? `— ${evaluation.score} / ${evaluation.max_score}` : ""}</p>
+                          {evaluation.result_note ? <p className="mt-1 text-text-muted">{evaluation.result_note}</p> : null}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="overflow-x-auto rounded-2xl border border-border-card">
+                <table className="w-full min-w-[760px] text-right text-xs">
+                  <thead className="bg-surface-subtle text-text-muted"><tr><th className="px-3 py-3">التاريخ</th><th className="px-3 py-3">الحضور</th><th className="px-3 py-3">الحفظ</th><th className="px-3 py-3">المراجعة</th><th className="px-3 py-3">التقييم</th><th className="px-3 py-3">ملاحظات</th></tr></thead>
+                  <tbody>{monthlyReport.records.map((record) => {
+                    const evaluation = (evaluations ?? []).find((e) => e.id === record.evaluation_id);
+                    return <tr key={record.id || record.date} className="border-t border-border-card"><td className="px-3 py-3" dir="ltr">{record.date}</td><td className="px-3 py-3">{record.attendance}</td><td className="px-3 py-3">{record.surah_name || "—"}<span className="block text-[11px] text-text-muted">{record.memorized_lines ?? 0} سطر</span></td><td className="px-3 py-3">{record.review_surah_name || "—"}<span className="block text-[11px] text-text-muted">{record.review_lines ?? 0} سطر</span></td><td className="px-3 py-3">{evaluation?.title || record.quality || "—"}</td><td className="max-w-[180px] px-3 py-3 text-text-muted">{record.note || "—"}</td></tr>;
+                  })}</tbody>
+                </table>
+              </div>
+            </>
+          )}
+        </div>
+      </Modal>
 
       {(studentCourses ?? []).some((c) => c.is_completed) && (
         <div className="bg-white rounded-[24px] shadow-sm border border-border-card p-5">
@@ -374,6 +459,14 @@ function StatCard({ label, value }: { label: string; value: string | number }) {
     <div className="bg-white rounded-[24px] p-5 border border-border-card shadow-sm text-center">
       <p className="text-xs text-text-muted font-medium mb-2">{label}</p>
       <h3 className="text-2xl font-black text-primary">{value}</h3>
+    </div>
+  );
+}
+function ReportStat({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="rounded-2xl border border-border-card bg-white p-3 text-center shadow-sm">
+      <p className="text-[11px] text-text-muted">{label}</p>
+      <p className="mt-1 text-lg font-black text-primary">{value}</p>
     </div>
   );
 }

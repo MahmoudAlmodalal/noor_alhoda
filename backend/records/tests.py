@@ -809,6 +809,84 @@ class WeeklyPlanCreateExtendedTests(RecordTestSetup):
 class DailyRecordWithoutPlanTests(RecordTestSetup):
     """Tests for DailyRecord without a WeeklyPlan (the core new feature)."""
 
+    def test_create_recitation_links_to_monthly_plan_and_aggregates_pages(self):
+        """A dated recitation record contributes to the matching monthly plan."""
+        monthly_plan = WeeklyPlan.objects.create(
+            student=self.student,
+            week_number=18,
+            week_start=date(2026, 5, 1),
+            month_start=date(2026, 5, 1),
+            required_pages=4,
+        )
+        response = self.client.post(
+            "/api/records/create/",
+            {
+                "student_id": str(self.student.id),
+                "weekly_plan_id": None,
+                "day": "mon",
+                "date": "2026-05-04",
+                "attendance": "present",
+                "memorized_lines": 30,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json()["data"]["weekly_plan_id"], str(monthly_plan.id))
+        monthly_plan.refresh_from_db()
+        self.assertEqual(monthly_plan.total_lines, 30)
+        self.assertEqual(monthly_plan.total_pages, 2.0)
+
+    def test_bulk_attendance_links_to_monthly_plan(self):
+        """Bulk attendance also uses the monthly plan for any date in its month."""
+        monthly_plan = WeeklyPlan.objects.create(
+            student=self.student,
+            week_number=19,
+            week_start=date(2026, 6, 1),
+            month_start=date(2026, 6, 1),
+        )
+        response = self.client.post(
+            "/api/records/bulk-attendance/",
+            {
+                "date": "2026-06-18",
+                "records": [{"student_id": str(self.student.id), "attendance": "present"}],
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        record = DailyRecord.objects.get(student=self.student, date=date(2026, 6, 18))
+        self.assertEqual(record.weekly_plan_id, monthly_plan.id)
+
+    def test_update_repairs_existing_record_without_plan(self):
+        """Editing a pre-fix plan-less record attaches it to a new monthly plan."""
+        recent_date = timezone.now().date() - timedelta(days=1)
+        record = DailyRecord.objects.create(
+            student=self.student,
+            weekly_plan=None,
+            day="sat",
+            date=recent_date,
+            attendance="present",
+        )
+        monthly_plan = WeeklyPlan.objects.create(
+            student=self.student,
+            week_number=20,
+            week_start=recent_date.replace(day=1),
+            month_start=recent_date.replace(day=1),
+        )
+
+        response = self.client.patch(
+            f"/api/records/{record.id}/",
+            {"memorized_lines": 15},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        record.refresh_from_db()
+        self.assertEqual(record.weekly_plan_id, monthly_plan.id)
+        monthly_plan.refresh_from_db()
+        self.assertEqual(monthly_plan.total_lines, 15)
+
     def test_create_attendance_without_plan(self):
         """Test 1: Attendance can be created without a weekly plan."""
         response = self.client.post(

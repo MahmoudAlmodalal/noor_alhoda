@@ -49,6 +49,7 @@ export interface DailyRecordRecord {
   review_to_ayah?: number | null;
   review_from_page?: number | null;
   review_to_page?: number | null;
+  review_lines?: number;
   review_quality?: "excellent" | "good" | "acceptable" | "weak" | "none";
   next_memorization_target?: string;
   next_memorization_from_ayah?: number | null;

@@ -91,7 +91,19 @@ def sync_pull(*, actor: User, since: datetime | None = None) -> dict[str, Any]:
     teachers_qs = teachers_qs.filter(delta)
     parents_qs = parents_qs.filter(delta)
     parent_links_qs = parent_links_qs.filter(delta)
-    students_delta = students_qs.filter(delta)
+    students_delta_qs = students_qs.filter(delta)
+    # A student's national_id is stored on User, while the local students
+    # table also mirrors it for offline search/login UX. Re-emit the student
+    # row whenever its related User changed so every client receives the new
+    # identity number in the same pull cycle.
+    changed_user_ids = users_qs.values_list("id", flat=True)
+    changed_student_ids = students_qs.filter(user_id__in=changed_user_ids).values_list("id", flat=True)
+    students_delta = list(students_delta_qs)
+    existing_student_ids = {row.id for row in students_delta}
+    students_delta.extend(
+        row for row in students_qs.filter(id__in=changed_student_ids)
+        if row.id not in existing_student_ids
+    )
     weekly_plans_qs = weekly_plans_qs.filter(delta)
     daily_records_qs = daily_records_qs.filter(delta)
     review_records_qs = review_records_qs.filter(delta)
@@ -124,7 +136,7 @@ def sync_pull(*, actor: User, since: datetime | None = None) -> dict[str, Any]:
             _Student.objects
             .filter(delta)
             .exclude(id__in=visible_student_ids)
-            .exclude(id__in=students_delta.values_list("id", flat=True))
+            .exclude(id__in=[row.id for row in students_delta])
             .filter(
                 change_requests__teacher_id=actor.teacher_profile.id,
                 change_requests__action="unassign",
