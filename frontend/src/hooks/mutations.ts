@@ -78,13 +78,26 @@ async function syncEvaluationScoresLocally(
 
   const evaluations = await listEvaluationsForStudent(studentId);
   const used = new Set<string>();
-  const updates: EvaluationRecord[] = [];
+  const updates: Array<{ record: EvaluationRecord; baseUpdatedAt: string | null }> = [];
   for (const candidate of candidates) {
     const explicitId = payload.evaluation_id ? String(payload.evaluation_id) : null;
     const target = evaluations.find((item) => {
       if (used.has(item.id) || item.evaluation_type !== candidate.type) return false;
       if (explicitId) return item.id === explicitId;
-      return item.scheduled_date === date && item.status === "scheduled";
+      if (item.status !== "scheduled") return false;
+      if (item.scheduled_date === date) return true;
+
+      // Attendance may be entered on a different day from the single
+      // monthly evaluation date. Only use a month fallback when it is
+      // unambiguous for this evaluation type.
+      const sameMonth = item.scheduled_date.slice(0, 7) === date.slice(0, 7);
+      const monthCandidates = evaluations.filter(
+        (evaluation) =>
+          evaluation.status === "scheduled" &&
+          evaluation.evaluation_type === candidate.type &&
+          evaluation.scheduled_date.slice(0, 7) === date.slice(0, 7),
+      );
+      return sameMonth && monthCandidates.length === 1;
     });
     if (!target) continue;
     used.add(target.id);
@@ -96,10 +109,29 @@ async function syncEvaluationScoresLocally(
       updated_at: now,
       server_updated_at: null,
     };
-    updates.push(updated);
+    updates.push({
+      record: updated,
+      baseUpdatedAt: target.server_updated_at ?? target.updated_at ?? null,
+    });
   }
   if (updates.length > 0) {
-    await upsertEvaluations(updates);
+    await upsertEvaluations(updates.map(({ record }) => record));
+    await Promise.all(
+      updates.map(({ record, baseUpdatedAt }) =>
+        enqueueOp({
+          resource: "evaluation",
+          action: "update",
+          target_id: record.id,
+          payload: {
+            id: record.id,
+            score: record.score,
+            status: record.status,
+          },
+          base_updated_at: baseUpdatedAt,
+          client_updated_at: now,
+        })
+      )
+    );
     emitChange("evaluation");
   }
 }
@@ -456,6 +488,7 @@ const handlers: Record<MutationResource, Handler> = {
         review_to_ayah: payload.review_to_ayah !== null && payload.review_to_ayah !== undefined && payload.review_to_ayah !== "" ? Number(payload.review_to_ayah) : null,
         review_from_page: payload.review_from_page !== null && payload.review_from_page !== undefined && payload.review_from_page !== "" ? Number(payload.review_from_page) : null,
         review_to_page: payload.review_to_page !== null && payload.review_to_page !== undefined && payload.review_to_page !== "" ? Number(payload.review_to_page) : null,
+        review_lines: Number(payload.review_lines ?? 0),
         review_quality: (payload.review_quality as DailyRecordRecord["review_quality"]) ?? "none",
         next_memorization_target: String(payload.next_memorization_target ?? ""),
         next_memorization_from_ayah: payload.next_memorization_from_ayah !== null && payload.next_memorization_from_ayah !== undefined && payload.next_memorization_from_ayah !== "" ? Number(payload.next_memorization_from_ayah) : null,
