@@ -36,7 +36,14 @@ class Evaluation(models.Model):
         default="",
         verbose_name="نطاق السور",
     )
-    scheduled_date = models.DateField(verbose_name="تاريخ الاختبار")
+    # The date is normalized to the first day of the selected month. The
+    # actual day on which the teacher grades the test lives in evaluated_date.
+    scheduled_date = models.DateField(verbose_name="شهر الاختبار")
+    evaluated_date = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name="تاريخ التقييم الفعلي",
+    )
     status = models.CharField(
         max_length=12,
         choices=Status.choices,
@@ -86,13 +93,17 @@ class Evaluation(models.Model):
 
     def clean(self):
         super().clean()
+        if self.scheduled_date is not None:
+            # Keep legacy API clients compatible while enforcing month-only
+            # semantics for all newly saved records.
+            self.scheduled_date = self.scheduled_date.replace(day=1)
         if self.max_score is not None and self.max_score <= 0:
             raise ValidationError({"max_score": "الدرجة القصوى يجب أن تكون أكبر من صفر."})
         if self.score is not None and self.max_score is not None and self.score > self.max_score:
             raise ValidationError({"score": "الدرجة لا يمكن أن تتجاوز الدرجة القصوى."})
 
     def __str__(self):
-        return f"{self.student.full_name} - {self.title} ({self.scheduled_date})"
+        return f"{self.student.full_name} - {self.title} ({self.scheduled_date:%Y-%m})"
 
 
 class QuizQuestion(models.Model):

@@ -25,6 +25,14 @@ const ATTENDANCE_LABELS: Record<string, string> = {
     upcoming: "لم يُسجَّل بعد",
 };
 
+function formatTestMonth(iso: string): string {
+    const [year, month] = iso.slice(0, 7).split("-").map(Number);
+    if (!year || !month) return iso;
+    return new Intl.DateTimeFormat("ar", { month: "long", year: "numeric" }).format(
+        new Date(year, month - 1, 1),
+    );
+}
+
 function formatArabicDate(iso: string): string {
     if (!iso) return "";
     try {
@@ -229,7 +237,7 @@ export default function StudentTasksPage() {
                                     <span className="text-[14px] font-bold text-text-body">{t.title}</span>
                                     <span className="flex items-center gap-1 text-[11px] font-bold text-primary">
                                         <Calendar className="h-3.5 w-3.5" />
-                                        {formatArabicDate(t.scheduled_date)}
+                                        شهر {formatTestMonth(t.scheduled_date)}
                                     </span>
                                 </div>
                                 {t.surah_range && (

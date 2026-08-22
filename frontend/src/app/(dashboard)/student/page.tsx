@@ -7,7 +7,6 @@ import { DashboardSkeleton } from "@/components/ui/Skeleton";
 import { StatTile } from "@/components/ui/StatTile";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { ProgressRing } from "@/components/ui/ProgressRing";
-import { Countdown } from "@/components/ui/Countdown";
 import {
     AttendancePill,
     type AttendanceValue,
@@ -55,6 +54,14 @@ type HistoryRow = HistoryEntry & {
     rating?: "excellent" | "very_good" | "good" | "none";
     title?: string;
 };
+
+function formatTestMonth(value: string): string {
+    const [year, month] = value.slice(0, 7).split("-").map(Number);
+    if (!year || !month) return value;
+    return new Intl.DateTimeFormat("ar", { month: "long", year: "numeric" }).format(
+        new Date(year, month - 1, 1),
+    );
+}
 
 function getSaturday(date: Date): string {
     const day = date.getDay();
@@ -383,7 +390,7 @@ export default function StudentDashboard() {
                     </div>
                     {nextTest ? (
                         <div className="flex flex-col items-center justify-center gap-1 flex-1">
-                            <Countdown target={nextTest.scheduled_date} />
+                            <span className="text-center text-[14px] font-bold text-primary">خلال {formatTestMonth(nextTest.scheduled_date)}</span>
                             <span className="text-center text-[12px] font-bold text-text-title truncate w-full">
                                 {nextTest.title || nextTest.surah_range}
                             </span>

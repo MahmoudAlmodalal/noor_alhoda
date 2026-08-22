@@ -30,7 +30,16 @@ function isEvaluatedStatus(status: string): boolean {
 }
 
 function isDueScheduledEvaluation(evaluation: EvaluationForTeacher, today: string): boolean {
-  return evaluation.status === "scheduled" && evaluation.scheduled_date <= today;
+  // scheduled_date is normalized to the first day of the selected month.
+  return evaluation.status === "scheduled" && evaluation.scheduled_date.slice(0, 7) <= today.slice(0, 7);
+}
+
+function formatMonthLabel(monthDate: string): string {
+  const [year, month] = monthDate.slice(0, 7).split("-").map(Number);
+  if (!year || !month) return monthDate;
+  return new Intl.DateTimeFormat("ar", { month: "long", year: "numeric" }).format(
+    new Date(year, month - 1, 1),
+  );
 }
 
 function displayStatus(evaluation: EvaluationForTeacher, today: string): DisplayStatus {
@@ -52,8 +61,8 @@ function sortEvaluations(
 ): EvaluationForTeacher[] {
   return [...evaluations].sort((a, b) => {
     if (tab === "upcoming") {
-      const aDue = a.scheduled_date <= today;
-      const bDue = b.scheduled_date <= today;
+      const aDue = a.scheduled_date.slice(0, 7) <= today.slice(0, 7);
+      const bDue = b.scheduled_date.slice(0, 7) <= today.slice(0, 7);
       if (aDue !== bDue) return aDue ? -1 : 1;
       return a.scheduled_date.localeCompare(b.scheduled_date);
     }
@@ -66,7 +75,7 @@ export default function TeacherEvaluationsPage() {
   const teacherId = user?.teacher_profile?.id;
   const [tab, setTab] = useState<Tab>("upcoming");
   const [studentFilter, setStudentFilter] = useState("");
-  const [dateFilter, setDateFilter] = useState("");
+  const [monthFilter, setMonthFilter] = useState("");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [selectedEvaluation, setSelectedEvaluation] = useState<EvaluationForTeacher | null>(null);
   const [isGradeOpen, setIsGradeOpen] = useState(false);
@@ -81,15 +90,15 @@ export default function TeacherEvaluationsPage() {
   const filtered = useMemo(() => {
     const matching = (evaluations ?? []).filter((evaluation) => {
       const matchesStudent = studentFilter ? evaluation.student_name.includes(studentFilter) : true;
-      const matchesDate = dateFilter ? evaluation.scheduled_date === dateFilter : true;
+      const matchesMonth = monthFilter ? evaluation.scheduled_date.startsWith(monthFilter) : true;
       const matchesTab =
         tab === "all" ||
         (tab === "upcoming" ? evaluation.status === "scheduled" : isEvaluatedStatus(evaluation.status));
-      return matchesStudent && matchesDate && matchesTab;
+      return matchesStudent && matchesMonth && matchesTab;
     });
 
     return sortEvaluations(matching, tab, today);
-  }, [dateFilter, evaluations, studentFilter, tab, today]);
+  }, [evaluations, monthFilter, studentFilter, tab, today]);
 
   function openGradeModal(evaluation: EvaluationForTeacher) {
     setSelectedEvaluation(evaluation);
@@ -132,11 +141,12 @@ export default function TeacherEvaluationsPage() {
           className="h-11 rounded-xl border border-border-subtle px-4 text-sm outline-none focus:ring-2 focus:ring-primary/20"
         />
         <input
-          type="date"
-          value={dateFilter}
-          onChange={(event) => setDateFilter(event.target.value)}
+          type="month"
+          value={monthFilter}
+          onChange={(event) => setMonthFilter(event.target.value)}
           className="h-11 rounded-xl border border-border-subtle px-4 text-sm outline-none focus:ring-2 focus:ring-primary/20"
           dir="ltr"
+          aria-label="فلترة حسب شهر الاختبار"
         />
       </div>
 
@@ -184,7 +194,8 @@ export default function TeacherEvaluationsPage() {
                 </div>
 
                 <div className="space-y-2 text-xs text-text-muted">
-                  <p className="flex items-center gap-2"><CalendarDays className="h-4 w-4" />{evaluation.scheduled_date}</p>
+                  <p className="flex items-center gap-2"><CalendarDays className="h-4 w-4" />شهر الاختبار: {formatMonthLabel(evaluation.scheduled_date)}</p>
+                  {evaluation.evaluated_date ? <p>تم التقييم في: <span dir="ltr">{evaluation.evaluated_date}</span></p> : null}
                   {evaluation.surah_range ? <p>النطاق: {evaluation.surah_range}</p> : null}
                   {evaluation.status === "missed" ? null : evaluation.score !== null ? (
                     <p>الدرجة: {evaluation.score} / {evaluation.max_score || "100"}</p>

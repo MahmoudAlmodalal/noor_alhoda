@@ -570,6 +570,7 @@ const handlers: Record<MutationResource, Handler> = {
         title: String(payload.title ?? ""),
         surah_range: String(payload.surah_range ?? ""),
         scheduled_date: String(payload.scheduled_date ?? now.slice(0, 10)),
+        evaluated_date: payload.evaluated_date ? String(payload.evaluated_date) : null,
         status: String(payload.status ?? "scheduled"),
         result_note: String(payload.result_note ?? ""),
         evaluation_type: (payload.evaluation_type as "scattered" | "combined") ?? "scattered",

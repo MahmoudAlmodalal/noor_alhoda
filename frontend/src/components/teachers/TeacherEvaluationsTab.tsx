@@ -37,6 +37,14 @@ interface Props {
   teacherId: string;
 }
 
+function formatMonthLabel(value: string): string {
+  const [year, month] = value.slice(0, 7).split("-").map(Number);
+  if (!year || !month) return value;
+  return new Intl.DateTimeFormat("ar", { month: "long", year: "numeric" }).format(
+    new Date(year, month - 1, 1),
+  );
+}
+
 export function TeacherEvaluationsTab({ teacherId }: Props) {
   const [filter, setFilter] = useState<StatusFilter>("all");
   const [modalOpen, setModalOpen] = useState(false);
@@ -141,7 +149,7 @@ export function TeacherEvaluationsTab({ teacherId }: Props) {
                 <th className="px-4 py-3 font-bold">الطالب</th>
                 <th className="px-4 py-3 font-bold">العنوان</th>
                 <th className="px-4 py-3 font-bold">النطاق</th>
-                <th className="px-4 py-3 font-bold">التاريخ</th>
+                <th className="px-4 py-3 font-bold">شهر الاختبار / تاريخ التقييم</th>
                 <th className="px-4 py-3 font-bold">الحالة</th>
                 <th className="px-4 py-3 font-bold">إجراءات</th>
               </tr>
@@ -159,8 +167,9 @@ export function TeacherEvaluationsTab({ teacherId }: Props) {
                   <td className="px-4 py-3 text-text-muted">
                     {e.surah_range || "—"}
                   </td>
-                  <td className="px-4 py-3 text-text-label" dir="ltr">
-                    {e.scheduled_date}
+                  <td className="px-4 py-3 text-text-label">
+                    <span className="block">{formatMonthLabel(e.scheduled_date)}</span>
+                    {e.evaluated_date ? <span className="mt-1 block text-[11px] text-text-muted">تم في: <span dir="ltr">{e.evaluated_date}</span></span> : null}
                   </td>
                   <td className="px-4 py-3">
                     <EvaluationStatusBadge value={e.status} />

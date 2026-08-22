@@ -201,7 +201,8 @@ def generate_student_pdf(*, student_id) -> bytes:
         }
         evaluation_data = [
             [
-                _ar("التاريخ"),
+                _ar("شهر الاختبار"),
+                _ar("تاريخ التقييم"),
                 _ar("الاختبار"),
                 _ar("نطاق السور"),
                 _ar("النتيجة"),
@@ -217,7 +218,8 @@ def generate_student_pdf(*, student_id) -> bytes:
             )
             evaluation_data.append(
                 [
-                    str(evaluation.scheduled_date),
+                    str(evaluation.scheduled_date)[:7],
+                    str(evaluation.evaluated_date) if evaluation.evaluated_date else "—",
                     _ar(evaluation.title),
                     _ar(evaluation.surah_range or "—"),
                     _ar(status_labels.get(evaluation.status, evaluation.status)),
@@ -227,7 +229,7 @@ def generate_student_pdf(*, student_id) -> bytes:
             )
         evaluation_table = Table(
             evaluation_data,
-            colWidths=[2 * cm, 3 * cm, 3.5 * cm, 2 * cm, 2 * cm, 4.5 * cm],
+            colWidths=[1.7 * cm, 1.8 * cm, 2.5 * cm, 3 * cm, 1.7 * cm, 1.7 * cm, 4 * cm],
             repeatRows=1,
         )
         evaluation_table.setStyle(

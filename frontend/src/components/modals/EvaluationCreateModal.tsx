@@ -8,10 +8,9 @@ import { Input } from "@/components/ui/Input";
 import { StudentPicker } from "@/components/ui/StudentPicker";
 import { useMutation } from "@/hooks/useMutation";
 
-function tomorrowISO(): string {
+function currentMonthISO(): string {
   const d = new Date();
-  d.setDate(d.getDate() + 1);
-  return d.toISOString().slice(0, 10);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
 interface Props {
@@ -35,7 +34,7 @@ export function EvaluationCreateModal({
   const [selectedName, setSelectedName] = useState(studentName ?? "");
   const [title, setTitle] = useState("");
   const [surahRange, setSurahRange] = useState("");
-  const [scheduledDate, setScheduledDate] = useState(tomorrowISO());
+  const [scheduledMonth, setScheduledMonth] = useState(currentMonthISO());
 
   const { mutate, isSubmitting, error, reset } = useMutation(
     "evaluation",
@@ -49,7 +48,7 @@ export function EvaluationCreateModal({
       setSelectedName(studentName ?? "");
       setTitle("");
       setSurahRange("");
-      setScheduledDate(tomorrowISO());
+      setScheduledMonth(currentMonthISO());
       reset();
     });
   }, [isOpen, studentId, studentName, reset]);
@@ -64,7 +63,9 @@ export function EvaluationCreateModal({
         student_id: selectedId,
         title: title.trim(),
         surah_range: surahRange.trim(),
-        scheduled_date: scheduledDate,
+        // The API stores the selected month as its first day. No day is
+        // exposed to the user at scheduling time.
+        scheduled_date: `${scheduledMonth}-01`,
       },
       { successMessage: "تم جدولة الاختبار" }
     );
@@ -122,15 +123,16 @@ export function EvaluationCreateModal({
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-text-body">تاريخ الاختبار</label>
+            <label className="text-xs font-bold text-text-body">شهر الاختبار</label>
             <input
-              type="date"
-              value={scheduledDate}
-              onChange={(e) => setScheduledDate(e.target.value)}
+              type="month"
+              value={scheduledMonth}
+              onChange={(e) => setScheduledMonth(e.target.value)}
               className="h-11 w-full rounded-[14px] border border-border-subtle bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
               dir="ltr"
               required
             />
+            <p className="text-[11px] text-text-muted">يُحدد الشهر فقط، ويُسجل يوم التقييم عند حفظ الدرجة.</p>
           </div>
         </div>
 

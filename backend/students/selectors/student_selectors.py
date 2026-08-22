@@ -427,11 +427,12 @@ def tasks_today(*, student_id, actor: User) -> dict:
             "title": ev.title,
             "surah_range": ev.surah_range,
             "scheduled_date": str(ev.scheduled_date),
+            "evaluated_date": str(ev.evaluated_date) if ev.evaluated_date else None,
             "status": ev.status,
         }
         for ev in Evaluation.objects.filter(
             student=student,
-            scheduled_date__gte=today,
+            scheduled_date__gte=today.replace(day=1),
             status=Evaluation.Status.SCHEDULED,
         ).order_by("scheduled_date")[:5]
     ]

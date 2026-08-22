@@ -15,6 +15,7 @@ class EvaluationOutputSerializer(serializers.Serializer):
     title = serializers.CharField()
     surah_range = serializers.CharField()
     scheduled_date = serializers.DateField()
+    evaluated_date = serializers.DateField(allow_null=True)
     status = serializers.CharField()
     result_note = serializers.CharField()
     evaluation_type = serializers.CharField()
@@ -49,6 +50,7 @@ class EvaluationUpdateSerializer(serializers.Serializer):
         required=False,
     )
     result_note = serializers.CharField(required=False, allow_blank=True)
+    evaluated_date = serializers.DateField(required=False, allow_null=True)
     evaluation_type = serializers.ChoiceField(
         choices=["scattered", "combined"], required=False
     )

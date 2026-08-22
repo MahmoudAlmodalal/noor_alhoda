@@ -87,7 +87,7 @@ export default function StudentAchievements() {
             return {
                 id: `evaluation-${evaluation.id}`,
                 title: `اختبار: ${evaluation.title}`,
-                date: evaluation.scheduled_date,
+                date: evaluation.evaluated_date ?? evaluation.scheduled_date,
                 grade: scoreLabel,
                 color: evaluation.status === "passed"
                     ? "bg-green-500"

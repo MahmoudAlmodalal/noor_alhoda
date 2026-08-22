@@ -203,6 +203,7 @@ def evaluation_to_dict(e: Evaluation) -> dict[str, Any]:
         "title": e.title,
         "surah_range": e.surah_range,
         "scheduled_date": str(e.scheduled_date),
+        "evaluated_date": str(e.evaluated_date) if e.evaluated_date else None,
         "status": e.status,
         "result_note": e.result_note,
         "evaluation_type": e.evaluation_type,

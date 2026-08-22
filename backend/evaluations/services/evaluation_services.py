@@ -126,13 +126,27 @@ def evaluation_update(
         "scheduled_date",
         "status",
         "result_note",
+        "evaluated_date",
         "evaluation_type",
         "score",
         "max_score",
     ]
-    for field, value in (data or {}).items():
+    update_data = data or {}
+    for field, value in update_data.items():
         if field in allowed:
             setattr(evaluation, field, value)
+
+    # The grading date is an event date, not the planned month. Preserve an
+    # explicit offline/client date when supplied; otherwise use today's date.
+    if evaluation.status in {
+        Evaluation.Status.PASSED,
+        Evaluation.Status.FAILED,
+        Evaluation.Status.MISSED,
+    } and evaluation.evaluated_date is None:
+        evaluation.evaluated_date = date_cls.today()
+    elif update_data.get("status") == Evaluation.Status.SCHEDULED:
+        evaluation.evaluated_date = None
+
     evaluation.full_clean()
     evaluation.save()
 
