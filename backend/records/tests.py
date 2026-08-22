@@ -809,6 +809,33 @@ class WeeklyPlanCreateExtendedTests(RecordTestSetup):
 class DailyRecordWithoutPlanTests(RecordTestSetup):
     """Tests for DailyRecord without a WeeklyPlan (the core new feature)."""
 
+    def test_attendance_score_updates_single_monthly_evaluation(self):
+        """Attendance scores update the only scheduled evaluation of that type in the month."""
+        from evaluations.models import Evaluation
+
+        evaluation = Evaluation.objects.create(
+            student=self.student,
+            title="التقييم الشهري",
+            scheduled_date=date(2026, 5, 25),
+            evaluation_type=Evaluation.EvaluationType.SCATTERED,
+        )
+        response = self.client.post(
+            "/api/records/create/",
+            {
+                "student_id": str(self.student.id),
+                "date": "2026-05-04",
+                "day": "mon",
+                "attendance": "present",
+                "scattered_test_score": 85,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        evaluation.refresh_from_db()
+        self.assertEqual(evaluation.score, 85)
+        self.assertEqual(evaluation.status, Evaluation.Status.PASSED)
+
     def test_create_recitation_links_to_monthly_plan_and_aggregates_pages(self):
         """A dated recitation record contributes to the matching monthly plan."""
         monthly_plan = WeeklyPlan.objects.create(
