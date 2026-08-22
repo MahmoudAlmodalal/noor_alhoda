@@ -2,6 +2,7 @@ import { defineConfig } from "@playwright/test";
 
 const frontendUrl = process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:3000";
 const apiUrl = process.env.PLAYWRIGHT_API_BASE_URL ?? "http://127.0.0.1:8000";
+const useProductionServer = process.env.PLAYWRIGHT_PROD === "1";
 
 export default defineConfig({
   testDir: "./e2e",
@@ -31,14 +32,16 @@ export default defineConfig({
       timeout: 120_000,
     },
     {
-      command: "npm run dev -- --hostname 127.0.0.1 --port 3000",
+      command: useProductionServer
+        ? "npm run build && npm run start -- --hostname 127.0.0.1 --port 3000"
+        : "npm run dev -- --hostname 127.0.0.1 --port 3000",
       cwd: ".",
       env: {
         ...process.env,
         NEXT_PUBLIC_API_URL: apiUrl,
       },
       url: frontendUrl,
-      reuseExistingServer: true,
+      reuseExistingServer: !useProductionServer,
       timeout: 120_000,
     },
   ],

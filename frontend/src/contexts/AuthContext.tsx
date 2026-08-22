@@ -254,6 +254,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
 
+      // A restored local session is sufficient to render immediately. Never
+      // block ProtectedRoute on /me: when the browser is offline, that request
+      // can take the full fetch timeout and hide OfflineBanner behind a spinner.
+      if (restored) {
+        const offline = typeof navigator !== "undefined" && !navigator.onLine;
+        if (isMounted) {
+          setIsOfflineSession(offline);
+          setIsLoading(false);
+        }
+        if (!offline) void fetchMe();
+        return;
+      }
+
       // Refresh the user from /me (with retry for transient network errors).
       // On success, server data overrides the minimal state we set from IDB.
       // On 401/403, fetchMe clears tokens; on network failure we keep them so

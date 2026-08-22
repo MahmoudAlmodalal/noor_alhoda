@@ -279,6 +279,17 @@ class TokenRefreshApiTests(AccountsFixture, APITestCase):
         )
         self.assertEqual(response.status_code, 401)
 
+    def test_refresh_for_deleted_user_returns_401_instead_of_500(self):
+        refresh = RefreshToken.for_user(self.user)
+        self.user.delete()
+
+        response = self.client.post(
+            REFRESH_URL, {"refresh": str(refresh)}, format="json"
+        )
+
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.data["detail"], "Token is invalid or expired.")
+
     def test_malformed_refresh_returns_401(self):
         response = self.client.post(
             REFRESH_URL, {"refresh": "not-a-jwt"}, format="json"

@@ -672,6 +672,36 @@ class SyncPushIdempotencyErrorNotCachedTests(SyncPushInBatchRemappingTests):
         self.assertEqual(self.student.user.national_id, "S-FIXED-NID")
 
 
+class SyncPushStudentTeacherAssignmentTests(SyncPushInBatchRemappingTests):
+    def test_student_update_teacher_id_assigns_teacher(self):
+        teacher_two_user = User.objects.create_user(
+            national_id="TEA-MAP-2", phone_number="970599111112",
+            password="pw", role="teacher",
+        )
+        teacher_two = Teacher.objects.create(
+            user=teacher_two_user, full_name="Teacher Map Two", max_students=25,
+        )
+        self.client.force_authenticate(self.admin)
+        response = self.client.post(
+            "/api/sync/push/",
+            {
+                "ops": [{
+                    "client_id": "81000000-0000-4000-a000-000000000001",
+                    "resource": "student",
+                    "op": "update",
+                    "id": str(self.student.id),
+                    "data": {"teacher_id": str(teacher_two.id)},
+                    "base_updated_at": self.student.updated_at.isoformat(),
+                }]
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["data"]["results"][0]["status"], "synced")
+        self.student.refresh_from_db()
+        self.assertEqual(self.student.teacher_id, teacher_two.id)
+
+
 class SyncPushSameBatchSequentialEditsTests(SyncPushInBatchRemappingTests):
     """
     Two offline edits to the SAME record, queued before either had a chance

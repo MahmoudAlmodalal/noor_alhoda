@@ -1,34 +1,23 @@
 import { expect, type Page } from "@playwright/test";
-
-import { apiBaseUrl, seededUsers } from "./fixtures";
+import { seededUsers } from "./fixtures";
 
 type Role = keyof typeof seededUsers;
 
+/**
+ * Keep the helper name for existing specs, but use the real UI flow so the
+ * application initializes and unlocks its encrypted offline database.
+ */
 export async function loginViaApi(page: Page, role: Role) {
-  const credentials = seededUsers[role];
-  const response = await page.request.post(`${apiBaseUrl}/api/auth/login/`, {
-    data: {
-      national_id: credentials.phone,
-      password: credentials.password,
-    },
+  await loginViaUi(page, role);
+  await expect(page).toHaveURL(role === "student" ? /\/student$/ : /\/$/);
+  await expect
+    .poll(() => page.evaluate(() => Boolean(sessionStorage.getItem("_dbk"))), {
+      timeout: 30_000,
+    })
+    .toBe(true);
+  await expect(page.getByText("Student One").first()).toBeVisible({
+    timeout: 60_000,
   });
-
-  expect(response.ok()).toBeTruthy();
-  const payload = (await response.json()) as {
-    data: { access: string; refresh: string };
-  };
-
-  await page.goto("/login");
-  await page.evaluate(
-    ({ access, refresh }) => {
-      localStorage.setItem("access_token", access);
-      localStorage.setItem("refresh_token", refresh);
-    },
-    {
-      access: payload.data.access,
-      refresh: payload.data.refresh,
-    }
-  );
 }
 
 export async function loginViaUi(page: Page, role: Role) {

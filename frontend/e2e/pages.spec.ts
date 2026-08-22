@@ -17,10 +17,11 @@ test.describe("Role-based page coverage", () => {
       ["/leaderboard", "Student One"],
       ["/notifications", "إشعار إداري - E2E"],
       ["/students", "Student One"],
-      ["/students/register", "بطاقة الانتساب - طالب جديد"],
+      ["/students/register", "تسجيل طالب جديد"],
       [`/students/${seededIds.student}`, "Student One"],
       ["/teachers", "Teacher One"],
-      ["/rings", "حلقة النور - E2E"],
+      ["/staff-db", "هيكلية المركز"],
+      ["/students-db", "قاعدة بيانات الطلاب"],
       ["/courses", "التجويد التأسيسي - E2E"],
       ["/attendance", "Student One"],
       ["/reports/attendance", "Student One"],
@@ -28,7 +29,7 @@ test.describe("Role-based page coverage", () => {
 
     for (const [route, text] of checks) {
       await page.goto(route);
-      await expect(page.getByText(text)).toBeVisible();
+      await expect(page.getByText(text).first()).toBeVisible();
     }
 
     await page.goto("/notifications");
@@ -65,7 +66,7 @@ test.describe("Role-based page coverage", () => {
     await loginViaApi(page, "student");
 
     await page.goto("/student");
-    await expect(page.getByText("السلام عليكم، Student One")).toBeVisible();
+    await expect(page.getByText("السلام عليكم، Student")).toBeVisible();
 
     await page.goto("/student/achievements");
     await expect(
