@@ -19,8 +19,14 @@ export function AddCourseModal({
 }) {
   const [form, setForm] = useState({ name: "", description: "" });
   const { mutate, isSubmitting, error, reset } = useMutation("course", "create");
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   const handleSubmit = async () => {
+    if (!form.name.trim()) {
+      setValidationError("اسم الدورة مطلوب.");
+      return;
+    }
+    setValidationError(null);
     const result = await mutate(form, { successMessage: "تم إضافة الدورة بنجاح" });
     if (result) {
       setForm({ name: "", description: "" });
@@ -55,7 +61,9 @@ export function AddCourseModal({
         </div>
       </div>
 
-      {error && <p className="text-sm text-red-500 mb-4">{error}</p>}
+      {(validationError || error) && (
+        <p className="text-sm text-red-500 mb-4">{validationError || error}</p>
+      )}
 
       <div className="flex items-center gap-3">
         <Button

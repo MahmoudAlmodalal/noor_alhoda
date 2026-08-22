@@ -140,6 +140,31 @@ export async function revertOrphanedInFlight(): Promise<number> {
   return orphans.length;
 }
 
+export async function rebasePendingUpdates(
+  resource: ResourceName,
+  targetId: string,
+  serverUpdatedAt: string
+): Promise<void> {
+  const rows = await getDb().outbox.toArray();
+  const matching = rows.filter(
+    (row) =>
+      row.resource === resource &&
+      row.target_id === targetId &&
+      row.action === "update" &&
+      (row.status === "pending" || row.status === "in_flight") &&
+      row.base_updated_at === null
+  );
+  if (matching.length === 0) return;
+  await getDb().transaction("rw", getDb().outbox, async () => {
+    for (const row of matching) {
+      await getDb().outbox.update(row.op_id, {
+        base_updated_at: serverUpdatedAt,
+      });
+    }
+  });
+  emitChange("outbox");
+}
+
 export async function markSynced(opId: string): Promise<void> {
   // Fully synced ops are dropped immediately — no use keeping them.
   await getDb().outbox.delete(opId);

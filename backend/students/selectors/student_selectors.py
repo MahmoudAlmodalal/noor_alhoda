@@ -99,15 +99,19 @@ def student_get(*, student_id, actor: User) -> Student:
     return student
 
 
-def student_history(*, student_id, actor: User) -> list:
-    """Return a student's monthly progress summaries for the detail page."""
+def monthly_history_for_student(*, student: Student) -> list:
+    """Build the canonical monthly summary from plans and their daily records.
+
+    The stored plan totals are denormalized cache fields. Recomputing totals from
+    daily records keeps every consumer (detail page, exports, and reports) on the
+    same source of truth, including records that were synchronized offline.
+    """
     from calendar import monthrange
     from collections import defaultdict
     from datetime import date as date_cls
     from records.models import WeeklyPlan
     from evaluations.models import Evaluation
 
-    student = student_get(student_id=student_id, actor=actor)
     plans = list(
         WeeklyPlan.objects.filter(student=student)
         .prefetch_related("daily_records")
@@ -131,6 +135,7 @@ def student_history(*, student_id, actor: User) -> list:
         total_lines = sum(r.memorized_lines or 0 for r in records)
         review_lines = sum(r.review_lines or 0 for r in records)
         required_pages = sum(float(p.required_pages or 0) for p in plans_for_month)
+        required_review_pages = sum(float(p.review_required_pages or 0) for p in plans_for_month)
         if required_pages <= 0:
             required_pages = sum(p.total_required_lines or 0 for p in plans_for_month) / 15
         if required_pages <= 0:
@@ -140,9 +145,12 @@ def student_history(*, student_id, actor: User) -> list:
         attendance_present = sum(1 for r in records if r.attendance in ("present", "late"))
         attendance_absent = sum(1 for r in records if r.attendance == "absent")
         attendance_excused = sum(1 for r in records if r.attendance == "excused")
-        evaluation_count = Evaluation.objects.filter(
+        evaluations = Evaluation.objects.filter(
             student=student, scheduled_date__gte=first, scheduled_date__lte=last
-        ).count()
+        )
+        evaluation_count = evaluations.count()
+        evaluated_count = evaluations.exclude(status=Evaluation.Status.SCHEDULED).count()
+        evaluation_rate = round((evaluated_count / evaluation_count) * 100, 2) if evaluation_count else 0
         rating = "excellent" if completion_rate >= 90 else "very_good" if completion_rate >= 75 else "good" if completion_rate >= 50 else "none"
         history.append({
             "id": month_start,
@@ -158,13 +166,22 @@ def student_history(*, student_id, actor: User) -> list:
             "total_review_lines": review_lines,
             "total_review_pages": round(review_lines / 15, 1),
             "required_pages": round(required_pages, 1),
+            "required_review_pages": round(required_review_pages, 1),
             "completion_rate": completion_rate,
             "present_days": attendance_present,
             "absent_days": attendance_absent,
             "excused_days": attendance_excused,
             "evaluation_count": evaluation_count,
+            "evaluated_evaluation_count": evaluated_count,
+            "evaluation_completion_rate": evaluation_rate,
         })
     return history
+
+
+def student_history(*, student_id, actor: User) -> list:
+    """Return a student's monthly progress summaries for the detail page."""
+    student = student_get(student_id=student_id, actor=actor)
+    return monthly_history_for_student(student=student)
 
 
 def student_stats(*, student_id, actor: User) -> dict:

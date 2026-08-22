@@ -2,7 +2,9 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, serializers
+from django.core.exceptions import ObjectDoesNotExist
 from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework_simplejwt.views import TokenRefreshView
 from drf_spectacular.utils import extend_schema, inline_serializer
 
 from accounts.services.auth_services import (
@@ -39,6 +41,19 @@ class OTPVerifyInputSerializer(serializers.Serializer):
 # ---------------------------------------------------------------------------
 # Views
 # ---------------------------------------------------------------------------
+class SafeTokenRefreshApi(TokenRefreshView):
+    """Return 401 instead of 500 when a refresh token points to a deleted user."""
+
+    def post(self, request, *args, **kwargs):
+        try:
+            return super().post(request, *args, **kwargs)
+        except ObjectDoesNotExist:
+            return Response(
+                {"detail": "Token is invalid or expired."},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+
 class LoginApi(APIView):
     """POST /api/auth/login/ — تسجيل الدخول"""
 

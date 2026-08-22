@@ -35,6 +35,7 @@ import {
   markInFlight,
   markSynced,
   remapPendingOutboxIds,
+  rebasePendingUpdates,
   revertInFlight,
   revertOrphanedInFlight,
 } from "./outbox";
@@ -75,13 +76,20 @@ interface PushResponseData {
 }
 
 let pushInFlight: Promise<PushResult> | null = null;
+let pushAgain = false;
 
 export function isPushInFlight(): boolean {
   return pushInFlight !== null;
 }
 
 export async function triggerPush(): Promise<PushResult> {
-  if (pushInFlight !== null) return pushInFlight;
+  if (pushInFlight !== null) {
+    // A mutation may be enqueued while the current batch is still in flight.
+    // Keep a follow-up drain attached to the current promise so a subsequent
+    // pull cannot overwrite that newer optimistic value with a stale server row.
+    pushAgain = true;
+    return pushInFlight;
+  }
   pushInFlight = (async () => {
     try {
       if (!hasSessionKey()) return { ok: false, reason: "locked" };
@@ -188,7 +196,14 @@ export async function triggerPush(): Promise<PushResult> {
           batchSettled = true;
           if (touched.size > 0) emitChanges(Array.from(touched));
 
-          if (batch.length < BATCH_SIZE) return { ok: true };
+          if (batch.length < BATCH_SIZE) {
+            // A mutation can enqueue another operation while this batch is
+            // in flight (for example create followed immediately by edit).
+            // Do not resolve yet: a pull between the two pushes could apply
+            // the old server row over the newer optimistic local value.
+            const morePending = await listPending(1);
+            if (morePending.length === 0) return { ok: true };
+          }
         } finally {
           if (!batchSettled) await revertInFlight(opIds);
         }
@@ -200,7 +215,10 @@ export async function triggerPush(): Promise<PushResult> {
         reason: err instanceof Error ? err.message : String(err),
       };
     } finally {
+      const rerun = pushAgain;
+      pushAgain = false;
       pushInFlight = null;
+      if (rerun) await triggerPush();
     }
   })();
   return pushInFlight;
@@ -217,6 +235,15 @@ async function applyResult(
       if (resource) touched.add(resource);
 
       const targetId = opTargetMap?.get(r.client_id);
+      const serverUpdatedAt = typeof r.row.updated_at === "string" ? r.row.updated_at : null;
+      if (
+        r.status === "synced" &&
+        resource &&
+        targetId &&
+        serverUpdatedAt
+      ) {
+        await rebasePendingUpdates(resource, targetId, serverUpdatedAt);
+      }
       if (typeof r.row.id === "string" && targetId && targetId !== r.row.id) {
         await remapPendingOutboxIds(targetId, r.row.id, resource);
       }

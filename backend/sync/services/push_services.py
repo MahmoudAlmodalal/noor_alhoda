@@ -344,7 +344,11 @@ def _push_student_create(*, actor: User, op: dict) -> dict:
 
 def _push_student_update(*, actor: User, op: dict) -> dict:
     from students.selectors.student_selectors import student_get
-    from students.services.student_services import student_update
+    from students.services.student_services import (
+        student_assign_teacher,
+        student_unassign_teacher,
+        student_update,
+    )
 
     target_id = op.get("id")
     base = _parse_base(op.get("base_updated_at"))
@@ -355,7 +359,23 @@ def _push_student_update(*, actor: User, op: dict) -> dict:
             "status": "conflict",
             "row": _conflict_row("student", student),
         }
-    updated = student_update(student=student, actor=actor, data=op.get("data") or {})
+
+    data = dict(op.get("data") or {})
+    teacher_marker = object()
+    teacher_id = data.pop("teacher_id", teacher_marker)
+    updated = student
+    if data:
+        updated = student_update(student=updated, actor=actor, data=data)
+    if teacher_id is not teacher_marker:
+        updated = (
+            student_unassign_teacher(student_id=target_id, actor=actor)
+            if teacher_id in (None, "")
+            else student_assign_teacher(
+                student_id=target_id,
+                teacher_id=teacher_id,
+                actor=actor,
+            )
+        )
     return {
         "client_id": op.get("client_id"),
         "status": "synced",

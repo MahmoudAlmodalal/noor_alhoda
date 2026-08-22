@@ -374,11 +374,14 @@ export interface HistoryEntry {
   total_review_lines?: number;
   total_review_pages?: number;
   required_pages?: number;
+  required_review_pages?: number;
   completion_rate?: number;
   present_days?: number;
   absent_days?: number;
   excused_days?: number;
   evaluation_count?: number;
+  evaluated_evaluation_count?: number;
+  evaluation_completion_rate?: number;
   evaluation_id?: string | null;
   quality?: string;
   note?: string;

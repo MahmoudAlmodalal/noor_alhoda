@@ -10,6 +10,11 @@ async function loadControlledDashboard(page: Page) {
   await expect
     .poll(() => page.evaluate(() => Boolean(sessionStorage.getItem("_dbk"))))
     .toBe(true);
+  // `_dbk` only means the encrypted DB is unlocked; wait for the seeded
+  // records to arrive before simulating a network outage.
+  await expect(page.getByText("Student One").first()).toBeVisible({
+    timeout: 60_000,
+  });
 
   await page.evaluate(async () => {
     await navigator.serviceWorker.ready;
@@ -20,6 +25,15 @@ async function loadControlledDashboard(page: Page) {
         });
       });
     }
+  });
+
+  // The first page load necessarily downloads Next chunks before the SW can
+  // control the document. Reload once while online so those chunks enter the
+  // runtime cache; a later offline reload then exercises the real cold-start
+  // behavior rather than a missing development asset.
+  await page.reload();
+  await expect(page.getByText("Student One").first()).toBeVisible({
+    timeout: 60_000,
   });
 }
 

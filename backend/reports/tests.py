@@ -263,9 +263,59 @@ class StudentPDFReportAttendanceTests(ReportTestSetup):
         self.assertEqual(attendance_data[0][1], "2")
         self.assertEqual(attendance_data[1][1], "1")
 
-        plan_data = next(data for data in table_data if data[0][0] == _ar("الأسبوع"))
-        self.assertEqual(plan_data[0][0], _ar("الأسبوع"))
-        self.assertEqual(plan_data[1][0], "1")
+        history_data = next(data for data in table_data if data[0][0] == _ar("الشهر"))
+        self.assertEqual(
+            history_data[0],
+            [
+                _ar("الشهر"),
+                _ar("المطلوب"),
+                _ar("الحفظ المنجز"),
+                _ar("المراجعة"),
+                _ar("الحضور"),
+                _ar("الاختبارات"),
+                _ar("نسبة الإنجاز"),
+            ],
+        )
+        self.assertEqual(history_data[1][0], "2026-04")
+
+    def test_pdf_monthly_history_recomputes_totals_from_daily_records(self):
+        """PDF totals match the detail history even when plan cache fields are stale."""
+        self.plan_1.required_pages = Decimal("30")
+        self.plan_1.review_required_pages = Decimal("30")
+        self.plan_1.save(update_fields=["required_pages", "review_required_pages"])
+        DailyRecord.objects.create(
+            weekly_plan=self.plan_1,
+            day="sun",
+            date=date(2026, 4, 5),
+            attendance="present",
+            required_verses=450,
+            achieved_verses=450,
+            memorized_lines=463,
+            review_lines=450,
+            recorded_by=self.teacher_user_1,
+        )
+        # Simulate a stale denormalized plan cache; the detail screen derives
+        # totals from DailyRecord rows and the PDF must do the same.
+        WeeklyPlan.objects.filter(pk=self.plan_1.pk).update(
+            total_required=0,
+            total_achieved=0,
+            total_lines=0,
+        )
+
+        from unittest.mock import patch
+        from reportlab.platypus import Table as ReportLabTable
+
+        with patch("reportlab.platypus.Table", side_effect=ReportLabTable) as table_factory:
+            self.client.force_authenticate(self.admin)
+            response = self.client.get(f"{STUDENT_PDF_URL}{self.student_1.id}/pdf/")
+
+        self.assertEqual(response.status_code, 200)
+        history_data = next(data for data in table_factory.call_args_list if data.args[0][0][0] == _ar("الشهر")).args[0]
+        self.assertEqual(history_data[1][0], "2026-04")
+        self.assertIn("30.9", history_data[1][2])
+        self.assertIn("30.0", history_data[1][3])
+        self.assertEqual(history_data[1][4], "2")
+        self.assertEqual(history_data[1][6], "100.00%")
 
     def test_pdf_with_missing_attendance_and_plans_has_zeroes_and_empty_state(self):
         user = User.objects.create_user(
@@ -358,6 +408,10 @@ class StudentPDFReportEvaluationTests(ReportTestSetup):
         self.assertEqual(evaluation_data[1][3], _ar("ناجح"))
         self.assertEqual(evaluation_data[1][4], "92/100")
         self.assertEqual(evaluation_data[1][5], _ar("أداء متقن"))
+
+        history_data = next(data for data in table_data if data[0][0] == _ar("الشهر"))
+        self.assertEqual(history_data[1][0], "2026-04")
+        self.assertEqual(history_data[1][5], "1/2 (50%)")
 
 
 class StudentStatsTests(ReportTestSetup):

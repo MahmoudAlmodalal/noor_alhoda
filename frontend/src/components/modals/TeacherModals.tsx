@@ -210,6 +210,7 @@ export function AddTeacherModal({
   );
   const allCourses = coursesData ?? [];
   const { mutate, isSubmitting, error, reset } = useMutation("teacher", "create");
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   const toggleCourse = (id: string) => {
     setForm((f) => ({
@@ -221,6 +222,11 @@ export function AddTeacherModal({
   };
 
   const handleSubmit = async () => {
+    if (!form.full_name.trim() || !form.national_id.trim() || !form.phone_number.trim()) {
+      setValidationError("الاسم الرباعي ورقم الهوية ورقم الجوال حقول مطلوبة.");
+      return;
+    }
+    setValidationError(null);
     const nameParts = form.full_name.trim().split(" ");
     const result = await mutate(
       {
@@ -478,7 +484,9 @@ export function AddTeacherModal({
         </div>
       </div>
 
-      {error && <p className="mb-4 text-sm text-red-500">{error}</p>}
+      {(validationError || error) && (
+        <p className="mb-4 text-sm text-red-500">{validationError || error}</p>
+      )}
 
       <div className="flex items-center gap-3">
         <Button

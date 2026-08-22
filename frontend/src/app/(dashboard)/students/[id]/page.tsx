@@ -221,6 +221,7 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
                 <th className="px-4 py-3 font-bold">الشهر</th>
                 <th className="px-4 py-3 font-bold">الخطة</th>
                 <th className="px-4 py-3 font-bold">المنجز</th>
+                <th className="px-4 py-3 font-bold">المراجعة</th>
                 <th className="px-4 py-3 font-bold">الحضور</th>
                 <th className="px-4 py-3 font-bold">الاختبارات</th>
                 <th className="px-4 py-3 font-bold">التفاصيل</th>
@@ -229,7 +230,7 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
             <tbody>
               {(history ?? []).length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-8 text-center text-sm text-text-muted">لا يوجد سجل شهري بعد</td>
+                  <td colSpan={7} className="py-8 text-center text-sm text-text-muted">لا يوجد سجل شهري بعد</td>
                 </tr>
               ) : (
                 (history ?? []).map((month) => {
@@ -243,8 +244,15 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
                         {month.total_pages ?? ((month.total_lines ?? 0) / 15).toFixed(1)} صفحة
                         <span className="mt-1 block text-[11px] text-text-muted">{month.total_achieved ?? 0} آية</span>
                       </td>
+                      <td className="px-4 py-3 text-text-label">
+                        {month.total_review_pages ?? ((month.total_review_lines ?? 0) / 15).toFixed(1)} صفحة
+                        <span className="mt-1 block text-[11px] text-text-muted">{month.total_review_lines ?? 0} سطر</span>
+                      </td>
                       <td className="px-4 py-3 text-text-label">{month.present_days ?? 0} يوم</td>
-                      <td className="px-4 py-3 text-text-label">{month.evaluation_count ?? 0}</td>
+                      <td className="px-4 py-3 text-text-label">
+                        {month.evaluated_evaluation_count ?? 0}/{month.evaluation_count ?? 0}
+                        {month.evaluation_count ? ` (${month.evaluation_completion_rate ?? 0}%)` : ""}
+                      </td>
                       <td className="px-4 py-3">
                         <button
                           type="button"

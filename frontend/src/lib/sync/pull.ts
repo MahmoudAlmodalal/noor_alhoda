@@ -174,6 +174,11 @@ export async function applyPullResponse(
   onTableProgress?: (table: string, done: number, total: number) => void
 ): Promise<void> {
   const { resources, tombstones, server_time, sync_generation } = data;
+  const pendingTargets = await getPendingTargets();
+  const rowsWithoutPendingLocalWrite = <T extends { id: string }>(
+    resource: ResourceName,
+    rows: T[]
+  ): T[] => rows.filter((row) => !pendingTargets.has(`${resource}:${row.id}`));
 
   // Order matters for FK consistency: parents/users before links,
   // students before plans, plans before daily records, etc.
@@ -181,16 +186,16 @@ export async function applyPullResponse(
     { name: "users", resource: "student", run: async () => { if (resources.users.length) await upsertUsers(resources.users); } },
     { name: "teachers", resource: "teacher", run: async () => { if (resources.teachers.length) await upsertTeachers(resources.teachers); } },
     { name: "parents", resource: "parent", run: async () => { if (resources.parents.length) await upsertParents(resources.parents); } },
-    { name: "students", resource: "student", run: async () => { if (resources.students.length) await upsertStudents(resources.students); } },
-    { name: "parent_student_links", resource: "parent_student_link", run: async () => { if (resources.parent_student_links.length) await upsertParentStudentLinks(resources.parent_student_links); } },
-    { name: "weekly_plans", resource: "weekly_plan", run: async () => { if (resources.weekly_plans.length) await upsertWeeklyPlans(resources.weekly_plans); } },
-    { name: "daily_records", resource: "daily_record", run: async () => { if (resources.daily_records.length) await upsertDailyRecords(resources.daily_records); } },
-    { name: "review_records", resource: "review_record", run: async () => { if (resources.review_records.length) await upsertReviewRecords(resources.review_records); } },
-    { name: "evaluations", resource: "evaluation", run: async () => { if (resources.evaluations.length) await upsertEvaluations(resources.evaluations); } },
-    { name: "notifications", resource: "notification", run: async () => { if (resources.notifications.length) await upsertNotifications(resources.notifications); } },
-    { name: "courses", resource: "course", run: async () => { if (resources.courses.length) await upsertCourses(resources.courses); } },
-    { name: "student_courses", resource: "student_course", run: async () => { if (resources.student_courses.length) await upsertStudentCourses(resources.student_courses); } },
-    { name: "progress", resource: "progress", run: async () => { if (resources.progress?.length) await upsertProgressBulk(resources.progress); } },
+    { name: "students", resource: "student", run: async () => { const rows = rowsWithoutPendingLocalWrite("student", resources.students); if (rows.length) await upsertStudents(rows); } },
+    { name: "parent_student_links", resource: "parent_student_link", run: async () => { const rows = rowsWithoutPendingLocalWrite("parent_student_link", resources.parent_student_links); if (rows.length) await upsertParentStudentLinks(rows); } },
+    { name: "weekly_plans", resource: "weekly_plan", run: async () => { const rows = rowsWithoutPendingLocalWrite("weekly_plan", resources.weekly_plans); if (rows.length) await upsertWeeklyPlans(rows); } },
+    { name: "daily_records", resource: "daily_record", run: async () => { const rows = rowsWithoutPendingLocalWrite("daily_record", resources.daily_records); if (rows.length) await upsertDailyRecords(rows); } },
+    { name: "review_records", resource: "review_record", run: async () => { const rows = rowsWithoutPendingLocalWrite("review_record", resources.review_records); if (rows.length) await upsertReviewRecords(rows); } },
+    { name: "evaluations", resource: "evaluation", run: async () => { const rows = rowsWithoutPendingLocalWrite("evaluation", resources.evaluations); if (rows.length) await upsertEvaluations(rows); } },
+    { name: "notifications", resource: "notification", run: async () => { const rows = rowsWithoutPendingLocalWrite("notification", resources.notifications); if (rows.length) await upsertNotifications(rows); } },
+    { name: "courses", resource: "course", run: async () => { const rows = rowsWithoutPendingLocalWrite("course", resources.courses); if (rows.length) await upsertCourses(rows); } },
+    { name: "student_courses", resource: "student_course", run: async () => { const rows = rowsWithoutPendingLocalWrite("student_course", resources.student_courses); if (rows.length) await upsertStudentCourses(rows); } },
+    { name: "progress", resource: "progress", run: async () => { const rows = rowsWithoutPendingLocalWrite("progress", resources.progress ?? []); if (rows.length) await upsertProgressBulk(rows); } },
   ];
 
   const touched = new Set<ResourceName>();
@@ -210,6 +215,15 @@ export async function applyPullResponse(
   if (touched.size > 0) emitChanges(Array.from(touched));
   await markSyncAt(server_time);
   await updateSyncGeneration(sync_generation);
+}
+
+async function getPendingTargets(): Promise<Set<string>> {
+  const rows = await getDb().outbox.toArray();
+  return new Set(
+    rows
+      .filter((row) => row.status === "pending" || row.status === "in_flight")
+      .map((row) => `${row.resource}:${row.target_id}`)
+  );
 }
 
 async function applyTombstones(

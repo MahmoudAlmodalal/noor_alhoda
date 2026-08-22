@@ -14,7 +14,7 @@
  *   postMessage so the push runner drains the outbox.
  */
 
-const CACHE_VERSION = "v8";
+const CACHE_VERSION = "v10";
 const APP_CACHE = `noor-alhuda-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `noor-alhuda-runtime-${CACHE_VERSION}`;
 
@@ -43,6 +43,17 @@ self.addEventListener("install", (event) => {
           }
         })
       );
+
+      // Next's development and production shells reference content-hashed
+      // chunks that are not necessarily requested by the browser on the first
+      // load (for example the no-module polyfill). Cache every static script
+      // named by the shell so a subsequent offline navigation can hydrate.
+      try {
+        const shell = await fetch("/", { credentials: "same-origin" });
+        if (shell.ok) await cacheShellAssets(shell, cache);
+      } catch {
+        /* the individual precache entries above remain useful */
+      }
     })
   );
 });
@@ -114,6 +125,7 @@ async function warmRoutes(urls, client) {
         });
         if (res.ok && res.status === 200) {
           await cache.put(url, res.clone());
+          await cacheShellAssets(res.clone(), cache);
           successCount++;
         }
       } catch {
@@ -162,6 +174,7 @@ async function navigationHandler(req) {
     if (res.ok && res.status === 200) {
       const cache = await caches.open(RUNTIME_CACHE);
       cache.put(req, res.clone());
+      await cacheShellAssets(res.clone(), cache);
     }
     return res;
   } catch {
@@ -215,6 +228,28 @@ const OFFLINE_FALLBACK_HTML = `<!doctype html>
     </main>
   </body>
 </html>`;
+
+async function cacheShellAssets(response, cache) {
+  const html = await response.text();
+  const scriptUrls = [...html.matchAll(/<script[^>]+src=["']([^"']+)["']/g)]
+    .map((match) => match[1])
+    .filter((url) => url.startsWith("/_next/static/"));
+
+  await Promise.all(
+    scriptUrls.map(async (url) => {
+      try {
+        const request = new Request(new URL(url, self.location.origin), {
+          credentials: "same-origin",
+        });
+        if (await cache.match(request)) return;
+        const asset = await fetch(request);
+        if (asset.ok) await cache.put(request, asset.clone());
+      } catch {
+        /* an optional chunk may disappear during a dev rebuild */
+      }
+    })
+  );
+}
 
 async function staleWhileRevalidate(req) {
   const cache = await caches.open(RUNTIME_CACHE);

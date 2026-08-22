@@ -545,7 +545,7 @@ function buildQueryString(params?: Record<string, string | undefined>): string {
 export const api = {
   get<T>(endpoint: string, params?: Record<string, string | undefined>, signal?: AbortSignal) {
     const qs = buildQueryString(params);
-    const sep = qs && endpoint.includes("?") ? "&" : "";
+    const sep = endpoint.includes("?") ? "&" : "?";
     const joined = qs ? endpoint + sep + qs.slice(1) : endpoint;
     return apiFetch<T>(joined, { method: "GET", signal });
   },
