@@ -191,11 +191,12 @@ def _find_plan_for_student_date(*, student_id, record_date):
 
 
 def _sync_evaluation_scores(*, student: Student, date, evaluation, scattered_score, combined_score) -> None:
-    """Copy attendance-screen test scores into same-day evaluations.
+    """Copy attendance-screen test scores into the matching evaluation.
 
-    An explicitly linked evaluation wins. Otherwise the first scheduled
-    evaluation for the student/date/type is updated. Missing schedules are
-    intentionally ignored so attendance saving remains valid.
+    An explicitly linked evaluation wins. Otherwise an exact-date scheduled
+    evaluation is preferred. If the teacher records attendance on another day
+    of the month, a single scheduled evaluation of that type in the same month
+    is used. Ambiguous monthly schedules are left untouched.
     """
     from evaluations.models import Evaluation
 
@@ -221,6 +222,16 @@ def _sync_evaluation_scores(*, student: Student, date, evaluation, scattered_sco
                 .order_by("created_at")
                 .first()
             )
+        if target is None:
+            month_candidates = Evaluation.objects.filter(
+                student=student,
+                scheduled_date__year=date.year,
+                scheduled_date__month=date.month,
+                evaluation_type=evaluation_type,
+                status=Evaluation.Status.SCHEDULED,
+            )
+            if month_candidates.count() == 1:
+                target = month_candidates.first()
         if target is None:
             continue
         target.score = Decimal(str(score))
