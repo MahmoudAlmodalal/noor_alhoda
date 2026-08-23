@@ -83,12 +83,18 @@ jobs:
         env:
           RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
         run: |
-          test -n "$RENDER_DEPLOY_HOOK_URL" || { echo "Missing RENDER_DEPLOY_HOOK_URL repository secret"; exit 1; }
+          if [ -z "$RENDER_DEPLOY_HOOK_URL" ]; then
+            echo "::warning::RENDER_DEPLOY_HOOK_URL repository secret is not configured; skipping Render deploy hook."
+            exit 0
+          fi
           curl --fail --silent --show-error --request POST "$RENDER_DEPLOY_HOOK_URL"
 
       - name: Trigger Vercel deployment
         env:
           VERCEL_DEPLOY_HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
         run: |
-          test -n "$VERCEL_DEPLOY_HOOK_URL" || { echo "Missing VERCEL_DEPLOY_HOOK_URL repository secret"; exit 1; }
+          if [ -z "$VERCEL_DEPLOY_HOOK_URL" ]; then
+            echo "::warning::VERCEL_DEPLOY_HOOK_URL repository secret is not configured; skipping Vercel deploy hook."
+            exit 0
+          fi
           curl --fail --silent --show-error --request POST "$VERCEL_DEPLOY_HOOK_URL"
