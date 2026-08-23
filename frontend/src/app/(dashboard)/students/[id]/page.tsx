@@ -126,11 +126,12 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
 
   const submitRemoveRequest = async (reason: string) => {
     try {
-      await api.post("/api/students/teacher-requests/", {
+      const res = await api.post("/api/students/teacher-requests/", {
         student_id: id,
-        action: "UNASSIGN",
-        reason: reason,
+        action: "unassign",
+        payload: reason ? { reason } : {},
       });
+      if (!res.success) throw new Error(res.error.message);
       setRemoveOpen(false);
       // Optional: show a toast notification here
       // But the requirement says "a success toast notification appears", maybe handled by api hook or we can just rely on the component.
@@ -143,11 +144,12 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
 
   const submitDeleteRequest = async (reason: string) => {
     try {
-      await api.post("/api/students/teacher-requests/", {
+      const res = await api.post("/api/students/teacher-requests/", {
         student_id: id,
-        action: "DELETE",
-        reason: reason,
+        action: "delete",
+        payload: reason ? { reason } : {},
       });
+      if (!res.success) throw new Error(res.error.message);
       setDeleteOpen(false);
     } catch (error) {
       console.error("Failed to submit delete request", error);

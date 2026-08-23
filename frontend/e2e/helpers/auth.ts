@@ -15,7 +15,7 @@ export async function loginViaApi(page: Page, role: Role) {
       timeout: 30_000,
     })
     .toBe(true);
-  await expect(page.getByText("Student One").first()).toBeVisible({
+  await expect(page.getByRole("button", { name: "متزامن" })).toBeVisible({
     timeout: 60_000,
   });
 }
