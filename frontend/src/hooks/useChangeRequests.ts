@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
+import { useRevalidate } from "@/hooks/useRevalidate";
 import type { ChangeRequestAction, ChangeRequestStatus, StudentChangeRequest } from "@/types/api";
 
 /**
@@ -40,6 +41,10 @@ export function useChangeRequests(params?: { status?: ChangeRequestStatus; actio
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void run();
   }, [run]);
+
+  // Same reason: no change event ever fires for this queue, so a request
+  // filed on another device would otherwise never show up here.
+  useRevalidate(run);
 
   return { data, isLoading, error, refetch: run };
 }

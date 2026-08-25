@@ -7,6 +7,7 @@ import { PageLoading } from "@/components/ui/LoadingSpinner";
 import { RoleGate } from "@/components/auth/RoleGate";
 import { Avatar } from "@/components/ui/Avatar";
 import { fetchConversations, type ConversationSummary } from "@/lib/api";
+import { useRevalidate } from "@/hooks/useRevalidate";
 
 function relativeTime(iso: string): string {
   try {
@@ -57,6 +58,10 @@ export default function ConversationsPage() {
     }, 0);
     return () => window.clearTimeout(timeoutId);
   }, [load]);
+
+  // Conversations are network-only, so nothing in the sync pipeline refreshes
+  // them — without this the list is frozen at whatever it held on mount.
+  useRevalidate(load);
 
   const totalUnread = conversations.reduce((s, c) => s + c.unread_count, 0);
 

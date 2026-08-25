@@ -18,8 +18,11 @@ import {
   readAuth,
   restoreSessionKey,
   unlockOffline,
+  updateSessionProfile,
+  type SessionProfile,
 } from "@/lib/db/auth";
-import { wipeDb } from "@/lib/db/schema";
+import { resolveCachedProfile } from "@/lib/db/session-profile";
+import { wipeDb, type AuthRow } from "@/lib/db/schema";
 import { downloadFullDb, type DownloadProgress } from "@/lib/sync/download";
 import { startSyncRunner, stopSyncRunner } from "@/lib/sync/runner";
 import type { UserProfile } from "@/types/api";
@@ -36,6 +39,35 @@ const RETRY_CAP_MS = 30_000;
 // re-login offline. A different user on the same device triggers a wipe
 // inside `initializeOrUnlockSession` (OFFLINE_LOGIN_USER_MISMATCH guard).
 // Explicit wipe is exposed via `wipeDeviceData()`.
+
+/**
+ * Rebuild `UserProfile` from the cached auth row for sessions that never see
+ * a `/me` response — a reload while offline, and offline login. The
+ * role-specific profile is the load-bearing part: without it, pages that
+ * query by `student_profile.id` / `teacher_profile.id` render empty.
+ */
+async function userFromAuthRow(row: AuthRow): Promise<UserProfile> {
+  const cached = await resolveCachedProfile(row);
+  return {
+    id: row.user_id,
+    national_id: row.user_national_id,
+    phone_number: "",
+    role: row.user_role as UserProfile["role"],
+    full_name: cached.full_name,
+    student_profile: cached.student_profile,
+    teacher_profile: cached.teacher_profile,
+  };
+}
+
+/** The identity slice worth caching for restored / offline sessions. */
+function sessionProfileOf(u: UserProfile): SessionProfile {
+  return {
+    student_profile_id: u.student_profile?.id ?? null,
+    teacher_profile_id: u.teacher_profile?.id ?? null,
+    parent_profile_id: u.parent_profile?.id ?? null,
+    full_name: u.full_name,
+  };
+}
 
 interface AuthContextValue {
   user: UserProfile | null;
@@ -105,7 +137,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const res = await api.me();
     if (res.success) {
       const data = res.data;
-      setUser({
+      const profile: UserProfile = {
         id: data.id as string,
         national_id: data.national_id as string,
         phone_number: data.phone_number as string,
@@ -116,6 +148,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         student_profile: data.student_profile as UserProfile["student_profile"],
         teacher_profile: data.teacher_profile as UserProfile["teacher_profile"],
         parent_profile: data.parent_profile as UserProfile["parent_profile"],
+      };
+      setUser(profile);
+      // Cache the profile ids so a later reload or offline login can rebuild
+      // them without /me — otherwise every id-keyed page reads empty.
+      void updateSessionProfile(sessionProfileOf(profile)).catch(() => {
+        // DB may still be locked at this point; the next login re-caches.
       });
       return true;
     }
@@ -235,13 +273,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (restored) {
         const row = await readAuth();
         if (row && isMounted) {
-          setUser({
-            id: row.user_id,
-            national_id: row.user_national_id,
-            phone_number: "",
-            role: row.user_role as UserProfile["role"],
-            full_name: "",
-          });
+          setUser(await userFromAuthRow(row));
           setDbUnlocked(true);
           setIsOfflineSession(false);
           if (row.last_sync_at === null) {
@@ -328,6 +360,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           userId: u.id,
           userNationalId: u.national_id,
           userRole: u.role,
+          profile: sessionProfileOf(u),
         });
         let timeoutId: ReturnType<typeof setTimeout> | undefined;
         const timeoutPromise = new Promise<never>((_, reject) => {
@@ -396,14 +429,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (isNetworkError && (await hasCachedAuth())) {
         try {
           const row = await unlockOffline({ password, userNationalId: national_id });
-          // Offline login succeeded — hydrate minimal user state from cache.
-          setUser({
-            id: row.user_id,
-            national_id: row.user_national_id,
-            phone_number: "",
-            role: row.user_role as UserProfile["role"],
-            full_name: "",
-          });
+          // Offline login succeeded — hydrate user state from cache, profile
+          // included. There is no /me to fall back on here, so a profile-less
+          // user would leave every id-keyed page permanently empty.
+          setUser(await userFromAuthRow(row));
           setDbUnlocked(true);
           setIsOfflineSession(true);
           // Offline session with no prior sync = nothing to show; force a
