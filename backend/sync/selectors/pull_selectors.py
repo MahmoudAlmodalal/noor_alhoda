@@ -29,6 +29,31 @@ def since_q(field: str, since: datetime | None) -> Q:
     return Q(**{f"{field}__gt": since})
 
 
+def delta_or_backfill_q(
+    *,
+    delta: Q,
+    student_field: str,
+    visible_student_ids: list,
+    backfill_student_ids: list,
+) -> Q:
+    """Combine the `updated_at` delta with a full backfill for newly-visible students.
+
+    A delta pull only ever ships rows whose `updated_at` moved. That is wrong the
+    moment the actor's *visibility* widens: when a student joins a teacher's ring,
+    the student row itself changed (so it arrives), but every plan, record,
+    evaluation and progress row already attached to that student is older than the
+    client's cursor and would never be sent — the teacher would see the student's
+    name with an empty history, permanently.
+
+    So: rows belonging to a newly-visible student bypass the delta entirely; every
+    other visible student keeps the normal delta.
+    """
+    scoped = Q(**{f"{student_field}__in": visible_student_ids})
+    if not backfill_student_ids:
+        return delta & scoped
+    return Q(**{f"{student_field}__in": backfill_student_ids}) | (delta & scoped)
+
+
 def pull_visible_students(*, actor: User) -> QuerySet[Student]:
     return student_list(filters={}, user=actor).select_related("user", "teacher")
 

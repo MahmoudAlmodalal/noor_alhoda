@@ -8,14 +8,18 @@ RBAC is enforced by composing existing selectors — never by hand-rolling
 """
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
+from django.conf import settings
+from django.db.models import Q
 from django.utils import timezone
 
-from accounts.models import User
+from accounts.models import ParentStudentLink, User
+from students.models import Student
 from sync.models import SyncGeneration
 from sync.selectors.pull_selectors import (
+    delta_or_backfill_q,
     pull_courses,
     pull_daily_records_for_students,
     pull_evaluations_for_students,
@@ -87,8 +91,30 @@ def sync_pull(*, actor: User, since: datetime | None = None) -> dict[str, Any]:
 
     # Apply the `updated_at` delta everywhere.
     delta = since_q("updated_at", since)
+
+    # Students whose *relationship to this actor* changed since the last sync.
+    # Their existing child rows are older than the client's cursor, so a plain
+    # delta would never ship them — see `delta_or_backfill_q`.
+    backfill_student_ids = _newly_visible_student_ids(
+        actor=actor,
+        since=since,
+        students_qs=students_qs,
+        visible_student_ids=visible_student_ids,
+    )
+
     users_qs = users_qs.filter(delta)
-    teachers_qs = teachers_qs.filter(delta)
+    # A student who just moved rings needs their *new* teacher's row, whose
+    # `updated_at` is untouched by the move and would fail the delta — the
+    # client would render a plan with no teacher name.
+    if backfill_student_ids:
+        backfill_teacher_ids = list(
+            Student.objects.filter(id__in=backfill_student_ids)
+            .exclude(teacher__isnull=True)
+            .values_list("teacher_id", flat=True)
+        )
+        teachers_qs = teachers_qs.filter(delta | Q(id__in=backfill_teacher_ids))
+    else:
+        teachers_qs = teachers_qs.filter(delta)
     parents_qs = parents_qs.filter(delta)
     parent_links_qs = parent_links_qs.filter(delta)
     students_delta_qs = students_qs.filter(delta)
@@ -104,14 +130,27 @@ def sync_pull(*, actor: User, since: datetime | None = None) -> dict[str, Any]:
         row for row in students_qs.filter(id__in=changed_student_ids)
         if row.id not in existing_student_ids
     )
-    weekly_plans_qs = weekly_plans_qs.filter(delta)
-    daily_records_qs = daily_records_qs.filter(delta)
-    review_records_qs = review_records_qs.filter(delta)
-    evaluations_qs = evaluations_qs.filter(delta)
+
+    def _student_scoped(student_field: str) -> Q:
+        return delta_or_backfill_q(
+            delta=delta,
+            student_field=student_field,
+            visible_student_ids=visible_student_ids,
+            backfill_student_ids=backfill_student_ids,
+        )
+
+    weekly_plans_qs = weekly_plans_qs.filter(_student_scoped("student_id"))
+    # DailyRecord reaches its student either directly or through its plan, so a
+    # backfill has to consider both paths (mirrors `pull_daily_records_for_students`).
+    daily_records_qs = daily_records_qs.filter(
+        _student_scoped("student_id") | _student_scoped("weekly_plan__student_id")
+    ).distinct()
+    review_records_qs = review_records_qs.filter(_student_scoped("student_id"))
+    evaluations_qs = evaluations_qs.filter(_student_scoped("student_id"))
     notifications_qs = notifications_qs.filter(delta)
     courses_qs = courses_qs.filter(delta)
-    student_courses_qs = student_courses_qs.filter(delta)
-    progress_qs = progress_qs.filter(delta)
+    student_courses_qs = student_courses_qs.filter(_student_scoped("student_id"))
+    progress_qs = progress_qs.filter(_student_scoped("student_id"))
 
     tombstones_qs = pull_tombstones(actor=actor, since=since)
 
@@ -131,9 +170,8 @@ def sync_pull(*, actor: User, since: datetime | None = None) -> dict[str, Any]:
     # and upserts it, clearing the stale local entry.
     # -----------------------------------------------------------------------
     if since is not None and actor.role == "teacher" and hasattr(actor, "teacher_profile"):
-        from students.models import Student as _Student
         evicted_qs = (
-            _Student.objects
+            Student.objects
             .filter(delta)
             .exclude(id__in=visible_student_ids)
             .exclude(id__in=[row.id for row in students_delta])
@@ -173,6 +211,59 @@ def sync_pull(*, actor: User, since: datetime | None = None) -> dict[str, Any]:
             "progress": [progress_to_dict(p) for p in progress_qs],
         },
         "tombstones": [tombstone_to_dict(t) for t in tombstones_qs],
-        "server_time": now.isoformat(),
+        # Hand back a watermark that lags `now`, never `now` itself. See
+        # SYNC_PULL_OVERLAP_SECONDS in settings/base.py: a row stamped before
+        # this snapshot but committed after it is invisible here, and a cursor
+        # at `now` would skip it forever. The overlap re-ships a small window
+        # each pull; every client-side upsert is keyed by id and idempotent.
+        "server_time": (
+            now - timedelta(seconds=settings.SYNC_PULL_OVERLAP_SECONDS)
+        ).isoformat(),
         "sync_generation": str(sync_generation),
     }
+
+
+def _newly_visible_student_ids(
+    *,
+    actor: User,
+    since: datetime | None,
+    students_qs,
+    visible_student_ids: list,
+) -> list:
+    """Students that entered this actor's scope since `since`.
+
+    A full pull (`since is None`) already ships everything, so there is nothing
+    to backfill. Otherwise the signal differs per role:
+
+    * teacher — the student row itself is touched when the teacher FK is set or
+      transferred, so a visible student with a fresh `updated_at` is either new
+      to the ring or was just edited. Backfilling the latter costs one extra
+      delta-free read of rows the client usually already has; missing the
+      former loses the student's entire history.
+    * parent  — the `ParentStudentLink` row carries the change.
+    * student — their own row moving means an admin re-assigned or re-enrolled
+      them; re-read their history rather than trusting the cursor.
+    """
+    if since is None or not visible_student_ids:
+        return []
+
+    if actor.role == "teacher":
+        return list(
+            students_qs.filter(updated_at__gt=since).values_list("id", flat=True)
+        )
+
+    if actor.role == "parent":
+        return list(
+            ParentStudentLink.objects.filter(
+                parent__user=actor,
+                student_id__in=visible_student_ids,
+                updated_at__gt=since,
+            ).values_list("student_id", flat=True)
+        )
+
+    if actor.role == "student":
+        return list(
+            students_qs.filter(updated_at__gt=since).values_list("id", flat=True)
+        )
+
+    return []

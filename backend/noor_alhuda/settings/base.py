@@ -217,3 +217,20 @@ SPECTACULAR_SETTINGS = {
 # the threshold infers fail. Set as a string so the post_save signal can
 # parse it via Decimal without float drift. Admin can override per env.
 RECORD_PASS_THRESHOLD = config("RECORD_PASS_THRESHOLD", default="0.8")
+
+# ---------------------------------------------------------------------------
+# Offline sync
+# ---------------------------------------------------------------------------
+# Safety overlap, in seconds, subtracted from the `server_time` watermark that
+# `/api/sync/pull/` hands back to clients as their next `?since=` cursor.
+#
+# `updated_at` is stamped by `auto_now` when `save()` runs, but the row only
+# becomes visible to other connections at COMMIT. A transaction that stamped a
+# row just before the pull's snapshot, and committed just after it, is invisible
+# to that pull — yet without an overlap the client would still advance its
+# cursor past the row's `updated_at` and never ask for it again. That is a
+# permanent loss, not a delayed one.
+#
+# Re-sending the overlap window on every pull is harmless: every client-side
+# `upsert*` writes by primary key and is idempotent.
+SYNC_PULL_OVERLAP_SECONDS = config("SYNC_PULL_OVERLAP_SECONDS", default=120, cast=int)
