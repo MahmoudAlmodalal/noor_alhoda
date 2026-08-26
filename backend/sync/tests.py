@@ -1,9 +1,12 @@
 """Sync service tests."""
 
-from datetime import date
+from datetime import date, timedelta
 from unittest.mock import patch
 
+from django.conf import settings
 from django.test import TestCase
+from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 from rest_framework.test import APITestCase
 
 from accounts.models import Parent, ParentStudentLink, User
@@ -873,3 +876,111 @@ class SyncPushConflictAuthorizationTests(SyncPushInBatchRemappingTests):
         self.assertEqual(result["status"], "error")
         self.assertEqual(result["error"]["code"], "forbidden")
         self.assertNotIn("row", result)
+
+
+class SyncPullWatermarkTests(SyncPullRBACSetup):
+    """`server_time` is the cursor the client sends back as `?since=`.
+
+    `updated_at` is stamped by `auto_now` at `save()`, but a row only becomes
+    visible to another connection at COMMIT. A row stamped just before a pull's
+    snapshot and committed just after it is absent from that response — and if
+    the client then advances its cursor to the snapshot instant, it will ask for
+    `updated_at > snapshot` forever and never see that row again.
+
+    The endpoint therefore hands back a watermark that deliberately lags, so the
+    next pull re-reads the window in which such a commit could have landed.
+    """
+
+    def test_server_time_lags_now_by_the_configured_overlap(self):
+        self.client.force_authenticate(self.teacher_a_user)
+        before = timezone.now()
+        response = self.client.get("/api/sync/pull/")
+        after = timezone.now()
+        self.assertEqual(response.status_code, 200)
+
+        server_time = parse_datetime(response.json()["data"]["server_time"])
+        overlap = timedelta(seconds=settings.SYNC_PULL_OVERLAP_SECONDS)
+
+        self.assertLessEqual(server_time, after - overlap)
+        self.assertGreaterEqual(server_time, before - overlap - timedelta(seconds=5))
+
+    def test_row_committed_during_a_pull_is_not_skipped_by_the_next_pull(self):
+        """The regression itself: a row whose `updated_at` predates the pull it
+        missed must still arrive on the following pull."""
+        self.client.force_authenticate(self.teacher_a_user)
+
+        first = self.client.get("/api/sync/pull/")
+        cursor = first.json()["data"]["server_time"]
+
+        # Simulate the race: a plan stamped *before* the cursor the client just
+        # stored, as a transaction that committed only after the pull's snapshot.
+        WeeklyPlan.objects.create(
+            student=self.student_a1, week_number=9, week_start=date(2026, 3, 7),
+        )
+        WeeklyPlan.objects.filter(week_number=9).update(
+            updated_at=parse_datetime(cursor) - timedelta(seconds=1)
+        )
+
+        second = self.client.get("/api/sync/pull/", {"since": cursor})
+        plans = second.json()["data"]["resources"]["weekly_plans"]
+        self.assertIn(9, [p["week_number"] for p in plans])
+
+
+class SyncPullVisibilityBackfillTests(SyncPullRBACSetup):
+    """A delta pull ships rows whose `updated_at` moved. That is not enough when
+    the actor's *visibility* widens: a student who joins a ring brings a history
+    that is all older than the client's cursor, and would otherwise never sync.
+    """
+
+    def _pull_since(self, cursor):
+        response = self.client.get("/api/sync/pull/", {"since": cursor})
+        self.assertEqual(response.status_code, 200)
+        return response.json()["data"]["resources"]
+
+    def test_teacher_receives_full_history_of_a_newly_assigned_student(self):
+        self.client.force_authenticate(self.teacher_a_user)
+        cursor = self.client.get("/api/sync/pull/").json()["data"]["server_time"]
+
+        # Student B1 transfers into teacher A's ring. Only the student row is
+        # touched — their plan/record/review/evaluation keep their old stamps.
+        self.student_b1.teacher = self.teacher_a
+        self.student_b1.save(update_fields=["teacher", "updated_at"])
+
+        res = self._pull_since(cursor)
+
+        self.assertIn(str(self.student_b1.id), self._ids(res["students"]))
+        for table in ("weekly_plans", "daily_records", "review_records", "evaluations"):
+            student_ids = {
+                row.get("student_id") for row in res[table]
+            }
+            self.assertIn(
+                str(self.student_b1.id),
+                student_ids,
+                f"{table} was not backfilled for the transferred student",
+            )
+
+    def test_student_receives_their_new_teacher_row(self):
+        """The new Teacher row's `updated_at` is untouched by the transfer, so a
+        plain delta drops it and the client renders a plan with no teacher."""
+        self.client.force_authenticate(self.student_a1_user)
+        cursor = self.client.get("/api/sync/pull/").json()["data"]["server_time"]
+
+        self.student_a1.teacher = self.teacher_b
+        self.student_a1.save(update_fields=["teacher", "updated_at"])
+
+        res = self._pull_since(cursor)
+        self.assertIn(str(self.teacher_b.id), self._ids(res["teachers"]))
+
+    def test_quiet_delta_pull_stays_empty(self):
+        """The backfill must not turn every delta pull into a full pull.
+
+        Uses `now` as the cursor rather than the endpoint's own `server_time`,
+        which deliberately lags by SYNC_PULL_OVERLAP_SECONDS and would re-ship
+        these seconds-old fixtures — correct behaviour, but it would hide a
+        backfill that had gone too wide.
+        """
+        self.client.force_authenticate(self.teacher_a_user)
+
+        res = self._pull_since(timezone.now().isoformat())
+        for table in ("students", "weekly_plans", "daily_records", "evaluations"):
+            self.assertEqual(res[table], [], f"{table} should be empty on a quiet pull")

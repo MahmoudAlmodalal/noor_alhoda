@@ -132,6 +132,16 @@ export interface AuthRow {
   salt: string;
   iterations: number;
   verifier_hash: string; // bcrypt hash of password, for offline login
+  // Role-specific profile identity. Pages key their reads off these ids
+  // (`useQuery("tasks_today", { student_id })`), so a session restored without
+  // them renders empty even though the tables below are full — and offline
+  // there is no `/me` call to fill the gap. Optional: rows written before this
+  // field existed are read back without it, and are re-derived from the local
+  // `students` / `teachers` tables. Not indexed, so no Dexie version bump.
+  student_profile_id?: string | null;
+  teacher_profile_id?: string | null;
+  parent_profile_id?: string | null;
+  full_name?: string;
   last_sync_at: string | null; // ISO timestamp, null means full pull required
   sync_generation: string | null; // server's current sync generation UUID; null means wipe needed
   created_at: string;

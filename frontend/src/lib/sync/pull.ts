@@ -175,10 +175,19 @@ export async function applyPullResponse(
 ): Promise<void> {
   const { resources, tombstones, server_time, sync_generation } = data;
   const pendingTargets = await getPendingTargets();
+  // Rows we decline to write because a local edit is still queued for them.
+  // Their `updated_at` caps how far the cursor may advance — see below.
+  const deferredUpdatedAt: string[] = [];
   const rowsWithoutPendingLocalWrite = <T extends { id: string }>(
     resource: ResourceName,
     rows: T[]
-  ): T[] => rows.filter((row) => !pendingTargets.has(`${resource}:${row.id}`));
+  ): T[] =>
+    rows.filter((row) => {
+      if (!pendingTargets.has(`${resource}:${row.id}`)) return true;
+      const updatedAt = (row as { updated_at?: unknown }).updated_at;
+      if (typeof updatedAt === "string") deferredUpdatedAt.push(updatedAt);
+      return false;
+    });
 
   // Order matters for FK consistency: parents/users before links,
   // students before plans, plans before daily records, etc.
@@ -213,8 +222,41 @@ export async function applyPullResponse(
   }
 
   if (touched.size > 0) emitChanges(Array.from(touched));
-  await markSyncAt(server_time);
+
+  // Never advance the cursor past a row we skipped. The server re-sends a row
+  // only when `updated_at > since`, so moving the cursor beyond a deferred row
+  // means its server-side version — a teacher's edit the student happened to
+  // have a pending local write for — is lost for good. Rewind to just *before*
+  // the oldest deferred row (the comparison is exclusive, so landing exactly on
+  // it would still skip it). Costs one repeated window and cannot stall:
+  // `getPendingTargets` counts only pending/in_flight ops, and failed ones drop
+  // to `error` (see `requeueErroredOps` in runner.ts).
+  await markSyncAt(rewindForDeferred(server_time, deferredUpdatedAt));
   await updateSyncGeneration(sync_generation);
+}
+
+/**
+ * Pull the cursor back behind the oldest row this pull declined to write, or
+ * leave it at `serverTime` when nothing was deferred. Compares as instants
+ * rather than strings so it doesn't depend on both timestamps being formatted
+ * identically by the server.
+ */
+export function rewindForDeferred(
+  serverTime: string,
+  deferredUpdatedAt: string[]
+): string {
+  let oldest = Number.POSITIVE_INFINITY;
+  for (const iso of deferredUpdatedAt) {
+    const ms = Date.parse(iso);
+    if (!Number.isNaN(ms) && ms < oldest) oldest = ms;
+  }
+  if (oldest === Number.POSITIVE_INFINITY) return serverTime;
+
+  const serverMs = Date.parse(serverTime);
+  // 1ms back so the server's exclusive `updated_at > since` still includes it.
+  const rewound = oldest - 1;
+  if (Number.isNaN(serverMs) || rewound >= serverMs) return serverTime;
+  return new Date(rewound).toISOString();
 }
 
 async function getPendingTargets(): Promise<Set<string>> {

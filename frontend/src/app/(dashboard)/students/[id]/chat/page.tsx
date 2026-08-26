@@ -8,6 +8,7 @@ import { ChatBubble } from "@/components/chat/ChatBubble";
 import { ChatInput } from "@/components/chat/ChatInput";
 import { PageLoading } from "@/components/ui/LoadingSpinner";
 import { useAuth } from "@/contexts/AuthContext";
+import { useRevalidate } from "@/hooks/useRevalidate";
 import {
   fetchConversationMessages,
   sendConversationReply,
@@ -31,7 +32,6 @@ export default function StudentChatPage({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const bottomRef = useRef<HTMLDivElement>(null);
-  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // جلب اسم الطالب
   const { data: student } = useQuery<StudentWithTeacher>("student", { id });
@@ -60,15 +60,9 @@ export default function StudentChatPage({
     }
   }, [messages]);
 
-  // Polling كل 10 ثوان
-  useEffect(() => {
-    pollingRef.current = setInterval(() => {
-      void loadMessages();
-    }, 10_000);
-    return () => {
-      if (pollingRef.current) clearInterval(pollingRef.current);
-    };
-  }, [loadMessages]);
+  // Polling كل 10 ثوان — plus refresh on focus/online, and no ticking while
+  // the tab is hidden (see useRevalidate).
+  useRevalidate(loadMessages, 10_000);
 
   const handleSend = async (body: string) => {
     setIsSubmitting(true);

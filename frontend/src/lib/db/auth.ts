@@ -182,6 +182,39 @@ export async function hasCachedAuth(): Promise<boolean> {
 }
 
 /**
+ * Role-specific identity cached alongside the DB key so a restored or offline
+ * session knows which student/teacher it is looking at. Without it every
+ * page keyed on `student_profile.id` / `teacher_profile.id` reads with no
+ * filter and renders empty.
+ */
+export interface SessionProfile {
+  student_profile_id?: string | null;
+  teacher_profile_id?: string | null;
+  parent_profile_id?: string | null;
+  full_name?: string;
+}
+
+function profileFields(profile: SessionProfile | undefined): SessionProfile {
+  return {
+    student_profile_id: profile?.student_profile_id ?? null,
+    teacher_profile_id: profile?.teacher_profile_id ?? null,
+    parent_profile_id: profile?.parent_profile_id ?? null,
+    full_name: profile?.full_name ?? "",
+  };
+}
+
+/**
+ * Persist the role-specific identity for the current session. Called after
+ * `/me` resolves, so a session that logged in before this data was available
+ * (or offline-first, from a stale row) catches up.
+ */
+export async function updateSessionProfile(profile: SessionProfile): Promise<void> {
+  const db = getDb();
+  if (!(await db.auth.get("current"))) return;
+  await db.auth.update("current", profileFields(profile));
+}
+
+/**
  * Call after a successful ONLINE login. Generates a new DB key, derives a
  * KEK from the password, stores everything needed for later offline
  * login, and puts the unwrapped DB key into the in-memory session.
@@ -194,8 +227,9 @@ export async function initializeOrUnlockSession(params: {
   userId: string;
   userNationalId: string;
   userRole: string;
+  profile?: SessionProfile;
 }): Promise<void> {
-  const { password, userId, userNationalId, userRole } = params;
+  const { password, userId, userNationalId, userRole, profile } = params;
   console.log("[auth] initializeOrUnlockSession start");
   console.time("[auth] getDb");
   const db = getDb();
@@ -230,6 +264,7 @@ export async function initializeOrUnlockSession(params: {
       salt: meta.salt,
       iterations: meta.iterations,
       verifier_hash: verifier,
+      ...profileFields(profile),
       last_sync_at: null,
       sync_generation: null,
       created_at: new Date().toISOString(),
@@ -262,6 +297,10 @@ export async function initializeOrUnlockSession(params: {
       console.timeEnd("[auth] hashVerifier (refresh)");
       await db.auth.update("current", { verifier_hash: newVerifier });
     }
+    // Refresh the cached profile identity on every online login, so a row
+    // written before these fields existed — or one whose profile changed
+    // server-side — is brought up to date without a wipe.
+    if (profile) await db.auth.update("current", profileFields(profile));
     console.log("[auth] initializeOrUnlockSession done (existing user)");
     return;
   }
@@ -283,6 +322,7 @@ export async function initializeOrUnlockSession(params: {
     salt: meta.salt,
     iterations: meta.iterations,
     verifier_hash: verifier,
+    ...profileFields(profile),
     last_sync_at: null,
     sync_generation: null,
     created_at: new Date().toISOString(),
