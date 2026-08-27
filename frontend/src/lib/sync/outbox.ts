@@ -18,6 +18,29 @@ export type OutboxAction = "create" | "update" | "delete" | "direct_message";
 const MAX_ATTEMPTS = 5;
 const BACKOFF_BASE_MS = 1_000;
 const BACKOFF_CAP_MS = 5 * 60_000;
+const BACKGROUND_SYNC_TAG = "noor-sync-push";
+
+/**
+ * Ask the service worker to wake a client when connectivity returns.
+ * This must be registered when an operation is queued, not only when the
+ * application boots: Background Sync registrations are one-shot and a tag
+ * registered before the outbox receives data may already have fired.
+ */
+export async function registerBackgroundSync(): Promise<void> {
+  if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return;
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    const sync = (registration as ServiceWorkerRegistration & {
+      sync?: { register(tag: string): Promise<void> };
+    }).sync;
+    if (sync && typeof sync.register === "function") {
+      await sync.register(BACKGROUND_SYNC_TAG);
+    }
+  } catch {
+    // Unsupported browsers, denied permissions, and unavailable SWs use the
+    // online event and heartbeat fallbacks in runner.ts.
+  }
+}
 
 export interface EnqueueParams {
   resource: ResourceName;
@@ -60,6 +83,9 @@ export async function enqueueOp(params: EnqueueParams): Promise<OutboxRow> {
 
   await getDb().outbox.put(row);
   emitChange("outbox");
+  // Do not wait for the browser registration to finish before reporting the
+  // local write as successful. The outbox is already durable in IndexedDB.
+  void registerBackgroundSync();
   return row;
 }
 
