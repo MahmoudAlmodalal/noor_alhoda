@@ -1,10 +1,11 @@
-from datetime import date as date_cls, timedelta
+from datetime import date as date_cls, datetime as datetime_cls, timedelta
 
 from django.core.exceptions import ValidationError as DjangoValidationError
 from decimal import Decimal
 
 from django.db import transaction
 from django.utils import timezone
+from django.utils.dateparse import parse_date, parse_datetime
 from rest_framework.exceptions import ValidationError, PermissionDenied
 
 from records.models import WeeklyPlan, DailyRecord
@@ -159,6 +160,26 @@ def _saturday_for_date(record_date):
     return record_date - timedelta(days=(record_date.weekday() + 2) % 7)
 
 
+def _normalize_record_date(record_date):
+    """Return a date object for API and sync payload date values.
+
+    The online serializer normally hands services a ``date`` instance, while
+    offline sync replays JSON and therefore supplies an ISO string. Calling
+    ``replace(day=1)`` on that string raises ``str.replace() takes no keyword
+    arguments`` before the daily record can be saved.
+    """
+    if isinstance(record_date, datetime_cls):
+        return record_date.date()
+    if isinstance(record_date, date_cls):
+        return record_date
+    if isinstance(record_date, str):
+        parsed_datetime = parse_datetime(record_date)
+        if parsed_datetime is not None:
+            return parsed_datetime.date()
+        return parse_date(record_date)
+    return None
+
+
 def _find_plan_for_student_date(*, student_id, record_date):
     """Find the plan that owns a dated record.
 
@@ -167,6 +188,7 @@ def _find_plan_for_student_date(*, student_id, record_date):
     month contribute to the same monthly page total, then fall back to a
     legacy weekly row.
     """
+    record_date = _normalize_record_date(record_date)
     if not student_id or record_date is None:
         return None
 
