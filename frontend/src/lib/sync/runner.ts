@@ -28,6 +28,18 @@ async function maybeSync(): Promise<void> {
   await pullSync();
 }
 
+async function handleOnline(): Promise<void> {
+  // Requeueing is best-effort. A transient IndexedDB failure must not prevent
+  // the actual push, otherwise the online event is lost and the heartbeat is
+  // the only remaining recovery path.
+  try {
+    await requeueErroredOps();
+  } catch {
+    // maybeSync still attempts pending operations below.
+  }
+  await maybeSync();
+}
+
 export function startSyncRunner(): void {
   if (started) return;
   if (typeof window === "undefined") return;
@@ -60,7 +72,7 @@ export function startSyncRunner(): void {
     // status="error" by a transient failure (server restart, brief 502,
     // intermittent network). Bounded by an attempts cap inside so a
     // permanent error doesn't loop forever.
-    void requeueErroredOps().then(() => maybeSync());
+    void handleOnline();
   };
   focusHandler = () => {
     void maybeSync();
