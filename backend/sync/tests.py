@@ -550,6 +550,39 @@ class SyncPushDailyRecordDuplicateConflictTests(SyncPushInBatchRemappingTests):
         self.assertEqual(results[0]["status"], "synced")
         self.assertEqual(results[0]["row"]["id"], rec_id)
 
+    def test_daily_record_sync_normalizes_iso_date_before_plan_lookup(self):
+        """Offline JSON dates must not reach date.replace(day=1) as strings."""
+        self.client.force_authenticate(self.teacher_user)
+        plan = WeeklyPlan.objects.create(
+            student=self.student,
+            week_start=date(2026, 10, 3),
+            month_start=date(2026, 10, 1),
+            week_number=1,
+            total_required=5,
+        )
+        rec_id = "5598b94c-2222-4222-a222-222222222222"
+        op = {
+            "client_id": "40000000-0000-4000-a000-000000000002",
+            "resource": "daily_record",
+            "op": "create",
+            "id": rec_id,
+            "data": {
+                "student_id": str(self.student.id),
+                "date": "2026-10-17",
+                "day": "sat",
+                "attendance": "present",
+            },
+        }
+
+        response = self.client.post("/api/sync/push/", {"ops": [op]}, format="json")
+        self.assertEqual(response.status_code, 200)
+        results = response.json()["data"]["results"]
+        self.assertEqual(results[0]["status"], "synced")
+
+        record = DailyRecord.objects.get(id=rec_id)
+        self.assertEqual(record.date, date(2026, 10, 17))
+        self.assertEqual(record.weekly_plan_id, plan.id)
+
 
 class SyncPushDirectMessageOpTests(SyncPushInBatchRemappingTests):
     """
