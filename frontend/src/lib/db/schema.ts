@@ -501,3 +501,13 @@ export async function clearSyncedDataForResync(): Promise<void> {
     }
   );
 }
+
+/**
+ * Clear the local server cache and force the next sync to perform a full pull.
+ * The auth row and outbox intentionally survive so the user stays signed in
+ * and no unsynced local operation is silently lost.
+ */
+export async function resetLocalCacheForFullResync(): Promise<void> {
+  await clearSyncedDataForResync();
+  await getDb().auth.update("current", { last_sync_at: null });
+}

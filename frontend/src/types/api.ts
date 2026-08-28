@@ -373,6 +373,7 @@ export interface HistoryEntry {
   total_pages?: number;
   total_review_lines?: number;
   total_review_pages?: number;
+  review_count?: number;
   required_pages?: number;
   required_review_pages?: number;
   completion_rate?: number;

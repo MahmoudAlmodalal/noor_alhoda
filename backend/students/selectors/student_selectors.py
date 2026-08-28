@@ -109,20 +109,28 @@ def monthly_history_for_student(*, student: Student) -> list:
     from calendar import monthrange
     from collections import defaultdict
     from datetime import date as date_cls
-    from records.models import WeeklyPlan
+    from records.models import DailyRecord, ReviewRecord, WeeklyPlan
     from evaluations.models import Evaluation
 
     plans = list(
         WeeklyPlan.objects.filter(student=student)
-        .prefetch_related("daily_records")
         .order_by("-week_start")
+    )
+    # Daily records are the source of truth for achieved progress. Do not rely
+    # only on plan.daily_records: legacy/offline rows may have a missing or
+    # stale weekly_plan_id while still belonging to this student's month.
+    all_records = list(
+        DailyRecord.objects.filter(student=student)
+        .order_by("-date", "-updated_at")
     )
     groups = defaultdict(lambda: {"plans": [], "records": []})
     for plan in plans:
         month_start = plan.month_start or plan.week_start.replace(day=1)
         key = str(month_start)
         groups[key]["plans"].append(plan)
-        groups[key]["records"].extend(plan.daily_records.all())
+    for record in all_records:
+        key = str(record.date.replace(day=1))
+        groups[key]["records"].append(record)
 
     history = []
     for month_start, group in sorted(groups.items(), reverse=True):
@@ -148,6 +156,9 @@ def monthly_history_for_student(*, student: Student) -> list:
         evaluations = Evaluation.objects.filter(
             student=student, scheduled_date__gte=first, scheduled_date__lte=last
         )
+        review_count = ReviewRecord.objects.filter(
+            student=student, reviewed_date__gte=first, reviewed_date__lte=last
+        ).count()
         evaluation_count = evaluations.count()
         evaluated_count = evaluations.exclude(status=Evaluation.Status.SCHEDULED).count()
         evaluation_rate = round((evaluated_count / evaluation_count) * 100, 2) if evaluation_count else 0
@@ -165,6 +176,7 @@ def monthly_history_for_student(*, student: Student) -> list:
             "total_pages": round(achieved_pages, 1),
             "total_review_lines": review_lines,
             "total_review_pages": round(review_lines / 15, 1),
+            "review_count": review_count,
             "required_pages": round(required_pages, 1),
             "required_review_pages": round(required_review_pages, 1),
             "completion_rate": completion_rate,

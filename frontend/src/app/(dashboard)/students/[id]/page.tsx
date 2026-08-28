@@ -249,6 +249,7 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
                       <td className="px-4 py-3 text-text-label">
                         {month.total_review_pages ?? ((month.total_review_lines ?? 0) / 15).toFixed(1)} صفحة
                         <span className="mt-1 block text-[11px] text-text-muted">{month.total_review_lines ?? 0} سطر</span>
+                        <span className="mt-1 block text-[11px] text-text-muted">{month.review_count ?? 0} سجل مراجعة</span>
                       </td>
                       <td className="px-4 py-3 text-text-label">{month.present_days ?? 0} يوم</td>
                       <td className="px-4 py-3 text-text-label">

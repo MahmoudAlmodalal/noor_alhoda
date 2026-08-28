@@ -5,7 +5,11 @@ import { AlertCircle, Clock, RefreshCw, Trash2, CheckCircle2 } from "lucide-reac
 
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
-import { getDb, type OutboxRow } from "@/lib/db/schema";
+import {
+  getDb,
+  resetLocalCacheForFullResync,
+  type OutboxRow,
+} from "@/lib/db/schema";
 import { clearErroredOps, dropErroredOp, retryErroredOps } from "@/lib/sync/outbox";
 import { runSyncNow } from "@/lib/sync/runner";
 import { onChange } from "@/lib/db/events";
@@ -93,6 +97,31 @@ export function OutboxModal({ isOpen, onClose }: OutboxModalProps) {
     setActionInProgress(true);
     try {
       await dropErroredOp(opId);
+      await fetchOutboxItems();
+    } finally {
+      setActionInProgress(false);
+    }
+  };
+
+  const handleResetLocalCache = async () => {
+    const unsyncedCount = items.filter((item) =>
+      item.status === "pending" || item.status === "in_flight" || item.status === "error"
+    ).length;
+    if (unsyncedCount > 0) {
+      window.alert("لا يمكن إعادة التنزيل الآن. أعد محاولة العمليات المعلقة أو عالجها أولًا حتى لا تفقد تعديلاتك المحلية.");
+      return;
+    }
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      window.alert("يجب الاتصال بالإنترنت قبل إعادة تنزيل بيانات السيرفر.");
+      return;
+    }
+    if (!window.confirm("سيتم مسح النسخة المحلية وإعادة تنزيلها من السيرفر. لن تُحذف أي بيانات من السيرفر. هل تريد المتابعة؟")) {
+      return;
+    }
+    setActionInProgress(true);
+    try {
+      await resetLocalCacheForFullResync();
+      await runSyncNow();
       await fetchOutboxItems();
     } finally {
       setActionInProgress(false);
@@ -231,6 +260,22 @@ export function OutboxModal({ isOpen, onClose }: OutboxModalProps) {
             })}
           </div>
         )}
+
+        <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-3 text-xs text-amber-900">
+          <p className="font-bold">إعادة تنزيل البيانات المحلية</p>
+          <p className="mt-1 leading-5">تستخدم هذا الخيار إذا ظهرت أرقام قديمة أو غير متطابقة. يمسح الكاش المحلي فقط ثم يعيد جلب نسخة كاملة من السيرفر، ولا يحذف بيانات السيرفر أو العمليات غير المرفوعة.</p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleResetLocalCache}
+            disabled={actionInProgress || items.some((item) => item.status === "pending" || item.status === "in_flight" || item.status === "error")}
+            className="mt-2 border-amber-300 text-amber-900 hover:bg-amber-100"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${actionInProgress ? "animate-spin" : ""}`} />
+            إعادة تنزيل بيانات السيرفر
+          </Button>
+        </div>
 
         <div className="flex justify-end pt-2">
           <Button type="button" variant="outline" onClick={onClose}>

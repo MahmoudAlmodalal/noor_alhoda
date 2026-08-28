@@ -287,7 +287,8 @@ class StudentOperationsTests(StudentTestSetup):
 import uuid
 
 from courses.models import Course, StudentCourse
-from records.models import DailyRecord, WeeklyPlan
+from records.models import DailyRecord, ReviewRecord, WeeklyPlan
+from evaluations.models import Evaluation
 
 
 STUDENTS_URL = "/api/students/"
@@ -862,6 +863,54 @@ class StudentHistoryTests(StudentTestSetup):
         response = self.client.get(f"{STUDENTS_URL}{self.student_a.id}/history/")
         dates = [row["date"] for row in response.data["data"]]
         self.assertEqual(dates, sorted(dates, reverse=True))
+
+    def test_history_includes_unlinked_records_reviews_and_evaluations(self):
+        """Monthly totals must use the student's records, not only plan joins."""
+        WeeklyPlan.objects.create(
+            student=self.student_a,
+            week_number=32,
+            week_start=date(2026, 8, 1),
+            month_start=date(2026, 8, 1),
+            required_pages=30,
+            review_required_pages=2,
+        )
+        DailyRecord.objects.create(
+            student=self.student_a,
+            weekly_plan=None,
+            day="sat",
+            date=date(2026, 8, 18),
+            attendance="present",
+            required_verses=450,
+            achieved_verses=400,
+            memorized_lines=15,
+            review_lines=30,
+            surah_name="البقرة",
+            quality="good",
+            recorded_by=self.admin,
+        )
+        ReviewRecord.objects.create(
+            student=self.student_a,
+            surah_name="الفاتحة",
+            reviewed_date=date(2026, 8, 18),
+            recorded_by=self.admin,
+        )
+        Evaluation.objects.create(
+            student=self.student_a,
+            title="اختبار أغسطس",
+            scheduled_date=date(2026, 8, 1),
+            status=Evaluation.Status.PASSED,
+            score=90,
+            created_by=self.admin,
+        )
+
+        self.client.force_authenticate(self.admin)
+        response = self.client.get(f"{STUDENTS_URL}{self.student_a.id}/history/")
+        row = response.data["data"][0]
+        self.assertEqual(row["total_pages"], 1.0)
+        self.assertEqual(row["total_review_pages"], 2.0)
+        self.assertEqual(row["review_count"], 1)
+        self.assertEqual(row["evaluation_count"], 1)
+        self.assertEqual(row["evaluated_evaluation_count"], 1)
 
 
 class StudentStatsTests(StudentTestSetup):

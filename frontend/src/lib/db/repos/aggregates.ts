@@ -696,9 +696,11 @@ function computeCatchup(daily: DailyRecordRecord[]): {
 export async function studentHistory(
   student_id: string
 ): Promise<HistoryEntry[]> {
-  const [plans, rows] = await Promise.all([
+  const [plans, rows, reviewRecords, evaluations] = await Promise.all([
     listWeeklyPlans({ student_id }),
     getDb().daily_records.where("student_id").equals(student_id).toArray(),
+    listReviewRecordsForStudent(student_id),
+    listEvaluationsForStudent(student_id),
   ]);
   const records = await decryptRows<DailyRecordRecord>(rows);
   const groups = new Map<string, { plans: WeeklyPlanRecord[]; records: DailyRecordRecord[] }>();
@@ -720,6 +722,14 @@ export async function studentHistory(
     const achieved = group.records.reduce((sum, r) => sum + (r.achieved_verses || 0), 0);
     const lines = group.records.reduce((sum, r) => sum + (r.memorized_lines || 0), 0);
     const reviewLines = group.records.reduce((sum, r) => sum + (r.review_lines || 0), 0);
+    const monthKey = month.slice(0, 7);
+    const reviewCount = reviewRecords.filter((r) => r.reviewed_date.slice(0, 7) === monthKey).length;
+    const monthEvaluations = evaluations.filter((e) => e.scheduled_date.slice(0, 7) === monthKey);
+    const evaluationCount = monthEvaluations.length;
+    const evaluatedEvaluationCount = monthEvaluations.filter((e) => e.status !== "scheduled").length;
+    const evaluationCompletionRate = evaluationCount > 0
+      ? Math.round((evaluatedEvaluationCount / evaluationCount) * 1000) / 10
+      : 0;
     const requiredPages = group.plans.reduce(
       (sum, p) => sum + Number(p.required_pages || (p.total_required_lines || 0) / 15),
       0,
@@ -736,8 +746,12 @@ export async function studentHistory(
       total_pages: Number(pages.toFixed(1)),
       total_review_lines: reviewLines,
       total_review_pages: Number((reviewLines / 15).toFixed(1)),
+      review_count: reviewCount,
       required_pages: Number(requiredPages.toFixed(1)),
       completion_rate: rate,
+      evaluation_count: evaluationCount,
+      evaluated_evaluation_count: evaluatedEvaluationCount,
+      evaluation_completion_rate: evaluationCompletionRate,
       present_days: group.records.filter((r) => r.attendance === "present" || r.attendance === "late").length,
       absent_days: group.records.filter((r) => r.attendance === "absent").length,
       excused_days: group.records.filter((r) => r.attendance === "excused").length,
@@ -1030,18 +1044,33 @@ export async function listPlansForUI(filters?: {
       ? scopedPlans.filter((p) => p.week_start === filters.week_start)
       : scopedPlans;
 
+  const knownPlanIds = new Set(plans.map((p) => p.id));
   const achievedLinesByPlan = new Map<string, number>();
   const achievedReviewPagesByPlan = new Map<string, number>();
+  const unlinkedLinesByStudentMonth = new Map<string, number>();
+  const unlinkedReviewPagesByStudentMonth = new Map<string, number>();
   for (const r of allDaily) {
-    if (!r.weekly_plan_id) continue;
+    const monthKey = r.date.slice(0, 7);
+    const studentMonthKey = `${r.student_id}:${monthKey}`;
+    const isLinkedToKnownPlan = Boolean(r.weekly_plan_id && knownPlanIds.has(r.weekly_plan_id));
     if ((r.memorized_lines ?? 0) > 0) {
-      const prev = achievedLinesByPlan.get(r.weekly_plan_id) ?? 0;
-      achievedLinesByPlan.set(r.weekly_plan_id, prev + (r.memorized_lines ?? 0));
+      if (isLinkedToKnownPlan) {
+        const prev = achievedLinesByPlan.get(r.weekly_plan_id!) ?? 0;
+        achievedLinesByPlan.set(r.weekly_plan_id!, prev + (r.memorized_lines ?? 0));
+      } else {
+        const prev = unlinkedLinesByStudentMonth.get(studentMonthKey) ?? 0;
+        unlinkedLinesByStudentMonth.set(studentMonthKey, prev + (r.memorized_lines ?? 0));
+      }
     }
     const review = reviewPages(r);
     if (review > 0) {
-      const prev = achievedReviewPagesByPlan.get(r.weekly_plan_id) ?? 0;
-      achievedReviewPagesByPlan.set(r.weekly_plan_id, prev + review);
+      if (isLinkedToKnownPlan) {
+        const prev = achievedReviewPagesByPlan.get(r.weekly_plan_id!) ?? 0;
+        achievedReviewPagesByPlan.set(r.weekly_plan_id!, prev + review);
+      } else {
+        const prev = unlinkedReviewPagesByStudentMonth.get(studentMonthKey) ?? 0;
+        unlinkedReviewPagesByStudentMonth.set(studentMonthKey, prev + review);
+      }
     }
   }
 
@@ -1053,9 +1082,10 @@ export async function listPlansForUI(filters?: {
       ? p.required_pages
       : (p.total_required_lines && p.total_required_lines > 0 ? p.total_required_lines / 15 : 0);
 
-    const achLines = achievedLinesByPlan.has(p.id)
-      ? achievedLinesByPlan.get(p.id)!
-      : (p.total_lines ?? 0);
+    const studentMonthKey = `${p.student_id}:${(p.month_start ?? p.week_start).slice(0, 7)}`;
+    const achLines = (achievedLinesByPlan.get(p.id) ?? 0)
+      + (unlinkedLinesByStudentMonth.get(studentMonthKey) ?? 0)
+      || (p.total_lines ?? 0);
 
     const achPages = achLines > 0 ? Number((achLines / 15).toFixed(1)) : 0;
 
@@ -1065,7 +1095,10 @@ export async function listPlansForUI(filters?: {
     }
 
     const reviewRequiredPages = Math.max(0, Number(p.review_required_pages ?? 0));
-    const reviewAchievedPages = Math.round((achievedReviewPagesByPlan.get(p.id) ?? 0) * 10) / 10;
+    const reviewAchievedPages = Math.round(
+      ((achievedReviewPagesByPlan.get(p.id) ?? 0)
+        + (unlinkedReviewPagesByStudentMonth.get(studentMonthKey) ?? 0)) * 10
+    ) / 10;
     const reviewRate = reviewRequiredPages > 0
       ? Math.min(100, Math.round((reviewAchievedPages / reviewRequiredPages) * 1000) / 10)
       : 0;
