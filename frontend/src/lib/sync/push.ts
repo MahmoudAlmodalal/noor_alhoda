@@ -26,6 +26,7 @@ import {
 } from "../db/repos/records";
 import { upsertStudents } from "../db/repos/students";
 import { upsertProgressBulk } from "../db/repos/progress";
+import { emitSyncNotice } from "./notices";
 import {
   decryptPayload,
   listPending,
@@ -224,6 +225,45 @@ export async function triggerPush(): Promise<PushResult> {
   return pushInFlight;
 }
 
+/**
+ * Ops already reported to the user. An errored op keeps retrying on its
+ * backoff schedule, and a permanent failure would otherwise re-toast the same
+ * message on every attempt.
+ */
+const notifiedOps = new Set<string>();
+
+function notifyOnce(clientId: string, message: string): void {
+  if (notifiedOps.has(clientId)) return;
+  notifiedOps.add(clientId);
+  emitSyncNotice(message);
+}
+
+const PERMANENT_ERROR_CODES = new Set([
+  "validation",
+  "forbidden",
+  "integrity",
+  "bad_request",
+]);
+
+const CONFLICT_LABELS: Record<string, string> = {
+  student: "بيانات الطالب",
+  teacher: "بيانات المحفظ",
+  parent: "بيانات ولي الأمر",
+  weekly_plan: "الخطة الشهرية",
+  daily_record: "السجل اليومي",
+  review_record: "سجل المراجعة",
+  evaluation: "الاختبار",
+  course: "الدورة",
+  student_course: "تسجيل الدورة",
+  progress: "تقدم الحفظ",
+};
+
+function conflictMessage(row?: Record<string, unknown>): string {
+  const resource = (row as { _resource?: string } | undefined)?._resource ?? "";
+  const label = CONFLICT_LABELS[resource] ?? "السجل";
+  return `لم يُحفظ تعديلك على ${label}: تم تعديله من جهاز آخر وأُعيدت النسخة المحفوظة على الخادم. راجع البيانات وأعد التعديل.`;
+}
+
 async function applyResult(
   r: PerOpResult,
   touched: Set<ResourceName>,
@@ -255,12 +295,22 @@ async function applyResult(
     if (r.status === "synced") {
       await markSynced(r.client_id);
     } else {
+      // The server row above has already replaced the optimistic local one,
+      // so the user's edit is gone. Say so — a value that silently snaps
+      // back after a success toast looks like the app dropped the change.
+      notifyOnce(r.client_id, conflictMessage(r.row));
       await markConflict(r.client_id, r.error?.message ?? "");
     }
     return;
   }
 
   // error
+  // Validation / permission failures are permanent: retrying cannot fix a
+  // duplicate identity number. Surface them instead of leaving the write to
+  // rot in the outbox behind a badge nobody is looking at.
+  if (PERMANENT_ERROR_CODES.has(r.error?.code ?? "")) {
+    notifyOnce(r.client_id, r.error?.message ?? "تعذّر حفظ التعديل على الخادم.");
+  }
   await markError(r.client_id, r.error?.message ?? "خطأ غير معروف");
 }
 

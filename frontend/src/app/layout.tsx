@@ -3,6 +3,7 @@ import "./globals.css";
 
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ToastProvider } from "@/contexts/ToastContext";
+import { SyncNoticeListener } from "@/components/offline/SyncNoticeListener";
 import { ServiceWorkerRegistrar } from "@/components/ServiceWorkerRegistrar";
 import { UpdateNotifier } from "@/components/UpdateNotifier";
 
@@ -43,6 +44,7 @@ export default function RootLayout({
         <AuthProvider>
           <ToastProvider>
             {children}
+            <SyncNoticeListener />
           </ToastProvider>
         </AuthProvider>
         <ServiceWorkerRegistrar />
