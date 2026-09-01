@@ -3,7 +3,7 @@ from rest_framework.exceptions import ValidationError, PermissionDenied
 
 from accounts.models import User, Parent, ParentStudentLink
 from teacher.models import Teacher
-from accounts.services.user_services import user_create
+from accounts.services.user_services import user_create, user_resync_default_password
 from accounts.utils import normalize_phone
 from core.permissions import is_admin_user
 from students.models import Student
@@ -237,7 +237,12 @@ def student_update(*, student: Student, actor: User, data: dict) -> Student:
         if User.objects.filter(national_id=new_national_id).exclude(pk=student.user_id).exists():
             raise ValidationError({"national_id": "رقم الهوية مسجل مسبقاً."})
         student.user.national_id = new_national_id
-        student.user.save(update_fields=["national_id", "updated_at"])
+        # A student logs in with national_id + the last 4 digits of that same
+        # number, so the password has to follow the correction — same rule
+        # `user_update` applies to staff accounts. Without this the student is
+        # locked out under both the old and the new identity number.
+        password_fields = user_resync_default_password(user=student.user)
+        student.user.save(update_fields=["national_id", "updated_at", *password_fields])
 
     # Update allowed fields on the Student itself
     for field, value in data.items():

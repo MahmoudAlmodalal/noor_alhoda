@@ -38,6 +38,26 @@ def _validate_national_id(value: str, *, exclude_pk=None) -> str:
     return national_id
 
 
+def user_resync_default_password(*, user: User) -> list[str]:
+    """Re-point the login password at the last 4 digits of ``user.national_id``.
+
+    The centre hands out "your password is the last 4 digits of your identity
+    number", so a corrected ``national_id`` has to carry the password with it —
+    otherwise the account is unreachable with either the old or the new number.
+    The lockout counters are cleared for the same reason: a run of failed
+    attempts against the stale password must not keep blocking the first login
+    with the new one.
+
+    Mutates ``user`` in memory and returns the field names the caller has to
+    persist (so callers using ``save(update_fields=...)`` stay correct).
+    """
+    user.set_password(user.national_id[-4:])
+    user.failed_login_attempts = 0
+    user.lockout_until = None
+    user.last_login_attempt = None
+    return ["password", "failed_login_attempts", "lockout_until", "last_login_attempt"]
+
+
 @transaction.atomic
 def user_create(*, creator: User, id=None, **data) -> User:
     """
@@ -128,7 +148,7 @@ def user_update(*, user: User, actor: User, data: dict) -> User:
     if "password" in data and (is_admin_user(actor) or actor.id == user.id):
         user.set_password(data["password"])
     elif user.national_id != old_national_id:
-        user.set_password(user.national_id[-4:])
+        user_resync_default_password(user=user)
         logger.info("Resynced %s user %s password to last 4 digits of new national_id.", user.role, _safe_nid(user.national_id))
 
     user.full_clean()

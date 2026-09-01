@@ -795,6 +795,115 @@ class StudentPatchTests(StudentTestSetup):
         self.assertEqual(response.status_code, 403)
 
 
+from datetime import timedelta
+
+from django.utils import timezone
+
+from students.models import StudentChangeRequest
+from students.services.change_request_services import (
+    student_change_request_approve,
+    student_change_request_create,
+)
+from sync.services.push_services import sync_push
+
+
+class StudentNationalIdPasswordSyncTests(StudentTestSetup):
+    """
+    A student signs in with `national_id` + the last 4 digits of that same
+    number, so every path that rewrites a student's identity number has to
+    rewrite the password with it — otherwise the correction locks the student
+    out of both the old and the new number.
+    """
+
+    def test_admin_patch_resyncs_password_and_clears_lockout(self):
+        # Simulate the student having burned through their attempts on the
+        # old (wrong) identity number before the admin fixed it.
+        self.student_a_user.failed_login_attempts = 5
+        self.student_a_user.lockout_until = timezone.now() + timedelta(minutes=30)
+        self.student_a_user.last_login_attempt = timezone.now()
+        self.student_a_user.save()
+
+        self.client.force_authenticate(self.admin)
+        response = self.client.patch(
+            f"{STUDENTS_URL}{self.student_a.id}/",
+            {"national_id": "970590100777"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["data"]["national_id"], "970590100777")
+
+        self.student_a_user.refresh_from_db()
+        self.assertEqual(self.student_a_user.national_id, "970590100777")
+        self.assertTrue(self.student_a_user.check_password("0777"))
+        self.assertFalse(self.student_a_user.check_password("0031"))
+        self.assertEqual(self.student_a_user.failed_login_attempts, 0)
+        self.assertIsNone(self.student_a_user.lockout_until)
+        self.assertIsNone(self.student_a_user.last_login_attempt)
+
+    def test_patch_without_national_id_keeps_password(self):
+        """An edit that leaves the identity number alone must not touch the
+        password — including when the client echoes the current value back."""
+        self.client.force_authenticate(self.admin)
+        response = self.client.patch(
+            f"{STUDENTS_URL}{self.student_a.id}/",
+            {"full_name": "Same ID", "national_id": self.student_a_user.national_id},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.student_a_user.refresh_from_db()
+        self.assertTrue(self.student_a_user.check_password("secret123"))
+
+    def test_approved_change_request_resyncs_password(self):
+        """The teacher-request path applies through `student_update`, so an
+        approved identity-number edit carries the password too."""
+        req = student_change_request_create(
+            actor=self.teacher_a_user,
+            action=StudentChangeRequest.Action.UPDATE,
+            student_id=self.student_a.id,
+            payload={"full_name": "Student A", "national_id": "970590100888"},
+        )
+        student_change_request_approve(actor=self.admin, request_id=req.id)
+
+        self.student_a_user.refresh_from_db()
+        self.assertEqual(self.student_a_user.national_id, "970590100888")
+        self.assertTrue(self.student_a_user.check_password("0888"))
+
+    def test_offline_push_resyncs_password(self):
+        """The same holds for an edit that arrives through the sync outbox."""
+        self.student_a.refresh_from_db()
+        result = sync_push(
+            actor=self.admin,
+            ops=[
+                {
+                    "client_id": str(uuid.uuid4()),
+                    "resource": "student",
+                    "op": "update",
+                    "id": str(self.student_a.id),
+                    "data": {"national_id": "970590100999"},
+                    "base_updated_at": self.student_a.updated_at.isoformat(),
+                }
+            ],
+        )
+        self.assertEqual(result["results"][0]["status"], "synced")
+        self.assertEqual(result["results"][0]["row"]["national_id"], "970590100999")
+
+        self.student_a_user.refresh_from_db()
+        self.assertEqual(self.student_a_user.national_id, "970590100999")
+        self.assertTrue(self.student_a_user.check_password("0999"))
+
+    def test_duplicate_national_id_rejected_and_password_untouched(self):
+        self.client.force_authenticate(self.admin)
+        response = self.client.patch(
+            f"{STUDENTS_URL}{self.student_a.id}/",
+            {"national_id": self.student_b_user.national_id},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.student_a_user.refresh_from_db()
+        self.assertEqual(self.student_a_user.national_id, "970590100031")
+        self.assertTrue(self.student_a_user.check_password("secret123"))
+
+
 class StudentDeleteExtendedTests(StudentTestSetup):
     def test_non_admin_delete_forbidden(self):
         self.client.force_authenticate(self.teacher_a_user)

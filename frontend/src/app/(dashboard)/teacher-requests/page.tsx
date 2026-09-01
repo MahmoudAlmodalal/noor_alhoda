@@ -11,12 +11,29 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
 import { api } from "@/lib/api";
 import { useChangeRequests } from "@/hooks/useChangeRequests";
+import { runSyncNow } from "@/lib/sync/runner";
 import {
   ApproveRequestModal,
   RejectRequestModal,
   RequestAssignStudentModal,
 } from "@/components/modals/ChangeRequestModals";
 import type { ChangeRequestStatus, StudentChangeRequest } from "@/types/api";
+
+/**
+ * An approval applies its effect server-side (assign, update, create, delete)
+ * outside the Dexie sync pipeline, so every locally cached copy of the touched
+ * student is still the pre-approval one. Pull right away — otherwise the admin
+ * opens the student straight after "تمت الموافقة" and reads back the old
+ * values, which looks exactly like the approval never saved.
+ */
+async function syncAfterApproval(): Promise<void> {
+  try {
+    await runSyncNow();
+  } catch {
+    // Best effort: the approval already landed on the server and the sync
+    // heartbeat will catch the local cache up on its next pass.
+  }
+}
 
 const ACTION_CONFIG: Record<
   StudentChangeRequest["action"],
@@ -147,6 +164,7 @@ function RequestCard({
       return;
     }
     showToast("تمت الموافقة على الطلب بنجاح", "success");
+    await syncAfterApproval();
     onChanged();
   };
 
@@ -253,6 +271,7 @@ function RequestCard({
           requestId={req.id}
           onSuccess={() => {
             setShowApproveModal(false);
+            void syncAfterApproval();
             onChanged();
           }}
         />
