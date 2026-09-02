@@ -199,7 +199,8 @@ async function readServerUpdatedAt(
   id: string
 ): Promise<string | null> {
   const row = await getDb()[table].get(id);
-  return (row as { server_updated_at?: string | null } | undefined)?.server_updated_at ?? null;
+  const typed = row as { server_updated_at?: string | null; updated_at?: string | null } | undefined;
+  return typed?.server_updated_at ?? typed?.updated_at ?? null;
 }
 
 // ---------------------------------------------------------------------------
@@ -752,14 +753,11 @@ export interface RunResult {
   error?: string;
 }
 
-export async function runMutation(args: {
+const recordMutationQueues = new Map<string, Promise<unknown>>();
+
+async function executeMutation(args: {
   resource: MutationResource;
   action: MutationAction;
-  /**
-   * For `create`: the full server-shaped payload. `id` is minted if absent.
-   * For `update`: `{ id, ...patch }` where patch is the subset of fields to change.
-   * For `delete`: `{ id }`.
-   */
   payload: Payload;
 }): Promise<RunResult> {
   const h = handlers[args.resource];
@@ -829,5 +827,40 @@ export async function runMutation(args: {
       ok: false,
       error: err instanceof Error ? err.message : String(err),
     };
+  }
+}
+
+export async function runMutation(args: {
+  resource: MutationResource;
+  action: MutationAction;
+  /**
+   * For `create`: the full server-shaped payload. `id` is minted if absent.
+   * For `update`: `{ id, ...patch }` where patch is the subset of fields to change.
+   * For `delete`: `{ id }`.
+   */
+  payload: Payload;
+}): Promise<RunResult> {
+  const targetId = (args.payload.id as string) || "";
+  if (!targetId) {
+    return executeMutation(args);
+  }
+  const queueKey = `${args.resource}:${targetId}`;
+  const prev = recordMutationQueues.get(queueKey) ?? Promise.resolve();
+  const current = (async () => {
+    try {
+      await prev;
+    } catch {
+      // previous mutation failure shouldn't block the next mutation
+    }
+    return executeMutation(args);
+  })();
+
+  recordMutationQueues.set(queueKey, current);
+  try {
+    return await current;
+  } finally {
+    if (recordMutationQueues.get(queueKey) === current) {
+      recordMutationQueues.delete(queueKey);
+    }
   }
 }

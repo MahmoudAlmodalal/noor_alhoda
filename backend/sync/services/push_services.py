@@ -641,11 +641,13 @@ def _push_daily_record_update(*, actor: User, op: dict) -> dict:
             "row": _conflict_row("daily_record", record),
             "error": {"code": "forbidden", "message": str(exc)},
         }
-    except (ValidationError, DjangoValidationError):
+    except (ValidationError, DjangoValidationError) as exc:
+        msg = _first_validation_message(exc) if isinstance(exc, ValidationError) else ("; ".join(exc.messages) if hasattr(exc, "messages") else str(exc))
         return {
             "client_id": op.get("client_id"),
             "status": "conflict",
             "row": _conflict_row("daily_record", record),
+            "error": {"code": "validation", "message": msg or "بيانات غير صالحة."},
         }
 
     return {

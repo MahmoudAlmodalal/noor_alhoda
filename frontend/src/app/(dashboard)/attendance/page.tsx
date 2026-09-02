@@ -267,13 +267,16 @@ function AttendanceContent() {
       if (!res.ok) failed++;
     }
 
-    setIsSaving(false);
-    void triggerPush();
-
     if (failed > 0) {
       showToast(`تم الحفظ مع ${failed} أخطاء`, "error");
     } else {
       showToast("تم حفظ الحضور والتقييم بنجاح", "success");
+    }
+
+    try {
+      await triggerPush();
+    } finally {
+      setIsSaving(false);
     }
   };
 

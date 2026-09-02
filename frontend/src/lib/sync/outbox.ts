@@ -172,14 +172,20 @@ export async function rebasePendingUpdates(
   serverUpdatedAt: string
 ): Promise<void> {
   const rows = await getDb().outbox.toArray();
-  const matching = rows.filter(
-    (row) =>
-      row.resource === resource &&
-      row.target_id === targetId &&
-      row.action === "update" &&
-      (row.status === "pending" || row.status === "in_flight") &&
-      row.base_updated_at === null
-  );
+  const serverMs = Date.parse(serverUpdatedAt);
+  const matching = rows.filter((row) => {
+    if (
+      row.resource !== resource ||
+      row.target_id !== targetId ||
+      row.action !== "update" ||
+      (row.status !== "pending" && row.status !== "in_flight")
+    ) {
+      return false;
+    }
+    if (row.base_updated_at === null) return true;
+    const baseMs = Date.parse(row.base_updated_at);
+    return isNaN(baseMs) || (isNaN(serverMs) ? row.base_updated_at < serverUpdatedAt : baseMs < serverMs);
+  });
   if (matching.length === 0) return;
   await getDb().transaction("rw", getDb().outbox, async () => {
     for (const row of matching) {

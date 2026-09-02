@@ -231,10 +231,18 @@ export async function triggerPush(): Promise<PushResult> {
  * message on every attempt.
  */
 const notifiedOps = new Set<string>();
+const recentNotices = new Map<string, number>();
 
 function notifyOnce(clientId: string, message: string): void {
   if (notifiedOps.has(clientId)) return;
   notifiedOps.add(clientId);
+
+  const now = Date.now();
+  const lastTime = recentNotices.get(message);
+  if (lastTime && now - lastTime < 3000) {
+    return;
+  }
+  recentNotices.set(message, now);
   emitSyncNotice(message);
 }
 
@@ -258,7 +266,10 @@ const CONFLICT_LABELS: Record<string, string> = {
   progress: "تقدم الحفظ",
 };
 
-function conflictMessage(row?: Record<string, unknown>): string {
+function conflictMessage(row?: Record<string, unknown>, errorMessage?: string): string {
+  if (errorMessage) {
+    return errorMessage;
+  }
   const resource = (row as { _resource?: string } | undefined)?._resource ?? "";
   const label = CONFLICT_LABELS[resource] ?? "السجل";
   return `لم يُحفظ تعديلك على ${label}: تم تعديله من جهاز آخر وأُعيدت النسخة المحفوظة على الخادم. راجع البيانات وأعد التعديل.`;
@@ -298,7 +309,7 @@ async function applyResult(
       // The server row above has already replaced the optimistic local one,
       // so the user's edit is gone. Say so — a value that silently snaps
       // back after a success toast looks like the app dropped the change.
-      notifyOnce(r.client_id, conflictMessage(r.row));
+      notifyOnce(r.client_id, conflictMessage(r.row, r.error?.message));
       await markConflict(r.client_id, r.error?.message ?? "");
     }
     return;
