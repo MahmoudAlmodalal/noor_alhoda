@@ -419,15 +419,15 @@ def daily_record_update(*, record_id, teacher: User, data: dict) -> DailyRecord:
     except DailyRecord.DoesNotExist:
         raise ValidationError("السجل غير موجود.")
 
-    if data.get("attendance") == DailyRecord.Attendance.LATE and not is_admin_user(teacher):
-        raise ValidationError({"attendance": "حالة متأخر لم تعد متاحة للتعديل."})
-
     # Teacher ownership check
     if teacher.role == "teacher":
         if not hasattr(teacher, "teacher_profile"):
             raise PermissionDenied("ليس لديك صلاحية.")
         if record.student.teacher_id != teacher.teacher_profile.id:
             raise PermissionDenied("لا يمكنك تعديل سجل لطالب ليس في حلقتك.")
+
+    if data.get("attendance") == DailyRecord.Attendance.LATE and not is_admin_user(teacher):
+        raise ValidationError({"attendance": "حالة متأخر لم تعد متاحة للتعديل."})
 
     allowed_fields = [
         "attendance", "required_verses", "achieved_verses", "evaluation_id",
