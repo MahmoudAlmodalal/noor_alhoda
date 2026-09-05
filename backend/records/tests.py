@@ -208,8 +208,8 @@ class AbsenceNotificationTests(RecordTestSetup):
 
 
 class EditRestrictionTests(RecordTestSetup):
-    def test_teacher_cannot_update_record_older_than_seven_days(self):
-        """REC-02 / FR-16: Teacher can't edit records >7 days old."""
+    def test_teacher_can_update_record_older_than_seven_days(self):
+        """Teachers can edit records of any age when they own the student."""
         old_record = DailyRecord.objects.create(
             weekly_plan=self.plan, day="sun",
             date=timezone.now().date() - timedelta(days=8),
@@ -220,7 +220,9 @@ class EditRestrictionTests(RecordTestSetup):
             {"attendance": "absent"},
             format="json",
         )
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, 200)
+        old_record.refresh_from_db()
+        self.assertEqual(old_record.attendance, DailyRecord.Attendance.ABSENT)
 
     def test_admin_can_update_record_older_than_seven_days(self):
         """REC-04 / FR-16: Admin has no time restriction."""
@@ -1082,4 +1084,3 @@ class DailyRecordWithoutPlanTests(RecordTestSetup):
         self.assertEqual(data["from_ayah"], 1)
         self.assertEqual(data["to_ayah"], 10)
         self.assertEqual(data["achieved_verses"], 10)
-

@@ -409,8 +409,8 @@ def daily_record_delete(*, record: DailyRecord, actor: User) -> None:
 @transaction.atomic
 def daily_record_update(*, record_id, teacher: User, data: dict) -> DailyRecord:
     """
-    Update a daily record.
-    FR-16: Cannot edit records older than 7 days unless admin.
+    Update a daily record. Teachers may edit records of any age, subject to
+    the normal ownership and field validation checks below.
     """
     try:
         record = DailyRecord.objects.select_related(
@@ -418,14 +418,6 @@ def daily_record_update(*, record_id, teacher: User, data: dict) -> DailyRecord:
         ).get(id=record_id)
     except DailyRecord.DoesNotExist:
         raise ValidationError("السجل غير موجود.")
-
-    # FR-16: Check age of record
-    if not is_admin_user(teacher):
-        days_old = (timezone.now().date() - record.date).days
-        if days_old > 7:
-            raise PermissionDenied(
-                "لا يمكنك تعديل سجلات أقدم من 7 أيام. تواصل مع المدير."
-            )
 
     if data.get("attendance") == DailyRecord.Attendance.LATE and not is_admin_user(teacher):
         raise ValidationError({"attendance": "حالة متأخر لم تعد متاحة للتعديل."})

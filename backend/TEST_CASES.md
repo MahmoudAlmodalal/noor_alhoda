@@ -27,7 +27,7 @@ This checklist is derived from `noor_alhuda_prd_srs.pdf` and focuses on the MVP 
 | --- | --- | --- | --- | --- |
 | REC-01 | FR-12 bulk attendance | Teacher authenticated with active students | Call `POST /api/records/bulk-attendance/` with one week-day date and all students | Records are created/updated in one request |
 | REC-02 | FR-14 weekly totals signal | Weekly plan exists | Create or update a daily record with required/achieved verses | `WeeklyPlan.total_required` and `total_achieved` are recalculated |
-| REC-03 | FR-16 edit restriction | Teacher owns a daily record older than 7 days | Call `PATCH /api/records/<id>/` | Response is `403` unless actor is admin |
+| REC-03 | Daily record editing | Teacher owns a daily record older than 7 days | Call `PATCH /api/records/<id>/` | Record is updated successfully; normal ownership and validation checks still apply |
 | REC-04 | Day validation | Teacher authenticated | Submit bulk attendance for Friday | Response is `400` and no record is created |
 
 ## Notifications
