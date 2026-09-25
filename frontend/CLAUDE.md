@@ -83,7 +83,7 @@ Public assets in `frontend/public/`: `sw.js` (service worker), `manifest.json` (
 
 ## Offline-first data layer
 
-This is the architectural center of the frontend. The local Dexie DB is the source of truth for the UI; the network is a background optimization.
+This is the architectural center of the frontend. The local Dexie DB is the operational source for offline-capable UI, while PostgreSQL remains the authoritative server/system-of-record state. The network sync layer reconciles tentative local writes with server authority in the background.
 
 ### Local DB (`src/lib/db/`)
 
