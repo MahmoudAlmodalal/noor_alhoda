@@ -7,7 +7,8 @@
  *   routes fall back to the root shell so React's client router can take
  *   over.
  * - /api/* is intentionally passed through to the network. IndexedDB is
- *   the offline source of truth for domain data; /api/sync/* must reach
+ *   the device-local operational store for offline-capable domain data;
+ *   PostgreSQL remains authoritative across devices. /api/sync/* must reach
  *   the server when online and fail fast when offline.
  * - Static assets under /_next/static/* are cache-first (content-hashed).
  * - Background Sync tag `noor-sync-push` wakes any open client with a
