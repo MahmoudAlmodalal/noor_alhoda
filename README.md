@@ -32,38 +32,54 @@
 
 ## Architecture
 
-```
-┌──────────────────────────────────────────────────────────────┐
-│                     Browser (PWA)                             │
-│                                                                │
-│   React 19 ──▶ useQuery / useMutation (dispatchers)           │
-│      │              │                                          │
-│      │              ▼                                          │
-│      │      Dexie (encrypted IndexedDB)  ◀── source of truth  │
-│      │              │                                          │
-│      │              ▼                                          │
-│      │      outbox  ──▶  sync runner (push → pull)            │
-│      │                          │                              │
-│      └─ AuthContext / api.ts ───┤                              │
-│                                  ▼                              │
-│   Service Worker (offline shell, background sync)              │
-└──────────────────────────────┬─────────────────────────────────┘
-                               │ HTTPS, JWT (Bearer)
-                               ▼
-┌──────────────────────────────────────────────────────────────┐
-│                     Django + DRF (Gunicorn)                   │
-│                                                                │
-│   /api/{auth, users, students, records, notifications,        │
-│         reports, courses, evaluations, sync}/                 │
-│                                                                │
-│   models  →  selectors (RBAC)  →  services  →  views          │
-│                              │                                 │
-│                              ▼                                 │
-│                       PostgreSQL                               │
-└──────────────────────────────────────────────────────────────┘
-```
+~~~mermaid
+flowchart TB
+    U[Center users] --> UI
 
-Pages never call the network directly — they read from Dexie via `useQuery` and write via `useMutation`. The sync runner reconciles with the Django API in the background; the UI keeps working when offline.
+    subgraph PWA[Next.js PWA]
+        UI[Role-based UI]
+        Q[Query dispatcher]
+        M[Mutation dispatcher]
+        L[(Encrypted Dexie / IndexedDB<br/>client operational store)]
+        O[(Persistent outbox)]
+        S[Sync engine<br/>push → pull / retry / conflict handling]
+        A[Auth / session]
+
+        UI --> Q --> L
+        UI --> M
+        M -->|one atomic IndexedDB transaction| L
+        M -->|same transaction| O
+        O --> S
+        S -->|confirmed rows / deltas| L
+        A --> S
+    end
+
+    subgraph API[Django + DRF]
+        V[API views / serializers]
+        Z[Authentication + authorization]
+        R[Selectors<br/>read scope + row-level RBAC]
+        W[Domain services<br/>writes + invariants + RBAC]
+        ORM[Models / Django ORM]
+
+        V --> Z
+        Z --> R
+        Z --> W
+        R --> ORM
+        W --> ORM
+    end
+
+    S -->|HTTPS + JWT<br/>sync push / pull| V
+    A -->|login / refresh| V
+    ORM --> PG[(PostgreSQL<br/>authoritative system of record)]
+~~~
+
+**Authority is deliberately split by responsibility:** PostgreSQL is the authoritative server/system-of-record state. Dexie is the operational source used by the UI and the durable offline replica on a device. Unsynced local writes remain tentative until the push endpoint confirms them.
+
+Offline-capable domain screens read through useQuery and write through useMutation. A local mutation and its outbox row are committed in one IndexedDB transaction, so a crash or storage failure cannot leave a visible local edit with nothing queued for the server. The sync engine then applies bounded retry/backoff, server-side idempotency, LWW conflict resolution, pull cursors with an overlap window, and tombstones for deletes.
+
+A few deliberately **network-only** surfaces (for example live review/admin queues and some imports/exports) call the API directly; they are not represented as offline-capable data.
+
+For the detailed component view and the separate offline-sync flow, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ---
 
