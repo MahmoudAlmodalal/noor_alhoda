@@ -845,20 +845,22 @@ async function executeMutation(args: {
   try {
     return await db.transaction(
       "rw",
-      db.users,
-      db.teachers,
-      db.parents,
-      db.parent_student_links,
-      db.students,
-      db.weekly_plans,
-      db.daily_records,
-      db.review_records,
-      db.evaluations,
-      db.notifications,
-      db.courses,
-      db.student_courses,
-      db.progress,
-      db.outbox,
+      [
+        db.users,
+        db.teachers,
+        db.parents,
+        db.parent_student_links,
+        db.students,
+        db.weekly_plans,
+        db.daily_records,
+        db.review_records,
+        db.evaluations,
+        db.notifications,
+        db.courses,
+        db.student_courses,
+        db.progress,
+        db.outbox,
+      ],
       () => Dexie.waitFor(executeMutationAtomic(args))
     );
   } catch (err) {
