@@ -18,6 +18,8 @@
  *     pull that confirms the deletion across devices.
  */
 
+import Dexie from "dexie";
+
 import { emitChange, type ResourceName } from "@/lib/db/events";
 import { getDb } from "@/lib/db/schema";
 import { enqueueOp, type OutboxAction } from "@/lib/sync/outbox";
@@ -755,7 +757,7 @@ export interface RunResult {
 
 const recordMutationQueues = new Map<string, Promise<unknown>>();
 
-async function executeMutation(args: {
+async function executeMutationAtomic(args: {
   resource: MutationResource;
   action: MutationAction;
   payload: Payload;
@@ -763,65 +765,102 @@ async function executeMutation(args: {
   const h = handlers[args.resource];
   const now = nowIso();
 
-  try {
-    if (args.action === "create") {
-      if (!h.upsertCreate) {
-        return { ok: false, error: "العملية غير مدعومة لهذا النوع." };
-      }
-      const id = (args.payload.id as string) || crypto.randomUUID();
-      await h.upsertCreate(id, args.payload, now);
-      await enqueueOp({
-        resource: h.resource,
-        action: "create",
-        target_id: id,
-        payload: h.serverPayload(id, { ...args.payload, id }),
-        base_updated_at: null,
-        client_updated_at: now,
-      });
-      emitChange(h.resource);
-      return { ok: true, id };
-    }
-
-    const id = args.payload.id as string;
-    if (!id) return { ok: false, error: "المعرّف مطلوب." };
-
-    if (args.action === "delete") {
-      if (!h.deleteLocal) {
-        return { ok: false, error: "العملية غير مدعومة لهذا النوع." };
-      }
-      const base = await h.readBaseUpdatedAt(id);
-      await h.deleteLocal(id);
-      await enqueueOp({
-        resource: h.resource,
-        action: "delete",
-        target_id: id,
-        payload: { id },
-        base_updated_at: base,
-        client_updated_at: now,
-      });
-      emitChange(h.resource);
-      return { ok: true, id };
-    }
-
-    // update
-    if (!h.readExisting || !h.upsertUpdate) {
+  if (args.action === "create") {
+    if (!h.upsertCreate) {
       return { ok: false, error: "العملية غير مدعومة لهذا النوع." };
     }
-    const existing = await h.readExisting(id);
-    if (!existing) return { ok: false, error: "السجل غير موجود محلياً." };
-    const base = await h.readBaseUpdatedAt(id);
-    const merged: Payload = { ...existing, ...args.payload };
-    await h.upsertUpdate(id, merged, now, base);
+    const id = (args.payload.id as string) || crypto.randomUUID();
+    await h.upsertCreate(id, args.payload, now);
     await enqueueOp({
       resource: h.resource,
-      action: "update",
+      action: "create",
       target_id: id,
-      payload: h.serverPayload(id, args.payload),
+      payload: h.serverPayload(id, { ...args.payload, id }),
+      base_updated_at: null,
+      client_updated_at: now,
+    });
+    emitChange(h.resource);
+    return { ok: true, id };
+  }
+
+  const id = args.payload.id as string;
+  if (!id) return { ok: false, error: "المعرّف مطلوب." };
+
+  if (args.action === "delete") {
+    if (!h.deleteLocal) {
+      return { ok: false, error: "العملية غير مدعومة لهذا النوع." };
+    }
+    const base = await h.readBaseUpdatedAt(id);
+    await h.deleteLocal(id);
+    await enqueueOp({
+      resource: h.resource,
+      action: "delete",
+      target_id: id,
+      payload: { id },
       base_updated_at: base,
       client_updated_at: now,
     });
     emitChange(h.resource);
     return { ok: true, id };
+  }
+
+  // update
+  if (!h.readExisting || !h.upsertUpdate) {
+    return { ok: false, error: "العملية غير مدعومة لهذا النوع." };
+  }
+  const existing = await h.readExisting(id);
+  if (!existing) return { ok: false, error: "السجل غير موجود محلياً." };
+  const base = await h.readBaseUpdatedAt(id);
+  const merged: Payload = { ...existing, ...args.payload };
+  await h.upsertUpdate(id, merged, now, base);
+  await enqueueOp({
+    resource: h.resource,
+    action: "update",
+    target_id: id,
+    payload: h.serverPayload(id, args.payload),
+    base_updated_at: base,
+    client_updated_at: now,
+  });
+  emitChange(h.resource);
+  return { ok: true, id };
+}
+
+/**
+ * Persist the optimistic domain write and its outbox operation as one IndexedDB
+ * transaction. This prevents a crash/quota/encryption failure between the two
+ * writes from leaving local state changed with nothing queued for the server.
+ *
+ * Handler code performs Web Crypto work before some Dexie puts. Dexie.waitFor
+ * keeps the IndexedDB transaction alive across those non-IndexedDB promises.
+ * The transaction intentionally includes every table a mutation handler may
+ * touch (notably daily-record writes can also update evaluations).
+ */
+async function executeMutation(args: {
+  resource: MutationResource;
+  action: MutationAction;
+  payload: Payload;
+}): Promise<RunResult> {
+  const db = getDb();
+
+  try {
+    return await db.transaction(
+      "rw",
+      db.users,
+      db.teachers,
+      db.parents,
+      db.parent_student_links,
+      db.students,
+      db.weekly_plans,
+      db.daily_records,
+      db.review_records,
+      db.evaluations,
+      db.notifications,
+      db.courses,
+      db.student_courses,
+      db.progress,
+      db.outbox,
+      () => Dexie.waitFor(executeMutationAtomic(args))
+    );
   } catch (err) {
     return {
       ok: false,
