@@ -112,7 +112,7 @@ export function TeacherCard({
           <Avatar name={teacher.full_name} size={52} />
           <div className="min-w-0 flex-1">
             <h3 className="truncate text-base font-bold leading-snug text-text-title">
-              {teacher.full_name}
+              <Link href={`/teachers/${teacher.id}`} className="rounded hover:text-primary focus-visible:outline-2 focus-visible:outline-primary">{teacher.full_name}</Link>
             </h3>
             <p className="mt-0.5 line-clamp-1 text-xs text-text-muted">
               {teacher.specialization || "محفظ"}

@@ -18,6 +18,7 @@ import type {
 } from "@/lib/db/repos/records";
 import { confirmOperation, OperationRejectedError } from "@/lib/sync/push";
 import { pullSync } from "@/lib/sync/pull";
+import { todayISOInTimeZone } from "@/lib/dates/local";
 import type {
   DailyRecordRecord as DailyRec,
   StudentWithTeacher,
@@ -26,7 +27,7 @@ import type {
 import { AttendanceRow, type DraftRecord } from "./AttendanceRow";
 
 function todayISO(): string {
-  return new Date().toISOString().slice(0, 10);
+  return todayISOInTimeZone();
 }
 
 /** Saturday on or before `d`, as ISO date. */
