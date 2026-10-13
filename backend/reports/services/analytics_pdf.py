@@ -226,7 +226,8 @@ def generate_analytics_pdf(data, individual=False):
             ["التواصل", "تاريخ الانضمام", "المسجلون", "النشطون"],
             [
                 [
-                    teacher["phone"] or teacher["email"] or "—",
+                    "\n".join(filter(None, [teacher["phone"], teacher["email"]]))
+                    or "—",
                     teacher["joined"],
                     teacher["registered_students"],
                     teacher["active_students"],
@@ -337,7 +338,12 @@ def generate_analytics_pdf(data, individual=False):
                     f"{e['surah']} {('جزء ' + str(e['juz'])) if e['juz'] else ''}",
                     portion(e),
                     f"{shown(e['pages'])} / {shown(e['new_pages'])}\nآيات الجلسة: {shown(e.get('verses'))}\nآيات جديدة: {e['new_verses']}",
-                    LABELS.get(e["quality"], "—"),
+                    LABELS.get(e["quality"], "—")
+                    + (
+                        "\n" + LABELS.get(e["result"], e["result"])
+                        if e["result"]
+                        else ""
+                    ),
                     f"{e['note']}\n{(e['recorder'] or {}).get('name', '—')}",
                 ]
                 for e in r["memorization_history"]
@@ -351,19 +357,20 @@ def generate_analytics_pdf(data, individual=False):
             )
         )
         table(
-            ["التاريخ", "السورة / النطاق", "الصفحات", "التقييم", "الملاحظات"],
+            ["التاريخ", "السورة / النطاق", "الصفحات", "الحالة", "التقييم", "الملاحظات"],
             [
                 [
                     e["date"],
                     f"{e['surah']}\n{portion(e)}",
                     shown(e["pages"], " صفحة")
                     + (f" · {e['verses']} آية" if e.get("verses") is not None else ""),
+                    LABELS.get(e["result"], "مسجلة"),
                     LABELS.get(e["quality"], "—"),
                     e["note"],
                 ]
                 for e in r["revision_history"]
             ],
-            [1, 2, 1, 1, 2],
+            [1, 2, 1, 1, 1, 2],
         )
         title("الاختبارات والتقييمات")
         elements.append(
