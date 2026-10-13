@@ -1,30 +1,19 @@
 "use client";
 
-/**
- * Offline-first mutation hook.
- *
- * New contract: `useMutation(resource, action)` where
- *   - resource: "student" | "teacher" | ...
- *   - action:   "create" | "update" | "delete"
- *
- * Each mutation writes to the local encrypted Dexie tables first,
- * enqueues an operation in the outbox, emits a change event (so every
- * `useQuery` subscribed re-reads), and fires-and-forgets `triggerPush`
- * so online users see their edits sync instantly. Offline users get the
- * pending badge; the sync runner drains when connectivity returns.
- *
- * Success toast fires on the local write (the user's intent was
- * persisted durably). Server-side rejections surface later through the
- * outbox `status: "error"` UI, rendered by `useSyncStatus`.
+/** Offline writes are durable and labelled pending. Online success requires
+ * the server's per-operation acknowledgement, including validation and RBAC.
  */
 
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
+import { pullSync } from "@/lib/sync/pull";
 import { useToast } from "@/contexts/ToastContext";
-import { triggerPush } from "@/lib/sync/push";
+import { confirmOperation, OperationRejectedError } from "@/lib/sync/push";
 
 import {
   runMutation,
+  restoreRejectedMutation,
+  type RunResult,
   type MutationAction,
   type MutationResource,
 } from "./mutations";
@@ -43,6 +32,7 @@ export function useMutation<TResponse = MutationResult>(
   resource: MutationResource,
   action: MutationAction
 ) {
+  const submitting = useRef(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<
@@ -55,36 +45,37 @@ export function useMutation<TResponse = MutationResult>(
       payload?: Record<string, unknown>,
       options?: MutationOptions
     ): Promise<TResponse | null> => {
+      if (submitting.current) return null;
+      submitting.current = true;
       setIsSubmitting(true);
       setError(null);
       setFieldErrors(null);
-
-      const res = await runMutation({
-        resource,
-        action,
-        payload: payload ?? {},
-      });
-
-      setIsSubmitting(false);
-
-      if (!res.ok) {
-        const msg = res.error ?? "حدث خطأ غير متوقع.";
+      let res: RunResult | undefined;
+      try {
+        res = await runMutation({ resource, action, payload: payload ?? {} });
+        if (!res.ok || !res.opId) throw new Error(res.error ?? "تعذّر حفظ التعديل.");
+        const { queued } = await confirmOperation(res.opId);
+        if (!queued) await pullSync();
+        if (!options?.silent) {
+          showToast(
+            queued ? "حُفظ التعديل على الجهاز وينتظر المزامنة مع الخادم." : options?.successMessage ?? "تمت العملية بنجاح",
+            queued ? "info" : "success"
+          );
+        }
+        return { id: res.id ?? "" } as unknown as TResponse;
+      } catch (err) {
+        let msg = err instanceof Error ? err.message : "حدث خطأ غير متوقع.";
+        if (err instanceof OperationRejectedError && err.permanent && res) {
+          try { await restoreRejectedMutation(res); }
+          catch { msg += " تعذّرت استعادة النسخة السابقة على الجهاز؛ راجع حالة المزامنة."; }
+        }
         setError(msg);
         showToast(msg, "error");
         return null;
+      } finally {
+        submitting.current = false;
+        setIsSubmitting(false);
       }
-
-      if (!options?.silent) {
-        showToast(
-          options?.successMessage ?? "تمت العملية بنجاح",
-          "success"
-        );
-      }
-
-      // Fire-and-forget push so online users sync right away.
-      void triggerPush();
-
-      return { id: res.id ?? "" } as unknown as TResponse;
     },
     [resource, action, showToast]
   );

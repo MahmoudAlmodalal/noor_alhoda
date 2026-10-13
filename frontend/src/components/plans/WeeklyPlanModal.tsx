@@ -1,17 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Loader2, Save, BookOpen } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { StudentPicker } from "@/components/ui/StudentPicker";
 import { useMutation } from "@/hooks/useMutation";
+import { todayISOInTimeZone } from "@/lib/dates/local";
 import { requiredString } from "@/lib/validators";
 
 function currentMonth(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  return todayISOInTimeZone().slice(0, 7);
 }
 
 interface Props {
@@ -78,6 +78,19 @@ function WeeklyPlanModalContent({
 
   const isSubmitting = isCreating || isUpdating;
   const error = createError || updateError;
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const timer = window.setTimeout(() => {
+      setSelectedId(studentId ?? "");
+      setSelectedName(studentName ?? "");
+      setMonthStart(initialMonthStart?.slice(0, 7) ?? currentMonth());
+      setRequiredPages(initialRequiredPages ?? 1);
+      setReviewRequiredPages(initialReviewRequiredPages ?? 0);
+      setClientError(null);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [isOpen, studentId, studentName, editPlanId, initialMonthStart, initialRequiredPages, initialReviewRequiredPages]);
 
   const handleSubmit = async () => {
     setClientError(null);

@@ -46,6 +46,7 @@ const BATCH_SIZE = 50;
 export interface PushResult {
   ok: boolean;
   reason?: string;
+  results?: PerOpResult[];
 }
 
 interface PushWireOp {
@@ -91,6 +92,7 @@ export async function triggerPush(): Promise<PushResult> {
     pushAgain = true;
     return pushInFlight;
   }
+  const results: PerOpResult[] = [];
   pushInFlight = (async () => {
     try {
       if (!hasSessionKey()) return { ok: false, reason: "locked" };
@@ -132,7 +134,7 @@ export async function triggerPush(): Promise<PushResult> {
           }
           return a.created_at.localeCompare(b.created_at);
         });
-        if (batch.length === 0) return { ok: true };
+        if (batch.length === 0) return { ok: true, results };
 
         const ops: PushWireOp[] = [];
         for (const row of batch) {
@@ -184,12 +186,13 @@ export async function triggerPush(): Promise<PushResult> {
               await revertInFlight(opIds);
             }
             batchSettled = true;
-            return { ok: false, reason: res.error.message };
+            return { ok: false, reason: res.error.message, results };
           }
 
           const touched = new Set<ResourceName>();
           for (const r of res.data.results) {
             await applyResult(r, touched, opTargetMap);
+            results.push(r);
           }
           // applyResult deletes synced/conflict ops and marks errors —
           // every op in the batch is now in a terminal state (deleted or
@@ -203,26 +206,42 @@ export async function triggerPush(): Promise<PushResult> {
             // Do not resolve yet: a pull between the two pushes could apply
             // the old server row over the newer optimistic local value.
             const morePending = await listPending(1);
-            if (morePending.length === 0) return { ok: true };
+            if (morePending.length === 0) return { ok: true, results };
           }
         } finally {
           if (!batchSettled) await revertInFlight(opIds);
         }
       }
-      return { ok: true };
+      return { ok: true, results };
     } catch (err) {
       return {
         ok: false,
         reason: err instanceof Error ? err.message : String(err),
+        results,
       };
     } finally {
       const rerun = pushAgain;
       pushAgain = false;
       pushInFlight = null;
-      if (rerun) await triggerPush();
+      if (rerun) results.push(...((await triggerPush()).results ?? []));
     }
   })();
   return pushInFlight;
+}
+
+export class OperationRejectedError extends Error {
+  constructor(message: string, public readonly permanent: boolean) { super(message); }
+}
+
+/** Confirm this operation, rather than treating a successful HTTP batch as
+ * success for every row. Offline writes remain explicitly queued. */
+export async function confirmOperation(opId: string): Promise<{ queued: boolean }> {
+  if (typeof navigator !== "undefined" && !navigator.onLine) return { queued: true };
+  const push = await triggerPush();
+  const result = push.results?.find((r) => r.client_id === opId);
+  if (result?.status === "synced") return { queued: false };
+  if (result?.status === "conflict") throw new Error(conflictMessage(result.row, result.error?.message));
+  throw new OperationRejectedError(result?.error?.message ?? push.reason ?? "لم يؤكد الخادم حفظ التعديل. راجع حالة المزامنة وأعد المحاولة.", PERMANENT_ERROR_CODES.has(result?.error?.code ?? ""));
 }
 
 /**
@@ -322,7 +341,7 @@ async function applyResult(
   if (PERMANENT_ERROR_CODES.has(r.error?.code ?? "")) {
     notifyOnce(r.client_id, r.error?.message ?? "تعذّر حفظ التعديل على الخادم.");
   }
-  await markError(r.client_id, r.error?.message ?? "خطأ غير معروف");
+  await markError(r.client_id, r.error?.message ?? "خطأ غير معروف", PERMANENT_ERROR_CODES.has(r.error?.code ?? ""));
 }
 
 /**

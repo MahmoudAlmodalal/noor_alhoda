@@ -91,6 +91,8 @@ def evaluation_create(
     if id is not None:
         ev_kwargs["id"] = id
     ev = Evaluation(**ev_kwargs)
+    for field in ("scheduled_date", "score", "max_score"):
+        setattr(ev, field, Evaluation._meta.get_field(field).clean(getattr(ev, field), ev))
     ev.full_clean()
     ev.save()
     return ev
@@ -134,6 +136,9 @@ def evaluation_update(
     update_data = data or {}
     for field, value in update_data.items():
         if field in allowed:
+            # Sync replays JSON values, unlike the typed REST serializers.
+            # Validate/coerce before model.clean compares decimals/dates.
+            value = Evaluation._meta.get_field(field).clean(value, evaluation)
             setattr(evaluation, field, value)
 
     # The grading date is an event date, not the planned month. Preserve an
@@ -147,7 +152,12 @@ def evaluation_update(
     elif update_data.get("status") == Evaluation.Status.SCHEDULED:
         evaluation.evaluated_date = None
 
-    evaluation.full_clean()
+    # Historical rows may have no creator (SET_NULL after account deletion).
+    # This immutable audit field must not prevent an authorized grade edit.
+    original_scheduled_date = evaluation.scheduled_date
+    evaluation.full_clean(exclude=["created_by"])
+    if "scheduled_date" not in update_data:
+        evaluation.scheduled_date = original_scheduled_date
     evaluation.save()
 
     # Feedback loop: failed evaluations feed their surahs back into the

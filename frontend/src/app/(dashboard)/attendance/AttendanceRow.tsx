@@ -62,6 +62,7 @@ export function AttendanceRow({ draft, onChange }: Props) {
 
   return (
     <div
+      data-student-id={draft.student_id}
       className={`bg-white rounded-[16px] border ${
         draft.dirty ? "border-primary/40" : "border-border-card"
       } shadow-sm overflow-hidden`}
@@ -167,6 +168,7 @@ export function AttendanceRow({ draft, onChange }: Props) {
                 type="number"
                 min={0}
                 value={draft.memorized_lines}
+                aria-label="عدد الأسطر المحفوظة اليوم"
                 onChange={(e) => onChange({ memorized_lines: Number(e.target.value) })}
                 className={inputCls}
                 dir="ltr"
@@ -267,6 +269,7 @@ export function AttendanceRow({ draft, onChange }: Props) {
                   type="number"
                   min={0}
                   value={draft.review_lines}
+                  aria-label="عدد أسطر المراجعة"
                   onChange={(e) => onChange({ review_lines: Number(e.target.value) })}
                   className={inputCls}
                   dir="ltr"

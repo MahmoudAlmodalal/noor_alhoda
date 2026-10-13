@@ -15,6 +15,8 @@
  * the DB remains queryable by primary key without decrypting everything.
  */
 
+import Dexie from "dexie";
+
 const PBKDF2_ITERATIONS = 100_000;
 const PBKDF2_SALT_LEN = 16;
 const DBKEY_BITS = 256;
@@ -139,11 +141,13 @@ export async function encryptRecord(
 ): Promise<EncryptedBlob> {
   const iv = randomBytes(GCM_IV_LEN);
   const buf = new TextEncoder().encode(JSON.stringify(plaintext));
-  const ct = await crypto.subtle.encrypt(
+  // Keep an active IDB transaction alive only across Web Crypto. Wrapping
+  // a function that also calls Dexie in waitFor deadlocks those DB calls.
+  const ct = await Dexie.waitFor(crypto.subtle.encrypt(
     { name: "AES-GCM", iv: iv as unknown as BufferSource },
     dbKey,
     buf as unknown as BufferSource
-  );
+  ));
   return { iv: toBase64(iv), ct: toBase64(ct) };
 }
 
@@ -151,10 +155,10 @@ export async function decryptRecord<T = unknown>(
   dbKey: CryptoKey,
   blob: EncryptedBlob
 ): Promise<T> {
-  const pt = await crypto.subtle.decrypt(
+  const pt = await Dexie.waitFor(crypto.subtle.decrypt(
     { name: "AES-GCM", iv: fromBase64(blob.iv) as unknown as BufferSource },
     dbKey,
     fromBase64(blob.ct) as unknown as BufferSource
-  );
+  ));
   return JSON.parse(new TextDecoder().decode(pt)) as T;
 }

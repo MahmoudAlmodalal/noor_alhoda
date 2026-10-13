@@ -212,7 +212,7 @@ def _find_plan_for_student_date(*, student_id, record_date):
     )
 
 
-def _sync_evaluation_scores(*, student: Student, date, evaluation, scattered_score, combined_score) -> None:
+def _sync_evaluation_scores(*, actor: User, student: Student, date, evaluation, scattered_score, combined_score) -> None:
     """Copy attendance-screen test scores into the matching evaluation.
 
     An explicitly linked evaluation wins. Otherwise an exact-date scheduled
@@ -256,16 +256,12 @@ def _sync_evaluation_scores(*, student: Student, date, evaluation, scattered_sco
                 target = month_candidates.first()
         if target is None:
             continue
-        target.score = Decimal(str(score))
-        target.status = (
-            Evaluation.Status.PASSED
-            if target.score >= target.max_score
-            else Evaluation.Status.FAILED
-        )
-        # Score/status updates should not fail because a legacy evaluation
-        # has no created_by value; that field is unrelated to this write.
-        target.full_clean(exclude=["created_by"])
-        target.save(update_fields=["score", "status", "updated_at"])
+        from evaluations.services.evaluation_services import evaluation_update
+        evaluation_update(evaluation=target, actor=actor, data={
+            "score": Decimal(str(score)),
+            "status": Evaluation.Status.PASSED if score >= target.max_score else Evaluation.Status.FAILED,
+            "evaluated_date": target.evaluated_date or date,
+        })
 
 
 @transaction.atomic
@@ -368,6 +364,7 @@ def daily_record_create(*, teacher: User, id=None, **data) -> DailyRecord:
     record.full_clean()
     record.save()
     _sync_evaluation_scores(
+        actor=teacher,
         student=student,
         date=record.date,
         evaluation=evaluation,
@@ -445,8 +442,9 @@ def daily_record_update(*, record_id, teacher: User, data: dict) -> DailyRecord:
         if field in allowed_fields:
             if field == "evaluation_id":
                 from evaluations.models import Evaluation
-                value = Evaluation.objects.filter(id=value, student=record.student).first()
-                if value is None:
+                evaluation_id = value
+                value = Evaluation.objects.filter(id=value, student=record.student).first() if value else None
+                if evaluation_id and value is None:
                     raise ValidationError({"evaluation_id": "الاختبار غير موجود لهذا الطالب."})
                 field = "evaluation"
             if field in ("required_verses", "achieved_verses", "memorized_lines", "review_lines"):
@@ -487,11 +485,12 @@ def daily_record_update(*, record_id, teacher: User, data: dict) -> DailyRecord:
     record.full_clean()
     record.save()
     _sync_evaluation_scores(
+        actor=teacher,
         student=record.student,
         date=record.date,
         evaluation=record.evaluation,
-        scattered_score=record.scattered_test_score,
-        combined_score=record.combined_test_score,
+        scattered_score=data.get("scattered_test_score"),
+        combined_score=data.get("combined_test_score"),
     )
 
     if not was_absent and record.attendance == DailyRecord.Attendance.ABSENT:

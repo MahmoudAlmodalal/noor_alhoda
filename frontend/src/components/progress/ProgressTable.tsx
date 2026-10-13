@@ -11,7 +11,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { toArabicNumeral } from "@/lib/data/surahs";
-import { runMutation } from "@/hooks/mutations";
+import { useMutation } from "@/hooks/useMutation";
 import type { ProgressRecord } from "@/lib/db/repos/progress";
 import { cn } from "@/lib/utils";
 
@@ -75,17 +75,15 @@ export function ProgressTable({ entries }: Props) {
     }
   };
 
+  const { mutate: deleteProgress } = useMutation("progress", "delete");
+
   const handleDelete = async (id: string) => {
     setDeletingId(id);
     try {
-      await runMutation({
-        resource: "progress",
-        action: "delete",
-        payload: { id },
-      });
+      const result = await deleteProgress({ id });
+      if (result) setConfirmDeleteId(null);
     } finally {
       setDeletingId(null);
-      setConfirmDeleteId(null);
     }
   };
 

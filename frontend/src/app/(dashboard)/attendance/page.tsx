@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { ClipboardCheck, Loader2, Save } from "lucide-react";
 import { PageLoading } from "@/components/ui/LoadingSpinner";
@@ -9,14 +9,15 @@ import { Pattern } from "@/components/ui/Pattern";
 import { useQuery } from "@/hooks/useApi";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
-import { runMutation } from "@/hooks/mutations";
+import { runMutation, restoreRejectedMutation } from "@/hooks/mutations";
 import { getDb } from "@/lib/db/schema";
 import { decryptRow } from "@/lib/db/repos/index";
 import type {
   DailyRecordRecord,
   WeeklyPlanRecord,
 } from "@/lib/db/repos/records";
-import { triggerPush } from "@/lib/sync/push";
+import { confirmOperation, OperationRejectedError } from "@/lib/sync/push";
+import { pullSync } from "@/lib/sync/pull";
 import type {
   DailyRecordRecord as DailyRec,
   StudentWithTeacher,
@@ -102,7 +103,9 @@ function AttendanceContent() {
   const [teacherFilter, setTeacherFilter] = useState<string>("");
   const [drafts, setDrafts] = useState<Map<string, DraftRecord>>(new Map());
   const [isSaving, setIsSaving] = useState(false);
-  const [dirty, setDirty] = useState(false);
+  const dirty = Array.from(drafts.values()).some((draft) => draft.dirty);
+  const saving = useRef(false);
+  const draftDate = useRef(date);
 
   const isAdmin = user?.role === "admin";
 
@@ -169,15 +172,21 @@ function AttendanceContent() {
       });
 
       if (!cancelled) {
-        setDrafts(map);
-        setDirty(false);
+        const sameDate = draftDate.current === date;
+        draftDate.current = date;
+        setDrafts((previous) => {
+          if (sameDate) for (const [id, draft] of previous) {
+            if (draft.dirty && map.has(id)) map.set(id, draft);
+          }
+          return map;
+        });
       }
     };
     void buildDrafts();
     return () => {
       cancelled = true;
     };
-  }, [students, records]);
+  }, [students, records, date]);
 
   useEffect(() => {
     if (!dirty) return;
@@ -196,10 +205,11 @@ function AttendanceContent() {
       if (cur) next.set(studentId, { ...cur, ...patch, dirty: true });
       return next;
     });
-    setDirty(true);
+
   };
 
   const saveAll = async () => {
+    if (saving.current) return;
     if (!dirty) {
       showToast("لا توجد تغييرات", "info");
       return;
@@ -211,15 +221,18 @@ function AttendanceContent() {
       return;
     }
 
+    saving.current = true;
     setIsSaving(true);
+    try {
 
     const day = weekdayKey(new Date(`${date}T00:00:00`));
 
     const dirtyDrafts = Array.from(drafts.values()).filter((d) => d.dirty);
-    let failed = 0;
+    let queued = false;
+    const errors: string[] = [];
 
     for (const d of dirtyDrafts) {
-      if (!d.attendance) continue;
+      if (!d.attendance) { errors.push("اختر حالة الحضور للطالب " + d.student_name); continue; }
 
       const planId = await findPlanForDate(d.student_id, date);
       const existingId = d.record_id ?? (await findDailyRecordIdByStudentAndDate(d.student_id, date));
@@ -260,18 +273,34 @@ function AttendanceContent() {
             action: "create",
             payload,
           });
-      if (!res.ok) failed++;
+      if (!res.ok || !res.opId) {
+        errors.push(res.error ?? "تعذّر حفظ السجل.");
+        continue;
+      }
+      try {
+        const confirmation = await confirmOperation(res.opId);
+        queued ||= confirmation.queued;
+        setDrafts((previous) => {
+          const next = new Map(previous);
+          if (next.get(d.student_id) === d) next.set(d.student_id, { ...d, record_id: res.id, dirty: false });
+          return next;
+        });
+      } catch (err) {
+        if (err instanceof OperationRejectedError && err.permanent) await restoreRejectedMutation(res);
+        errors.push(err instanceof Error ? err.message : "تعذّر حفظ السجل.");
+      }
     }
 
-    if (failed > 0) {
-      showToast(`تم الحفظ مع ${failed} أخطاء`, "error");
+    if (!queued) await pullSync();
+    if (errors.length > 0) {
+      showToast(errors.join("، "), "error");
     } else {
-      showToast("تم حفظ الحضور والتقييم بنجاح", "success");
+      showToast(queued ? "حُفظ الحضور على الجهاز وينتظر المزامنة مع الخادم." : "تم حفظ الحضور والتقييم بنجاح", queued ? "info" : "success");
     }
-
-    try {
-      await triggerPush();
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "تعذّر حفظ الحضور.", "error");
     } finally {
+      saving.current = false;
       setIsSaving(false);
     }
   };

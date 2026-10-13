@@ -38,7 +38,7 @@ export function EvaluationGradeModal({ isOpen, onClose, evaluation }: Props) {
     if (!isOpen || !evaluation) return;
     const timeoutId = window.setTimeout(() => {
       setStatus(isGradeStatus(evaluation.status) ? evaluation.status : "");
-      setScore(evaluation.score ?? "");
+      setScore(evaluation.score == null ? "" : String(evaluation.score));
       setResultNote(evaluation.result_note ?? "");
       reset();
     }, 0);
@@ -47,24 +47,23 @@ export function EvaluationGradeModal({ isOpen, onClose, evaluation }: Props) {
 
   if (!isOpen || !evaluation) return null;
 
+  const maxScore = Number(evaluation.max_score) > 0 ? Number(evaluation.max_score) : MAX_SCORE;
   const scoreRequired = status === "passed" || status === "failed";
   const scoreNumber = score.trim() === "" ? null : Number(score);
   const scoreIsValid =
     !scoreRequired ||
-    (scoreNumber !== null && Number.isFinite(scoreNumber) && scoreNumber >= 0 && scoreNumber <= MAX_SCORE);
+    (scoreNumber !== null && Number.isFinite(scoreNumber) && scoreNumber >= 0 && scoreNumber <= maxScore);
   const canSubmit = Boolean(status) && scoreIsValid && !isSubmitting;
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!status || !scoreIsValid || !evaluation) return;
 
-    const maxScore = Number(evaluation.max_score || MAX_SCORE);
     const result = await mutate(
       {
         id: evaluation.id,
         status,
         score: status === "missed" ? null : String(scoreNumber),
-        max_score: String(Number.isFinite(maxScore) && maxScore > 0 ? maxScore : MAX_SCORE),
         result_note: resultNote.trim(),
         // Preserve the first grading date when an existing evaluation is
         // edited; otherwise record the actual day this grade is saved.
@@ -137,7 +136,7 @@ export function EvaluationGradeModal({ isOpen, onClose, evaluation }: Props) {
             id="evaluation-score"
             type="number"
             min={0}
-            max={MAX_SCORE}
+            max={maxScore}
             step="0.01"
             value={status === "missed" ? "" : score}
             onChange={(event) => setScore(event.target.value)}
@@ -146,9 +145,9 @@ export function EvaluationGradeModal({ isOpen, onClose, evaluation }: Props) {
             dir="ltr"
             aria-describedby="evaluation-score-help"
           />
-          <p id="evaluation-score-help" className="text-[11px] text-text-muted">الدرجة من 100</p>
+          <p id="evaluation-score-help" className="text-[11px] text-text-muted">الدرجة من {maxScore}</p>
           {!scoreIsValid ? (
-            <p className="text-xs text-danger-text">أدخل درجة رقمية بين 0 و100.</p>
+            <p className="text-xs text-danger-text">أدخل درجة رقمية بين 0 و{maxScore}.</p>
           ) : null}
         </div>
 

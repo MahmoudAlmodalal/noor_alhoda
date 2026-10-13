@@ -1,6 +1,8 @@
 "use client";
 
 import { use, useState } from "react";
+import { PageProgressTable } from "@/components/student/PageProgressTable";
+import { todayISOInTimeZone } from "@/lib/dates/local";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -201,6 +203,8 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
         </div>
       </div>
 
+      <PageProgressTable progress={stats?.page_progress} period={todayISOInTimeZone().slice(0, 7)} />
+
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatCard label="نسبة الحضور" value={stats?.attendance_rate != null ? `${stats.attendance_rate}%` : "—"} />
         <StatCard label="الأجزاء المحفوظة" value={stats?.memorized_ajza ?? "—"} />
@@ -289,6 +293,7 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
             <div className="py-12 text-center text-sm text-text-muted">جارٍ تجهيز التقرير...</div>
           ) : (
             <>
+              <PageProgressTable progress={monthlyReport.page_progress} period={selectedMonth?.slice(0, 7) ?? ""} />
               <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
                 <ReportStat label="إنجاز الخطة" value={`${monthlyReport.completion_rate ?? 0}%`} />
                 <ReportStat label="صفحات الحفظ" value={`${monthlyReport.total_pages ?? ((monthlyReport.total_lines ?? 0) / 15).toFixed(1)} صفحة`} />

@@ -94,6 +94,7 @@ async function refreshAccessToken(): Promise<boolean> {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ refresh: refreshToken }),
+          signal: buildSignal(undefined),
         });
 
         if (!refreshRes.ok) {
@@ -121,6 +122,7 @@ async function refreshAccessToken(): Promise<boolean> {
         localStorage.removeItem(REFRESH_TS_KEY);
         return false;
       } finally {
+        localStorage.removeItem(REFRESH_TS_KEY);
         refreshPromise = null;
       }
     })();

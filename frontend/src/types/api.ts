@@ -1,3 +1,4 @@
+import type { PageProgress } from "@/lib/progress/pages";
 // ─── Auth ────────────────────────────────────────────────────────────────────
 
 export interface LoginRequest {
@@ -315,6 +316,7 @@ export interface UpdateRecordRequest {
 }
 
 export interface StudentStats {
+  page_progress?: PageProgress;
   student_id: string;
   student_name: string;
   attendance_rate: number;
@@ -350,6 +352,7 @@ export interface StudentStats {
 }
 
 export interface HistoryEntry {
+  page_progress?: PageProgress;
   id: string;
   date: string;
   day?: string;
@@ -417,6 +420,9 @@ export interface WeeklySummary {
 }
 
 export interface MonthlySummary {
+  page_progress?: PageProgress;
+  required_pages?: number;
+  required_review_pages?: number;
   month_start: string;
   month_end: string;
   total_required: number;

@@ -3,7 +3,7 @@
 import { useState, useMemo, useCallback } from "react";
 import { BookOpen, ChevronDown, FileText, Hash, Loader2 } from "lucide-react";
 import { SURAHS, SURAH_BY_NUMBER, toArabicNumeral } from "@/lib/data/surahs";
-import { runMutation } from "@/hooks/mutations";
+import { useMutation } from "@/hooks/useMutation";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -18,7 +18,7 @@ export function ProgressForm({ studentId, onSuccess }: Props) {
   const [toAyah, setToAyah] = useState<string>("");
   const [errorMsg, setErrorMsg] = useState<string>("");
   const [note, setNote] = useState("");
-  const [submitting, setSubmitting] = useState(false);
+  const { mutate, isSubmitting: submitting, error: serverError } = useMutation("progress", "create");
   const [surahSearch, setSurahSearch] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
   const [progressType, setProgressType] = useState<"memorization" | "revision">("memorization");
@@ -81,12 +81,8 @@ export function ProgressForm({ studentId, onSuccess }: Props) {
       }
     }
 
-    setSubmitting(true);
     try {
-      const result = await runMutation({
-        resource: "progress",
-        action: "create",
-        payload: {
+      const result = await mutate({
           student_id: studentId,
           surah_number: surahNumber,
           juz_number: juzNumber,
@@ -94,9 +90,8 @@ export function ProgressForm({ studentId, onSuccess }: Props) {
           to_ayah: toNum,
           type: progressType,
           note,
-        },
       });
-      if (result.ok) {
+      if (result) {
         setSurahNumber("");
         setJuzNumber("");
         setFromAyah("");
@@ -105,12 +100,10 @@ export function ProgressForm({ studentId, onSuccess }: Props) {
         setNote("");
         onSuccess?.();
       } else {
-        setErrorMsg(result.error || "حدث خطأ أثناء حفظ التقدم.");
+        setErrorMsg("");
       }
-    } catch {
-      setErrorMsg("حدث خطأ أثناء حفظ التقدم.");
-    } finally {
-      setSubmitting(false);
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : "حدث خطأ أثناء حفظ التقدم.");
     }
   };
 
@@ -128,9 +121,9 @@ export function ProgressForm({ studentId, onSuccess }: Props) {
         </h3>
       </div>
 
-      {errorMsg && (
+      {(errorMsg || serverError) && (
         <div className="mb-4 rounded-[var(--radius-md)] border border-red-200 bg-red-50 p-3 text-[var(--text-small)] font-medium text-red-800">
-          {errorMsg}
+          {errorMsg || serverError}
         </div>
       )}
 

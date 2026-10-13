@@ -1,4 +1,6 @@
+from records.selectors.page_progress import page_progress
 from django.db.models import QuerySet, Q, Sum, Count
+from django.utils import timezone
 from django.shortcuts import get_object_or_404
 from rest_framework.exceptions import PermissionDenied
 
@@ -142,14 +144,11 @@ def monthly_history_for_student(*, student: Student) -> list:
         total_achieved = sum(r.achieved_verses or 0 for r in records)
         total_lines = sum(r.memorized_lines or 0 for r in records)
         review_lines = sum(r.review_lines or 0 for r in records)
-        required_pages = sum(float(p.required_pages or 0) for p in plans_for_month)
-        required_review_pages = sum(float(p.review_required_pages or 0) for p in plans_for_month)
-        if required_pages <= 0:
-            required_pages = sum(p.total_required_lines or 0 for p in plans_for_month) / 15
-        if required_pages <= 0:
-            required_pages = total_required / 15
-        achieved_pages = total_lines / 15
-        completion_rate = min(round((achieved_pages / required_pages) * 100, 2), 100) if required_pages else 0
+        progress = page_progress(plans=plans_for_month, records=records)
+        required_pages = progress["memorization"]["required"]
+        required_review_pages = progress["revision"]["required"]
+        achieved_pages = progress["memorization"]["completed"]
+        completion_rate = progress["memorization"]["percentage"]
         attendance_present = sum(1 for r in records if r.attendance in ("present", "late"))
         attendance_absent = sum(1 for r in records if r.attendance == "absent")
         attendance_excused = sum(1 for r in records if r.attendance == "excused")
@@ -164,6 +163,7 @@ def monthly_history_for_student(*, student: Student) -> list:
         evaluation_rate = round((evaluated_count / evaluation_count) * 100, 2) if evaluation_count else 0
         rating = "excellent" if completion_rate >= 90 else "very_good" if completion_rate >= 75 else "good" if completion_rate >= 50 else "none"
         history.append({
+            "page_progress": progress,
             "id": month_start,
             "title": f"السجل الشهري — {first.strftime('%Y-%m')}",
             "date": month_start,
@@ -175,7 +175,7 @@ def monthly_history_for_student(*, student: Student) -> list:
             "total_lines": total_lines,
             "total_pages": round(achieved_pages, 1),
             "total_review_lines": review_lines,
-            "total_review_pages": round(review_lines / 15, 1),
+            "total_review_pages": progress["revision"]["completed"],
             "review_count": review_count,
             "required_pages": round(required_pages, 1),
             "required_review_pages": round(required_review_pages, 1),
@@ -206,7 +206,7 @@ def student_stats(*, student_id, actor: User) -> dict:
     student = student_get(student_id=student_id, actor=actor)
 
     # Attendance stats — single round-trip via conditional aggregation.
-    all_records = DailyRecord.objects.filter(weekly_plan__student=student)
+    all_records = DailyRecord.objects.filter(student=student)
 
     attendance_totals = all_records.aggregate(
         total=Count("id"),
@@ -220,12 +220,12 @@ def student_stats(*, student_id, actor: User) -> dict:
     attendance_rate = (present_records / total_records * 100) if total_records > 0 else 0
 
     # Memorization stats
-    totals = WeeklyPlan.objects.filter(student=student).aggregate(
-        total_required=Sum("total_required"),
-        total_required_lines=Sum("total_required_lines"),
-        total_achieved=Sum("total_achieved"),
-        total_lines=Sum("total_lines"),
+    totals = all_records.aggregate(
+        total_required=Sum("required_verses"),
+        total_achieved=Sum("achieved_verses"),
+        total_lines=Sum("memorized_lines"),
     )
+    totals["total_required_lines"] = WeeklyPlan.objects.filter(student=student).aggregate(value=Sum("total_required_lines"))["value"]
 
     total_required = totals["total_required"] or 0
     total_required_lines = totals["total_required_lines"] or 0
@@ -294,7 +294,7 @@ def student_stats(*, student_id, actor: User) -> dict:
         goal_progress = 0
 
     # Today's record
-    today = date_cls.today()
+    today = timezone.localdate()
     today_record_obj = all_records.filter(date=today).first()
     today_record = None
     if today_record_obj:
@@ -307,7 +307,12 @@ def student_stats(*, student_id, actor: User) -> dict:
             "required_verses": today_record_obj.required_verses,
         }
 
+    month = today.replace(day=1)
+    plans_for_month = [p for p in WeeklyPlan.objects.filter(student=student)
+                       if (p.month_start or p.week_start.replace(day=1)) == month]
+    progress = page_progress(plans=plans_for_month, records=list(all_records.filter(date__year=today.year, date__month=today.month)))
     return {
+        "page_progress": progress,
         "student_id": str(student.id),
         "student_name": student.full_name,
         "attendance_rate": round(attendance_rate, 1),

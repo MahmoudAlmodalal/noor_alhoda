@@ -18,13 +18,10 @@
  *     pull that confirms the deletion across devices.
  */
 
-import Dexie from "dexie";
-
 import { emitChange, type ResourceName } from "@/lib/db/events";
-import { getDb } from "@/lib/db/schema";
-import { enqueueOp, type OutboxAction } from "@/lib/sync/outbox";
+import { getDb, type EncryptedRow } from "@/lib/db/schema";
+import { enqueueOp, RESOURCE_TABLE_MAP, type OutboxAction } from "@/lib/sync/outbox";
 import {
-  listEvaluationsForStudent,
   upsertCourses,
   upsertEvaluations,
   upsertNotifications,
@@ -40,7 +37,7 @@ import {
   type TeacherRecord,
   type UserRecord,
 } from "@/lib/db/repos/misc";
-import { decryptRow } from "@/lib/db/repos/index";
+import { decryptRow, resolveServerUpdatedAt } from "@/lib/db/repos/index";
 import {
   upsertDailyRecords,
   upsertReviewRecords,
@@ -63,80 +60,6 @@ import {
 } from "@/lib/db/repos/progress";
 import { SURAH_BY_NUMBER } from "@/lib/data/surahs";
 
-
-async function syncEvaluationScoresLocally(
-  payload: Record<string, unknown>,
-  now: string
-): Promise<void> {
-  const studentId = String(payload.student_id ?? "");
-  const date = String(payload.date ?? now.slice(0, 10));
-  if (!studentId) return;
-
-  const candidates = ([
-    { type: "scattered" as const, value: payload.scattered_test_score },
-    { type: "combined" as const, value: payload.combined_test_score },
-  ]).filter((item) => item.value !== null && item.value !== undefined && item.value !== "");
-  if (candidates.length === 0) return;
-
-  const evaluations = await listEvaluationsForStudent(studentId);
-  const used = new Set<string>();
-  const updates: Array<{ record: EvaluationRecord; baseUpdatedAt: string | null }> = [];
-  for (const candidate of candidates) {
-    const explicitId = payload.evaluation_id ? String(payload.evaluation_id) : null;
-    const target = evaluations.find((item) => {
-      if (used.has(item.id) || item.evaluation_type !== candidate.type) return false;
-      if (explicitId) return item.id === explicitId;
-      if (item.status !== "scheduled") return false;
-      if (item.scheduled_date === date) return true;
-
-      // Attendance may be entered on a different day from the single
-      // monthly evaluation date. Only use a month fallback when it is
-      // unambiguous for this evaluation type.
-      const sameMonth = item.scheduled_date.slice(0, 7) === date.slice(0, 7);
-      const monthCandidates = evaluations.filter(
-        (evaluation) =>
-          evaluation.status === "scheduled" &&
-          evaluation.evaluation_type === candidate.type &&
-          evaluation.scheduled_date.slice(0, 7) === date.slice(0, 7),
-      );
-      return sameMonth && monthCandidates.length === 1;
-    });
-    if (!target) continue;
-    used.add(target.id);
-    const score = Number(candidate.value);
-    const updated: EvaluationRecord = {
-      ...target,
-      score: String(score),
-      status: score >= Number(target.max_score) ? "passed" : "failed",
-      updated_at: now,
-      server_updated_at: null,
-    };
-    updates.push({
-      record: updated,
-      baseUpdatedAt: target.server_updated_at ?? target.updated_at ?? null,
-    });
-  }
-  if (updates.length > 0) {
-    await upsertEvaluations(updates.map(({ record }) => record));
-    await Promise.all(
-      updates.map(({ record, baseUpdatedAt }) =>
-        enqueueOp({
-          resource: "evaluation",
-          action: "update",
-          target_id: record.id,
-          payload: {
-            id: record.id,
-            score: record.score,
-            status: record.status,
-          },
-          base_updated_at: baseUpdatedAt,
-          client_updated_at: now,
-        })
-      )
-    );
-    emitChange("evaluation");
-  }
-}
 
 export type MutationResource =
   | "student"
@@ -202,7 +125,7 @@ async function readServerUpdatedAt(
 ): Promise<string | null> {
   const row = await getDb()[table].get(id);
   const typed = row as { server_updated_at?: string | null; updated_at?: string | null } | undefined;
-  return typed?.server_updated_at ?? typed?.updated_at ?? null;
+  return typed ? resolveServerUpdatedAt(typed) : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -502,7 +425,6 @@ const handlers: Record<MutationResource, Handler> = {
         server_updated_at: null,
       };
       await upsertDailyRecords([rec]);
-      await syncEvaluationScoresLocally(payload, now);
     },
     async readExisting(id) {
       const row = await getDb().daily_records.get(id);
@@ -517,7 +439,6 @@ const handlers: Record<MutationResource, Handler> = {
         server_updated_at: serverUpdatedAt,
       };
       await upsertDailyRecords([rec]);
-      await syncEvaluationScoresLocally(rec as unknown as Record<string, unknown>, now);
     },
     async deleteLocal(id) {
       await getDb().daily_records.delete(id);
@@ -752,7 +673,32 @@ export function getMutationHandler(r: MutationResource): Handler {
 export interface RunResult {
   ok: boolean;
   id?: string;
+  opId?: string;
   error?: string;
+  undo?: { resource: ResourceName; id: string; before: EncryptedRow | null; localUpdatedAt: string; deleted?: boolean };
+}
+
+/** Restore a rejected optimistic row without overwriting a subsequent edit.
+ * The rejected intent remains encrypted in the outbox for explicit retry. */
+export async function restoreRejectedMutation(result: RunResult): Promise<void> {
+  if (!result.undo) return;
+  const { resource, id, before, localUpdatedAt, deleted } = result.undo;
+  const tableName = RESOURCE_TABLE_MAP[resource];
+  if (!tableName) return;
+  const table = getDb().table<EncryptedRow>(tableName);
+  await getDb().transaction("rw", table, async () => {
+    const current = await table.get(id);
+    if (deleted ? Boolean(current) : current?.updated_at !== localUpdatedAt) return;
+    if (before) await table.put(before);
+    else await table.delete(id);
+  });
+  emitChange(resource);
+}
+
+async function undoFor(resource: ResourceName, id: string, localUpdatedAt: string): Promise<NonNullable<RunResult["undo"]>> {
+  const tableName = RESOURCE_TABLE_MAP[resource];
+  const before = tableName ? await getDb().table<EncryptedRow>(tableName).get(id) : undefined;
+  return { resource, id, before: before ?? null, localUpdatedAt };
 }
 
 const recordMutationQueues = new Map<string, Promise<unknown>>();
@@ -770,8 +716,9 @@ async function executeMutationAtomic(args: {
       return { ok: false, error: "العملية غير مدعومة لهذا النوع." };
     }
     const id = (args.payload.id as string) || crypto.randomUUID();
+    const undo = await undoFor(h.resource, id, now);
     await h.upsertCreate(id, args.payload, now);
-    await enqueueOp({
+    const op = await enqueueOp({
       resource: h.resource,
       action: "create",
       target_id: id,
@@ -780,7 +727,7 @@ async function executeMutationAtomic(args: {
       client_updated_at: now,
     });
     emitChange(h.resource);
-    return { ok: true, id };
+    return { ok: true, id, opId: op.op_id, undo };
   }
 
   const id = args.payload.id as string;
@@ -791,8 +738,9 @@ async function executeMutationAtomic(args: {
       return { ok: false, error: "العملية غير مدعومة لهذا النوع." };
     }
     const base = await h.readBaseUpdatedAt(id);
+    const undo = { ...await undoFor(h.resource, id, now), deleted: true };
     await h.deleteLocal(id);
-    await enqueueOp({
+    const op = await enqueueOp({
       resource: h.resource,
       action: "delete",
       target_id: id,
@@ -801,7 +749,7 @@ async function executeMutationAtomic(args: {
       client_updated_at: now,
     });
     emitChange(h.resource);
-    return { ok: true, id };
+    return { ok: true, id, opId: op.op_id, undo };
   }
 
   // update
@@ -812,8 +760,9 @@ async function executeMutationAtomic(args: {
   if (!existing) return { ok: false, error: "السجل غير موجود محلياً." };
   const base = await h.readBaseUpdatedAt(id);
   const merged: Payload = { ...existing, ...args.payload };
+  const undo = await undoFor(h.resource, id, now);
   await h.upsertUpdate(id, merged, now, base);
-  await enqueueOp({
+  const op = await enqueueOp({
     resource: h.resource,
     action: "update",
     target_id: id,
@@ -822,7 +771,7 @@ async function executeMutationAtomic(args: {
     client_updated_at: now,
   });
   emitChange(h.resource);
-  return { ok: true, id };
+  return { ok: true, id, opId: op.op_id, undo };
 }
 
 /**
@@ -830,10 +779,9 @@ async function executeMutationAtomic(args: {
  * transaction. This prevents a crash/quota/encryption failure between the two
  * writes from leaving local state changed with nothing queued for the server.
  *
- * Handler code performs Web Crypto work before some Dexie puts. Dexie.waitFor
- * keeps the IndexedDB transaction alive across those non-IndexedDB promises.
- * The transaction intentionally includes every table a mutation handler may
- * touch (notably daily-record writes can also update evaluations).
+ * The encryption primitives keep the transaction alive across Web Crypto.
+ * Never waitFor the entire callback: it also performs IndexedDB operations.
+ * The transaction includes every table a mutation handler may touch.
  */
 async function executeMutation(args: {
   resource: MutationResource;
@@ -861,7 +809,8 @@ async function executeMutation(args: {
         db.progress,
         db.outbox,
       ],
-      () => Dexie.waitFor(executeMutationAtomic(args))
+      // Dexie must see an async scope to track native await continuations.
+      async () => await executeMutationAtomic(args)
     );
   } catch (err) {
     return {

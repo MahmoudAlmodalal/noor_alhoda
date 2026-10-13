@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { ClipboardCheck, Inbox, PlusCircle } from "lucide-react";
 import { Segmented } from "@/components/ui/Segmented";
 import { EvaluationStatusBadge } from "@/components/ui/EvaluationStatusBadge";
+import { EvaluationGradeModal } from "@/components/modals/EvaluationGradeModal";
 import { EvaluationCreateModal } from "@/components/modals/EvaluationCreateModal";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -51,6 +52,7 @@ export function TeacherEvaluationsTab({ teacherId }: Props) {
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(
     null,
   );
+  const [selectedEvaluation, setSelectedEvaluation] = useState<EvaluationForTeacher | null>(null);
   const updateEval = useMutation("evaluation", "update");
 
   const { data: evals, isLoading } = useQuery<EvaluationForTeacher[]>(
@@ -77,11 +79,11 @@ export function TeacherEvaluationsTab({ teacherId }: Props) {
 
   const confirmPendingAction = async () => {
     if (!pendingAction) return;
-    await updateEval.mutate(
+    const result = await updateEval.mutate(
       { id: pendingAction.id, status: pendingAction.status },
       { successMessage: "تم تحديث الاختبار" }
     );
-    setPendingAction(null);
+    if (result) setPendingAction(null);
   };
 
   return (
@@ -221,7 +223,7 @@ export function TeacherEvaluationsTab({ teacherId }: Props) {
                         </button>
                       </div>
                     ) : (
-                      <span className="text-xs text-text-muted">—</span>
+                      <button type="button" className="rounded-md bg-primary/10 px-3 py-2 text-xs font-bold text-primary" onClick={() => setSelectedEvaluation(e)}>تعديل التقييم</button>
                     )}
                   </td>
                 </tr>
@@ -230,6 +232,8 @@ export function TeacherEvaluationsTab({ teacherId }: Props) {
           </table>
         </div>
       )}
+
+      <EvaluationGradeModal isOpen={selectedEvaluation !== null} onClose={() => setSelectedEvaluation(null)} evaluation={selectedEvaluation} />
 
       <EvaluationCreateModal
         isOpen={modalOpen}

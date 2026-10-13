@@ -117,6 +117,8 @@ export interface OutboxRow {
   status: "pending" | "in_flight" | "synced" | "conflict" | "error";
   attempts: number;
   last_error: string | null;
+  /** Unindexed, optional for old outbox rows. Only explicit retry clears it. */
+  permanent_error?: boolean;
   // ISO timestamp when an errored op becomes eligible for auto-retry. null
   // means either: never errored, or auto-retry has been exhausted (manual
   // discard required).

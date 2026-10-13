@@ -1,3 +1,4 @@
+from records.selectors.page_progress import page_progress
 from django.db.models import QuerySet, Sum
 from rest_framework.exceptions import PermissionDenied
 
@@ -196,64 +197,21 @@ def monthly_summary(*, student_id, month_start, actor: User) -> dict:
     first = date_cls.fromisoformat(str(month_start)).replace(day=1)
     last = first.replace(day=monthrange(first.year, first.month)[1])
 
-    monthly_plans = list(
-        WeeklyPlan.objects.filter(student=student, month_start=first)
-        .prefetch_related("daily_records")
-        .order_by("created_at")
-    )
-    if monthly_plans:
-        plans = monthly_plans
-    else:
-        # Legacy weekly rows remain readable until the user creates a monthly
-        # plan for the same student and month.
-        plans = list(
-            WeeklyPlan.objects.filter(
-                student=student,
-                week_start__gte=first,
-                week_start__lte=last,
-            ).prefetch_related("daily_records").order_by("week_start")
-        )
-
-    if not plans:
-        return {
-            "student_id": str(student.id),
-            "student_name": student.full_name,
-            "month_start": str(first),
-            "month_end": str(last),
-            "total_required": 0,
-            "total_required_lines": 0,
-            "total_required_pages": 0,
-            "total_achieved": 0,
-            "total_lines": 0,
-            "total_pages": 0,
-            "total_review_lines": 0,
-            "total_review_pages": 0,
-            "completion_rate": 0,
-            "days": [],
-            "message": "لا توجد خطة لهذا الشهر.",
-        }
-
-    records = list(
-        DailyRecord.objects.filter(
-            student=student,
-            date__gte=first,
-            date__lte=last,
-            weekly_plan__in=plans,
-        ).select_related("evaluation").order_by("date")
-    )
+    plans = [p for p in WeeklyPlan.objects.filter(student=student)
+             if (p.month_start or p.week_start.replace(day=1)) == first]
+    records = list(DailyRecord.objects.filter(
+        student=student, date__gte=first, date__lte=last,
+    ).select_related("evaluation").order_by("date"))
+    progress = page_progress(plans=plans, records=records)
     total_required = sum(r.required_verses or 0 for r in records)
     total_achieved = sum(r.achieved_verses or 0 for r in records)
     total_lines = sum(r.memorized_lines or 0 for r in records)
     total_review_lines = sum(r.review_lines or 0 for r in records)
-    required_pages = sum(float(p.required_pages or 0) for p in plans)
+    required_pages = progress["memorization"]["required"]
     total_required_lines = sum(p.total_required_lines or 0 for p in plans)
-    if required_pages <= 0 and total_required_lines > 0:
-        required_pages = total_required_lines / 15
-    if required_pages <= 0 and total_required > 0:
-        required_pages = total_required / 15
-    total_pages = round(total_lines / 15, 1) if total_lines else 0
-    total_review_pages = round(total_review_lines / 15, 1) if total_review_lines else 0
-    completion = min(round((total_pages / required_pages) * 100, 2), 100) if required_pages else 0
+    total_pages = progress["memorization"]["completed"]
+    total_review_pages = progress["revision"]["completed"]
+    completion = progress["memorization"]["percentage"]
 
     def record_dict(r):
         return {
@@ -272,6 +230,9 @@ def monthly_summary(*, student_id, month_start, actor: User) -> dict:
     return {
         "student_id": str(student.id),
         "student_name": student.full_name,
+        "page_progress": progress,
+        "required_review_pages": progress["revision"]["required"],
+        "message": "" if plans else "لا توجد خطة لهذا الشهر.",
         "month_start": str(first),
         "month_end": str(last),
         "total_required": total_required,

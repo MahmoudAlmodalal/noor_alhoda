@@ -210,7 +210,7 @@ export async function markConflict(opId: string, message: string): Promise<void>
   emitChange("outbox");
 }
 
-const RESOURCE_TABLE_MAP: Partial<Record<ResourceName, string>> = {
+export const RESOURCE_TABLE_MAP: Partial<Record<ResourceName, string>> = {
   student: "students",
   teacher: "teachers",
   parent: "parents",
@@ -424,13 +424,13 @@ export async function remapPendingOutboxIds(
   }
 }
 
-export async function markError(opId: string, message: string): Promise<void> {
+export async function markError(opId: string, message: string, permanent = false): Promise<void> {
   const db = getDb();
   const row = await db.outbox.get(opId);
   if (!row) return;
   const attempts = (row.attempts || 0) + 1;
   const next_retry_at =
-    attempts >= MAX_ATTEMPTS
+    permanent || attempts >= MAX_ATTEMPTS
       ? null
       : new Date(
           Date.now() + Math.min(2 ** attempts * BACKOFF_BASE_MS, BACKOFF_CAP_MS)
@@ -440,6 +440,7 @@ export async function markError(opId: string, message: string): Promise<void> {
     last_error: message,
     attempts,
     next_retry_at,
+    permanent_error: permanent,
   });
   emitChange("outbox");
 }
@@ -494,6 +495,7 @@ export async function retryErroredOps(): Promise<void> {
         last_error: null,
         next_retry_at: null,
         attempts: 0,
+        permanent_error: false,
       });
     }
   });
@@ -519,11 +521,13 @@ export async function requeueErroredOps(): Promise<number> {
   if (errored.length === 0) return 0;
   await db.transaction("rw", db.outbox, async () => {
     for (const row of errored) {
+      if (row.permanent_error) continue;
       await db.outbox.update(row.op_id, {
         status: "pending",
         last_error: null,
         next_retry_at: null,
         attempts: 0,
+        permanent_error: false,
       });
     }
   });

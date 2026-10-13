@@ -11,6 +11,9 @@
  * When offline, this is the only source of truth. When online, the next
  * pull updates the underlying primitives and these functions recompute.
  */
+import { computePageProgress, revisionPages } from "@/lib/progress/pages";
+import { todayISOInTimeZone } from "@/lib/dates/local";
+
 import type {
   AttendanceReport,
   DashboardStats,
@@ -62,18 +65,7 @@ function requiredPages(record: DailyRecordRecord): number {
   return Math.max(0, Number(record.required_verses ?? 0) / 15);
 }
 
-function reviewPages(record: DailyRecordRecord): number {
-  if ((record.review_lines ?? 0) > 0) {
-    return Math.max(0, Number(record.review_lines) / 15);
-  }
-  if (record.review_from_page != null && record.review_to_page != null && record.review_to_page >= record.review_from_page) {
-    return Math.max(0, record.review_to_page - record.review_from_page + 1);
-  }
-  if (record.review_from_ayah != null && record.review_to_ayah != null && record.review_to_ayah >= record.review_from_ayah) {
-    return Math.max(0, (record.review_to_ayah - record.review_from_ayah + 1) / 15);
-  }
-  return 0;
-}
+const reviewPages = revisionPages;
 
 function qualityScore(value: string | null | undefined): number {
   return ({ excellent: 100, good: 75, acceptable: 50, weak: 25 } as Record<string, number>)[value ?? ""] ?? 0;
@@ -269,6 +261,10 @@ export async function studentStats(student_id: string): Promise<StudentStats> {
   return {
     student_id,
     student_name: student?.full_name ?? "",
+    page_progress: computePageProgress(
+      plans.filter((p) => (p.month_start ?? p.week_start).slice(0, 7) === todayISOInTimeZone().slice(0, 7)),
+      allDaily.filter((r) => r.date.slice(0, 7) === todayISOInTimeZone().slice(0, 7)),
+    ),
     attendance_rate: attendanceRate,
     total_days: totalDays,
     present_days: presentDays,
@@ -462,9 +458,8 @@ export async function tasksToday(student_id: string): Promise<TodayTasks> {
 // ---------------------------------------------------------------------------
 
 function monthEndFor(monthStartIso: string): string {
-  const d = new Date(`${monthStartIso.slice(0, 7)}-01T00:00:00`);
-  d.setMonth(d.getMonth() + 1, 0);
-  return d.toISOString().slice(0, 10);
+  const [year, month] = monthStartIso.slice(0, 7).split("-").map(Number);
+  return new Date(Date.UTC(year, month, 0)).toISOString().slice(0, 10);
 }
 
 export async function monthlySummary(
@@ -478,13 +473,8 @@ export async function monthlySummary(
     getDb().daily_records.where("date").between(monthStart, monthEnd, true, true).toArray(),
   ]);
   const decrypted = await decryptRows<DailyRecordRecord>(rows);
-  const planIds = new Set(
-    plans
-      .filter((p) => (p.month_start ?? p.week_start.slice(0, 7) + "-01") === monthStart)
-      .map((p) => p.id),
-  );
   const daily = decrypted
-    .filter((r) => r.student_id === student_id && (!r.weekly_plan_id || planIds.has(r.weekly_plan_id)))
+    .filter((r) => r.student_id === student_id)
     .sort((a, b) => (a.date < b.date ? -1 : 1));
   const matchingPlans = plans.filter(
     (p) => (p.month_start ?? p.week_start.slice(0, 7) + "-01") === monthStart,
@@ -493,20 +483,22 @@ export async function monthlySummary(
   const totalAchieved = daily.reduce((sum, r) => sum + (r.achieved_verses || 0), 0);
   const totalLines = daily.reduce((sum, r) => sum + (r.memorized_lines || 0), 0);
   const totalReviewLines = daily.reduce((sum, r) => sum + (r.review_lines || 0), 0);
-  const requiredPages = matchingPlans.reduce(
-    (sum, p) => sum + Number(p.required_pages || (p.total_required_lines || 0) / 15),
-    0,
-  ) || totalRequired / 15;
-  const achievedPages = totalLines / 15;
+  const progress = computePageProgress(matchingPlans, daily);
+  const requiredPages = progress.memorization.required;
+  const achievedPages = progress.memorization.completed;
   return {
+    page_progress: progress,
+    required_pages: requiredPages,
+    required_review_pages: progress.revision.required,
+    total_pages: achievedPages,
     month_start: monthStart,
     month_end: monthEnd,
     total_required: totalRequired,
     total_achieved: totalAchieved,
     total_lines: totalLines,
     total_review_lines: totalReviewLines,
-    total_review_pages: Number((totalReviewLines / 15).toFixed(1)),
-    completion_rate: completionRate(achievedPages, requiredPages),
+    total_review_pages: progress.revision.completed,
+    completion_rate: progress.memorization.percentage,
     records: daily.map((r) => ({
       id: r.id,
       date: r.date,
@@ -730,13 +722,13 @@ export async function studentHistory(
     const evaluationCompletionRate = evaluationCount > 0
       ? Math.round((evaluatedEvaluationCount / evaluationCount) * 1000) / 10
       : 0;
-    const requiredPages = group.plans.reduce(
-      (sum, p) => sum + Number(p.required_pages || (p.total_required_lines || 0) / 15),
-      0,
-    ) || required / 15;
-    const pages = lines / 15;
-    const rate = requiredPages > 0 ? Math.min(100, Math.round((pages / requiredPages) * 10000) / 100) : 0;
+    const progress = computePageProgress(group.plans, group.records);
+    const requiredPages = progress.memorization.required;
+    const pages = progress.memorization.completed;
+    const rate = progress.memorization.percentage;
     return {
+      page_progress: progress,
+      required_review_pages: progress.revision.required,
       id: month,
       date: month,
       month_start: month,
@@ -745,7 +737,7 @@ export async function studentHistory(
       total_lines: lines,
       total_pages: Number(pages.toFixed(1)),
       total_review_lines: reviewLines,
-      total_review_pages: Number((reviewLines / 15).toFixed(1)),
+      total_review_pages: progress.revision.completed,
       review_count: reviewCount,
       required_pages: Number(requiredPages.toFixed(1)),
       completion_rate: rate,
@@ -1044,64 +1036,34 @@ export async function listPlansForUI(filters?: {
       ? scopedPlans.filter((p) => p.week_start === filters.week_start)
       : scopedPlans;
 
-  const knownPlanIds = new Set(plans.map((p) => p.id));
-  const achievedLinesByPlan = new Map<string, number>();
-  const achievedReviewPagesByPlan = new Map<string, number>();
-  const unlinkedLinesByStudentMonth = new Map<string, number>();
-  const unlinkedReviewPagesByStudentMonth = new Map<string, number>();
-  for (const r of allDaily) {
-    const monthKey = r.date.slice(0, 7);
-    const studentMonthKey = `${r.student_id}:${monthKey}`;
-    const isLinkedToKnownPlan = Boolean(r.weekly_plan_id && knownPlanIds.has(r.weekly_plan_id));
-    if ((r.memorized_lines ?? 0) > 0) {
-      if (isLinkedToKnownPlan) {
-        const prev = achievedLinesByPlan.get(r.weekly_plan_id!) ?? 0;
-        achievedLinesByPlan.set(r.weekly_plan_id!, prev + (r.memorized_lines ?? 0));
-      } else {
-        const prev = unlinkedLinesByStudentMonth.get(studentMonthKey) ?? 0;
-        unlinkedLinesByStudentMonth.set(studentMonthKey, prev + (r.memorized_lines ?? 0));
-      }
-    }
-    const review = reviewPages(r);
-    if (review > 0) {
-      if (isLinkedToKnownPlan) {
-        const prev = achievedReviewPagesByPlan.get(r.weekly_plan_id!) ?? 0;
-        achievedReviewPagesByPlan.set(r.weekly_plan_id!, prev + review);
-      } else {
-        const prev = unlinkedReviewPagesByStudentMonth.get(studentMonthKey) ?? 0;
-        unlinkedReviewPagesByStudentMonth.set(studentMonthKey, prev + review);
-      }
-    }
+  const planById = new Map(plans.map((p) => [p.id, p]));
+  const recordsByPlan = new Map<string, DailyRecordRecord[]>();
+  for (const record of allDaily) {
+    const linked = record.weekly_plan_id ? planById.get(record.weekly_plan_id) : undefined;
+    const owner = linked?.student_id === record.student_id ? linked : plans.find(
+      (p) => p.student_id === record.student_id && p.month_start?.slice(0, 7) === record.date.slice(0, 7)
+    ) ?? plans.find(
+      (p) => p.student_id === record.student_id && !p.month_start && p.week_start === weekStartFor(new Date(`${record.date}T12:00:00`))
+    );
+    if (!owner) continue;
+    const records = recordsByPlan.get(owner.id) ?? [];
+    records.push(record);
+    recordsByPlan.set(owner.id, records);
   }
 
   const mapped = filtered.map((p) => {
     const s = sById.get(p.student_id);
     if (!s && filters?.teacher_id) return null;
 
-    const reqPages = p.required_pages && p.required_pages > 0
-      ? p.required_pages
-      : (p.total_required_lines && p.total_required_lines > 0 ? p.total_required_lines / 15 : 0);
-
-    const studentMonthKey = `${p.student_id}:${(p.month_start ?? p.week_start).slice(0, 7)}`;
-    const achLines = (achievedLinesByPlan.get(p.id) ?? 0)
-      + (unlinkedLinesByStudentMonth.get(studentMonthKey) ?? 0)
-      || (p.total_lines ?? 0);
-
-    const achPages = achLines > 0 ? Number((achLines / 15).toFixed(1)) : 0;
-
-    let rate = 0;
-    if (reqPages > 0) {
-      rate = Math.min(100, Math.round(((achLines / (reqPages * 15)) * 100) * 10) / 10);
-    }
-
-    const reviewRequiredPages = Math.max(0, Number(p.review_required_pages ?? 0));
-    const reviewAchievedPages = Math.round(
-      ((achievedReviewPagesByPlan.get(p.id) ?? 0)
-        + (unlinkedReviewPagesByStudentMonth.get(studentMonthKey) ?? 0)) * 10
-    ) / 10;
-    const reviewRate = reviewRequiredPages > 0
-      ? Math.min(100, Math.round((reviewAchievedPages / reviewRequiredPages) * 1000) / 10)
-      : 0;
+    const records = recordsByPlan.get(p.id) ?? [];
+    const progress = computePageProgress([p], records);
+    const reqPages = progress.memorization.required;
+    const achLines = records.reduce((sum, r) => sum + (r.memorized_lines ?? 0), 0);
+    const achPages = progress.memorization.completed;
+    const rate = progress.memorization.percentage;
+    const reviewRequiredPages = progress.revision.required;
+    const reviewAchievedPages = progress.revision.completed;
+    const reviewRate = progress.revision.percentage;
 
     const planItem: PlanForList = {
       ...p,

@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { PageProgressTable } from "@/components/student/PageProgressTable";
+import { todayISOInTimeZone } from "@/lib/dates/local";
 import Link from "next/link";
 import { ArrowRight, Calendar, ChevronLeft, ChevronRight, ClipboardList, Target } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -14,8 +16,8 @@ import { cn } from "@/lib/utils";
 import type { HistoryEntry, MonthlySummary } from "@/types/api";
 
 function monthStartFor(offset: number): string {
-  const now = new Date();
-  const date = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+  const [year, month] = todayISOInTimeZone().split("-").map(Number);
+  const date = new Date(year, month - 1 + offset, 1);
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-01`;
 }
 
@@ -139,7 +141,7 @@ export default function StudentPlanPage() {
           </p>
         </div>
 
-        {summary && records.length > 0 ? (
+        {summary?.page_progress?.has_assignment || records.length > 0 ? (
           <div className="flex items-center gap-5">
             <ProgressRing
               value={completionRate}
@@ -150,11 +152,11 @@ export default function StudentPlanPage() {
             <div className="flex flex-1 flex-col gap-2">
               <div className="flex items-center justify-between text-[12px]">
                 <span className="text-text-muted">الإجمالي المطلوب</span>
-                <span className="font-bold text-text-body">{summary.total_required} آية</span>
+                <span className="font-bold text-text-body">{summary?.total_required ?? 0} آية</span>
               </div>
               <div className="flex items-center justify-between text-[12px]">
                 <span className="text-text-muted">الإجمالي المنجز</span>
-                <span className="font-bold text-success-text">{summary.total_achieved} آية</span>
+                <span className="font-bold text-success-text">{summary?.total_achieved ?? 0} آية</span>
               </div>
               <div className="flex items-center justify-between text-[12px]">
                 <span className="text-text-muted">الصفحات المحفوظة</span>
@@ -175,6 +177,8 @@ export default function StudentPlanPage() {
           />
         )}
       </div>
+
+      <PageProgressTable progress={summary?.page_progress} period={monthStart.slice(0, 7)} />
 
       {records.length > 0 && (
         <>

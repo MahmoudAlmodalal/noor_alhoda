@@ -1,5 +1,7 @@
 "use client";
 
+import { PageProgressTable } from "@/components/student/PageProgressTable";
+import { todayISOInTimeZone } from "@/lib/dates/local";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@/hooks/useApi";
@@ -259,6 +261,8 @@ export default function StudentDashboard() {
                     </div>
                 )}
             </div>
+
+            <PageProgressTable progress={stats?.page_progress} period={todayISOInTimeZone().slice(0, 7)} />
 
             {/* 2. Primary gradient hero with Islamic pattern */}
             <div
