@@ -7,6 +7,7 @@
  * which goes through this table. This keeps the hook dumb and centralises
  * the offline read surface.
  */
+import { fetchAnalytics } from "@/lib/analytics";
 import { type ResourceName } from "@/lib/db/events";
 import {
   attendanceReport,
@@ -58,6 +59,8 @@ import { listProgressForStudent, type ProgressRecord } from "@/lib/db/repos/prog
 export type QueryParams = Record<string, string | number | boolean | undefined>;
 
 export type QueryKey =
+  | "teacher_analytics"
+  | "teacher_student_analytics"
   | "students"
   | "student"
   | "students_with_teacher"
@@ -436,6 +439,14 @@ const QUERIES: Record<QueryKey, QueryDef> = {
         : Promise.resolve({ due: [], history: [] });
     },
     depends: ["review_record", "daily_record", "student", "weekly_plan"],
+  },
+  teacher_analytics: {
+    fn: (p) => fetchAnalytics(p),
+    depends: ["teacher", "student", "daily_record", "weekly_plan", "review_record", "evaluation", "progress"],
+  },
+  teacher_student_analytics: {
+    fn: (p) => fetchAnalytics(p, true),
+    depends: ["teacher", "student", "daily_record", "weekly_plan", "review_record", "evaluation", "progress"],
   },
   progress: {
     fn: (p) => {

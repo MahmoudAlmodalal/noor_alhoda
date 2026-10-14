@@ -82,6 +82,7 @@ test.describe("Workflow coverage", () => {
 
     await page.getByRole("button", { name: "مستأذن" }).click();
     await page.getByRole("button", { name: "حفظ الكل" }).click();
+    await expect(page.getByText("تم حفظ الحضور والتقييم بنجاح")).toBeVisible();
 
     await page.reload();
 

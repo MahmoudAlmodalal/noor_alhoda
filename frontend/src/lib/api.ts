@@ -586,10 +586,17 @@ export const api = {
     endpoint = normalizeEndpoint(endpoint);
     const token = getAccessToken();
     if (!token) return null;
+    const request = (access: string) => fetch(`${BASE_URL}${endpoint}`, {
+      headers: { Authorization: `Bearer ${access}` },
+      signal: AbortSignal.timeout(120_000),
+      cache: "no-store",
+    });
     try {
-      const res = await fetch(`${BASE_URL}${endpoint}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      let res = await request(token);
+      if (res.status === 401 && await refreshAccessToken()) {
+        const refreshed = getAccessToken();
+        if (refreshed) res = await request(refreshed);
+      }
       if (!res.ok) return null;
       return await res.blob();
     } catch {

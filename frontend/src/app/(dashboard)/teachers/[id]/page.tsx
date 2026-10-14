@@ -44,9 +44,10 @@ import {
   ConfirmDeleteModal,
   EditTeacherModal,
 } from "@/components/modals/TeacherModals";
+import { TeacherAnalyticsDashboard } from "@/components/analytics/TeacherAnalyticsDashboard";
 import { RoleGate } from "@/components/auth/RoleGate";
 
-type TabKey = "students" | "recitation" | "plans" | "evaluations" | "reviews";
+type TabKey = "analytics" | "students" | "recitation" | "plans" | "evaluations" | "reviews";
 
 const DAY_LABELS: Record<string, string> = {
   sat: "السبت",
@@ -103,7 +104,7 @@ function TeacherDetailInner({ id }: { id: string }) {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [planOpen, setPlanOpen] = useState(false);
   const [evalOpen, setEvalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<TabKey>("students");
+  const [activeTab, setActiveTab] = useState<TabKey>("analytics");
   const [focusStudentId, setFocusStudentId] = useState<string | null>(null);
 
   const { data: teachers, isLoading: teachersLoading } = useQuery<
@@ -307,7 +308,7 @@ function TeacherDetailInner({ id }: { id: string }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+      {activeTab !== "analytics" && <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         <StatCard
           icon={<Users className="h-5 w-5" />}
           label="عدد الطلاب"
@@ -358,11 +359,12 @@ function TeacherDetailInner({ id }: { id: string }) {
               : undefined
           }
         />
-      </div>
+      </div>}
 
       <div className="flex justify-center overflow-x-auto">
         <Segmented<TabKey>
           options={[
+            { value: "analytics", label: "الإحصائيات والإنجاز", icon: <Award className="h-3.5 w-3.5" /> },
             { value: "students", label: "الطلاب", icon: <Users className="h-3.5 w-3.5" /> },
             { value: "recitation", label: "التسميع", icon: <BookOpen className="h-3.5 w-3.5" /> },
             { value: "plans", label: "الخطط", icon: <Calendar className="h-3.5 w-3.5" /> },
@@ -377,6 +379,7 @@ function TeacherDetailInner({ id }: { id: string }) {
         />
       </div>
 
+      {activeTab === "analytics" ? <TeacherAnalyticsDashboard teacherId={id} /> : null}
       {activeTab === "students" ? (
         <TeacherStudentsTab
           students={teacherStudents}
